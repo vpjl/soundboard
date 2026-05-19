@@ -434,8 +434,18 @@ async function toggleRecording(pad) {
     stopRecording();
   }
 
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-    setStatus("Micro indisponible sur ce navigateur");
+  if (!window.isSecureContext) {
+    setStatus("Micro: HTTPS requis sur iPhone");
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus("Micro indisponible dans ce navigateur");
+    return;
+  }
+
+  if (!window.MediaRecorder) {
+    setStatus("Enregistrement non supporte ici");
     return;
   }
 
@@ -472,9 +482,15 @@ async function toggleRecording(pad) {
     });
 
     recorder.start();
-  } catch {
+  } catch (error) {
     resetRecordingState();
-    setStatus("Autorisez le micro pour enregistrer");
+    if (error?.name === "NotAllowedError") {
+      setStatus("Micro refuse: autorisez Safari");
+    } else if (error?.name === "NotFoundError") {
+      setStatus("Aucun micro detecte");
+    } else {
+      setStatus("Erreur micro");
+    }
   }
 }
 
