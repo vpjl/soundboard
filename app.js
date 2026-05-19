@@ -180,7 +180,10 @@ function makePad(index) {
   pad.panEl.value = pad.panValue;
   node.classList.add("is-empty");
 
-  node.querySelector('[data-action="load"]').addEventListener("click", () => pad.fileInput.click());
+  node.querySelector('[data-action="load"]').addEventListener("click", () => {
+    setStatus("Choisir Fichiers pour importer un audio");
+    pad.fileInput.click();
+  });
   pad.editButton.addEventListener("click", () => setPadEditing(pad, !pad.node.classList.contains("is-editing")));
   pad.recordButton.addEventListener("click", () => toggleRecording(pad));
   pad.fileInput.addEventListener("change", () => {
