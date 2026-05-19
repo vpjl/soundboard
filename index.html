@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#101114">
+    <title>Soundboard Live</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="stylesheet" href="styles.css?v=15">
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path d="M8 26c0-9.4 7.1-17 16-17s16 7.6 16 17" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              <path d="M14 24v12M24 17v25M34 24v12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1>Soundboard Live</h1>
+            <p id="audioStatus">Pret pour la scene</p>
+          </div>
+        </div>
+
+        <div class="board-strip" aria-label="Boards">
+          <label class="board-select">
+            <span>Board</span>
+            <select id="boardSelect"></select>
+          </label>
+          <label class="board-name">
+            <span>Nom</span>
+            <input id="boardName" type="text" maxlength="48">
+          </label>
+          <button id="addBoard" class="small-button" type="button">+ Board</button>
+          <button id="addPad" class="small-button" type="button">+ Pad</button>
+        </div>
+
+        <div class="master-strip" aria-label="Controle principal">
+          <label class="master-control">
+            <span>Master</span>
+            <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+          </label>
+          <label class="master-control small">
+            <span>Fade</span>
+            <input id="fadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
+          </label>
+          <button id="stopAll" class="danger-button" type="button">
+            <span aria-hidden="true">■</span>
+            Stop all
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="deck" aria-label="Pads de sons">
+          <div id="pads" class="pads"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="padTemplate">
+      <article class="pad" data-pad>
+        <div class="pad-head">
+          <button class="pad-trigger" type="button" data-action="play">
+            <span class="keycap" data-key></span>
+            <span class="pad-title" data-title>Pad</span>
+            <span class="pad-time" data-time>--:--</span>
+          </button>
+          <button class="icon-button edit-button" type="button" data-action="edit" aria-label="Modifier le nom">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="icon-button" type="button" data-action="load" aria-label="Importer depuis Fichiers">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="icon-button record-button" type="button" data-action="record" aria-label="Enregistrer au micro">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="mode-switch" aria-label="Mode de lecture">
+            <button type="button" data-mode="oneshot">1x</button>
+            <button type="button" data-mode="hold">Hold</button>
+            <button type="button" data-mode="toggle">Toggle</button>
+          </div>
+          <label class="name-field">
+            <span>Nom</span>
+            <input type="text" maxlength="48" data-name>
+          </label>
+          <input class="file-input" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
+        </div>
+
+        <div class="transport">
+          <button type="button" data-action="fadeIn">Fade in</button>
+          <button type="button" data-action="fadeOut">Fade out</button>
+          <button type="button" data-action="stop">Stop</button>
+          <label class="loop-toggle">
+            <input type="checkbox" data-loop>
+            <span>Loop</span>
+          </label>
+        </div>
+
+        <div class="controls">
+          <label>
+            <span>Volume</span>
+            <input type="range" min="0" max="1" step="0.01" value="0.85" data-volume>
+          </label>
+          <label>
+            <span>Pan</span>
+            <input type="range" min="-1" max="1" step="0.01" value="0" data-pan>
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js?v=15"></script>
+  </body>
+</html>
