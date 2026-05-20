@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#101114">
-    <title>Soundboard Live</title>
+    <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=41">
+    <link rel="stylesheet" href="styles.css?v=42">
   </head>
   <body>
     <div class="app">
@@ -34,7 +34,7 @@
             </button>
           </div>
           <div>
-            <h1>Soundboard Live</h1>
+            <h1>Soundboard Live vl (c) 2026</h1>
             <p id="audioStatus">Pret pour la scene</p>
             <label class="skin-select">
               <span>Skin</span>
@@ -100,9 +100,12 @@
 
         <div class="master-strip" aria-label="Controle principal">
           <label class="master-control">
-            <span>Master</span>
+            <span>Master <output id="masterVolumeValue">90%</output></span>
             <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
           </label>
+          <div class="vu-meter master-vu" aria-label="VU-mètre master">
+            <span id="masterVu" class="vu-fill"></span>
+          </div>
           <label class="master-control small">
             <span>Fade</span>
             <input id="fadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
@@ -136,6 +139,9 @@
                 <span class="pad-tags" data-tags-display></span>
               </span>
               <span class="pad-time" data-time>--:--</span>
+              <span class="vu-meter pad-vu" aria-hidden="true">
+                <span class="vu-fill" data-pad-vu></span>
+              </span>
               <span class="pad-alerts" aria-hidden="true">
                 <span class="pad-alert pad-alert-ending">Fin</span>
                 <span class="pad-alert pad-alert-loop">Loop</span>
@@ -383,7 +389,7 @@
             </section>
 
             <section class="help-section" aria-label="Pad principal">
-              <h3>Pad</h3>
+              <h3>Pad (edit mode)</h3>
               <dl class="help-grid">
                 <dt aria-label="Micro">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -416,7 +422,7 @@
                     <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
                     <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
                   </svg>
-                </dt><dd>En mode edit, glisser cette poignée pour réordonner les pads.</dd>
+                </dt><dd>Glisser cette poignée pour réordonner les pads.</dd>
               </dl>
             </section>
           </div>
@@ -424,6 +430,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=41"></script>
+    <script src="app.js?v=42"></script>
   </body>
 </html>

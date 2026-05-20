@@ -302,7 +302,7 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) 86px 96px 58px;
+  grid-template-columns: minmax(120px, 1fr) 74px 86px 96px 58px;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -398,6 +398,11 @@ h1 {
   color: var(--muted);
   font-size: 0.78rem;
   text-transform: uppercase;
+}
+
+.master-control output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .master-control.small input {
@@ -550,10 +555,42 @@ button.is-pressed {
   transition: background 140ms ease, transform 90ms ease;
 }
 
+.vu-meter {
+  overflow: hidden;
+  border: 1px solid rgba(73, 211, 160, 0.28);
+  border-radius: 999px;
+  background: rgba(17, 19, 25, 0.78);
+}
+
+.vu-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--danger));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 70ms linear;
+}
+
+.master-vu {
+  align-self: end;
+  height: 36px;
+}
+
+.pad-vu {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  height: 5px;
+  opacity: 0.9;
+}
+
 .pad-alerts {
   position: absolute;
   right: 7px;
-  bottom: 6px;
+  bottom: 16px;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1162,7 +1199,7 @@ body.stage-mode .board-strip {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(110px, 1fr) 64px 76px 58px;
+  grid-template-columns: minmax(110px, 1fr) 58px 64px 76px 58px;
 }
 
 body.stage-mode .deck {
@@ -1222,7 +1259,7 @@ body.stage-mode .pad-time {
   }
 
   .master-strip {
-    grid-template-columns: minmax(0, 1fr) 68px 78px 48px;
+    grid-template-columns: minmax(0, 1fr) 54px 68px 78px 48px;
   }
 
   #stopAll {
@@ -1324,7 +1361,7 @@ body.stage-mode .pad-time {
   }
 
   .master-strip {
-    grid-template-columns: minmax(0, 1fr) 52px 62px 42px;
+    grid-template-columns: minmax(0, 1fr) 48px 52px 62px 42px;
   }
 
   #stopAll {

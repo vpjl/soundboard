@@ -10,6 +10,7 @@ const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const DEFAULT_BOARD_ID = "default";
+const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
 const PAD_COLORS = {
   green: "#49d3a0",
@@ -22,6 +23,8 @@ const PAD_COLORS = {
 const state = {
   audioContext: null,
   masterGain: null,
+  masterAnalyser: null,
+  masterMeterData: null,
   boards: [],
   currentBoardId: DEFAULT_BOARD_ID,
   pads: [],
@@ -44,6 +47,8 @@ const els = {
   status: document.querySelector("#audioStatus"),
   skinSelect: document.querySelector("#skinSelect"),
   masterVolume: document.querySelector("#masterVolume"),
+  masterVolumeValue: document.querySelector("#masterVolumeValue"),
+  masterVu: document.querySelector("#masterVu"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
   stageMode: document.querySelector("#stageMode"),
@@ -109,6 +114,12 @@ function cleanName(name) {
   return name.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim() || "Son";
 }
 
+function clamp01(value, fallback = DEFAULT_MASTER_VOLUME) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(1, Math.max(0, number));
+}
+
 function keyForIndex(index) {
   return KEYS[index] || String(index + 1);
 }
@@ -170,8 +181,11 @@ function prepareAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     state.audioContext = new AudioContext();
     state.masterGain = state.audioContext.createGain();
-    state.masterGain.gain.value = Number(els.masterVolume.value);
-    state.masterGain.connect(state.audioContext.destination);
+    state.masterAnalyser = state.audioContext.createAnalyser();
+    state.masterAnalyser.fftSize = 256;
+    state.masterMeterData = new Uint8Array(state.masterAnalyser.fftSize);
+    state.masterGain.gain.value = clamp01(els.masterVolume.value);
+    state.masterGain.connect(state.masterAnalyser).connect(state.audioContext.destination);
   }
 }
 
@@ -193,6 +207,8 @@ function makePad(index) {
     source: null,
     gain: null,
     pan: null,
+    analyser: null,
+    meterData: null,
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -224,6 +240,7 @@ function makePad(index) {
   pad.trimHandleStart = node.querySelector('[data-trim-handle="start"]');
   pad.trimHandleEnd = node.querySelector('[data-trim-handle="end"]');
   pad.timeEl = node.querySelector("[data-time]");
+  pad.vuEl = node.querySelector("[data-pad-vu]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.recordButton = node.querySelector('[data-action="record"]');
   pad.modeButtons = [...node.querySelectorAll("[data-mode]")];
@@ -361,7 +378,7 @@ function makePad(index) {
 }
 
 function loadBoards() {
-  const fallback = [{ id: DEFAULT_BOARD_ID, name: "Projet 1", padCount: DEFAULT_PAD_COUNT }];
+  const fallback = [{ id: DEFAULT_BOARD_ID, name: "Projet 1", padCount: DEFAULT_PAD_COUNT, masterVolume: DEFAULT_MASTER_VOLUME }];
   try {
     const boards = JSON.parse(localStorage.getItem(BOARDS_STORAGE));
     if (Array.isArray(boards) && boards.length) {
@@ -369,6 +386,7 @@ function loadBoards() {
         id: board.id || createId(),
         name: board.name || "Projet",
         padCount: Math.max(DEFAULT_PAD_COUNT, Number(board.padCount) || DEFAULT_PAD_COUNT),
+        masterVolume: clamp01(board.masterVolume),
       }));
     }
   } catch {
@@ -386,6 +404,22 @@ function currentBoard() {
   return state.boards.find((board) => board.id === state.currentBoardId) || state.boards[0];
 }
 
+function setMasterVolume(value, persist = true) {
+  const volume = clamp01(value);
+  if (els.masterVolume) els.masterVolume.value = String(volume);
+  if (els.masterVolumeValue) els.masterVolumeValue.textContent = `${Math.round(volume * 100)}%`;
+  if (state.masterGain && state.audioContext) {
+    state.masterGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
+  }
+  if (persist) {
+    const board = currentBoard();
+    if (board) {
+      board.masterVolume = volume;
+      saveBoards();
+    }
+  }
+}
+
 function renderBoardOptions() {
   if (!els.boardSelect) return;
   els.boardSelect.innerHTML = "";
@@ -397,6 +431,7 @@ function renderBoardOptions() {
   });
   els.boardSelect.value = state.currentBoardId;
   if (els.boardName) els.boardName.value = currentBoard().name;
+  setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
 }
 
 function setBoardEditing(editing, focusName = true) {
@@ -567,6 +602,7 @@ async function addBoard() {
     id: createId(),
     name,
     padCount: DEFAULT_PAD_COUNT,
+    masterVolume: DEFAULT_MASTER_VOLUME,
   };
   state.boards.push(board);
   state.currentBoardId = board.id;
@@ -706,6 +742,7 @@ async function exportCurrentBoard(includeAudio = true) {
     board: {
       name: board.name,
       padCount: board.padCount,
+      masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
       pads,
     },
   };
@@ -733,6 +770,7 @@ async function importBoardFile(file) {
     id: createId(),
     name: payload.board.name || cleanName(file.name),
     padCount: Math.max(DEFAULT_PAD_COUNT, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
+    masterVolume: clamp01(payload.board.masterVolume),
   };
   setBoardPadEditing(false);
   state.boards.push(importedBoard);
@@ -1337,16 +1375,18 @@ async function playPad(pad, fade = false, offset = 0) {
   const source = ctx.createBufferSource();
   const gain = ctx.createGain();
   const pan = ctx.createStereoPanner();
+  const analyser = ctx.createAnalyser();
   const now = ctx.currentTime;
   const fadeTime = Math.max(0, Number(els.fadeSeconds.value) || 0);
 
+  analyser.fftSize = 256;
   source.buffer = pad.buffer;
   source.loop = pad.loop;
   source.loopStart = segmentStart;
   source.loopEnd = segmentEnd;
   gain.gain.setValueAtTime(fade ? 0 : targetPadGain(pad), now);
   pan.pan.setValueAtTime(pad.panValue, now);
-  source.connect(gain).connect(pan).connect(state.masterGain);
+  source.connect(gain).connect(pan).connect(analyser).connect(state.masterGain);
 
   if (fade && fadeTime > 0) {
     gain.gain.linearRampToValueAtTime(targetPadGain(pad), now + fadeTime);
@@ -1355,6 +1395,8 @@ async function playPad(pad, fade = false, offset = 0) {
   pad.source = source;
   pad.gain = gain;
   pad.pan = pan;
+  pad.analyser = analyser;
+  pad.meterData = new Uint8Array(analyser.fftSize);
   pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
   pad.node.classList.add("is-playing");
@@ -1367,9 +1409,12 @@ async function playPad(pad, fade = false, offset = 0) {
       pad.source = null;
       pad.gain = null;
       pad.pan = null;
+      pad.analyser = null;
+      pad.meterData = null;
       pad.stopAt = 0;
       pad.resumeOffset = 0;
       pad.node.classList.remove("is-playing");
+      setMeterLevel(pad.vuEl, 0);
       updatePadTime(pad);
       applyDucking();
       updateAllPadAlerts();
@@ -1413,7 +1458,10 @@ function stopPad(pad, fade = false, preservePosition = false) {
   pad.source = null;
   pad.gain = null;
   pad.pan = null;
+  pad.analyser = null;
+  pad.meterData = null;
   pad.node.classList.remove("is-playing");
+  setMeterLevel(pad.vuEl, 0);
   updatePadTime(pad);
   applyDucking();
   updateAllPadAlerts();
@@ -1441,13 +1489,37 @@ function updatePadTime(pad) {
   updatePadAlerts(pad);
 }
 
+function meterLevel(analyser, data) {
+  if (!analyser || !data) return 0;
+  analyser.getByteTimeDomainData(data);
+  let sum = 0;
+  for (let index = 0; index < data.length; index += 1) {
+    const centered = (data[index] - 128) / 128;
+    sum += centered * centered;
+  }
+  return Math.min(1, Math.sqrt(sum / data.length) * 3.2);
+}
+
+function setMeterLevel(element, level) {
+  if (element) element.style.transform = `scaleX(${Math.max(0, Math.min(1, level))})`;
+}
+
+function updateMeters() {
+  setMeterLevel(els.masterVu, meterLevel(state.masterAnalyser, state.masterMeterData));
+  state.pads.forEach((pad) => {
+    setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
+  });
+}
+
 function startTimer() {
   if (state.timerFrame) return;
   const tick = () => {
     state.pads.forEach(updatePadTime);
+    updateMeters();
     state.timerFrame = state.pads.some((pad) => pad.source)
       ? requestAnimationFrame(tick)
       : null;
+    if (!state.timerFrame) updateMeters();
   };
   state.timerFrame = requestAnimationFrame(tick);
 }
@@ -1551,7 +1623,7 @@ async function init() {
 
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
-    state.masterGain.gain.setTargetAtTime(Number(els.masterVolume.value), state.audioContext.currentTime, 0.02);
+    setMasterVolume(els.masterVolume.value);
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
