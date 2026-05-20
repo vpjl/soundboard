@@ -56,6 +56,84 @@ body[data-skin="minimal"] {
   --danger: #ff665e;
 }
 
+body[data-skin="minimal"] .app {
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+body[data-skin="minimal"] .topbar {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body[data-skin="minimal"] .pads {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+body[data-skin="minimal"] .pad {
+  gap: 6px;
+  padding: 6px;
+  background: rgba(18, 20, 24, 0.96);
+  box-shadow: none;
+}
+
+body[data-skin="minimal"] .pad-head,
+body[data-skin="minimal"] .pad-actions {
+  gap: 5px;
+}
+
+body[data-skin="minimal"] .pad-play-row {
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: repeat(2, 34px);
+  gap: 5px;
+}
+
+body[data-skin="minimal"] .pad-trigger {
+  min-height: 100%;
+  padding: 6px;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: #1a1d22;
+}
+
+body[data-skin="minimal"] .pad.is-playing .pad-trigger {
+  background: rgba(94, 224, 143, 0.2);
+}
+
+body[data-skin="minimal"] .pad-title {
+  font-size: 0.86rem;
+}
+
+body[data-skin="minimal"] .pad-time {
+  font-size: 0.72rem;
+}
+
+body[data-skin="minimal"] .icon-button,
+body[data-skin="minimal"] .control-group button {
+  width: 34px;
+  height: 34px;
+}
+
+body[data-skin="minimal"] .icon-button svg,
+body[data-skin="minimal"] .control-group svg {
+  width: 18px;
+  height: 18px;
+}
+
+body[data-skin="minimal"] .control-group {
+  gap: 4px;
+  padding: 4px;
+}
+
+body[data-skin="minimal"] .pad-action-line {
+  grid-template-columns: minmax(70px, 0.8fr) minmax(104px, 1.2fr);
+  gap: 5px;
+}
+
+body[data-skin="minimal"] .controls {
+  display: none;
+}
+
 body[data-skin="studio"] {
   --bg: #161718;
   --bg-glow: rgba(180, 190, 200, 0.09);
@@ -727,6 +805,10 @@ button.is-pressed {
 
   .pads {
     grid-template-columns: 1fr;
+  }
+
+  body[data-skin="minimal"] .pads {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pad-trigger {
