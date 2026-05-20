@@ -713,6 +713,18 @@ function bindButtonFeedback(root = document) {
   });
 }
 
+function bindPerformanceTouchGuards() {
+  document.addEventListener("contextmenu", (event) => {
+    if (event.target.closest("input, select, textarea, dialog")) return;
+    if (event.target.closest(".pad, .topbar")) event.preventDefault();
+  });
+
+  document.addEventListener("selectstart", (event) => {
+    if (event.target.closest("input, select, textarea, dialog")) return;
+    if (event.target.closest(".pad, .topbar")) event.preventDefault();
+  });
+}
+
 function togglePad(pad) {
   if (pad.source) {
     stopPad(pad, true, pad.playMode === "toggle");
@@ -810,6 +822,7 @@ async function init() {
   });
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
+  bindPerformanceTouchGuards();
 
   setStatus("Touchez un pad ou chargez vos sons");
 }
