@@ -95,6 +95,13 @@ textarea *,
   gap: 14px;
 }
 
+.brand-tools {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  flex: 0 0 auto;
+}
+
 .mark {
   display: grid;
   place-items: center;
@@ -128,7 +135,7 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: 1fr 86px 42px 42px;
+  grid-template-columns: minmax(120px, 1fr) 86px 96px 58px;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -268,6 +275,11 @@ button.is-pressed {
   color: #ffd8d5;
 }
 
+#stopAll {
+  width: 58px;
+  height: 58px;
+}
+
 .deck {
   width: min(1280px, 100%);
   margin: 0 auto;
@@ -307,11 +319,14 @@ button.is-pressed {
 .pad-play-row {
   display: grid;
   grid-template-columns: 42px 1fr;
+  grid-template-rows: repeat(2, 42px);
   gap: 8px;
 }
 
 .pad-trigger {
   display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
   grid-template-columns: minmax(0, 1fr) minmax(50px, auto);
   align-items: center;
   gap: 9px;
@@ -406,7 +421,8 @@ button.is-pressed {
 }
 
 .control-group button.is-active,
-.loop-button.is-active {
+.loop-button.is-active,
+.duck-button.is-active {
   border-color: rgba(73, 211, 160, 0.72);
   background: rgba(73, 211, 160, 0.2);
   color: var(--text);
@@ -571,7 +587,12 @@ button.is-pressed {
   }
 
   .master-strip {
-    grid-template-columns: 1fr 78px 38px 38px;
+    grid-template-columns: minmax(0, 1fr) 68px 78px 48px;
+  }
+
+  #stopAll {
+    width: 48px;
+    height: 48px;
   }
 
   .board-strip {
@@ -592,7 +613,7 @@ button.is-pressed {
   }
 
   .pad-trigger {
-    min-height: 70px;
+    min-height: 100%;
   }
 
   .icon-button {
@@ -664,7 +685,12 @@ button.is-pressed {
   }
 
   .master-strip {
-    grid-template-columns: minmax(0, 1fr) 56px 32px 32px;
+    grid-template-columns: minmax(0, 1fr) 52px 62px 42px;
+  }
+
+  #stopAll {
+    width: 42px;
+    height: 42px;
   }
 
   .pads {
@@ -684,12 +710,13 @@ button.is-pressed {
 
   .pad-play-row {
     grid-template-columns: 34px 1fr;
+    grid-template-rows: repeat(2, 34px);
     gap: 5px;
   }
 
   .pad-trigger {
     grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
-    min-height: 44px;
+    min-height: 100%;
     gap: 6px;
     padding: 6px;
   }

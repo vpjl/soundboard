@@ -6,6 +6,7 @@ const PRESS_MS = 180;
 const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
+const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const DEFAULT_BOARD_ID = "default";
 
 const state = {
@@ -30,6 +31,7 @@ const els = {
   masterVolume: document.querySelector("#masterVolume"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
+  duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
   closeHelp: document.querySelector("#closeHelp"),
@@ -166,6 +168,7 @@ function makePad(index) {
     volume: 0.85,
     panValue: 0,
     loop: false,
+    duckTrigger: false,
   };
 
   pad.titleEl = node.querySelector("[data-title]");
@@ -178,10 +181,12 @@ function makePad(index) {
   pad.volumeEl = node.querySelector("[data-volume]");
   pad.panEl = node.querySelector("[data-pan]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
+  pad.duckEl = node.querySelector('[data-action="duck"]');
 
   setPadTitle(pad, pad.title);
   setPadMode(pad, pad.playMode);
   setPadLoop(pad, pad.loop);
+  setPadDuckTrigger(pad, pad.duckTrigger);
   pad.volumeEl.value = pad.volume;
   pad.panEl.value = pad.panValue;
   node.classList.add("is-empty");
@@ -245,7 +250,7 @@ function makePad(index) {
 
   pad.volumeEl.addEventListener("input", () => {
     pad.volume = Number(pad.volumeEl.value);
-    if (pad.gain) pad.gain.gain.setTargetAtTime(pad.volume, state.audioContext.currentTime, 0.015);
+    if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
     savePadMeta(pad);
   });
 
@@ -258,6 +263,12 @@ function makePad(index) {
   pad.loopEl.addEventListener("click", () => {
     setPadLoop(pad, !pad.loop);
     if (pad.source) pad.source.loop = pad.loop;
+    savePadMeta(pad);
+  });
+
+  pad.duckEl.addEventListener("click", () => {
+    setPadDuckTrigger(pad, !pad.duckTrigger);
+    applyDucking();
     savePadMeta(pad);
   });
 
@@ -416,6 +427,7 @@ async function exportCurrentBoard() {
       volume: meta?.volume ?? saved?.volume ?? 0.85,
       panValue: meta?.panValue ?? saved?.panValue ?? 0,
       loop: Boolean(meta?.loop ?? saved?.loop),
+      duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audio: saved?.audio ? {
         name: saved.name || `Pad ${index + 1}`,
@@ -473,6 +485,7 @@ async function importBoardFile(file) {
       volume: item.volume ?? 0.85,
       panValue: item.panValue ?? 0,
       loop: Boolean(item.loop),
+      duckTrigger: Boolean(item.duckTrigger),
       playMode: item.playMode || "oneshot",
     };
     await dbSet(padMetaKey(transientPad), meta);
@@ -552,6 +565,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     volume: pad.volume,
     panValue: pad.panValue,
     loop: pad.loop,
+    duckTrigger: pad.duckTrigger,
     playMode: pad.playMode,
   });
   await savePadMeta(pad);
@@ -650,6 +664,7 @@ async function restorePad(pad) {
     pad.volume = meta.volume ?? pad.volume;
     pad.panValue = meta.panValue ?? pad.panValue;
     setPadLoop(pad, Boolean(meta.loop));
+    setPadDuckTrigger(pad, Boolean(meta.duckTrigger));
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
     pad.panEl.value = pad.panValue;
@@ -664,6 +679,7 @@ async function restorePad(pad) {
   pad.volume = saved.volume ?? pad.volume;
   pad.panValue = saved.panValue ?? pad.panValue;
   setPadLoop(pad, Boolean(saved.loop));
+  setPadDuckTrigger(pad, Boolean(saved.duckTrigger));
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
   pad.volumeEl.value = pad.volume;
@@ -677,6 +693,7 @@ async function savePadMeta(pad) {
     volume: pad.volume,
     panValue: pad.panValue,
     loop: pad.loop,
+    duckTrigger: pad.duckTrigger,
     playMode: pad.playMode,
   };
   await dbSet(padMetaKey(pad), meta);
@@ -709,6 +726,36 @@ function setPadLoop(pad, loop) {
   pad.loopEl?.setAttribute("aria-pressed", String(pad.loop));
 }
 
+function setPadDuckTrigger(pad, duckTrigger) {
+  pad.duckTrigger = Boolean(duckTrigger);
+  pad.duckEl?.classList.toggle("is-active", pad.duckTrigger);
+  pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
+}
+
+function duckAmount() {
+  return Math.min(100, Math.max(0, Number(els.duckPercent?.value) || 0)) / 100;
+}
+
+function duckFactorForPad(pad) {
+  const hasOtherDuckTrigger = state.pads.some((other) => other !== pad && other.source && other.duckTrigger);
+  return hasOtherDuckTrigger ? 1 - duckAmount() : 1;
+}
+
+function targetPadGain(pad) {
+  return pad.volume * duckFactorForPad(pad);
+}
+
+function applyDucking(exceptPad = null) {
+  if (!state.audioContext) return;
+  const now = state.audioContext.currentTime;
+  state.pads.forEach((pad) => {
+    if (pad === exceptPad) return;
+    if (!pad.source || !pad.gain) return;
+    pad.gain.gain.cancelScheduledValues(now);
+    pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
+  });
+}
+
 async function playPad(pad, fade = false, offset = 0) {
   if (!pad.buffer) {
     pad.fileInput.click();
@@ -728,12 +775,12 @@ async function playPad(pad, fade = false, offset = 0) {
 
   source.buffer = pad.buffer;
   source.loop = pad.loop;
-  gain.gain.setValueAtTime(fade ? 0 : pad.volume, now);
+  gain.gain.setValueAtTime(fade ? 0 : targetPadGain(pad), now);
   pan.pan.setValueAtTime(pad.panValue, now);
   source.connect(gain).connect(pan).connect(state.masterGain);
 
   if (fade && fadeTime > 0) {
-    gain.gain.linearRampToValueAtTime(pad.volume, now + fadeTime);
+    gain.gain.linearRampToValueAtTime(targetPadGain(pad), now + fadeTime);
   }
 
   pad.source = source;
@@ -755,10 +802,12 @@ async function playPad(pad, fade = false, offset = 0) {
       pad.resumeOffset = 0;
       pad.node.classList.remove("is-playing");
       updatePadTime(pad);
+      applyDucking();
     }
   };
 
   source.start(now, startOffset);
+  applyDucking(pad);
 }
 
 function stopPad(pad, fade = false, preservePosition = false) {
@@ -791,6 +840,7 @@ function stopPad(pad, fade = false, preservePosition = false) {
   pad.pan = null;
   pad.node.classList.remove("is-playing");
   updatePadTime(pad);
+  applyDucking();
   setStatus(`${pad.title} stop`);
 }
 
@@ -907,6 +957,9 @@ function bindKeyboard() {
 
 async function init() {
   state.db = await openDb();
+  if (els.duckPercent) {
+    els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
+  }
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
@@ -919,6 +972,17 @@ async function init() {
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
     state.masterGain.gain.setTargetAtTime(Number(els.masterVolume.value), state.audioContext.currentTime, 0.02);
+  });
+  els.duckPercent?.addEventListener("input", () => {
+    const value = Math.round(duckAmount() * 100);
+    localStorage.setItem(DUCKING_STORAGE, String(value));
+    applyDucking();
+  });
+  els.duckPercent?.addEventListener("change", () => {
+    const value = Math.round(duckAmount() * 100);
+    els.duckPercent.value = value;
+    localStorage.setItem(DUCKING_STORAGE, String(value));
+    applyDucking();
   });
   els.stopAll.addEventListener("click", stopAll);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));

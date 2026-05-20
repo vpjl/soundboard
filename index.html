@@ -7,17 +7,25 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=25">
+    <link rel="stylesheet" href="styles.css?v=27">
   </head>
   <body>
     <div class="app">
       <header class="topbar">
         <div class="brand">
-          <div class="mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" role="img">
-              <path d="M8 26c0-9.4 7.1-17 16-17s16 7.6 16 17" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-              <path d="M14 24v12M24 17v25M34 24v12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-            </svg>
+          <div class="brand-tools">
+            <div class="mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48" role="img">
+                <path d="M8 26c0-9.4 7.1-17 16-17s16 7.6 16 17" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                <path d="M14 24v12M24 17v25M34 24v12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <button id="helpButton" class="icon-button help-button" type="button" aria-label="Aide">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
           <div>
             <h1>Soundboard Live</h1>
@@ -75,15 +83,13 @@
             <span>Fade</span>
             <input id="fadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
           </label>
+          <label class="master-control small">
+            <span>Ducking %</span>
+            <input id="duckPercent" type="number" min="0" max="100" step="5" value="60">
+          </label>
           <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-            </svg>
-          </button>
-          <button id="helpButton" class="icon-button" type="button" aria-label="Aide">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-              <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
         </div>
@@ -103,6 +109,12 @@
             <button class="icon-button loop-button" type="button" data-action="loop" aria-label="Loop" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="icon-button duck-button" type="button" data-action="duck" aria-label="Duck trigger" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
             <button class="pad-trigger" type="button" data-action="play">
@@ -207,6 +219,7 @@
           <dt>↗</dt><dd>Fade in : lance le son avec montée progressive.</dd>
           <dt>↘</dt><dd>Fade out : baisse le son progressivement puis stoppe.</dd>
           <dt>↻</dt><dd>Loop : répète le son en boucle.</dd>
+          <dt>↓</dt><dd>Duck trigger : pendant que ce pad joue, les autres pads baissent selon le pourcentage Ducking.</dd>
           <dt>▶|</dt><dd>One shot : relance le son depuis le début.</dd>
           <dt>☝</dt><dd>Hold : joue seulement pendant l’appui.</dd>
           <dt>⏯</dt><dd>Toggle : stoppe puis reprend au même endroit.</dd>
@@ -219,6 +232,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=26"></script>
+    <script src="app.js?v=27"></script>
   </body>
 </html>
