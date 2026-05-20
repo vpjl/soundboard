@@ -238,6 +238,12 @@ textarea *,
   flex: 0 0 auto;
 }
 
+.stage-button.is-active {
+  border-color: rgba(255, 206, 92, 0.82);
+  background: rgba(255, 206, 92, 0.22);
+  color: #fff0c2;
+}
+
 .mark {
   display: grid;
   place-items: center;
@@ -469,6 +475,23 @@ button.is-pressed {
   box-shadow: 0 0 0 1px rgba(73, 211, 160, 0.18), 0 18px 38px var(--shadow);
 }
 
+.pad.is-looping {
+  box-shadow: inset 0 0 0 1px rgba(255, 206, 92, 0.38), 0 12px 32px var(--shadow);
+}
+
+.pad.is-ending {
+  border-color: rgba(255, 95, 86, 0.95);
+  animation: endingPulse 820ms ease-in-out infinite;
+}
+
+.pad.is-duck-source {
+  border-color: rgba(97, 168, 255, 0.9);
+}
+
+.pad.is-ducked .pad-trigger {
+  filter: saturate(0.72) brightness(0.82);
+}
+
 .pad.has-color {
   border-color: var(--pad-color);
 }
@@ -501,6 +524,7 @@ button.is-pressed {
 
 .pad-trigger {
   display: grid;
+  position: relative;
   grid-column: 2;
   grid-row: 1 / span 2;
   grid-template-columns: minmax(0, 1fr) minmax(50px, auto);
@@ -516,6 +540,53 @@ button.is-pressed {
   text-align: left;
   cursor: pointer;
   transition: background 140ms ease, transform 90ms ease;
+}
+
+.pad-alerts {
+  position: absolute;
+  right: 7px;
+  bottom: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: calc(100% - 14px);
+  pointer-events: none;
+}
+
+.pad-alert {
+  display: none;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px 5px;
+  background: rgba(17, 19, 25, 0.84);
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pad.is-ending .pad-alert-ending,
+.pad.is-looping .pad-alert-loop,
+.pad.is-duck-source .pad-alert-duck-source,
+.pad.is-ducked .pad-alert-ducked {
+  display: inline-flex;
+}
+
+.pad-alert-ending {
+  color: #ffb0aa;
+}
+
+.pad-alert-loop {
+  color: #ffe08a;
+}
+
+.pad-alert-duck-source {
+  color: #9cc8ff;
+}
+
+.pad-alert-ducked {
+  color: #c7cbd1;
 }
 
 .pad.is-playing .pad-trigger {
@@ -969,6 +1040,110 @@ button.is-pressed {
 .pad.is-empty .pad-actions,
 .pad.is-empty .controls {
   opacity: 0.52;
+}
+
+@keyframes endingPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 95, 86, 0.1), 0 12px 32px var(--shadow);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 95, 86, 0.22), 0 18px 38px var(--shadow);
+  }
+}
+
+body.stage-mode .app {
+  min-height: 100vh;
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+body.stage-mode .topbar {
+  grid-template-columns: auto minmax(160px, 280px) minmax(280px, 520px);
+  gap: 8px;
+  width: min(1440px, 100%);
+  margin-bottom: 8px;
+}
+
+body.stage-mode .brand {
+  gap: 8px;
+}
+
+body.stage-mode .mark {
+  width: 40px;
+  height: 40px;
+}
+
+body.stage-mode .mark svg {
+  width: 27px;
+  height: 27px;
+}
+
+body.stage-mode h1,
+body.stage-mode .skin-select,
+body.stage-mode .help-button,
+body.stage-mode .board-edit-button,
+body.stage-mode .board-action-grid,
+body.stage-mode .board-name,
+body.stage-mode .manage-group,
+body.stage-mode .name-field,
+body.stage-mode .controls {
+  display: none;
+}
+
+body.stage-mode .brand p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+body.stage-mode .brand-tools {
+  grid-template-columns: 40px 40px;
+}
+
+body.stage-mode .board-strip,
+body.stage-mode .master-strip {
+  gap: 6px;
+  padding: 7px;
+  box-shadow: none;
+}
+
+body.stage-mode .board-strip {
+  grid-template-columns: minmax(150px, 1fr);
+}
+
+body.stage-mode .master-strip {
+  grid-template-columns: minmax(110px, 1fr) 64px 76px 58px;
+}
+
+body.stage-mode .deck {
+  width: min(1440px, 100%);
+}
+
+body.stage-mode .pads {
+  gap: 8px;
+}
+
+body.stage-mode .pad {
+  gap: 8px;
+  padding: 8px;
+}
+
+body.stage-mode .pad-actions {
+  gap: 6px;
+}
+
+body.stage-mode .pad-action-line {
+  grid-template-columns: minmax(70px, 0.8fr);
+}
+
+body.stage-mode .start-group,
+body.stage-mode .stop-group {
+  gap: 5px;
+  padding: 5px;
+}
+
+body.stage-mode .pad-trigger {
+  min-height: 86px;
 }
 
 @media (max-width: 900px) {

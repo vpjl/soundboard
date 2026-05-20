@@ -8,7 +8,9 @@ const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const SKIN_STORAGE = "soundboard-live-skin";
+const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const DEFAULT_BOARD_ID = "default";
+const ENDING_ALERT_SECONDS = 5;
 const PAD_COLORS = {
   green: "#49d3a0",
   yellow: "#ffce5c",
@@ -32,6 +34,7 @@ const state = {
   recordingStream: null,
   drag: null,
   trimDrag: null,
+  stageMode: false,
 };
 
 const els = {
@@ -42,6 +45,7 @@ const els = {
   masterVolume: document.querySelector("#masterVolume"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
+  stageMode: document.querySelector("#stageMode"),
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
@@ -129,6 +133,7 @@ function setPadTitle(pad, title) {
 }
 
 function setPadEditing(pad, editing) {
+  if (state.stageMode && editing) return;
   pad.node.classList.toggle("is-editing", editing);
   pad.editButton.classList.toggle("is-active", editing);
   if (editing) requestAnimationFrame(() => renderWaveform(pad));
@@ -975,6 +980,50 @@ function setStatus(text) {
   els.status.textContent = text;
 }
 
+function setStageMode(enabled, requestFullscreen = false) {
+  state.stageMode = Boolean(enabled);
+  document.body.classList.toggle("stage-mode", state.stageMode);
+  els.stageMode?.classList.toggle("is-active", state.stageMode);
+  els.stageMode?.setAttribute("aria-pressed", String(state.stageMode));
+  localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
+
+  if (state.stageMode) {
+    state.pads.forEach((pad) => setPadEditing(pad, false));
+    if (requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+    setStatus("Mode scene");
+  } else {
+    if (requestFullscreen && document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+    setStatus("Mode scene quitte");
+  }
+}
+
+function duckingActive() {
+  return duckAmount() > 0 && state.pads.some((pad) => pad.source && pad.duckTrigger);
+}
+
+function updatePadAlerts(pad) {
+  if (!pad?.node) return;
+  const remaining = remainingSeconds(pad);
+  const duration = playableDuration(pad);
+  const endingThreshold = Math.min(ENDING_ALERT_SECONDS, Math.max(1, duration * 0.2));
+  const isEnding = Boolean(pad.source && !pad.loop && remaining <= endingThreshold);
+  const isDuckSource = Boolean(pad.source && pad.duckTrigger && duckAmount() > 0);
+  const isDucked = Boolean(pad.source && duckingActive() && !pad.duckTrigger);
+
+  pad.node.classList.toggle("is-ending", isEnding);
+  pad.node.classList.toggle("is-looping", pad.loop);
+  pad.node.classList.toggle("is-duck-source", isDuckSource);
+  pad.node.classList.toggle("is-ducked", isDucked);
+}
+
+function updateAllPadAlerts() {
+  state.pads.forEach(updatePadAlerts);
+}
+
 function setPadMode(pad, mode) {
   pad.playMode = ["oneshot", "hold", "toggle"].includes(mode) ? mode : "oneshot";
   pad.modeButtons?.forEach((button) => {
@@ -989,12 +1038,14 @@ function setPadLoop(pad, loop) {
   pad.loop = Boolean(loop);
   pad.loopEl?.classList.toggle("is-active", pad.loop);
   pad.loopEl?.setAttribute("aria-pressed", String(pad.loop));
+  updatePadAlerts(pad);
 }
 
 function setPadDuckTrigger(pad, duckTrigger) {
   pad.duckTrigger = Boolean(duckTrigger);
   pad.duckEl?.classList.toggle("is-active", pad.duckTrigger);
   pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
+  updatePadAlerts(pad);
 }
 
 function setPadTags(pad, tags) {
@@ -1246,6 +1297,7 @@ function applyDucking(exceptPad = null) {
     pad.gain.gain.cancelScheduledValues(now);
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
   });
+  updateAllPadAlerts();
 }
 
 async function playPad(pad, fade = false, offset = 0) {
@@ -1301,6 +1353,7 @@ async function playPad(pad, fade = false, offset = 0) {
       pad.node.classList.remove("is-playing");
       updatePadTime(pad);
       applyDucking();
+      updateAllPadAlerts();
     }
   };
 
@@ -1309,6 +1362,7 @@ async function playPad(pad, fade = false, offset = 0) {
     source.stop(now + Math.max(0.01, segmentEnd - startOffset));
   }
   applyDucking(pad);
+  updateAllPadAlerts();
 }
 
 function stopPad(pad, fade = false, preservePosition = false) {
@@ -1343,6 +1397,7 @@ function stopPad(pad, fade = false, preservePosition = false) {
   pad.node.classList.remove("is-playing");
   updatePadTime(pad);
   applyDucking();
+  updateAllPadAlerts();
   setStatus(`${pad.title} stop`);
 }
 
@@ -1359,10 +1414,12 @@ function remainingSeconds(pad) {
 function updatePadTime(pad) {
   if (!pad.duration) {
     pad.timeEl.textContent = "--:--";
+    updatePadAlerts(pad);
     return;
   }
   const seconds = remainingSeconds(pad);
   pad.timeEl.textContent = pad.source ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
+  updatePadAlerts(pad);
 }
 
 function startTimer() {
@@ -1471,6 +1528,7 @@ async function init() {
   renderBoardOptions();
   await renderPads();
   await repairAccidentalPadTitles();
+  setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
 
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
@@ -1495,6 +1553,9 @@ async function init() {
     applyDucking();
   });
   els.stopAll.addEventListener("click", stopAll);
+  els.stageMode?.addEventListener("click", () => {
+    setStageMode(!state.stageMode, true);
+  });
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
   els.boardName?.addEventListener("blur", () => setBoardEditing(false));

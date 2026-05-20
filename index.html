@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=37">
+    <link rel="stylesheet" href="styles.css?v=38">
   </head>
   <body>
     <div class="app">
@@ -24,6 +24,12 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
                 <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="stageMode" class="icon-button stage-button" type="button" aria-label="Mode plein écran scène" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
@@ -139,6 +145,12 @@
                 <span class="pad-tags" data-tags-display></span>
               </span>
               <span class="pad-time" data-time>--:--</span>
+              <span class="pad-alerts" aria-hidden="true">
+                <span class="pad-alert pad-alert-ending">Fin</span>
+                <span class="pad-alert pad-alert-loop">Loop</span>
+                <span class="pad-alert pad-alert-duck-source">Duck</span>
+                <span class="pad-alert pad-alert-ducked">-Duck</span>
+              </span>
             </button>
           </div>
 
@@ -283,6 +295,12 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête tous les pads en cours.</dd>
+                <dt aria-label="Mode plein écran scène">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Affiche seulement la vue scène et les contrôles essentiels.</dd>
               </dl>
             </section>
 
@@ -424,6 +442,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=37"></script>
+    <script src="app.js?v=38"></script>
   </body>
 </html>
