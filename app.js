@@ -7,6 +7,7 @@ const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
+const SKIN_STORAGE = "soundboard-live-skin";
 const DEFAULT_BOARD_ID = "default";
 
 const state = {
@@ -28,6 +29,7 @@ const els = {
   pads: document.querySelector("#pads"),
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
+  skinSelect: document.querySelector("#skinSelect"),
   masterVolume: document.querySelector("#masterVolume"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
@@ -413,6 +415,13 @@ function safeFileName(name) {
     .toLowerCase() || "soundboard";
 }
 
+function applySkin(skin) {
+  const skinName = ["classic", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
+  document.body.dataset.skin = skinName;
+  if (els.skinSelect) els.skinSelect.value = skinName;
+  localStorage.setItem(SKIN_STORAGE, skinName);
+}
+
 async function shareOrDownloadBoard(blob, filename, boardName) {
   const file = new File([blob], filename, { type: "application/json" });
 
@@ -481,7 +490,7 @@ async function exportCurrentBoard() {
   };
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.soundboard`, board.name);
+  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.soundboard.json`, board.name);
 }
 
 async function importBoardFile(file) {
@@ -990,6 +999,7 @@ function bindKeyboard() {
 
 async function init() {
   state.db = await openDb();
+  applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   if (els.duckPercent) {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
@@ -1006,6 +1016,7 @@ async function init() {
     await ensureAudio();
     state.masterGain.gain.setTargetAtTime(Number(els.masterVolume.value), state.audioContext.currentTime, 0.02);
   });
+  els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.duckPercent?.addEventListener("input", () => {
     const value = Math.round(duckAmount() * 100);
     localStorage.setItem(DUCKING_STORAGE, String(value));

@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=31">
+    <link rel="stylesheet" href="styles.css?v=32">
   </head>
   <body>
     <div class="app">
@@ -30,6 +30,16 @@
           <div>
             <h1>Soundboard Live</h1>
             <p id="audioStatus">Pret pour la scene</p>
+            <label class="skin-select">
+              <span>Skin</span>
+              <select id="skinSelect">
+                <option value="classic">Classic Dark</option>
+                <option value="contrast">High Contrast</option>
+                <option value="neon">Neon Stage</option>
+                <option value="minimal">Minimal iPhone</option>
+                <option value="studio">Studio Grey</option>
+              </select>
+            </label>
           </div>
         </div>
 
@@ -71,7 +81,7 @@
               </svg>
             </button>
           </div>
-          <input id="importBoardFile" class="file-input" type="file">
+          <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
         </div>
 
         <div class="master-strip" aria-label="Controle principal">
@@ -349,6 +359,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=31"></script>
+    <script src="app.js?v=32"></script>
   </body>
 </html>
