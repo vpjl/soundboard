@@ -31,6 +31,7 @@ const state = {
   recordingChunks: [],
   recordingStream: null,
   drag: null,
+  trimDrag: null,
 };
 
 const els = {
@@ -130,13 +131,12 @@ function setPadTitle(pad, title) {
 function setPadEditing(pad, editing) {
   pad.node.classList.toggle("is-editing", editing);
   pad.editButton.classList.toggle("is-active", editing);
+  if (editing) requestAnimationFrame(() => renderWaveform(pad));
 }
 
 function setPadDuration(pad, seconds) {
   pad.duration = Number.isFinite(seconds) ? seconds : 0;
-  const max = pad.duration ? String(Math.round(pad.duration * 10) / 10) : "";
-  if (pad.trimStartEl) pad.trimStartEl.max = max;
-  if (pad.trimEndEl) pad.trimEndEl.max = max;
+  setPadTrim(pad, pad.trimStart, pad.trimEnd);
   pad.timeEl.textContent = pad.duration ? formatTime(playableDuration(pad)) : "--:--";
 }
 
@@ -192,6 +192,7 @@ function makePad(index) {
     color: "",
     trimStart: 0,
     trimEnd: 0,
+    waveformPeaks: [],
   };
 
   pad.titleEl = node.querySelector("[data-title]");
@@ -200,6 +201,13 @@ function makePad(index) {
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
   pad.trimStartEl = node.querySelector("[data-trim-start]");
   pad.trimEndEl = node.querySelector("[data-trim-end]");
+  pad.trimStartValueEl = node.querySelector("[data-trim-start-value]");
+  pad.trimEndValueEl = node.querySelector("[data-trim-end-value]");
+  pad.waveformEl = node.querySelector("[data-waveform]");
+  pad.waveformCanvas = node.querySelector("[data-waveform-canvas]");
+  pad.trimSelectionEl = node.querySelector("[data-trim-selection]");
+  pad.trimHandleStart = node.querySelector('[data-trim-handle="start"]');
+  pad.trimHandleEnd = node.querySelector('[data-trim-handle="end"]');
   pad.timeEl = node.querySelector("[data-time]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.editButton = node.querySelector('[data-action="edit"]');
@@ -282,6 +290,7 @@ function makePad(index) {
     savePadMeta(pad);
     updatePadTime(pad);
   });
+  bindWaveformTrim(pad);
   pad.nameEl.addEventListener("blur", () => setPadEditing(pad, false));
   pad.nameEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -792,8 +801,10 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
   await ensureAudio();
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   pad.buffer = buffer;
+  pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadTitle(pad, cleanName(name));
   setPadDuration(pad, buffer.duration);
+  renderWaveform(pad);
   pad.node.classList.remove("is-empty");
   await dbSet(padAudioKey(pad), {
     name,
@@ -920,6 +931,7 @@ async function restorePad(pad) {
 
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
   pad.panValue = saved.panValue ?? pad.panValue;
@@ -930,6 +942,7 @@ async function restorePad(pad) {
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
+  renderWaveform(pad);
   pad.volumeEl.value = pad.volume;
   pad.panEl.value = pad.panValue;
   pad.node.classList.remove("is-empty");
@@ -1009,6 +1022,15 @@ function numericInputValue(value) {
   return Number.isFinite(number) ? Math.max(0, number) : 0;
 }
 
+function formatSecondsTenths(seconds) {
+  return `${(Math.round(Math.max(0, seconds) * 10) / 10).toFixed(1)}s`;
+}
+
+function trimDisplayEnd(pad) {
+  if (!pad.duration) return 0;
+  return pad.trimEnd ? trimEnd(pad) : pad.duration;
+}
+
 function setPadTrim(pad, start, end) {
   pad.trimStart = numericInputValue(start);
   pad.trimEnd = numericInputValue(end);
@@ -1018,6 +1040,16 @@ function setPadTrim(pad, start, end) {
   }
   pad.trimStartEl.value = pad.trimStart ? String(Math.round(pad.trimStart * 10) / 10) : "0";
   pad.trimEndEl.value = pad.trimEnd ? String(Math.round(pad.trimEnd * 10) / 10) : "0";
+  if (pad.trimStartValueEl) {
+    pad.trimStartValueEl.value = formatSecondsTenths(trimStart(pad));
+    pad.trimStartValueEl.textContent = pad.trimStartValueEl.value;
+  }
+  if (pad.trimEndValueEl) {
+    pad.trimEndValueEl.value = formatSecondsTenths(trimDisplayEnd(pad));
+    pad.trimEndValueEl.textContent = pad.trimEndValueEl.value;
+  }
+  updateTrimHandles(pad);
+  renderWaveform(pad);
 }
 
 function trimStart(pad) {
@@ -1035,6 +1067,161 @@ function trimEnd(pad) {
 function playableDuration(pad) {
   if (!pad.duration) return 0;
   return Math.max(0.01, trimEnd(pad) - trimStart(pad));
+}
+
+function buildWaveformPeaks(buffer, sampleCount = 180) {
+  if (!buffer?.length) return [];
+  const peaks = new Array(sampleCount).fill(0);
+  const channels = Math.min(buffer.numberOfChannels, 2);
+  const blockSize = Math.max(1, Math.floor(buffer.length / sampleCount));
+  const stride = Math.max(1, Math.floor(blockSize / 80));
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const start = index * blockSize;
+    const end = Math.min(buffer.length, start + blockSize);
+    let peak = 0;
+    for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
+      const channel = buffer.getChannelData(channelIndex);
+      for (let frame = start; frame < end; frame += stride) {
+        peak = Math.max(peak, Math.abs(channel[frame]));
+      }
+    }
+    peaks[index] = peak;
+  }
+
+  const maxPeak = Math.max(...peaks, 0.001);
+  return peaks.map((peak) => peak / maxPeak);
+}
+
+function updateTrimHandles(pad) {
+  if (!pad.waveformEl || !pad.duration) return;
+  const startRatio = trimStart(pad) / pad.duration;
+  const endRatio = trimDisplayEnd(pad) / pad.duration;
+  const startPercent = `${startRatio * 100}%`;
+  const endPercent = `${endRatio * 100}%`;
+  if (pad.trimHandleStart) pad.trimHandleStart.style.left = startPercent;
+  if (pad.trimHandleEnd) pad.trimHandleEnd.style.left = endPercent;
+  if (pad.trimSelectionEl) {
+    pad.trimSelectionEl.style.left = startPercent;
+    pad.trimSelectionEl.style.width = `${Math.max(0, endRatio - startRatio) * 100}%`;
+  }
+}
+
+function renderWaveform(pad) {
+  const canvas = pad.waveformCanvas;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = Math.max(1, Math.floor(rect.width || 1));
+  const cssHeight = Math.max(1, Math.floor(rect.height || 1));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const width = Math.floor(cssWidth * dpr);
+  const height = Math.floor(cssHeight * dpr);
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+  ctx.beginPath();
+  ctx.moveTo(0, height / 2);
+  ctx.lineTo(width, height / 2);
+  ctx.stroke();
+
+  const peaks = pad.waveformPeaks || [];
+  if (!peaks.length) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.24)";
+    ctx.fillRect(0, height / 2 - 1, width, 2);
+    updateTrimHandles(pad);
+    return;
+  }
+
+  const startX = pad.duration ? (trimStart(pad) / pad.duration) * width : 0;
+  const endX = pad.duration ? (trimDisplayEnd(pad) / pad.duration) * width : width;
+  const barWidth = Math.max(1, width / peaks.length);
+
+  peaks.forEach((peak, index) => {
+    const x = index * barWidth;
+    const barHeight = Math.max(2, peak * height * 0.84);
+    ctx.fillStyle = x >= startX && x <= endX ? "rgba(73, 211, 160, 0.9)" : "rgba(168, 166, 159, 0.45)";
+    ctx.fillRect(x, (height - barHeight) / 2, Math.max(1, barWidth * 0.72), barHeight);
+  });
+
+  updateTrimHandles(pad);
+}
+
+function trimPositionFromPointer(pad, event) {
+  const rect = pad.waveformEl.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  return ratio * pad.duration;
+}
+
+function nearestTrimHandle(pad, event) {
+  const pointerSeconds = trimPositionFromPointer(pad, event);
+  const startDistance = Math.abs(pointerSeconds - trimStart(pad));
+  const endDistance = Math.abs(pointerSeconds - trimDisplayEnd(pad));
+  return startDistance <= endDistance ? "start" : "end";
+}
+
+function setTrimFromPointer(pad, handle, event) {
+  if (!pad.duration) return;
+  const seconds = trimPositionFromPointer(pad, event);
+  if (handle === "start") {
+    setPadTrim(pad, seconds, pad.trimEnd);
+  } else {
+    setPadTrim(pad, pad.trimStart, seconds);
+  }
+  updatePadTime(pad);
+}
+
+function nudgeTrimHandle(pad, handle, direction, largeStep = false) {
+  if (!pad.duration) return;
+  const step = largeStep ? 1 : 0.1;
+  if (handle === "start") {
+    setPadTrim(pad, pad.trimStart + (step * direction), pad.trimEnd);
+  } else {
+    setPadTrim(pad, pad.trimStart, trimDisplayEnd(pad) + (step * direction));
+  }
+  savePadMeta(pad);
+  updatePadTime(pad);
+}
+
+function bindWaveformTrim(pad) {
+  if (!pad.waveformEl) return;
+  pad.waveformEl.addEventListener("pointerdown", (event) => {
+    if (!pad.duration) return;
+    event.preventDefault();
+    const handle = event.target.closest("[data-trim-handle]")?.dataset.trimHandle || nearestTrimHandle(pad, event);
+    state.trimDrag = { pad, handle, pointerId: event.pointerId };
+    pad.waveformEl.setPointerCapture?.(event.pointerId);
+    setTrimFromPointer(pad, handle, event);
+  });
+  pad.waveformEl.addEventListener("pointermove", (event) => {
+    if (state.trimDrag?.pad !== pad || state.trimDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    setTrimFromPointer(pad, state.trimDrag.handle, event);
+  });
+  const stopDrag = (event) => {
+    if (state.trimDrag?.pad !== pad || state.trimDrag.pointerId !== event.pointerId) return;
+    state.trimDrag = null;
+    pad.waveformEl.releasePointerCapture?.(event.pointerId);
+    savePadMeta(pad);
+  };
+  pad.waveformEl.addEventListener("pointerup", stopDrag);
+  pad.waveformEl.addEventListener("pointercancel", stopDrag);
+
+  [pad.trimHandleStart, pad.trimHandleEnd].forEach((handleButton) => {
+    handleButton?.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      nudgeTrimHandle(pad, handleButton.dataset.trimHandle, direction, event.shiftKey);
+    });
+  });
 }
 
 function duckAmount() {
@@ -1292,6 +1479,9 @@ async function init() {
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+  });
+  window.addEventListener("resize", () => {
+    state.pads.forEach(renderWaveform);
   });
   els.duckPercent?.addEventListener("input", () => {
     const value = Math.round(duckAmount() * 100);

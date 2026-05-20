@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=36">
+    <link rel="stylesheet" href="styles.css?v=37">
   </head>
   <body>
     <div class="app">
@@ -161,14 +161,18 @@
             </label>
             <div class="trim-field" aria-label="Trim du pad">
               <span>Trim</span>
-              <label>
-                <span>Début</span>
-                <input type="number" min="0" step="0.1" value="0" data-trim-start>
-              </label>
-              <label>
-                <span>Fin</span>
-                <input type="number" min="0" step="0.1" value="0" data-trim-end>
-              </label>
+              <div class="waveform-trim" data-waveform>
+                <canvas data-waveform-canvas aria-hidden="true"></canvas>
+                <div class="trim-selection" data-trim-selection></div>
+                <button class="trim-handle trim-handle-start" type="button" data-trim-handle="start" aria-label="Début du trim"></button>
+                <button class="trim-handle trim-handle-end" type="button" data-trim-handle="end" aria-label="Fin du trim"></button>
+              </div>
+              <div class="trim-values" aria-live="polite">
+                <span>Début <output data-trim-start-value>0.0s</output></span>
+                <span>Fin <output data-trim-end-value>0.0s</output></span>
+              </div>
+              <input type="hidden" value="0" data-trim-start>
+              <input type="hidden" value="0" data-trim-end>
             </div>
             <div class="color-field" aria-label="Couleur du pad">
               <span>Couleur</span>
@@ -420,6 +424,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=37"></script>
   </body>
 </html>
