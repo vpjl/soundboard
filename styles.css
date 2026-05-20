@@ -498,3 +498,137 @@ button.is-pressed {
     font-size: 0.7rem;
   }
 }
+
+@media (min-width: 561px) and (max-width: 950px) {
+  .app {
+    padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .topbar {
+    grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1fr) minmax(260px, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mark svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  h1 {
+    font-size: 1.05rem;
+  }
+
+  .brand p {
+    margin-top: 3px;
+    font-size: 0.72rem;
+  }
+
+  .board-strip,
+  .master-strip {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .board-select span,
+  .board-name span,
+  .master-control span {
+    font-size: 0.62rem;
+  }
+
+  .board-select select,
+  .board-name input,
+  .small-button,
+  .master-control.small input,
+  .danger-button {
+    height: 32px;
+    min-height: 32px;
+    padding: 0 7px;
+    font-size: 0.72rem;
+  }
+
+  .master-strip {
+    grid-template-columns: minmax(0, 1fr) 56px 70px;
+  }
+
+  .pads {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .pad {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .pad-head {
+    grid-template-columns: 1fr repeat(3, 34px);
+    gap: 5px;
+  }
+
+  .pad-trigger {
+    grid-template-columns: 28px minmax(0, 1fr) minmax(38px, auto);
+    min-height: 44px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .keycap {
+    width: 28px;
+    height: 28px;
+    font-size: 0.78rem;
+  }
+
+  .pad-title {
+    font-size: 0.86rem;
+  }
+
+  .pad-time {
+    font-size: 0.72rem;
+  }
+
+  .icon-button,
+  .mode-switch button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .icon-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mode-switch {
+    gap: 4px;
+  }
+
+  .mode-switch button {
+    padding: 0 3px;
+    font-size: 0.62rem;
+  }
+
+  .transport {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 42px;
+    gap: 5px;
+  }
+
+  .transport button,
+  .loop-toggle {
+    min-height: 30px;
+    padding: 0 5px;
+    font-size: 0.68rem;
+  }
+
+  .controls {
+    display: none;
+  }
+}
