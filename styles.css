@@ -140,7 +140,7 @@ h1 {
 
 .board-strip {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) repeat(3, 42px);
+  grid-template-columns: minmax(120px, 1fr) repeat(5, 42px);
   gap: 8px;
   align-items: end;
   padding: 12px;
@@ -569,7 +569,7 @@ button.is-pressed {
   }
 
   .board-strip {
-    grid-template-columns: 1fr 38px 1fr 1fr;
+    grid-template-columns: 1fr repeat(5, 38px);
   }
 
   .board-name {

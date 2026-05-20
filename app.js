@@ -38,6 +38,9 @@ const els = {
   editBoard: document.querySelector("#editBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
+  exportBoard: document.querySelector("#exportBoard"),
+  importBoard: document.querySelector("#importBoard"),
+  importBoardFile: document.querySelector("#importBoardFile"),
 };
 
 function openDb() {
@@ -370,6 +373,122 @@ function renameCurrentBoard(name) {
   saveBoards();
   const option = els.boardSelect ? [...els.boardSelect.options].find((item) => item.value === board.id) : null;
   if (option) option.textContent = board.name;
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+function safeFileName(name) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "soundboard";
+}
+
+async function exportCurrentBoard() {
+  const board = currentBoard();
+  const pads = [];
+
+  for (let index = 0; index < board.padCount; index += 1) {
+    const pad = state.pads[index] || makePad(index);
+    const meta = await dbGet(padMetaKey(pad));
+    const saved = await dbGet(padAudioKey(pad));
+    pads.push({
+      index,
+      title: meta?.title || saved?.title || `Pad ${index + 1}`,
+      volume: meta?.volume ?? saved?.volume ?? 0.85,
+      panValue: meta?.panValue ?? saved?.panValue ?? 0,
+      loop: Boolean(meta?.loop ?? saved?.loop),
+      playMode: meta?.playMode || saved?.playMode || "oneshot",
+      audio: saved?.audio ? {
+        name: saved.name || `Pad ${index + 1}`,
+        type: saved.type || "audio/mpeg",
+        data: arrayBufferToBase64(saved.audio),
+      } : null,
+    });
+  }
+
+  const payload = {
+    format: "soundboard-live-board",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    board: {
+      name: board.name,
+      padCount: board.padCount,
+      pads,
+    },
+  };
+
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${safeFileName(board.name)}.soundboard`;
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus(`${board.name} exporte`);
+}
+
+async function importBoardFile(file) {
+  const payload = JSON.parse(await file.text());
+  if (payload?.format !== "soundboard-live-board" || !payload.board) {
+    setStatus("Fichier board invalide");
+    return;
+  }
+
+  const importedBoard = {
+    id: createId(),
+    name: payload.board.name || cleanName(file.name),
+    padCount: Math.max(DEFAULT_PAD_COUNT, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
+  };
+  state.boards.push(importedBoard);
+  state.currentBoardId = importedBoard.id;
+  saveBoards();
+  renderBoardOptions();
+
+  const pads = Array.isArray(payload.board.pads) ? payload.board.pads : [];
+  for (const item of pads) {
+    const index = Number(item.index);
+    if (!Number.isInteger(index) || index < 0) continue;
+    const transientPad = { index };
+    const meta = {
+      title: item.title || `Pad ${index + 1}`,
+      volume: item.volume ?? 0.85,
+      panValue: item.panValue ?? 0,
+      loop: Boolean(item.loop),
+      playMode: item.playMode || "oneshot",
+    };
+    await dbSet(padMetaKey(transientPad), meta);
+    if (item.audio?.data) {
+      await dbSet(padAudioKey(transientPad), {
+        name: item.audio.name || meta.title,
+        title: meta.title,
+        type: item.audio.type || "audio/mpeg",
+        audio: base64ToArrayBuffer(item.audio.data),
+        ...meta,
+      });
+    }
+  }
+
+  await renderPads();
+  setStatus(`${importedBoard.name} importe`);
 }
 
 async function addPad() {
@@ -822,6 +941,17 @@ async function init() {
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.addPad?.addEventListener("click", addPad);
+  els.exportBoard?.addEventListener("click", () => {
+    exportCurrentBoard().catch(() => setStatus("Export impossible"));
+  });
+  els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
+  els.importBoardFile?.addEventListener("change", () => {
+    const file = els.importBoardFile.files?.[0];
+    if (file) {
+      importBoardFile(file).catch(() => setStatus("Import impossible"));
+      els.importBoardFile.value = "";
+    }
+  });
   els.helpButton?.addEventListener("click", () => {
     if (els.helpDialog?.showModal) {
       els.helpDialog.showModal();
