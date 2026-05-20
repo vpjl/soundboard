@@ -167,7 +167,6 @@ function makePad(index) {
 
   pad.titleEl = node.querySelector("[data-title]");
   pad.nameEl = node.querySelector("[data-name]");
-  pad.keyEl = node.querySelector("[data-key]");
   pad.timeEl = node.querySelector("[data-time]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.editButton = node.querySelector('[data-action="edit"]');
@@ -175,11 +174,11 @@ function makePad(index) {
   pad.modeButtons = [...node.querySelectorAll("[data-mode]")];
   pad.volumeEl = node.querySelector("[data-volume]");
   pad.panEl = node.querySelector("[data-pan]");
-  pad.loopEl = node.querySelector("[data-loop]");
+  pad.loopEl = node.querySelector('[data-action="loop"]');
 
-  pad.keyEl.textContent = pad.key;
   setPadTitle(pad, pad.title);
   setPadMode(pad, pad.playMode);
+  setPadLoop(pad, pad.loop);
   pad.volumeEl.value = pad.volume;
   pad.panEl.value = pad.panValue;
   node.classList.add("is-empty");
@@ -253,8 +252,8 @@ function makePad(index) {
     savePadMeta(pad);
   });
 
-  pad.loopEl.addEventListener("change", () => {
-    pad.loop = pad.loopEl.checked;
+  pad.loopEl.addEventListener("click", () => {
+    setPadLoop(pad, !pad.loop);
     if (pad.source) pad.source.loop = pad.loop;
     savePadMeta(pad);
   });
@@ -531,11 +530,10 @@ async function restorePad(pad) {
     setPadTitle(pad, meta.title || pad.title);
     pad.volume = meta.volume ?? pad.volume;
     pad.panValue = meta.panValue ?? pad.panValue;
-    pad.loop = Boolean(meta.loop);
+    setPadLoop(pad, Boolean(meta.loop));
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
     pad.panEl.value = pad.panValue;
-    pad.loopEl.checked = pad.loop;
   }
 
   const saved = await dbGet(padAudioKey(pad));
@@ -546,12 +544,11 @@ async function restorePad(pad) {
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
   pad.panValue = saved.panValue ?? pad.panValue;
-  pad.loop = Boolean(saved.loop);
+  setPadLoop(pad, Boolean(saved.loop));
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
   pad.volumeEl.value = pad.volume;
   pad.panEl.value = pad.panValue;
-  pad.loopEl.checked = pad.loop;
   pad.node.classList.remove("is-empty");
 }
 
@@ -585,6 +582,12 @@ function setPadMode(pad, mode) {
   if (pad.playMode !== "toggle") {
     pad.resumeOffset = 0;
   }
+}
+
+function setPadLoop(pad, loop) {
+  pad.loop = Boolean(loop);
+  pad.loopEl?.classList.toggle("is-active", pad.loop);
+  pad.loopEl?.setAttribute("aria-pressed", String(pad.loop));
 }
 
 async function playPad(pad, fade = false, offset = 0) {

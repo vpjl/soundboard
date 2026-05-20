@@ -237,8 +237,7 @@ input[type="range"] {
 
 .danger-button,
 .small-button,
-.transport button,
-.mode-switch button,
+.control-group button,
 .icon-button {
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -296,14 +295,18 @@ button.is-pressed {
 
 .pad-head {
   display: grid;
-  grid-template-columns: 1fr 42px 42px 42px;
+  gap: 8px;
+}
+
+.pad-play-row {
+  display: grid;
+  grid-template-columns: 42px 1fr;
   gap: 8px;
 }
 
 .pad-trigger {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: 38px minmax(0, 1fr) minmax(50px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(50px, auto);
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -327,18 +330,6 @@ button.is-pressed {
   background: linear-gradient(145deg, rgba(255, 206, 92, 0.32), rgba(73, 211, 160, 0.22));
 }
 
-.keycap {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #12141a;
-  color: var(--accent-2);
-  font-weight: 800;
-}
-
 .pad-title {
   min-width: 0;
   overflow: hidden;
@@ -356,11 +347,8 @@ button.is-pressed {
 .pad svg,
 .pad path,
 .topbar button,
-.keycap,
 .pad-time,
-.mode-switch,
-.transport,
-.loop-toggle {
+.pad-actions {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -384,29 +372,12 @@ button.is-pressed {
   height: 42px;
 }
 
-.edit-button {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.pad-head [data-action="load"] {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.record-button {
-  grid-column: 4;
-  grid-row: 2;
-}
-
 .icon-button svg {
   width: 22px;
   height: 22px;
 }
 
-.mode-switch svg,
-.transport button svg,
-.loop-toggle svg {
+.control-group svg {
   width: 20px;
   height: 20px;
 }
@@ -417,27 +388,19 @@ button.is-pressed {
   color: #ffd8d5;
 }
 
-.mode-switch {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-column: 1;
-  grid-row: 2;
-  gap: 5px;
-  min-width: 0;
-}
-
-.mode-switch button {
+.control-group button {
   display: grid;
   place-items: center;
   min-width: 0;
-  height: 42px;
+  height: 38px;
   padding: 0 6px;
   color: var(--muted);
   background: rgba(17, 19, 25, 0.72);
   font-size: 0.76rem;
 }
 
-.mode-switch button.is-active {
+.control-group button.is-active,
+.loop-button.is-active {
   border-color: rgba(73, 211, 160, 0.72);
   background: rgba(73, 211, 160, 0.2);
   color: var(--text);
@@ -485,45 +448,37 @@ button.is-pressed {
   box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.16);
 }
 
-.transport {
+.pad-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   gap: 8px;
-  align-items: center;
 }
 
-.transport button {
+.control-group {
   display: grid;
-  place-items: center;
-  min-height: 38px;
-  padding: 0 8px;
-  font-size: 0.86rem;
-}
-
-.loop-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-  min-height: 38px;
-  padding: 0 9px;
+  min-width: 0;
+  padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
-  background: rgba(17, 19, 25, 0.72);
-  font-size: 0.84rem;
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.45);
 }
 
-.loop-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+.start-group {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.loop-toggle:has(input:checked) {
-  border-color: rgba(73, 211, 160, 0.72);
-  background: rgba(73, 211, 160, 0.2);
-  color: var(--text);
+.pad-action-line {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.8fr) minmax(114px, 1.2fr);
+  gap: 8px;
+}
+
+.stop-group {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manage-group {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .help-dialog {
@@ -589,7 +544,7 @@ button.is-pressed {
   gap: 10px;
 }
 
-.pad.is-empty .transport,
+.pad.is-empty .pad-actions,
 .pad.is-empty .controls {
   opacity: 0.52;
 }
@@ -629,15 +584,11 @@ button.is-pressed {
     min-height: 70px;
   }
 
-  .pad-head {
-    grid-template-columns: 1fr repeat(3, 38px);
-  }
-
   .icon-button {
     width: 38px;
   }
 
-  .mode-switch button {
+  .control-group button {
     height: 38px;
     padding: 0 4px;
     font-size: 0.7rem;
@@ -715,22 +666,21 @@ button.is-pressed {
     padding: 6px;
   }
 
-  .pad-head {
-    grid-template-columns: 1fr repeat(3, 34px);
+  .pad-head,
+  .pad-actions {
+    gap: 5px;
+  }
+
+  .pad-play-row {
+    grid-template-columns: 34px 1fr;
     gap: 5px;
   }
 
   .pad-trigger {
-    grid-template-columns: 28px minmax(0, 1fr) minmax(38px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
     min-height: 44px;
     gap: 6px;
     padding: 6px;
-  }
-
-  .keycap {
-    width: 28px;
-    height: 28px;
-    font-size: 0.78rem;
   }
 
   .pad-title {
@@ -742,7 +692,7 @@ button.is-pressed {
   }
 
   .icon-button,
-  .mode-switch button {
+  .control-group button {
     width: 34px;
     height: 34px;
   }
@@ -752,25 +702,19 @@ button.is-pressed {
     height: 18px;
   }
 
-  .mode-switch {
+  .control-group {
     gap: 4px;
+    padding: 4px;
   }
 
-  .mode-switch button {
+  .control-group button {
     padding: 0 3px;
     font-size: 0.62rem;
   }
 
-  .transport {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) 42px;
+  .pad-action-line {
+    grid-template-columns: minmax(70px, 0.8fr) minmax(104px, 1.2fr);
     gap: 5px;
-  }
-
-  .transport button,
-  .loop-toggle {
-    min-height: 30px;
-    padding: 0 5px;
-    font-size: 0.68rem;
   }
 
   .controls {
