@@ -32,6 +32,7 @@ const els = {
   stopAll: document.querySelector("#stopAll"),
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
+  editBoard: document.querySelector("#editBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
 };
@@ -304,6 +305,16 @@ function renderBoardOptions() {
   if (els.boardName) els.boardName.value = currentBoard().name;
 }
 
+function setBoardEditing(editing) {
+  const strip = document.querySelector(".board-strip");
+  strip?.classList.toggle("is-editing", editing);
+  els.editBoard?.classList.toggle("is-active", editing);
+  if (editing) {
+    els.boardName?.focus();
+    els.boardName?.select();
+  }
+}
+
 async function renderPads() {
   stopAll();
   resetRecordingState();
@@ -341,8 +352,7 @@ async function addBoard() {
   saveBoards();
   renderBoardOptions();
   await renderPads();
-  els.boardName?.focus();
-  els.boardName?.select();
+  setBoardEditing(true);
 }
 
 function nextBoardName() {
@@ -768,6 +778,22 @@ async function init() {
   els.stopAll.addEventListener("click", stopAll);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
+  els.boardName?.addEventListener("blur", () => setBoardEditing(false));
+  els.boardName?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      els.boardName.blur();
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      els.boardName.value = currentBoard().name;
+      els.boardName.blur();
+    }
+  });
+  els.editBoard?.addEventListener("click", () => {
+    const strip = document.querySelector(".board-strip");
+    setBoardEditing(!strip?.classList.contains("is-editing"));
+  });
   els.addBoard?.addEventListener("click", addBoard);
   els.addPad?.addEventListener("click", addPad);
   bindButtonFeedback(document.querySelector(".topbar"));

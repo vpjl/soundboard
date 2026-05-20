@@ -105,7 +105,7 @@ h1 {
 
 .board-strip {
   display: grid;
-  grid-template-columns: minmax(100px, 0.8fr) minmax(120px, 1fr) auto auto;
+  grid-template-columns: minmax(120px, 1fr) 42px auto auto;
   gap: 8px;
   align-items: end;
   padding: 12px;
@@ -120,6 +120,21 @@ h1 {
   display: grid;
   gap: 7px;
   min-width: 0;
+}
+
+.board-name {
+  display: none;
+  grid-column: 1 / -1;
+}
+
+.board-strip.is-editing .board-name {
+  display: grid;
+}
+
+.board-edit-button.is-active {
+  border-color: rgba(255, 206, 92, 0.78);
+  background: rgba(255, 206, 92, 0.2);
+  color: #fff0c2;
 }
 
 .board-select span,
@@ -464,12 +479,11 @@ button.is-pressed {
   }
 
   .board-strip {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 38px 1fr 1fr;
   }
 
-  .board-select,
   .board-name {
-    grid-column: span 1;
+    grid-column: 1 / -1;
   }
 
   .danger-button {
