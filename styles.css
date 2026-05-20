@@ -540,6 +540,13 @@ button.is-pressed {
   gap: 10px;
 }
 
+.help-column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
 .help-section {
   min-width: 0;
   padding: 10px;
