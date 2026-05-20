@@ -51,6 +51,8 @@ const els = {
   masterVu: document.querySelector("#masterVu"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
+  stopGroup: document.querySelector("#stopGroup"),
+  stopGroupSelect: document.querySelector("#stopGroupSelect"),
   stageMode: document.querySelector("#stageMode"),
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
@@ -221,6 +223,7 @@ function makePad(index) {
     duckTrigger: false,
     tags: "",
     color: "",
+    fadeSeconds: "",
     trimStart: 0,
     trimEnd: 0,
     waveformPeaks: [],
@@ -230,6 +233,7 @@ function makePad(index) {
   pad.nameEl = node.querySelector("[data-name]");
   pad.tagsEl = node.querySelector("[data-tags]");
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
+  pad.fadeEl = node.querySelector("[data-pad-fade]");
   pad.trimStartEl = node.querySelector("[data-trim-start]");
   pad.trimEndEl = node.querySelector("[data-trim-end]");
   pad.trimStartValueEl = node.querySelector("[data-trim-start-value]");
@@ -253,6 +257,7 @@ function makePad(index) {
 
   setPadTitle(pad, pad.title);
   setPadTags(pad, pad.tags);
+  setPadFade(pad, pad.fadeSeconds);
   setPadColor(pad, pad.color);
   setPadTrim(pad, pad.trimStart, pad.trimEnd);
   setPadMode(pad, pad.playMode);
@@ -308,6 +313,11 @@ function makePad(index) {
   });
   pad.tagsEl.addEventListener("input", () => {
     setPadTags(pad, pad.tagsEl.value);
+    refreshStopGroupOptions();
+    savePadMeta(pad);
+  });
+  pad.fadeEl.addEventListener("input", () => {
+    setPadFade(pad, pad.fadeEl.value, false);
     savePadMeta(pad);
   });
   pad.trimStartEl.addEventListener("input", () => {
@@ -580,10 +590,13 @@ async function renderPads() {
     state.pads.push(pad);
     els.pads.append(pad.node);
     bindButtonFeedback(pad.node);
-    restorePad(pad).catch(() => {
-      pad.node.classList.add("is-empty");
-    });
+    restorePad(pad)
+      .then(refreshStopGroupOptions)
+      .catch(() => {
+        pad.node.classList.add("is-empty");
+      });
   }
+  refreshStopGroupOptions();
   setStatus(`${board.name} charge`);
 }
 
@@ -723,6 +736,7 @@ async function exportCurrentBoard(includeAudio = true) {
       duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
+      fadeSeconds: meta?.fadeSeconds ?? saved?.fadeSeconds ?? "",
       trimStart: meta?.trimStart ?? saved?.trimStart ?? 0,
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
@@ -791,6 +805,7 @@ async function importBoardFile(file) {
       duckTrigger: Boolean(item.duckTrigger),
       tags: item.tags || "",
       color: item.color || "",
+      fadeSeconds: item.fadeSeconds ?? "",
       trimStart: item.trimStart ?? 0,
       trimEnd: item.trimEnd ?? 0,
       playMode: item.playMode || "oneshot",
@@ -820,6 +835,7 @@ async function addPad() {
   els.pads.append(pad.node);
   bindButtonFeedback(pad.node);
   if (state.boardEditMode) setPadEditing(pad, true);
+  refreshStopGroupOptions();
   setStatus(`Pad ${board.padCount} ajoute`);
 }
 
@@ -878,6 +894,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     duckTrigger: pad.duckTrigger,
     tags: pad.tags,
     color: pad.color,
+    fadeSeconds: pad.fadeSeconds,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
@@ -981,6 +998,7 @@ async function restorePad(pad) {
     setPadDuckTrigger(pad, Boolean(meta.duckTrigger));
     setPadTags(pad, meta.tags || "");
     setPadColor(pad, meta.color || "");
+    setPadFade(pad, meta.fadeSeconds ?? "");
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
@@ -1000,6 +1018,7 @@ async function restorePad(pad) {
   setPadDuckTrigger(pad, Boolean(saved.duckTrigger));
   setPadTags(pad, meta?.tags ?? saved.tags ?? "");
   setPadColor(pad, meta?.color ?? saved.color ?? "");
+  setPadFade(pad, meta?.fadeSeconds ?? saved.fadeSeconds ?? "");
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
@@ -1018,6 +1037,7 @@ async function savePadMeta(pad) {
     duckTrigger: pad.duckTrigger,
     tags: pad.tags,
     color: pad.color,
+    fadeSeconds: pad.fadeSeconds,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
@@ -1111,6 +1131,34 @@ function setPadTags(pad, tags) {
   pad.tagsEl.value = pad.tags;
   pad.tagsDisplayEl.textContent = pad.tags;
   pad.tagsDisplayEl.hidden = !pad.tags;
+}
+
+function padTagList(pad) {
+  return pad.tags
+    .split(/[#,;]+|\s+/)
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function refreshStopGroupOptions() {
+  if (!els.stopGroupSelect) return;
+  const currentValue = els.stopGroupSelect.value;
+  const tags = [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
+  els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    els.stopGroupSelect.append(option);
+  });
+  els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
+}
+
+function setPadFade(pad, fadeSeconds, updateInput = true) {
+  const value = String(fadeSeconds ?? "").trim();
+  const number = value === "" ? "" : Math.min(30, Math.max(0, Number(value)));
+  pad.fadeSeconds = Number.isFinite(number) ? number : "";
+  if (updateInput && pad.fadeEl) pad.fadeEl.value = pad.fadeSeconds === "" ? "" : String(pad.fadeSeconds);
 }
 
 function setPadColor(pad, color) {
@@ -1346,6 +1394,13 @@ function targetPadGain(pad) {
   return pad.volume * duckFactorForPad(pad);
 }
 
+function fadeDurationForPad(pad) {
+  if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) {
+    return Math.max(0, Number(pad.fadeSeconds));
+  }
+  return Math.max(0, Number(els.fadeSeconds.value) || 0);
+}
+
 function applyDucking(exceptPad = null) {
   if (!state.audioContext) return;
   const now = state.audioContext.currentTime;
@@ -1378,7 +1433,7 @@ async function playPad(pad, fade = false, offset = 0) {
   const pan = ctx.createStereoPanner();
   const analyser = ctx.createAnalyser();
   const now = ctx.currentTime;
-  const fadeTime = Math.max(0, Number(els.fadeSeconds.value) || 0);
+  const fadeTime = fadeDurationForPad(pad);
 
   analyser.fftSize = 256;
   source.buffer = pad.buffer;
@@ -1436,7 +1491,7 @@ function stopPad(pad, fade = false, preservePosition = false) {
   const source = pad.source;
   const gain = pad.gain;
   const now = state.audioContext.currentTime;
-  const fadeTime = Math.max(0, Number(els.fadeSeconds.value) || 0);
+  const fadeTime = fadeDurationForPad(pad);
   if (preservePosition && pad.duration) {
     const elapsed = Math.max(0, now - pad.startedAt);
     const duration = playableDuration(pad);
@@ -1502,7 +1557,9 @@ function meterLevel(analyser, data) {
 }
 
 function setMeterLevel(element, level) {
-  if (element) element.style.transform = `scaleX(${Math.max(0, Math.min(1, level))})`;
+  if (!element) return;
+  const scale = Math.max(0, Math.min(1, level));
+  element.style.transform = element.parentElement?.classList.contains("master-vu") ? `scaleY(${scale})` : `scaleX(${scale})`;
 }
 
 function updateMeters() {
@@ -1568,6 +1625,17 @@ function togglePad(pad) {
 function stopAll() {
   state.pads.forEach((pad) => stopPad(pad, true));
   setStatus("Tout est stoppe");
+}
+
+function stopGroup() {
+  const tag = els.stopGroupSelect?.value;
+  if (!tag) {
+    setStatus("Choisir un groupe");
+    return;
+  }
+  const pads = state.pads.filter((pad) => pad.source && padTagList(pad).includes(tag));
+  pads.forEach((pad) => stopPad(pad, true));
+  setStatus(pads.length ? `Groupe ${tag} stoppe` : `Aucun pad joue: ${tag}`);
 }
 
 function bindKeyboard() {
@@ -1645,6 +1713,7 @@ async function init() {
     applyDucking();
   });
   els.stopAll.addEventListener("click", stopAll);
+  els.stopGroup?.addEventListener("click", stopGroup);
   els.stageMode?.addEventListener("click", () => {
     setStageMode(!state.stageMode, true);
   });

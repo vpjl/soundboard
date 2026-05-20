@@ -218,14 +218,14 @@ textarea *,
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) minmax(280px, 520px);
   gap: 18px;
-  align-items: center;
+  align-items: stretch;
   width: min(1280px, 100%);
   margin: 0 auto 18px;
 }
 
 .brand {
   display: flex;
-  align-items: center;
+  align-items: start;
   min-width: 0;
   gap: 14px;
 }
@@ -302,9 +302,12 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) 74px 86px 96px 58px;
+  grid-template-columns: minmax(96px, 1fr) minmax(76px, 0.7fr) minmax(118px, 0.9fr) 18px 58px;
+  grid-template-areas:
+    "master master master vu stop"
+    "fade duck group vu stop";
   gap: 10px;
-  align-items: end;
+  align-items: stretch;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -332,7 +335,7 @@ h1 {
 
 .board-action-grid {
   display: grid;
-  grid-template-columns: repeat(6, 42px);
+  grid-template-columns: repeat(7, 42px);
   gap: 8px;
   justify-content: end;
 }
@@ -393,6 +396,26 @@ h1 {
   min-width: 0;
 }
 
+.master-strip > .master-control:first-child {
+  grid-area: master;
+}
+
+.master-strip > .master-control.small:nth-child(3) {
+  grid-area: fade;
+}
+
+.master-strip > .master-control.small:nth-child(4) {
+  grid-area: duck;
+}
+
+.group-stop-control {
+  grid-area: group;
+}
+
+.master-strip > #stopAll {
+  grid-area: stop;
+}
+
 .master-control span,
 .controls span {
   color: var(--muted);
@@ -405,7 +428,8 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.master-control.small input {
+.master-control.small input,
+.group-stop-row select {
   width: 100%;
   height: 36px;
   border: 1px solid var(--line);
@@ -413,6 +437,13 @@ h1 {
   padding: 0 9px;
   background: #111319;
   color: var(--text);
+}
+
+.group-stop-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 6px;
+  min-width: 0;
 }
 
 input[type="range"] {
@@ -450,7 +481,14 @@ button.is-pressed {
 
 #stopAll {
   width: 58px;
-  height: 58px;
+  height: 100%;
+  min-height: 88px;
+}
+
+#stopGroup {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
 }
 
 .deck {
@@ -541,7 +579,7 @@ button.is-pressed {
   display: grid;
   position: relative;
   grid-template-columns: minmax(0, 1fr) minmax(50px, auto);
-  align-items: center;
+  align-items: start;
   gap: 9px;
   min-width: 0;
   min-height: 78px;
@@ -574,8 +612,19 @@ button.is-pressed {
 }
 
 .master-vu {
-  align-self: end;
-  height: 36px;
+  grid-area: vu;
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
+    rgba(17, 19, 25, 0.78);
+}
+
+.master-vu .vu-fill {
+  background: linear-gradient(0deg, var(--accent), var(--accent-2), var(--danger));
+  transform-origin: center bottom;
 }
 
 .pad-vu {
@@ -590,7 +639,7 @@ button.is-pressed {
 .pad-alerts {
   position: absolute;
   right: 7px;
-  bottom: 16px;
+  bottom: 18px;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -685,6 +734,7 @@ button.is-pressed {
 }
 
 .pad-time {
+  align-self: start;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -759,6 +809,7 @@ button.is-pressed {
 
 .name-field > span,
 .tag-field span,
+.pad-fade-field span,
 .color-field > span {
   grid-column: 1 / -1;
   color: var(--muted);
@@ -767,7 +818,8 @@ button.is-pressed {
 }
 
 .name-field input,
-.tag-field input {
+.tag-field input,
+.pad-fade-field input {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -778,6 +830,7 @@ button.is-pressed {
 }
 
 .tag-field,
+.pad-fade-field,
 .trim-field,
 .color-field {
   display: grid;
@@ -946,7 +999,8 @@ button.is-pressed {
 }
 
 .name-field input:focus,
-.tag-field input:focus {
+.tag-field input:focus,
+.pad-fade-field input:focus {
   border-color: rgba(73, 211, 160, 0.85);
   outline: none;
   box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.16);
@@ -1170,7 +1224,6 @@ body.stage-mode h1,
 body.stage-mode .skin-select,
 body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
-body.stage-mode .board-action-grid,
 body.stage-mode .board-name,
 body.stage-mode .manage-group,
 body.stage-mode .name-field,
@@ -1198,8 +1251,20 @@ body.stage-mode .board-strip {
   grid-template-columns: minmax(150px, 1fr);
 }
 
+body.stage-mode .board-action-grid {
+  grid-template-columns: 40px;
+  justify-content: start;
+}
+
+body.stage-mode .board-action-grid button:not(#stageMode) {
+  display: none;
+}
+
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(110px, 1fr) 58px 64px 76px 58px;
+  grid-template-columns: minmax(96px, 1fr) minmax(70px, 0.7fr) minmax(106px, 0.9fr) 16px 54px;
+  grid-template-areas:
+    "master master master vu stop"
+    "fade duck group vu stop";
 }
 
 body.stage-mode .deck {
@@ -1260,10 +1325,10 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 58px 52px;
+    grid-template-columns: minmax(0, 1fr) 48px minmax(82px, 0.8fr) 12px 52px;
     grid-template-areas:
-      "master vu stop"
-      "fade duck stop";
+      "master master master vu stop"
+      "fade duck group vu stop";
     align-items: stretch;
   }
 
@@ -1278,8 +1343,8 @@ body.stage-mode .pad-time {
   }
 
   .board-action-grid {
-    grid-template-columns: repeat(6, 38px);
-    gap: 6px;
+    grid-template-columns: repeat(7, 34px);
+    gap: 5px;
   }
 
   .pads {
@@ -1291,22 +1356,30 @@ body.stage-mode .pad-time {
   }
 
   .pad-trigger {
-    min-height: 66px;
-    padding-bottom: 18px;
+    min-height: 76px;
+    padding-bottom: 24px;
   }
 
   .master-strip > .master-control:first-child {
     grid-area: master;
   }
 
-  .master-vu {
-    grid-area: vu;
-    align-self: end;
-    height: 8px;
-    min-width: 0;
-    background:
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
-      rgba(17, 19, 25, 0.78);
+  .group-stop-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+    gap: 4px;
+  }
+
+  .master-control.small input,
+  .group-stop-row select {
+    height: 32px;
+    padding: 0 7px;
+    font-size: 0.72rem;
+  }
+
+  #stopGroup {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
   }
 
   .master-strip > .master-control.small:nth-child(3) {
@@ -1317,12 +1390,16 @@ body.stage-mode .pad-time {
     grid-area: duck;
   }
 
+  .group-stop-control {
+    grid-area: group;
+  }
+
   .master-strip > #stopAll {
     grid-area: stop;
   }
 
   .icon-button {
-    width: 38px;
+    width: 34px;
   }
 
   .control-group button {
@@ -1383,10 +1460,16 @@ body.stage-mode .pad-time {
     font-size: 0.62rem;
   }
 
+  .board-action-grid {
+    grid-template-columns: repeat(7, 34px);
+    gap: 5px;
+  }
+
   .board-select select,
   .board-name input,
   .small-button,
   .master-control.small input,
+  .group-stop-row select,
   .danger-button {
     height: 32px;
     min-height: 32px;
@@ -1396,10 +1479,10 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 76px 60px;
+    grid-template-columns: minmax(0, 1fr) 52px minmax(92px, 0.8fr) 12px 60px;
     grid-template-areas:
-      "master vu stop"
-      "fade duck stop";
+      "master master master vu stop"
+      "fade duck group vu stop";
     align-items: stretch;
   }
 
@@ -1413,14 +1496,15 @@ body.stage-mode .pad-time {
     grid-area: master;
   }
 
-  .master-vu {
-    grid-area: vu;
-    align-self: end;
-    height: 8px;
-    min-width: 0;
-    background:
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
-      rgba(17, 19, 25, 0.78);
+  .group-stop-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+    gap: 4px;
+  }
+
+  #stopGroup {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
   }
 
   .master-strip > .master-control.small:nth-child(3) {
@@ -1429,6 +1513,10 @@ body.stage-mode .pad-time {
 
   .master-strip > .master-control.small:nth-child(4) {
     grid-area: duck;
+  }
+
+  .group-stop-control {
+    grid-area: group;
   }
 
   .master-strip > #stopAll {
@@ -1457,9 +1545,9 @@ body.stage-mode .pad-time {
 
   .pad-trigger {
     grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
-    min-height: 66px;
+    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 18px;
+    padding: 6px 6px 24px;
   }
 
   .pad-title {
@@ -1520,9 +1608,9 @@ body.stage-mode .pad-time {
   }
 
   body.stage-mode .pad-trigger {
-    min-height: 66px;
+    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 18px;
+    padding: 6px 6px 24px;
   }
 
   body.stage-mode .pad-title {

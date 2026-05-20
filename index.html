@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=44">
+    <link rel="stylesheet" href="styles.css?v=45">
   </head>
   <body>
     <div class="app">
@@ -28,12 +28,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
                 <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button id="stageMode" class="icon-button stage-button" type="button" aria-label="Mode plein écran scène" aria-pressed="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
@@ -64,6 +58,12 @@
               <input id="boardName" type="text" maxlength="48">
             </label>
             <div class="board-action-grid">
+              <button id="stageMode" class="icon-button stage-button" type="button" aria-label="Mode plein écran scène" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+              </button>
               <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -118,6 +118,20 @@
             <span>Ducking %</span>
             <input id="duckPercent" type="number" min="0" max="100" step="5" value="60">
           </label>
+          <label class="master-control group-stop-control">
+            <span>Stop groupe</span>
+            <span class="group-stop-row">
+              <select id="stopGroupSelect" aria-label="Groupe à arrêter">
+                <option value="">Tags</option>
+              </select>
+              <button id="stopGroup" class="danger-button icon-button" type="button" aria-label="Arrêter le groupe">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                  <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </span>
+          </label>
           <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
@@ -171,6 +185,10 @@
             <label class="tag-field">
               <span>Tags</span>
               <input type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
+            </label>
+            <label class="pad-fade-field">
+              <span>Fade pad</span>
+              <input type="number" min="0" max="30" step="0.5" placeholder="global" data-pad-fade>
             </label>
             <div class="trim-field" aria-label="Trim du pad">
               <span>Trim</span>
@@ -302,12 +320,12 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête tous les pads en cours.</dd>
-                <dt aria-label="Mode plein écran scène">
+                <dt aria-label="Arrêter un groupe">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Affiche seulement la vue scène et les contrôles essentiels.</dd>
+                </dt><dd>Arrête seulement les pads du tag choisi.</dd>
               </dl>
             </section>
 
@@ -356,6 +374,12 @@
             <section class="help-section" aria-label="Board">
               <h3>Board</h3>
               <dl class="help-grid">
+                <dt aria-label="Mode plein écran scène">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Affiche seulement la vue scène et les contrôles essentiels.</dd>
                 <dt aria-label="Ajouter un pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -427,6 +451,12 @@
                     <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Glisser cette poignée pour réordonner les pads.</dd>
+                <dt aria-label="Fade individuel">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Règle un fade propre à ce pad, ou laisse vide pour utiliser le global.</dd>
               </dl>
             </section>
           </div>
@@ -434,6 +464,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=44"></script>
+    <script src="app.js?v=45"></script>
   </body>
 </html>
