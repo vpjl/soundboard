@@ -1258,13 +1258,19 @@ body.stage-mode .pad-time {
     padding-inline: 10px;
   }
 
-  .master-strip {
-    grid-template-columns: minmax(0, 1fr) 54px 68px 78px 48px;
+  .master-strip,
+  body.stage-mode .master-strip {
+    grid-template-columns: minmax(0, 1fr) 58px 52px;
+    grid-template-areas:
+      "master vu stop"
+      "fade duck stop";
+    align-items: stretch;
   }
 
   #stopAll {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 100%;
+    min-height: 74px;
   }
 
   .board-strip {
@@ -1285,7 +1291,34 @@ body.stage-mode .pad-time {
   }
 
   .pad-trigger {
-    min-height: 100%;
+    min-height: 66px;
+    padding-bottom: 18px;
+  }
+
+  .master-strip > .master-control:first-child {
+    grid-area: master;
+  }
+
+  .master-vu {
+    grid-area: vu;
+    align-self: end;
+    height: 8px;
+    min-width: 0;
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
+      rgba(17, 19, 25, 0.78);
+  }
+
+  .master-strip > .master-control.small:nth-child(3) {
+    grid-area: fade;
+  }
+
+  .master-strip > .master-control.small:nth-child(4) {
+    grid-area: duck;
+  }
+
+  .master-strip > #stopAll {
+    grid-area: stop;
   }
 
   .icon-button {
@@ -1338,7 +1371,8 @@ body.stage-mode .pad-time {
   }
 
   .board-strip,
-  .master-strip {
+  .master-strip,
+  body.stage-mode .master-strip {
     gap: 5px;
     padding: 6px;
   }
@@ -1360,13 +1394,45 @@ body.stage-mode .pad-time {
     font-size: 0.72rem;
   }
 
-  .master-strip {
-    grid-template-columns: minmax(0, 1fr) 48px 52px 62px 42px;
+  .master-strip,
+  body.stage-mode .master-strip {
+    grid-template-columns: minmax(0, 1fr) 76px 60px;
+    grid-template-areas:
+      "master vu stop"
+      "fade duck stop";
+    align-items: stretch;
   }
 
   #stopAll {
-    width: 42px;
-    height: 42px;
+    width: 60px;
+    height: 100%;
+    min-height: 68px;
+  }
+
+  .master-strip > .master-control:first-child {
+    grid-area: master;
+  }
+
+  .master-vu {
+    grid-area: vu;
+    align-self: end;
+    height: 8px;
+    min-width: 0;
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
+      rgba(17, 19, 25, 0.78);
+  }
+
+  .master-strip > .master-control.small:nth-child(3) {
+    grid-area: fade;
+  }
+
+  .master-strip > .master-control.small:nth-child(4) {
+    grid-area: duck;
+  }
+
+  .master-strip > #stopAll {
+    grid-area: stop;
   }
 
   .pads {
@@ -1391,9 +1457,9 @@ body.stage-mode .pad-time {
 
   .pad-trigger {
     grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
-    min-height: 100%;
+    min-height: 66px;
     gap: 6px;
-    padding: 6px;
+    padding: 6px 6px 18px;
   }
 
   .pad-title {
@@ -1454,9 +1520,9 @@ body.stage-mode .pad-time {
   }
 
   body.stage-mode .pad-trigger {
-    min-height: 100%;
+    min-height: 66px;
     gap: 6px;
-    padding: 6px;
+    padding: 6px 6px 18px;
   }
 
   body.stage-mode .pad-title {
