@@ -504,7 +504,7 @@ button.is-pressed {
 }
 
 .help-dialog {
-  width: min(520px, calc(100vw - 28px));
+  width: min(680px, calc(100vw - 28px));
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0;
@@ -534,9 +534,31 @@ button.is-pressed {
   font-size: 1.1rem;
 }
 
+.help-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.help-section {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.45);
+}
+
+.help-section h3 {
+  margin: 0 0 8px;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .help-grid {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 38px 1fr;
   gap: 8px 10px;
   margin: 0;
 }
@@ -544,7 +566,7 @@ button.is-pressed {
 .help-grid dt {
   display: grid;
   place-items: center;
-  min-height: 32px;
+  min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--accent-2);
@@ -560,7 +582,7 @@ button.is-pressed {
 .help-grid dd {
   margin: 0;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   line-height: 1.35;
   align-self: center;
 }
@@ -629,6 +651,10 @@ button.is-pressed {
     height: 38px;
     padding: 0 4px;
     font-size: 0.7rem;
+  }
+
+  .help-sections {
+    grid-template-columns: 1fr;
   }
 }
 
