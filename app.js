@@ -23,6 +23,7 @@ const state = {
   recordingPad: null,
   recordingChunks: [],
   recordingStream: null,
+  drag: null,
 };
 
 const els = {
@@ -69,6 +70,15 @@ function dbSet(key, value) {
   return new Promise((resolve, reject) => {
     const tx = state.db.transaction(STORE, "readwrite");
     const request = tx.objectStore(STORE).put(value, key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function dbDelete(key) {
+  return new Promise((resolve, reject) => {
+    const tx = state.db.transaction(STORE, "readwrite");
+    const request = tx.objectStore(STORE).delete(key);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
@@ -184,6 +194,7 @@ function makePad(index) {
   pad.panEl = node.querySelector("[data-pan]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
+  pad.dragHandle = node.querySelector('[data-action="drag"]');
 
   setPadTitle(pad, pad.title);
   setPadMode(pad, pad.playMode);
@@ -198,6 +209,7 @@ function makePad(index) {
     pad.fileInput.click();
   });
   pad.editButton.addEventListener("click", () => setPadEditing(pad, !pad.node.classList.contains("is-editing")));
+  pad.dragHandle.addEventListener("pointerdown", (event) => startPadDrag(pad, event));
   pad.recordButton.addEventListener("click", () => toggleRecording(pad));
   pad.fileInput.addEventListener("change", () => {
     const file = pad.fileInput.files?.[0];
@@ -331,6 +343,127 @@ function setBoardEditing(editing) {
     els.boardName?.focus();
     els.boardName?.select();
   }
+}
+
+function movePadInMemory(pad, toIndex) {
+  const fromIndex = state.pads.indexOf(pad);
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= state.pads.length || fromIndex === toIndex) return;
+  state.pads.splice(fromIndex, 1);
+  state.pads.splice(toIndex, 0, pad);
+  state.pads.forEach((item) => els.pads.append(item.node));
+}
+
+function padIndexFromPoint(clientX, clientY, draggedPad) {
+  const targetNode = document.elementFromPoint(clientX, clientY)?.closest("[data-pad]");
+  const targetPad = state.pads.find((pad) => pad.node === targetNode);
+  if (!targetPad || targetPad === draggedPad) return -1;
+
+  const targetIndex = state.pads.indexOf(targetPad);
+  const draggedIndex = state.pads.indexOf(draggedPad);
+  const rect = targetPad.node.getBoundingClientRect();
+  const horizontal = rect.width > rect.height * 1.2;
+  const after = horizontal
+    ? clientX > rect.left + rect.width / 2
+    : clientY > rect.top + rect.height / 2;
+  let toIndex = targetIndex + (after ? 1 : 0);
+  if (toIndex > draggedIndex) toIndex -= 1;
+  return Math.max(0, Math.min(state.pads.length - 1, toIndex));
+}
+
+async function persistPadOrder(originalPads, finalPads) {
+  const snapshots = new Map();
+
+  for (const pad of originalPads) {
+    snapshots.set(pad, {
+      audio: await dbGet(padAudioKey(pad)),
+      meta: await dbGet(padMetaKey(pad)),
+    });
+  }
+
+  for (let index = 0; index < finalPads.length; index += 1) {
+    const targetPad = { index };
+    const snapshot = snapshots.get(finalPads[index]) || {};
+    if (snapshot.meta) {
+      await dbSet(padMetaKey(targetPad), snapshot.meta);
+    } else {
+      await dbDelete(padMetaKey(targetPad));
+    }
+    if (snapshot.audio) {
+      await dbSet(padAudioKey(targetPad), snapshot.audio);
+    } else {
+      await dbDelete(padAudioKey(targetPad));
+    }
+  }
+}
+
+function startPadDrag(pad, event) {
+  if (!pad.node.classList.contains("is-editing") || state.drag) return;
+  event.preventDefault();
+  event.stopPropagation();
+
+  const originalPads = state.pads.slice();
+  state.drag = {
+    pad,
+    originalPads,
+    moved: false,
+    pointerId: event.pointerId,
+  };
+  pad.node.classList.add("is-dragging");
+  pad.dragHandle.setPointerCapture?.(event.pointerId);
+  setStatus("Glissez pour déplacer le pad");
+
+  const onPointerMove = (moveEvent) => {
+    if (!state.drag || moveEvent.pointerId !== state.drag.pointerId) return;
+    moveEvent.preventDefault();
+    const toIndex = padIndexFromPoint(moveEvent.clientX, moveEvent.clientY, pad);
+    if (toIndex < 0) return;
+    state.drag.moved = true;
+    movePadInMemory(pad, toIndex);
+  };
+
+  const finishDrag = async (endEvent) => {
+    if (!state.drag || endEvent.pointerId !== state.drag.pointerId) return;
+    endEvent.preventDefault();
+    pad.dragHandle.releasePointerCapture?.(event.pointerId);
+    pad.node.classList.remove("is-dragging");
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", finishDrag);
+    window.removeEventListener("pointercancel", cancelDrag);
+
+    const drag = state.drag;
+    state.drag = null;
+    if (!drag.moved) {
+      setStatus("Déplacement annulé");
+      return;
+    }
+
+    try {
+      await persistPadOrder(drag.originalPads, state.pads.slice());
+      await renderPads();
+      setStatus("Pads réordonnés");
+    } catch {
+      state.pads = drag.originalPads;
+      state.pads.forEach((item) => els.pads.append(item.node));
+      setStatus("Réorganisation impossible");
+    }
+  };
+
+  const cancelDrag = (cancelEvent) => {
+    if (!state.drag || cancelEvent.pointerId !== state.drag.pointerId) return;
+    pad.dragHandle.releasePointerCapture?.(event.pointerId);
+    pad.node.classList.remove("is-dragging");
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", finishDrag);
+    window.removeEventListener("pointercancel", cancelDrag);
+    state.pads = state.drag.originalPads;
+    state.pads.forEach((item) => els.pads.append(item.node));
+    state.drag = null;
+    setStatus("Déplacement annulé");
+  };
+
+  window.addEventListener("pointermove", onPointerMove, { passive: false });
+  window.addEventListener("pointerup", finishDrag, { passive: false });
+  window.addEventListener("pointercancel", cancelDrag);
 }
 
 async function renderPads() {

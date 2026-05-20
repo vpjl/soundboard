@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=33">
+    <link rel="stylesheet" href="styles.css?v=34">
   </head>
   <body>
     <div class="app">
@@ -133,10 +133,20 @@
             </button>
           </div>
 
-          <label class="name-field">
+          <div class="name-field">
             <span>Nom</span>
             <input type="text" maxlength="48" data-name>
-          </label>
+            <button class="drag-handle" type="button" data-action="drag" aria-label="Déplacer le pad">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
+                <circle cx="15" cy="6" r="1.5" fill="currentColor"/>
+                <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+                <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+                <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
+                <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
           <input class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
         </div>
 
@@ -352,6 +362,16 @@
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Modifie le nom du pad.</dd>
+                <dt aria-label="Déplacer le pad">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
+                    <circle cx="15" cy="6" r="1.5" fill="currentColor"/>
+                    <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+                    <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+                    <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
+                    <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
+                  </svg>
+                </dt><dd>En mode edit, glisser cette poignée pour réordonner les pads.</dd>
               </dl>
             </section>
           </div>
@@ -359,6 +379,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=34"></script>
   </body>
 </html>

@@ -412,6 +412,7 @@ input[type="range"] {
 .danger-button,
 .small-button,
 .control-group button,
+.drag-handle,
 .icon-button {
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -470,6 +471,12 @@ button.is-pressed {
 
 .pad.is-empty {
   border-style: dashed;
+}
+
+.pad.is-dragging {
+  opacity: 0.5;
+  outline: 2px solid var(--accent);
+  pointer-events: none;
 }
 
 .pad-head {
@@ -596,6 +603,7 @@ button.is-pressed {
 .name-field {
   display: none;
   grid-column: 1 / -1;
+  grid-template-columns: 1fr 38px;
   gap: 6px;
 }
 
@@ -610,6 +618,7 @@ button.is-pressed {
 }
 
 .name-field span {
+  grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -623,6 +632,20 @@ button.is-pressed {
   padding: 0 10px;
   background: rgba(17, 19, 25, 0.78);
   color: var(--text);
+}
+
+.drag-handle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  min-height: 38px;
+  touch-action: none;
+  color: var(--accent-2);
+}
+
+.drag-handle svg {
+  width: 20px;
+  height: 20px;
 }
 
 .name-field input:focus {
