@@ -1045,10 +1045,11 @@ function setStageMode(enabled, requestFullscreen = false) {
 
   if (state.stageMode) {
     setBoardPadEditing(false);
-    if (requestFullscreen && !document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
+    const canRequestFullscreen = Boolean(document.documentElement.requestFullscreen);
+    if (requestFullscreen && !document.fullscreenElement && canRequestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
     }
-    setStatus("Mode scene");
+    setStatus(requestFullscreen && !canRequestFullscreen ? "Mode scene: plein ecran via icone iPhone" : "Mode scene");
   } else {
     if (requestFullscreen && document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});

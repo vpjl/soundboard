@@ -1438,3 +1438,48 @@ body.stage-mode .pad-time {
     display: none;
   }
 }
+
+@media (max-width: 950px) {
+  body.stage-mode .deck {
+    width: min(1280px, 100%);
+  }
+
+  body.stage-mode .pads {
+    gap: 6px;
+  }
+
+  body.stage-mode .pad {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  body.stage-mode .pad-trigger {
+    min-height: 100%;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  body.stage-mode .pad-title {
+    font-size: 0.86rem;
+  }
+
+  body.stage-mode .pad-time {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 560px) {
+  body.stage-mode .pads {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-skin="minimal"].stage-mode .pads {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 561px) and (max-width: 950px) {
+  body.stage-mode .pads {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
