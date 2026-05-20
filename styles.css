@@ -93,7 +93,7 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: 1fr 86px auto;
+  grid-template-columns: 1fr 86px 42px 42px;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -105,7 +105,7 @@ h1 {
 
 .board-strip {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) 42px auto auto;
+  grid-template-columns: minmax(120px, 1fr) repeat(3, 42px);
   gap: 8px;
   align-items: end;
   padding: 12px;
@@ -223,7 +223,6 @@ button.is-pressed {
 
 .danger-button {
   min-height: 42px;
-  padding: 0 14px;
   border-color: rgba(255, 95, 86, 0.55);
   background: rgba(255, 95, 86, 0.13);
   color: #ffd8d5;
@@ -350,6 +349,13 @@ button.is-pressed {
   height: 22px;
 }
 
+.mode-switch svg,
+.transport button svg,
+.loop-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .record-button.is-recording {
   border-color: rgba(255, 95, 86, 0.85);
   background: rgba(255, 95, 86, 0.24);
@@ -366,6 +372,8 @@ button.is-pressed {
 }
 
 .mode-switch button {
+  display: grid;
+  place-items: center;
   min-width: 0;
   height: 42px;
   padding: 0 6px;
@@ -430,6 +438,8 @@ button.is-pressed {
 }
 
 .transport button {
+  display: grid;
+  place-items: center;
   min-height: 38px;
   padding: 0 8px;
   font-size: 0.86rem;
@@ -438,6 +448,7 @@ button.is-pressed {
 .loop-toggle {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-height: 38px;
   padding: 0 9px;
@@ -446,6 +457,75 @@ button.is-pressed {
   color: var(--muted);
   background: rgba(17, 19, 25, 0.72);
   font-size: 0.84rem;
+}
+
+.loop-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loop-toggle:has(input:checked) {
+  border-color: rgba(73, 211, 160, 0.72);
+  background: rgba(73, 211, 160, 0.2);
+  color: var(--text);
+}
+
+.help-dialog {
+  width: min(520px, calc(100vw - 28px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.help-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.help-panel {
+  padding: 14px;
+}
+
+.help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.help-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.help-grid dt {
+  display: grid;
+  place-items: center;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--accent-2);
+  background: #111319;
+  font-weight: 800;
+}
+
+.help-grid dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  align-self: center;
 }
 
 .controls {
@@ -475,7 +555,7 @@ button.is-pressed {
   }
 
   .master-strip {
-    grid-template-columns: 1fr 78px;
+    grid-template-columns: 1fr 78px 38px 38px;
   }
 
   .board-strip {
@@ -483,10 +563,6 @@ button.is-pressed {
   }
 
   .board-name {
-    grid-column: 1 / -1;
-  }
-
-  .danger-button {
     grid-column: 1 / -1;
   }
 
@@ -571,7 +647,7 @@ button.is-pressed {
   }
 
   .master-strip {
-    grid-template-columns: minmax(0, 1fr) 56px 70px;
+    grid-template-columns: minmax(0, 1fr) 56px 32px 32px;
   }
 
   .pads {

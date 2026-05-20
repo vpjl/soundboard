@@ -30,6 +30,9 @@ const els = {
   masterVolume: document.querySelector("#masterVolume"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
+  helpButton: document.querySelector("#helpButton"),
+  helpDialog: document.querySelector("#helpDialog"),
+  closeHelp: document.querySelector("#closeHelp"),
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editBoard: document.querySelector("#editBoard"),
@@ -796,6 +799,15 @@ async function init() {
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.addPad?.addEventListener("click", addPad);
+  els.helpButton?.addEventListener("click", () => {
+    if (els.helpDialog?.showModal) {
+      els.helpDialog.showModal();
+    }
+  });
+  els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
+  els.helpDialog?.addEventListener("click", (event) => {
+    if (event.target === els.helpDialog) els.helpDialog.close();
+  });
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
 
