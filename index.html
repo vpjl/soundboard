@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=35">
+    <link rel="stylesheet" href="styles.css?v=36">
   </head>
   <body>
     <div class="app">
@@ -78,6 +78,12 @@
             <button id="exportBoard" class="icon-button" type="button" aria-label="Exporter le board">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="exportBoardLite" class="icon-button" type="button" aria-label="Exporter sans audio">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
@@ -153,6 +159,17 @@
               <span>Tags</span>
               <input type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
             </label>
+            <div class="trim-field" aria-label="Trim du pad">
+              <span>Trim</span>
+              <label>
+                <span>Début</span>
+                <input type="number" min="0" step="0.1" value="0" data-trim-start>
+              </label>
+              <label>
+                <span>Fin</span>
+                <input type="number" min="0" step="0.1" value="0" data-trim-end>
+              </label>
+            </div>
             <div class="color-field" aria-label="Couleur du pad">
               <span>Couleur</span>
               <div class="color-swatches">
@@ -289,12 +306,18 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Importe un board exporté.</dd>
+                </dt><dd>Importe un board exporté, avec ou sans audio.</dd>
                 <dt aria-label="Exporter un board">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Exporte le board courant pour sauvegarde ou transfert.</dd>
+                </dt><dd>Exporte le board courant avec les sons.</dd>
+                <dt aria-label="Exporter sans audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Exporte seulement les réglages du board.</dd>
               </dl>
             </section>
 
@@ -312,6 +335,17 @@
                     <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Baisse les autres pads selon le pourcentage Ducking.</dd>
+                <dt aria-label="Micro">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Enregistre au micro si la page est en HTTPS.</dd>
+                <dt aria-label="Importer un son">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Importe un fichier audio. Sur iPhone, choisir Fichiers.</dd>
               </dl>
             </section>
           </div>
@@ -361,25 +395,14 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Gestion pad">
-              <h3>Gestion</h3>
+            <section class="help-section" aria-label="Edit pad">
+              <h3>Edit</h3>
               <dl class="help-grid">
-                <dt aria-label="Micro">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Enregistre au micro si la page est en HTTPS.</dd>
-                <dt aria-label="Importer un son">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Importe un fichier audio. Sur iPhone, choisir Fichiers.</dd>
                 <dt aria-label="Modifier le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Modifie le nom du pad.</dd>
+                </dt><dd>Bascule en mode edit.</dd>
                 <dt aria-label="Déplacer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
@@ -390,12 +413,6 @@
                     <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>En mode edit, glisser cette poignée pour réordonner les pads.</dd>
-                <dt aria-label="Tags et couleur">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 5h10l6 6-9 9-7-7V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="9" cy="10" r="1.5" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Ajoute des tags et une couleur au pad.</dd>
               </dl>
             </section>
           </div>
@@ -403,6 +420,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=35"></script>
+    <script src="app.js?v=36"></script>
   </body>
 </html>

@@ -51,6 +51,7 @@ const els = {
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
+  exportBoardLite: document.querySelector("#exportBoardLite"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
 };
@@ -133,7 +134,10 @@ function setPadEditing(pad, editing) {
 
 function setPadDuration(pad, seconds) {
   pad.duration = Number.isFinite(seconds) ? seconds : 0;
-  pad.timeEl.textContent = pad.duration ? formatTime(pad.duration) : "--:--";
+  const max = pad.duration ? String(Math.round(pad.duration * 10) / 10) : "";
+  if (pad.trimStartEl) pad.trimStartEl.max = max;
+  if (pad.trimEndEl) pad.trimEndEl.max = max;
+  pad.timeEl.textContent = pad.duration ? formatTime(playableDuration(pad)) : "--:--";
 }
 
 function bestRecordingType() {
@@ -186,12 +190,16 @@ function makePad(index) {
     duckTrigger: false,
     tags: "",
     color: "",
+    trimStart: 0,
+    trimEnd: 0,
   };
 
   pad.titleEl = node.querySelector("[data-title]");
   pad.nameEl = node.querySelector("[data-name]");
   pad.tagsEl = node.querySelector("[data-tags]");
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
+  pad.trimStartEl = node.querySelector("[data-trim-start]");
+  pad.trimEndEl = node.querySelector("[data-trim-end]");
   pad.timeEl = node.querySelector("[data-time]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.editButton = node.querySelector('[data-action="edit"]');
@@ -207,6 +215,7 @@ function makePad(index) {
   setPadTitle(pad, pad.title);
   setPadTags(pad, pad.tags);
   setPadColor(pad, pad.color);
+  setPadTrim(pad, pad.trimStart, pad.trimEnd);
   setPadMode(pad, pad.playMode);
   setPadLoop(pad, pad.loop);
   setPadDuckTrigger(pad, pad.duckTrigger);
@@ -262,6 +271,16 @@ function makePad(index) {
   pad.tagsEl.addEventListener("input", () => {
     setPadTags(pad, pad.tagsEl.value);
     savePadMeta(pad);
+  });
+  pad.trimStartEl.addEventListener("input", () => {
+    setPadTrim(pad, pad.trimStartEl.value, pad.trimEnd);
+    savePadMeta(pad);
+    updatePadTime(pad);
+  });
+  pad.trimEndEl.addEventListener("input", () => {
+    setPadTrim(pad, pad.trimStart, pad.trimEndEl.value);
+    savePadMeta(pad);
+    updatePadTime(pad);
   });
   pad.nameEl.addEventListener("blur", () => setPadEditing(pad, false));
   pad.nameEl.addEventListener("keydown", (event) => {
@@ -569,8 +588,21 @@ function safeFileName(name) {
     .toLowerCase() || "soundboard";
 }
 
+function canUseMinimalSkin() {
+  return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
+}
+
+function updateSkinOptions() {
+  const minimalOption = els.skinSelect?.querySelector('option[value="minimal"]');
+  if (!minimalOption) return;
+  minimalOption.disabled = !canUseMinimalSkin();
+  minimalOption.hidden = !canUseMinimalSkin();
+}
+
 function applySkin(skin) {
-  const skinName = ["classic", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
+  const requestedSkin = ["classic", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
+  const skinName = requestedSkin === "minimal" && !canUseMinimalSkin() ? "classic" : requestedSkin;
+  updateSkinOptions();
   document.body.dataset.skin = skinName;
   if (els.skinSelect) els.skinSelect.value = skinName;
   localStorage.setItem(SKIN_STORAGE, skinName);
@@ -608,7 +640,7 @@ async function shareOrDownloadBoard(blob, filename, boardName) {
   setStatus(`${boardName} exporte`);
 }
 
-async function exportCurrentBoard() {
+async function exportCurrentBoard(includeAudio = true) {
   const board = currentBoard();
   const pads = [];
 
@@ -625,8 +657,10 @@ async function exportCurrentBoard() {
       duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
+      trimStart: meta?.trimStart ?? saved?.trimStart ?? 0,
+      trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
-      audio: saved?.audio ? {
+      audio: includeAudio && saved?.audio ? {
         name: saved.name || `Pad ${index + 1}`,
         type: saved.type || "audio/mpeg",
         data: arrayBufferToBase64(saved.audio),
@@ -638,6 +672,7 @@ async function exportCurrentBoard() {
     format: "soundboard-live-board",
     version: 1,
     exportedAt: new Date().toISOString(),
+    includesAudio: includeAudio,
     board: {
       name: board.name,
       padCount: board.padCount,
@@ -646,7 +681,8 @@ async function exportCurrentBoard() {
   };
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.soundboard.json`, board.name);
+  const suffix = includeAudio ? "soundboard" : "soundboard-settings";
+  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${suffix}.json`, board.name);
 }
 
 async function importBoardFile(file) {
@@ -686,6 +722,8 @@ async function importBoardFile(file) {
       duckTrigger: Boolean(item.duckTrigger),
       tags: item.tags || "",
       color: item.color || "",
+      trimStart: item.trimStart ?? 0,
+      trimEnd: item.trimEnd ?? 0,
       playMode: item.playMode || "oneshot",
     };
     await dbSet(padMetaKey(transientPad), meta);
@@ -768,6 +806,8 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     duckTrigger: pad.duckTrigger,
     tags: pad.tags,
     color: pad.color,
+    trimStart: pad.trimStart,
+    trimEnd: pad.trimEnd,
     playMode: pad.playMode,
   });
   await savePadMeta(pad);
@@ -869,6 +909,7 @@ async function restorePad(pad) {
     setPadDuckTrigger(pad, Boolean(meta.duckTrigger));
     setPadTags(pad, meta.tags || "");
     setPadColor(pad, meta.color || "");
+    setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
     pad.panEl.value = pad.panValue;
@@ -886,6 +927,7 @@ async function restorePad(pad) {
   setPadDuckTrigger(pad, Boolean(saved.duckTrigger));
   setPadTags(pad, meta?.tags ?? saved.tags ?? "");
   setPadColor(pad, meta?.color ?? saved.color ?? "");
+  setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
   pad.volumeEl.value = pad.volume;
@@ -902,6 +944,8 @@ async function savePadMeta(pad) {
     duckTrigger: pad.duckTrigger,
     tags: pad.tags,
     color: pad.color,
+    trimStart: pad.trimStart,
+    trimEnd: pad.trimEnd,
     playMode: pad.playMode,
   };
   await dbSet(padMetaKey(pad), meta);
@@ -960,6 +1004,39 @@ function setPadColor(pad, color) {
   });
 }
 
+function numericInputValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
+function setPadTrim(pad, start, end) {
+  pad.trimStart = numericInputValue(start);
+  pad.trimEnd = numericInputValue(end);
+  if (pad.duration) {
+    pad.trimStart = Math.min(pad.trimStart, Math.max(0, pad.duration - 0.01));
+    pad.trimEnd = pad.trimEnd ? Math.min(Math.max(pad.trimEnd, pad.trimStart + 0.01), pad.duration) : 0;
+  }
+  pad.trimStartEl.value = pad.trimStart ? String(Math.round(pad.trimStart * 10) / 10) : "0";
+  pad.trimEndEl.value = pad.trimEnd ? String(Math.round(pad.trimEnd * 10) / 10) : "0";
+}
+
+function trimStart(pad) {
+  if (!pad.duration) return 0;
+  return Math.min(Math.max(0, pad.trimStart || 0), Math.max(0, pad.duration - 0.01));
+}
+
+function trimEnd(pad) {
+  if (!pad.duration) return 0;
+  const start = trimStart(pad);
+  const end = pad.trimEnd ? pad.trimEnd : pad.duration;
+  return Math.min(Math.max(end, start + 0.01), pad.duration);
+}
+
+function playableDuration(pad) {
+  if (!pad.duration) return 0;
+  return Math.max(0.01, trimEnd(pad) - trimStart(pad));
+}
+
 function duckAmount() {
   return Math.min(100, Math.max(0, Number(els.duckPercent?.value) || 0)) / 100;
 }
@@ -992,7 +1069,11 @@ async function playPad(pad, fade = false, offset = 0) {
 
   await ensureAudio();
   stopPad(pad, false);
-  const startOffset = pad.duration ? Math.min(Math.max(0, offset), Math.max(0, pad.duration - 0.01)) : 0;
+  const segmentStart = trimStart(pad);
+  const segmentEnd = trimEnd(pad);
+  const segmentDuration = playableDuration(pad);
+  const segmentOffset = segmentDuration ? Math.min(Math.max(0, offset), Math.max(0, segmentDuration - 0.01)) : 0;
+  const startOffset = segmentStart + segmentOffset;
 
   const ctx = state.audioContext;
   const source = ctx.createBufferSource();
@@ -1003,6 +1084,8 @@ async function playPad(pad, fade = false, offset = 0) {
 
   source.buffer = pad.buffer;
   source.loop = pad.loop;
+  source.loopStart = segmentStart;
+  source.loopEnd = segmentEnd;
   gain.gain.setValueAtTime(fade ? 0 : targetPadGain(pad), now);
   pan.pan.setValueAtTime(pad.panValue, now);
   source.connect(gain).connect(pan).connect(state.masterGain);
@@ -1014,7 +1097,7 @@ async function playPad(pad, fade = false, offset = 0) {
   pad.source = source;
   pad.gain = gain;
   pad.pan = pan;
-  pad.startedAt = now - startOffset;
+  pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
   pad.node.classList.add("is-playing");
   updatePadTime(pad);
@@ -1035,6 +1118,9 @@ async function playPad(pad, fade = false, offset = 0) {
   };
 
   source.start(now, startOffset);
+  if (!pad.loop) {
+    source.stop(now + Math.max(0.01, segmentEnd - startOffset));
+  }
   applyDucking(pad);
 }
 
@@ -1047,7 +1133,8 @@ function stopPad(pad, fade = false, preservePosition = false) {
   const fadeTime = Math.max(0, Number(els.fadeSeconds.value) || 0);
   if (preservePosition && pad.duration) {
     const elapsed = Math.max(0, now - pad.startedAt);
-    pad.resumeOffset = pad.loop ? elapsed % pad.duration : Math.min(elapsed, pad.duration);
+    const duration = playableDuration(pad);
+    pad.resumeOffset = pad.loop ? elapsed % duration : Math.min(elapsed, duration);
   } else {
     pad.resumeOffset = 0;
   }
@@ -1073,13 +1160,13 @@ function stopPad(pad, fade = false, preservePosition = false) {
 }
 
 function remainingSeconds(pad) {
-  if (!pad.source || !state.audioContext || !pad.duration) return pad.duration;
+  if (!pad.source || !state.audioContext || !pad.duration) return playableDuration(pad);
   const elapsed = Math.max(0, state.audioContext.currentTime - pad.startedAt);
   if (pad.loop) {
-    const loopElapsed = elapsed % pad.duration;
-    return Math.max(0, pad.duration - loopElapsed);
+    const loopElapsed = elapsed % playableDuration(pad);
+    return Math.max(0, playableDuration(pad) - loopElapsed);
   }
-  return Math.max(0, pad.duration - elapsed);
+  return Math.max(0, playableDuration(pad) - elapsed);
 }
 
 function updatePadTime(pad) {
@@ -1088,7 +1175,7 @@ function updatePadTime(pad) {
     return;
   }
   const seconds = remainingSeconds(pad);
-  pad.timeEl.textContent = pad.source ? `-${formatTime(seconds)}` : formatTime(pad.duration);
+  pad.timeEl.textContent = pad.source ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
 }
 
 function startTimer() {
@@ -1203,6 +1290,9 @@ async function init() {
     state.masterGain.gain.setTargetAtTime(Number(els.masterVolume.value), state.audioContext.currentTime, 0.02);
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
+  window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
+    applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+  });
   els.duckPercent?.addEventListener("input", () => {
     const value = Math.round(duckAmount() * 100);
     localStorage.setItem(DUCKING_STORAGE, String(value));
@@ -1236,7 +1326,10 @@ async function init() {
   els.addBoard?.addEventListener("click", addBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
-    exportCurrentBoard().catch(() => setStatus("Export impossible"));
+    exportCurrentBoard(true).catch(() => setStatus("Export impossible"));
+  });
+  els.exportBoardLite?.addEventListener("click", () => {
+    exportCurrentBoard(false).catch(() => setStatus("Export sans audio impossible"));
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
   els.importBoardFile?.addEventListener("change", () => {
