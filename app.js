@@ -413,6 +413,38 @@ function safeFileName(name) {
     .toLowerCase() || "soundboard";
 }
 
+async function shareOrDownloadBoard(blob, filename, boardName) {
+  const file = new File([blob], filename, { type: "application/json" });
+
+  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: boardName,
+        text: `Board Soundboard Live: ${boardName}`,
+      });
+      setStatus(`${boardName} exporte`);
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        setStatus("Export annule");
+        return;
+      }
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus(`${boardName} exporte`);
+}
+
 async function exportCurrentBoard() {
   const board = currentBoard();
   const pads = [];
@@ -449,17 +481,18 @@ async function exportCurrentBoard() {
   };
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${safeFileName(board.name)}.soundboard`;
-  link.click();
-  URL.revokeObjectURL(url);
-  setStatus(`${board.name} exporte`);
+  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.soundboard`, board.name);
 }
 
 async function importBoardFile(file) {
-  const payload = JSON.parse(await file.text());
+  let payload;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    setStatus("Fichier board illisible");
+    return;
+  }
+
   if (payload?.format !== "soundboard-live-board" || !payload.board) {
     setStatus("Fichier board invalide");
     return;
@@ -915,7 +948,7 @@ function togglePad(pad) {
 }
 
 function stopAll() {
-  state.pads.forEach((pad) => stopPad(pad, false));
+  state.pads.forEach((pad) => stopPad(pad, true));
   setStatus("Tout est stoppe");
 }
 
