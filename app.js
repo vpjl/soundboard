@@ -9,6 +9,13 @@ const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const SKIN_STORAGE = "soundboard-live-skin";
 const DEFAULT_BOARD_ID = "default";
+const PAD_COLORS = {
+  green: "#49d3a0",
+  yellow: "#ffce5c",
+  red: "#ff5f56",
+  blue: "#61a8ff",
+  pink: "#ff6bd6",
+};
 
 const state = {
   audioContext: null,
@@ -122,10 +129,6 @@ function setPadTitle(pad, title) {
 function setPadEditing(pad, editing) {
   pad.node.classList.toggle("is-editing", editing);
   pad.editButton.classList.toggle("is-active", editing);
-  if (editing) {
-    pad.nameEl.focus();
-    pad.nameEl.select();
-  }
 }
 
 function setPadDuration(pad, seconds) {
@@ -181,10 +184,14 @@ function makePad(index) {
     panValue: 0,
     loop: false,
     duckTrigger: false,
+    tags: "",
+    color: "",
   };
 
   pad.titleEl = node.querySelector("[data-title]");
   pad.nameEl = node.querySelector("[data-name]");
+  pad.tagsEl = node.querySelector("[data-tags]");
+  pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
   pad.timeEl = node.querySelector("[data-time]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.editButton = node.querySelector('[data-action="edit"]');
@@ -195,8 +202,11 @@ function makePad(index) {
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
+  pad.colorButtons = [...node.querySelectorAll("[data-color]")];
 
   setPadTitle(pad, pad.title);
+  setPadTags(pad, pad.tags);
+  setPadColor(pad, pad.color);
   setPadMode(pad, pad.playMode);
   setPadLoop(pad, pad.loop);
   setPadDuckTrigger(pad, pad.duckTrigger);
@@ -249,6 +259,10 @@ function makePad(index) {
     setPadTitle(pad, pad.nameEl.value);
     savePadMeta(pad);
   });
+  pad.tagsEl.addEventListener("input", () => {
+    setPadTags(pad, pad.tagsEl.value);
+    savePadMeta(pad);
+  });
   pad.nameEl.addEventListener("blur", () => setPadEditing(pad, false));
   pad.nameEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -284,6 +298,13 @@ function makePad(index) {
     setPadDuckTrigger(pad, !pad.duckTrigger);
     applyDucking();
     savePadMeta(pad);
+  });
+
+  pad.colorButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setPadColor(pad, button.dataset.color || "");
+      savePadMeta(pad);
+    });
   });
 
   pad.modeButtons.forEach((button) => {
@@ -602,6 +623,8 @@ async function exportCurrentBoard() {
       panValue: meta?.panValue ?? saved?.panValue ?? 0,
       loop: Boolean(meta?.loop ?? saved?.loop),
       duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
+      tags: meta?.tags ?? saved?.tags ?? "",
+      color: meta?.color ?? saved?.color ?? "",
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audio: saved?.audio ? {
         name: saved.name || `Pad ${index + 1}`,
@@ -661,6 +684,8 @@ async function importBoardFile(file) {
       panValue: item.panValue ?? 0,
       loop: Boolean(item.loop),
       duckTrigger: Boolean(item.duckTrigger),
+      tags: item.tags || "",
+      color: item.color || "",
       playMode: item.playMode || "oneshot",
     };
     await dbSet(padMetaKey(transientPad), meta);
@@ -741,6 +766,8 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    tags: pad.tags,
+    color: pad.color,
     playMode: pad.playMode,
   });
   await savePadMeta(pad);
@@ -840,6 +867,8 @@ async function restorePad(pad) {
     pad.panValue = meta.panValue ?? pad.panValue;
     setPadLoop(pad, Boolean(meta.loop));
     setPadDuckTrigger(pad, Boolean(meta.duckTrigger));
+    setPadTags(pad, meta.tags || "");
+    setPadColor(pad, meta.color || "");
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
     pad.panEl.value = pad.panValue;
@@ -855,6 +884,8 @@ async function restorePad(pad) {
   pad.panValue = saved.panValue ?? pad.panValue;
   setPadLoop(pad, Boolean(saved.loop));
   setPadDuckTrigger(pad, Boolean(saved.duckTrigger));
+  setPadTags(pad, meta?.tags ?? saved.tags ?? "");
+  setPadColor(pad, meta?.color ?? saved.color ?? "");
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
   pad.volumeEl.value = pad.volume;
@@ -869,6 +900,8 @@ async function savePadMeta(pad) {
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    tags: pad.tags,
+    color: pad.color,
     playMode: pad.playMode,
   };
   await dbSet(padMetaKey(pad), meta);
@@ -905,6 +938,26 @@ function setPadDuckTrigger(pad, duckTrigger) {
   pad.duckTrigger = Boolean(duckTrigger);
   pad.duckEl?.classList.toggle("is-active", pad.duckTrigger);
   pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
+}
+
+function setPadTags(pad, tags) {
+  pad.tags = tags.trim();
+  pad.tagsEl.value = pad.tags;
+  pad.tagsDisplayEl.textContent = pad.tags;
+  pad.tagsDisplayEl.hidden = !pad.tags;
+}
+
+function setPadColor(pad, color) {
+  pad.color = PAD_COLORS[color] ? color : "";
+  pad.node.classList.toggle("has-color", Boolean(pad.color));
+  if (pad.color) {
+    pad.node.style.setProperty("--pad-color", PAD_COLORS[pad.color]);
+  } else {
+    pad.node.style.removeProperty("--pad-color");
+  }
+  pad.colorButtons?.forEach((button) => {
+    button.classList.toggle("is-active", (button.dataset.color || "") === pad.color);
+  });
 }
 
 function duckAmount() {

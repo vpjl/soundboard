@@ -469,6 +469,14 @@ button.is-pressed {
   box-shadow: 0 0 0 1px rgba(73, 211, 160, 0.18), 0 18px 38px var(--shadow);
 }
 
+.pad.has-color {
+  border-color: var(--pad-color);
+}
+
+.pad.has-color .pad-trigger {
+  box-shadow: inset 5px 0 0 var(--pad-color);
+}
+
 .pad.is-empty {
   border-style: dashed;
 }
@@ -528,6 +536,22 @@ button.is-pressed {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.pad-label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pad-tags {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pad,
@@ -617,14 +641,17 @@ button.is-pressed {
   color: #fff0c2;
 }
 
-.name-field span {
+.name-field > span,
+.tag-field span,
+.color-field > span {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.72rem;
   text-transform: uppercase;
 }
 
-.name-field input {
+.name-field input,
+.tag-field input {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -632,6 +659,59 @@ button.is-pressed {
   padding: 0 10px;
   background: rgba(17, 19, 25, 0.78);
   color: var(--text);
+}
+
+.tag-field,
+.color-field {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+
+.color-swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 32px);
+  gap: 7px;
+}
+
+.color-swatches button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-swatches button[data-color=""] {
+  background:
+    linear-gradient(135deg, transparent 44%, var(--danger) 45%, var(--danger) 55%, transparent 56%),
+    #111319;
+}
+
+.color-swatches button[data-color="green"] {
+  background: #49d3a0;
+}
+
+.color-swatches button[data-color="yellow"] {
+  background: #ffce5c;
+}
+
+.color-swatches button[data-color="red"] {
+  background: #ff5f56;
+}
+
+.color-swatches button[data-color="blue"] {
+  background: #61a8ff;
+}
+
+.color-swatches button[data-color="pink"] {
+  background: #ff6bd6;
+}
+
+.color-swatches button.is-active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .drag-handle {
@@ -648,7 +728,8 @@ button.is-pressed {
   height: 20px;
 }
 
-.name-field input:focus {
+.name-field input:focus,
+.tag-field input:focus {
   border-color: rgba(73, 211, 160, 0.85);
   outline: none;
   box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.16);

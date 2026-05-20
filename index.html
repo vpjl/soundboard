@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=34">
+    <link rel="stylesheet" href="styles.css?v=35">
   </head>
   <body>
     <div class="app">
@@ -128,7 +128,10 @@
               </svg>
             </button>
             <button class="pad-trigger" type="button" data-action="play">
-              <span class="pad-title" data-title>Pad</span>
+              <span class="pad-label">
+                <span class="pad-title" data-title>Pad</span>
+                <span class="pad-tags" data-tags-display></span>
+              </span>
               <span class="pad-time" data-time>--:--</span>
             </button>
           </div>
@@ -146,6 +149,21 @@
                 <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
               </svg>
             </button>
+            <label class="tag-field">
+              <span>Tags</span>
+              <input type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
+            </label>
+            <div class="color-field" aria-label="Couleur du pad">
+              <span>Couleur</span>
+              <div class="color-swatches">
+                <button type="button" data-color="" aria-label="Aucune couleur"></button>
+                <button type="button" data-color="green" aria-label="Vert"></button>
+                <button type="button" data-color="yellow" aria-label="Jaune"></button>
+                <button type="button" data-color="red" aria-label="Rouge"></button>
+                <button type="button" data-color="blue" aria-label="Bleu"></button>
+                <button type="button" data-color="pink" aria-label="Rose"></button>
+              </div>
+            </div>
           </div>
           <input class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
         </div>
@@ -372,6 +390,12 @@
                     <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>En mode edit, glisser cette poignée pour réordonner les pads.</dd>
+                <dt aria-label="Tags et couleur">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 5h10l6 6-9 9-7-7V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="9" cy="10" r="1.5" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Ajoute des tags et une couleur au pad.</dd>
               </dl>
             </section>
           </div>
@@ -379,6 +403,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=34"></script>
+    <script src="app.js?v=35"></script>
   </body>
 </html>
