@@ -54,7 +54,6 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
-  editBoard: document.querySelector("#editBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
@@ -145,6 +144,7 @@ function setBoardPadEditing(editing) {
   document.body.classList.toggle("board-edit-mode", state.boardEditMode);
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
+  setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   setStatus(state.boardEditMode ? "Mode edit pads" : "Mode live");
 }
@@ -399,11 +399,10 @@ function renderBoardOptions() {
   if (els.boardName) els.boardName.value = currentBoard().name;
 }
 
-function setBoardEditing(editing) {
+function setBoardEditing(editing, focusName = true) {
   const strip = document.querySelector(".board-strip");
   strip?.classList.toggle("is-editing", editing);
-  els.editBoard?.classList.toggle("is-active", editing);
-  if (editing) {
+  if (editing && focusName) {
     els.boardName?.focus();
     els.boardName?.select();
   }
@@ -535,6 +534,7 @@ async function renderPads() {
   resetRecordingState();
   state.boardEditMode = false;
   document.body.classList.remove("board-edit-mode");
+  setBoardEditing(false, false);
   els.editPads?.classList.remove("is-active");
   els.editPads?.setAttribute("aria-pressed", "false");
   state.pads = [];
@@ -1034,6 +1034,7 @@ function updatePadAlerts(pad) {
 
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
+  pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger);
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
 }
@@ -1579,7 +1580,9 @@ async function init() {
   });
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
-  els.boardName?.addEventListener("blur", () => setBoardEditing(false));
+  els.boardName?.addEventListener("blur", () => {
+    if (!state.boardEditMode) setBoardEditing(false);
+  });
   els.boardName?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1590,10 +1593,6 @@ async function init() {
       els.boardName.value = currentBoard().name;
       els.boardName.blur();
     }
-  });
-  els.editBoard?.addEventListener("click", () => {
-    const strip = document.querySelector(".board-strip");
-    setBoardEditing(!strip?.classList.contains("is-editing"));
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.addPad?.addEventListener("click", addPad);

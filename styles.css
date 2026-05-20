@@ -314,7 +314,7 @@ h1 {
 
 .board-strip {
   display: grid;
-  grid-template-columns: 42px minmax(120px, 1fr);
+  grid-template-columns: minmax(120px, 1fr);
   gap: 8px;
   align-items: center;
   padding: 12px;
@@ -350,12 +350,6 @@ h1 {
 
 .board-strip.is-editing .board-name {
   display: grid;
-}
-
-.board-edit-button.is-active {
-  border-color: rgba(255, 206, 92, 0.78);
-  background: rgba(255, 206, 92, 0.2);
-  color: #fff0c2;
 }
 
 .board-select span,
@@ -485,6 +479,17 @@ button.is-pressed {
   box-shadow: inset 0 0 0 1px rgba(255, 206, 92, 0.38), 0 12px 32px var(--shadow);
 }
 
+.pad.is-duck-trigger {
+  box-shadow: inset 0 0 0 1px rgba(97, 168, 255, 0.38), 0 12px 32px var(--shadow);
+}
+
+.pad.is-looping.is-duck-trigger {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 206, 92, 0.38),
+    inset 0 -4px 0 rgba(97, 168, 255, 0.48),
+    0 12px 32px var(--shadow);
+}
+
 .pad.is-ending {
   border-color: rgba(255, 95, 86, 0.95);
   animation: endingPulse 820ms ease-in-out infinite;
@@ -571,7 +576,7 @@ button.is-pressed {
 
 .pad.is-ending .pad-alert-ending,
 .pad.is-looping .pad-alert-loop,
-.pad.is-duck-source .pad-alert-duck-source,
+.pad.is-duck-trigger .pad-alert-duck-source,
 .pad.is-ducked .pad-alert-ducked {
   display: inline-flex;
 }
@@ -1128,7 +1133,6 @@ body.stage-mode h1,
 body.stage-mode .skin-select,
 body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
-body.stage-mode .board-edit-button,
 body.stage-mode .board-action-grid,
 body.stage-mode .board-name,
 body.stage-mode .manage-group,

@@ -7,7 +7,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=40">
+    <link rel="stylesheet" href="styles.css?v=41">
   </head>
   <body>
     <div class="app">
@@ -50,11 +50,6 @@
         </div>
 
         <div class="board-strip" aria-label="Boards">
-          <button id="editBoard" class="icon-button board-edit-button" type="button" aria-label="Modifier le nom du board">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
           <div class="board-main">
             <label class="board-select">
               <span>Board</span>
@@ -351,11 +346,6 @@
             <section class="help-section" aria-label="Board">
               <h3>Board</h3>
               <dl class="help-grid">
-                <dt aria-label="Modifier le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Modifie le nom du board.</dd>
                 <dt aria-label="Ajouter un pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -388,7 +378,7 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Bascule tous les pads du board en mode edit.</dd>
+                </dt><dd>Bascule le board et ses pads en mode edit.</dd>
               </dl>
             </section>
 
@@ -434,6 +424,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=40"></script>
+    <script src="app.js?v=41"></script>
   </body>
 </html>
