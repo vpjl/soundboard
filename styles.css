@@ -16,6 +16,14 @@
   box-sizing: border-box;
 }
 
+.app,
+.app * {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 html,
 body {
   min-height: 100%;
@@ -37,7 +45,9 @@ input {
 
 button {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -45,6 +55,7 @@ button {
   min-height: 100vh;
   padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -55,6 +66,16 @@ textarea,
 .board-name,
 .help-dialog {
   -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+input *,
+select *,
+textarea *,
+.help-dialog * {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -325,7 +346,25 @@ button.is-pressed {
   text-overflow: ellipsis;
   white-space: nowrap;
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
+}
+
+.pad,
+.pad button,
+.pad span,
+.pad svg,
+.pad path,
+.topbar button,
+.keycap,
+.pad-time,
+.mode-switch,
+.transport,
+.loop-toggle {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .pad-time {

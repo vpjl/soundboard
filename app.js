@@ -714,14 +714,22 @@ function bindButtonFeedback(root = document) {
 }
 
 function bindPerformanceTouchGuards() {
+  const isEditableTarget = (target) => Boolean(target.closest("input, select, textarea, dialog"));
+  const isPerformanceTarget = (target) => Boolean(target.closest(".pad, .topbar"));
+
   document.addEventListener("contextmenu", (event) => {
-    if (event.target.closest("input, select, textarea, dialog")) return;
-    if (event.target.closest(".pad, .topbar")) event.preventDefault();
+    if (isEditableTarget(event.target)) return;
+    if (isPerformanceTarget(event.target)) event.preventDefault();
   });
 
   document.addEventListener("selectstart", (event) => {
-    if (event.target.closest("input, select, textarea, dialog")) return;
-    if (event.target.closest(".pad, .topbar")) event.preventDefault();
+    if (isEditableTarget(event.target)) return;
+    if (isPerformanceTarget(event.target)) event.preventDefault();
+  });
+
+  document.addEventListener("dragstart", (event) => {
+    if (isEditableTarget(event.target)) return;
+    if (isPerformanceTarget(event.target)) event.preventDefault();
   });
 }
 
