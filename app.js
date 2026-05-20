@@ -35,6 +35,7 @@ const state = {
   drag: null,
   trimDrag: null,
   stageMode: false,
+  boardEditMode: false,
 };
 
 const els = {
@@ -52,6 +53,7 @@ const els = {
   closeHelp: document.querySelector("#closeHelp"),
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
+  editPads: document.querySelector("#editPads"),
   editBoard: document.querySelector("#editBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
@@ -135,8 +137,16 @@ function setPadTitle(pad, title) {
 function setPadEditing(pad, editing) {
   if (state.stageMode && editing) return;
   pad.node.classList.toggle("is-editing", editing);
-  pad.editButton.classList.toggle("is-active", editing);
   if (editing) requestAnimationFrame(() => renderWaveform(pad));
+}
+
+function setBoardPadEditing(editing) {
+  state.boardEditMode = Boolean(editing) && !state.stageMode;
+  document.body.classList.toggle("board-edit-mode", state.boardEditMode);
+  els.editPads?.classList.toggle("is-active", state.boardEditMode);
+  els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
+  state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
+  setStatus(state.boardEditMode ? "Mode edit pads" : "Mode live");
 }
 
 function setPadDuration(pad, seconds) {
@@ -215,7 +225,6 @@ function makePad(index) {
   pad.trimHandleEnd = node.querySelector('[data-trim-handle="end"]');
   pad.timeEl = node.querySelector("[data-time]");
   pad.fileInput = node.querySelector("[data-file]");
-  pad.editButton = node.querySelector('[data-action="edit"]');
   pad.recordButton = node.querySelector('[data-action="record"]');
   pad.modeButtons = [...node.querySelectorAll("[data-mode]")];
   pad.volumeEl = node.querySelector("[data-volume]");
@@ -240,7 +249,6 @@ function makePad(index) {
     setStatus("Choisir Fichiers pour importer un audio");
     pad.fileInput.click();
   });
-  pad.editButton.addEventListener("click", () => setPadEditing(pad, !pad.node.classList.contains("is-editing")));
   pad.dragHandle.addEventListener("pointerdown", (event) => startPadDrag(pad, event));
   pad.recordButton.addEventListener("click", () => toggleRecording(pad));
   pad.fileInput.addEventListener("change", () => {
@@ -296,7 +304,9 @@ function makePad(index) {
     updatePadTime(pad);
   });
   bindWaveformTrim(pad);
-  pad.nameEl.addEventListener("blur", () => setPadEditing(pad, false));
+  pad.nameEl.addEventListener("blur", () => {
+    if (!state.boardEditMode) setPadEditing(pad, false);
+  });
   pad.nameEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -523,6 +533,10 @@ function startPadDrag(pad, event) {
 async function renderPads() {
   stopAll();
   resetRecordingState();
+  state.boardEditMode = false;
+  document.body.classList.remove("board-edit-mode");
+  els.editPads?.classList.remove("is-active");
+  els.editPads?.setAttribute("aria-pressed", "false");
   state.pads = [];
   els.pads.innerHTML = "";
   const board = currentBoard();
@@ -539,6 +553,7 @@ async function renderPads() {
 }
 
 async function switchBoard(boardId) {
+  setBoardPadEditing(false);
   state.currentBoardId = boardId;
   saveBoards();
   renderBoardOptions();
@@ -546,6 +561,7 @@ async function switchBoard(boardId) {
 }
 
 async function addBoard() {
+  setBoardPadEditing(false);
   const name = nextBoardName();
   const board = {
     id: createId(),
@@ -718,6 +734,7 @@ async function importBoardFile(file) {
     name: payload.board.name || cleanName(file.name),
     padCount: Math.max(DEFAULT_PAD_COUNT, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
   };
+  setBoardPadEditing(false);
   state.boards.push(importedBoard);
   state.currentBoardId = importedBoard.id;
   saveBoards();
@@ -764,6 +781,7 @@ async function addPad() {
   state.pads.push(pad);
   els.pads.append(pad.node);
   bindButtonFeedback(pad.node);
+  if (state.boardEditMode) setPadEditing(pad, true);
   setStatus(`Pad ${board.padCount} ajoute`);
 }
 
@@ -988,7 +1006,7 @@ function setStageMode(enabled, requestFullscreen = false) {
   localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
 
   if (state.stageMode) {
-    state.pads.forEach((pad) => setPadEditing(pad, false));
+    setBoardPadEditing(false);
     if (requestFullscreen && !document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().catch(() => {});
     }
@@ -1555,6 +1573,9 @@ async function init() {
   els.stopAll.addEventListener("click", stopAll);
   els.stageMode?.addEventListener("click", () => {
     setStageMode(!state.stageMode, true);
+  });
+  els.editPads?.addEventListener("click", () => {
+    setBoardPadEditing(!state.boardEditMode);
   });
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));

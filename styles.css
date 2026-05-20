@@ -83,8 +83,7 @@ body[data-skin="minimal"] .pad-actions {
 }
 
 body[data-skin="minimal"] .pad-play-row {
-  grid-template-columns: 34px 1fr;
-  grid-template-rows: repeat(2, 34px);
+  grid-template-columns: 1fr;
   gap: 5px;
 }
 
@@ -238,7 +237,8 @@ textarea *,
   flex: 0 0 auto;
 }
 
-.stage-button.is-active {
+.stage-button.is-active,
+.pads-edit-button.is-active {
   border-color: rgba(255, 206, 92, 0.82);
   background: rgba(255, 206, 92, 0.22);
   color: #fff0c2;
@@ -314,7 +314,7 @@ h1 {
 
 .board-strip {
   display: grid;
-  grid-template-columns: 42px minmax(120px, 1fr) 92px;
+  grid-template-columns: 42px 42px minmax(120px, 1fr);
   gap: 8px;
   align-items: center;
   padding: 12px;
@@ -324,10 +324,17 @@ h1 {
   box-shadow: 0 12px 34px var(--shadow);
 }
 
+.board-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .board-action-grid {
   display: grid;
-  grid-template-columns: repeat(2, 42px);
+  grid-template-columns: repeat(5, 42px);
   gap: 8px;
+  justify-content: end;
 }
 
 .board-select,
@@ -339,7 +346,6 @@ h1 {
 
 .board-name {
   display: none;
-  grid-column: 2 / -1;
 }
 
 .board-strip.is-editing .board-name {
@@ -517,16 +523,13 @@ button.is-pressed {
 
 .pad-play-row {
   display: grid;
-  grid-template-columns: 42px 1fr;
-  grid-template-rows: repeat(2, 42px);
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .pad-trigger {
   display: grid;
   position: relative;
-  grid-column: 2;
-  grid-row: 1 / span 2;
   grid-template-columns: minmax(0, 1fr) minmax(50px, auto);
   align-items: center;
   gap: 9px;
@@ -912,6 +915,24 @@ button.is-pressed {
   gap: 8px;
 }
 
+.pad .manage-group {
+  display: none;
+}
+
+.pad.is-editing .start-group,
+.pad.is-editing .stop-group {
+  display: none;
+}
+
+.pad.is-editing .manage-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pad.is-editing .pad-action-line {
+  grid-template-columns: 1fr;
+}
+
 .control-group {
   display: grid;
   gap: 6px;
@@ -937,7 +958,7 @@ button.is-pressed {
 }
 
 .manage-group {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .help-dialog {
@@ -1082,6 +1103,7 @@ body.stage-mode .mark svg {
 body.stage-mode h1,
 body.stage-mode .skin-select,
 body.stage-mode .help-button,
+body.stage-mode .pads-edit-button,
 body.stage-mode .board-edit-button,
 body.stage-mode .board-action-grid,
 body.stage-mode .board-name,
@@ -1171,16 +1193,12 @@ body.stage-mode .pad-trigger {
   }
 
   .board-strip {
-    grid-template-columns: 38px minmax(0, 1fr) 82px;
+    grid-template-columns: 38px 38px minmax(0, 1fr);
   }
 
   .board-action-grid {
-    grid-template-columns: repeat(2, 38px);
+    grid-template-columns: repeat(5, 38px);
     gap: 6px;
-  }
-
-  .board-name {
-    grid-column: 2 / -1;
   }
 
   .pads {
@@ -1292,8 +1310,7 @@ body.stage-mode .pad-trigger {
   }
 
   .pad-play-row {
-    grid-template-columns: 34px 1fr;
-    grid-template-rows: repeat(2, 34px);
+    grid-template-columns: 1fr;
     gap: 5px;
   }
 
@@ -1336,6 +1353,10 @@ body.stage-mode .pad-trigger {
   .pad-action-line {
     grid-template-columns: minmax(70px, 0.8fr) minmax(104px, 1.2fr);
     gap: 5px;
+  }
+
+  .pad.is-editing .pad-action-line {
+    grid-template-columns: 1fr;
   }
 
   .controls {
