@@ -340,6 +340,24 @@ h1 {
   justify-content: end;
 }
 
+.board-delete-button {
+  display: none;
+}
+
+body.board-edit-mode .board-delete-button {
+  display: grid;
+}
+
+body.board-edit-mode .board-action-grid {
+  grid-template-columns: repeat(8, 38px);
+  gap: 5px;
+}
+
+body.board-edit-mode .board-action-grid .icon-button {
+  width: 38px;
+  height: 38px;
+}
+
 .board-select,
 .board-name {
   display: grid;
@@ -476,6 +494,12 @@ button.is-pressed {
   min-height: 42px;
   border-color: rgba(255, 95, 86, 0.55);
   background: rgba(255, 95, 86, 0.13);
+  color: #ffd8d5;
+}
+
+.board-delete-button,
+.pad-delete-button {
+  border-color: rgba(255, 95, 86, 0.72);
   color: #ffd8d5;
 }
 
@@ -1022,7 +1046,7 @@ button.is-pressed {
 
 .pad.is-editing .manage-group {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .pad.is-editing .pad-action-line {
@@ -1054,7 +1078,7 @@ button.is-pressed {
 }
 
 .manage-group {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .help-dialog {
@@ -1256,6 +1280,10 @@ body.stage-mode .board-action-grid {
   justify-content: start;
 }
 
+body.stage-mode.board-edit-mode .board-action-grid {
+  grid-template-columns: 40px;
+}
+
 body.stage-mode .board-action-grid button:not(#stageMode) {
   display: none;
 }
@@ -1345,6 +1373,16 @@ body.stage-mode .pad-time {
   .board-action-grid {
     grid-template-columns: repeat(7, 34px);
     gap: 5px;
+  }
+
+  body.board-edit-mode .board-action-grid {
+    grid-template-columns: repeat(8, 30px);
+    gap: 4px;
+  }
+
+  body.board-edit-mode .board-action-grid .icon-button {
+    width: 30px;
+    height: 30px;
   }
 
   .pads {
@@ -1463,6 +1501,16 @@ body.stage-mode .pad-time {
   .board-action-grid {
     grid-template-columns: repeat(7, 34px);
     gap: 5px;
+  }
+
+  body.board-edit-mode .board-action-grid {
+    grid-template-columns: repeat(8, 30px);
+    gap: 4px;
+  }
+
+  body.board-edit-mode .board-action-grid .icon-button {
+    width: 30px;
+    height: 30px;
   }
 
   .board-select select,

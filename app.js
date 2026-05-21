@@ -61,6 +61,7 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
+  deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
@@ -130,14 +131,22 @@ function createId() {
   return crypto?.randomUUID?.() || `board-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function padAudioKeyFor(boardId, index) {
+  if (boardId === DEFAULT_BOARD_ID) return `pad-${index}`;
+  return `board-${boardId}-pad-${index}`;
+}
+
+function padMetaKeyFor(boardId, index) {
+  if (boardId === DEFAULT_BOARD_ID) return `pad-meta-${index}`;
+  return `board-${boardId}-pad-meta-${index}`;
+}
+
 function padAudioKey(pad) {
-  if (state.currentBoardId === DEFAULT_BOARD_ID) return `pad-${pad.index}`;
-  return `board-${state.currentBoardId}-pad-${pad.index}`;
+  return padAudioKeyFor(state.currentBoardId, pad.index);
 }
 
 function padMetaKey(pad) {
-  if (state.currentBoardId === DEFAULT_BOARD_ID) return `pad-meta-${pad.index}`;
-  return `board-${state.currentBoardId}-pad-meta-${pad.index}`;
+  return padMetaKeyFor(state.currentBoardId, pad.index);
 }
 
 function setPadTitle(pad, title) {
@@ -306,6 +315,7 @@ function makePad(index) {
   node.querySelector('[data-action="fadeIn"]').addEventListener("click", () => playPad(pad, true));
   node.querySelector('[data-action="fadeOut"]').addEventListener("click", () => stopPad(pad, true));
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, false));
+  node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
 
   pad.nameEl.addEventListener("input", () => {
     setPadTitle(pad, pad.nameEl.value);
@@ -395,7 +405,7 @@ function loadBoards() {
       return boards.map((board) => ({
         id: board.id || createId(),
         name: board.name || "Projet",
-        padCount: Math.max(DEFAULT_PAD_COUNT, Number(board.padCount) || DEFAULT_PAD_COUNT),
+        padCount: Math.max(1, Number(board.padCount) || DEFAULT_PAD_COUNT),
         masterVolume: clamp01(board.masterVolume),
       }));
     }
@@ -783,7 +793,7 @@ async function importBoardFile(file) {
   const importedBoard = {
     id: createId(),
     name: payload.board.name || cleanName(file.name),
-    padCount: Math.max(DEFAULT_PAD_COUNT, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
+    padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
     masterVolume: clamp01(payload.board.masterVolume),
   };
   setBoardPadEditing(false);
@@ -837,6 +847,79 @@ async function addPad() {
   if (state.boardEditMode) setPadEditing(pad, true);
   refreshStopGroupOptions();
   setStatus(`Pad ${board.padCount} ajoute`);
+}
+
+async function deletePad(pad) {
+  if (!state.boardEditMode) return;
+  const board = currentBoard();
+  if (board.padCount <= 1) {
+    setStatus("Dernier pad non supprimable");
+    return;
+  }
+  if (!window.confirm(`Supprimer le pad "${pad.title}" ?`)) return;
+
+  stopAll();
+  if (state.recordingPad === pad) resetRecordingState();
+
+  const boardId = state.currentBoardId;
+  const remainingPads = state.pads.filter((item) => item !== pad);
+  const snapshots = [];
+  for (const item of remainingPads) {
+    snapshots.push({
+      audio: await dbGet(padAudioKeyFor(boardId, item.index)),
+      meta: await dbGet(padMetaKeyFor(boardId, item.index)),
+    });
+  }
+
+  for (let index = 0; index < snapshots.length; index += 1) {
+    const snapshot = snapshots[index];
+    if (snapshot.meta) {
+      await dbSet(padMetaKeyFor(boardId, index), snapshot.meta);
+    } else {
+      await dbDelete(padMetaKeyFor(boardId, index));
+    }
+    if (snapshot.audio) {
+      await dbSet(padAudioKeyFor(boardId, index), snapshot.audio);
+    } else {
+      await dbDelete(padAudioKeyFor(boardId, index));
+    }
+  }
+
+  await dbDelete(padMetaKeyFor(boardId, board.padCount - 1));
+  await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
+  board.padCount = remainingPads.length;
+  saveBoards();
+  await renderPads();
+  setBoardPadEditing(true);
+  setStatus(`${pad.title} supprime`);
+}
+
+async function deleteCurrentBoard() {
+  if (!state.boardEditMode) return;
+  if (state.boards.length <= 1) {
+    setStatus("Dernier board non supprimable");
+    return;
+  }
+
+  const board = currentBoard();
+  if (!window.confirm(`Supprimer le board "${board.name}" et tous ses pads ?`)) return;
+
+  stopAll();
+  resetRecordingState();
+  for (let index = 0; index < board.padCount; index += 1) {
+    await dbDelete(padMetaKeyFor(board.id, index));
+    await dbDelete(padAudioKeyFor(board.id, index));
+  }
+
+  const deletedIndex = state.boards.findIndex((item) => item.id === board.id);
+  state.boards = state.boards.filter((item) => item.id !== board.id);
+  const nextIndex = Math.min(Math.max(0, deletedIndex), state.boards.length - 1);
+  state.currentBoardId = state.boards[nextIndex].id;
+  saveBoards();
+  renderBoardOptions();
+  await renderPads();
+  setBoardPadEditing(true);
+  setStatus(`${board.name} supprime`);
 }
 
 async function repairAccidentalPadTitles() {
@@ -1720,6 +1803,7 @@ async function init() {
   els.editPads?.addEventListener("click", () => {
     setBoardPadEditing(!state.boardEditMode);
   });
+  els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
   els.boardName?.addEventListener("blur", () => {
