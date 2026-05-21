@@ -50,6 +50,7 @@ const state = {
   recordingStream: null,
   drag: null,
   trimDrag: null,
+  progressDrag: null,
   stageMode: false,
   boardEditMode: false,
 };
@@ -210,6 +211,10 @@ function setPadTitle(pad, title) {
   pad.nameEl.value = pad.title;
 }
 
+function padTargetValue(pad) {
+  return `pad:${pad.index}`;
+}
+
 function setPadEditing(pad, editing) {
   if (state.stageMode && editing) return;
   pad.node.classList.toggle("is-editing", editing);
@@ -230,6 +235,7 @@ function setPadDuration(pad, seconds) {
   pad.duration = Number.isFinite(seconds) ? seconds : 0;
   setPadTrim(pad, pad.trimStart, pad.trimEnd);
   pad.timeEl.textContent = pad.duration ? formatTime(playableDuration(pad)) : "--:--";
+  updatePadProgress(pad);
 }
 
 function bestRecordingType() {
@@ -314,6 +320,8 @@ function makePad(index) {
   pad.trimHandleStart = node.querySelector('[data-trim-handle="start"]');
   pad.trimHandleEnd = node.querySelector('[data-trim-handle="end"]');
   pad.timeEl = node.querySelector("[data-time]");
+  pad.progressEl = node.querySelector("[data-progress]");
+  pad.progressFillEl = node.querySelector("[data-progress-fill]");
   pad.vuEl = node.querySelector("[data-pad-vu]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.recordButton = node.querySelector('[data-action="record"]');
@@ -386,6 +394,7 @@ function makePad(index) {
       stopPad(pad, false);
     }
   });
+  bindPadProgress(pad);
   node.querySelector('[data-action="fadeIn"]').addEventListener("click", () => playPad(pad, true));
   node.querySelector('[data-action="fadeOut"]').addEventListener("click", () => stopPad(pad, true));
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, false));
@@ -393,11 +402,13 @@ function makePad(index) {
 
   pad.nameEl.addEventListener("input", () => {
     setPadTitle(pad, pad.nameEl.value);
+    refreshCrossfadeTargetOptions();
     savePadMeta(pad);
   });
   pad.tagsEl.addEventListener("input", () => {
     setPadTags(pad, pad.tagsEl.value);
     refreshStopGroupOptions();
+    refreshCrossfadeTargetOptions();
     savePadMeta(pad);
   });
   pad.fadeEl.addEventListener("input", () => {
@@ -751,12 +762,16 @@ async function renderPads() {
     els.pads.append(pad.node);
     bindButtonFeedback(pad.node);
     restorePad(pad)
-      .then(refreshStopGroupOptions)
+      .then(() => {
+        refreshStopGroupOptions();
+        refreshCrossfadeTargetOptions();
+      })
       .catch(() => {
         pad.node.classList.add("is-empty");
       });
   }
   refreshStopGroupOptions();
+  refreshCrossfadeTargetOptions();
   setStatus(`${board.name} charge`);
 }
 
@@ -1528,6 +1543,52 @@ function refreshStopGroupOptions() {
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
 }
 
+function boardTags() {
+  return [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
+}
+
+function fillCrossfadeTargetSelect(select, selectedValue = "") {
+  if (!select) return;
+  const currentValue = String(selectedValue || select.value || "").trim();
+  select.innerHTML = '<option value="">Choisir</option>';
+
+  const padGroup = document.createElement("optgroup");
+  padGroup.label = "Pads";
+  state.pads.forEach((pad) => {
+    const option = document.createElement("option");
+    option.value = padTargetValue(pad);
+    option.textContent = `${pad.index + 1}. ${pad.title}`;
+    padGroup.append(option);
+  });
+  select.append(padGroup);
+
+  const tags = boardTags();
+  if (tags.length) {
+    const tagGroup = document.createElement("optgroup");
+    tagGroup.label = "Tags";
+    tags.forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = `tag:${tag}`;
+      option.textContent = tag;
+      tagGroup.append(option);
+    });
+    select.append(tagGroup);
+  }
+
+  if (currentValue && [...select.options].some((option) => option.value === currentValue)) {
+    select.value = currentValue;
+  } else {
+    select.value = "";
+  }
+}
+
+function refreshCrossfadeTargetOptions() {
+  state.pads.forEach((pad) => {
+    fillCrossfadeTargetSelect(pad.startStopTagEl, pad.startStopTag);
+    fillCrossfadeTargetSelect(pad.endStartTargetEl, pad.endStartTarget);
+  });
+}
+
 function setPadFade(pad, fadeSeconds, updateInput = true) {
   const value = String(fadeSeconds ?? "").trim();
   const number = value === "" ? "" : Math.min(30, Math.max(0, Number(value)));
@@ -1558,19 +1619,29 @@ function setPadNormalization(pad, enabled, gain = 1) {
   if (pad.normalizeValueEl) pad.normalizeValueEl.textContent = `${pad.normalizedGain.toFixed(2)}x`;
 }
 
-function normalizeStartStopMode(mode) {
-  return ["none", "all", "tag"].includes(mode) ? mode : "none";
+function normalizeCrossfadeAction(mode, legacyTarget = "") {
+  if (["none", "play", "stop"].includes(mode)) return mode;
+  if (["all", "tag"].includes(mode)) return "stop";
+  if (mode === "pad") return "play";
+  return legacyTarget ? "play" : "none";
 }
 
-function normalizeEndStartMode(mode) {
-  return ["none", "pad", "tag"].includes(mode) ? mode : "none";
+function normalizeCrossfadeTarget(value, legacyMode = "") {
+  const target = String(value || "").trim();
+  if (!target || target.includes(":")) return target;
+  if (legacyMode === "tag") return `tag:${target.toLowerCase()}`;
+  if (legacyMode === "pad") {
+    const targetPad = padFromTarget(target);
+    return targetPad ? padTargetValue(targetPad) : "";
+  }
+  return target;
 }
 
 function setPadCrossfade(pad, rule = {}) {
-  pad.startStopMode = normalizeStartStopMode(rule.startStopMode);
-  pad.startStopTag = String(rule.startStopTag || "").trim();
-  pad.endStartMode = normalizeEndStartMode(rule.endStartMode);
-  pad.endStartTarget = String(rule.endStartTarget || "").trim();
+  pad.startStopMode = normalizeCrossfadeAction(rule.startStopMode, rule.startStopTag);
+  pad.startStopTag = normalizeCrossfadeTarget(rule.startStopTag, rule.startStopMode);
+  pad.endStartMode = normalizeCrossfadeAction(rule.endStartMode, rule.endStartTarget);
+  pad.endStartTarget = normalizeCrossfadeTarget(rule.endStartTarget, rule.endStartMode);
   if (pad.startStopModeEl) pad.startStopModeEl.value = pad.startStopMode;
   if (pad.startStopTagEl) pad.startStopTagEl.value = pad.startStopTag;
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
@@ -1807,6 +1878,69 @@ function bindWaveformTrim(pad) {
   });
 }
 
+function playbackOffset(pad) {
+  const duration = playableDuration(pad);
+  if (!duration) return 0;
+  if (!pad.source || !state.audioContext) {
+    return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
+  }
+  const elapsed = Math.max(0, state.audioContext.currentTime - pad.startedAt);
+  return pad.loop ? elapsed % duration : Math.min(duration, elapsed);
+}
+
+function updatePadProgress(pad) {
+  if (!pad.progressFillEl) return;
+  const duration = playableDuration(pad);
+  const ratio = duration ? playbackOffset(pad) / duration : 0;
+  pad.progressFillEl.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
+}
+
+function seekPadToRatio(pad, ratio) {
+  const duration = playableDuration(pad);
+  if (!duration) return;
+  const offset = Math.min(duration, Math.max(0, ratio * duration));
+  pad.resumeOffset = offset;
+  updatePadProgress(pad);
+  if (pad.source) {
+    playPad(pad, false, offset, { skipStartCrossfade: true }).catch(() => setStatus("Navigation audio impossible"));
+  } else {
+    updatePadTime(pad);
+  }
+}
+
+function seekRatioFromPointer(pad, event) {
+  const rect = pad.progressEl.getBoundingClientRect();
+  return rect.width ? (event.clientX - rect.left) / rect.width : 0;
+}
+
+function bindPadProgress(pad) {
+  if (!pad.progressEl) return;
+  const seek = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    seekPadToRatio(pad, seekRatioFromPointer(pad, event));
+  };
+  pad.progressEl.addEventListener("pointerdown", (event) => {
+    if (!pad.duration) return;
+    pad.progressEl.setPointerCapture?.(event.pointerId);
+    state.progressDrag = { pad, pointerId: event.pointerId };
+    seek(event);
+  });
+  pad.progressEl.addEventListener("pointermove", (event) => {
+    if (state.progressDrag?.pad !== pad || state.progressDrag.pointerId !== event.pointerId) return;
+    seek(event);
+  });
+  const stopSeek = (event) => {
+    if (state.progressDrag?.pad !== pad || state.progressDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    pad.progressEl.releasePointerCapture?.(event.pointerId);
+    state.progressDrag = null;
+  };
+  pad.progressEl.addEventListener("pointerup", stopSeek);
+  pad.progressEl.addEventListener("pointercancel", stopSeek);
+}
+
 function duckAmount() {
   return Math.min(100, Math.max(0, Number(els.duckPercent?.value) || 0)) / 100;
 }
@@ -1856,31 +1990,41 @@ function padFromTarget(target, exceptPad = null) {
   return state.pads.find((pad) => pad !== exceptPad && pad.title.toLowerCase() === value.toLowerCase()) || null;
 }
 
+function padsFromCrossfadeTarget(target, exceptPad = null) {
+  const value = String(target || "").trim();
+  if (!value) return [];
+  if (value.startsWith("pad:")) {
+    const index = Number(value.slice(4));
+    const targetPad = Number.isInteger(index) ? state.pads[index] : null;
+    return targetPad && targetPad !== exceptPad ? [targetPad] : [];
+  }
+  if (value.startsWith("tag:")) {
+    return padsWithTag(value.slice(4), exceptPad);
+  }
+  const targetPad = padFromTarget(value, exceptPad);
+  if (targetPad) return [targetPad];
+  return padsWithTag(value, exceptPad);
+}
+
+function executeCrossfadeAction(action, target, sourcePad) {
+  if (action === "none") return;
+  const targets = padsFromCrossfadeTarget(target, sourcePad);
+  targets.forEach((targetPad) => {
+    if (action === "play" && targetPad.buffer) {
+      playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
+    }
+    if (action === "stop" && targetPad.source) {
+      stopPad(targetPad, true, false, { triggerEnd: false });
+    }
+  });
+}
+
 function executeStartCrossfade(pad) {
-  if (pad.startStopMode === "all") {
-    state.pads.forEach((other) => {
-      if (other !== pad && other.source) stopPad(other, true, false, { triggerEnd: false });
-    });
-    return;
-  }
-  if (pad.startStopMode === "tag") {
-    padsWithTag(pad.startStopTag, pad).forEach((other) => {
-      if (other.source) stopPad(other, true, false, { triggerEnd: false });
-    });
-  }
+  executeCrossfadeAction(pad.startStopMode, pad.startStopTag, pad);
 }
 
 function executeEndCrossfade(pad) {
-  if (pad.endStartMode === "pad") {
-    const target = padFromTarget(pad.endStartTarget, pad);
-    if (target?.buffer) playPad(target, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
-    return;
-  }
-  if (pad.endStartMode === "tag") {
-    padsWithTag(pad.endStartTarget, pad).forEach((target) => {
-      if (target.buffer) playPad(target, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
-    });
-  }
+  executeCrossfadeAction(pad.endStartMode, pad.endStartTarget, pad);
 }
 
 function clearPlayingPad(pad, source, triggerEnd = false) {
@@ -1891,7 +2035,6 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.analyser = null;
   pad.meterData = null;
   pad.stopAt = 0;
-  pad.resumeOffset = 0;
   pad.node.classList.remove("is-playing");
   setMeterLevel(pad.vuEl, 0);
   updatePadTime(pad);
@@ -1950,6 +2093,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   source.onended = () => {
     if (pad.source === source) {
+      pad.resumeOffset = 0;
       clearPlayingPad(pad, source, !pad.loop);
     }
   };
@@ -2005,11 +2149,13 @@ function remainingSeconds(pad) {
 function updatePadTime(pad) {
   if (!pad.duration) {
     pad.timeEl.textContent = "--:--";
+    updatePadProgress(pad);
     updatePadAlerts(pad);
     return;
   }
   const seconds = remainingSeconds(pad);
   pad.timeEl.textContent = pad.source ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
+  updatePadProgress(pad);
   updatePadAlerts(pad);
 }
 
@@ -2109,8 +2255,9 @@ function stopGroup() {
 function bindKeyboard() {
   window.addEventListener("keydown", (event) => {
     if (event.repeat) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
     const target = event.target;
-    if (target instanceof HTMLInputElement) return;
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) return;
 
     const key = event.key.toUpperCase();
     const index = KEYS.indexOf(key);
