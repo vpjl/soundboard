@@ -204,6 +204,20 @@ body[data-skin="studio"] {
   --danger: #f46d62;
 }
 
+body[data-skin="visual"] {
+  --bg: #080b0f;
+  --bg-glow: rgba(130, 207, 255, 0.1);
+  --bg-end: #0d1013;
+  --panel: #161a20;
+  --panel-2: #20262d;
+  --text: #f8fbff;
+  --muted: #b9c2cc;
+  --line: #37424d;
+  --accent: #82cfff;
+  --accent-2: #ffd36e;
+  --danger: #ff665e;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -401,7 +415,7 @@ body.board-edit-mode .board-layout-controls {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 54px 54px minmax(118px, 0.95fr) 18px 88px;
+  grid-template-columns: minmax(0, 1fr) 54px 54px minmax(var(--stop-group-width, 118px), max-content) 18px 88px;
   grid-template-areas:
     "master master master master vu stop"
     ". fade duck group vu stop";
@@ -517,6 +531,10 @@ body.board-edit-mode .version-select {
   color: var(--text);
 }
 
+.board-filter-row .board-tag-filter select {
+  height: 34px;
+}
+
 .board-name input:focus {
   border-color: rgba(73, 211, 160, 0.85);
   outline: none;
@@ -579,6 +597,7 @@ body.board-edit-mode .version-select {
 .master-control.small input,
 .group-stop-row select {
   width: 100%;
+  min-width: var(--stop-group-width, 8ch);
   height: 36px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -595,9 +614,13 @@ body.board-edit-mode .version-select {
 
 .group-stop-row {
   display: grid;
-  grid-template-columns: minmax(0, var(--stop-group-width, 8ch)) 36px;
+  grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 36px;
   gap: 6px;
   min-width: 0;
+}
+
+.group-stop-control {
+  min-width: calc(var(--stop-group-width, 8ch) + 42px);
 }
 
 input[type="range"] {
@@ -722,6 +745,80 @@ body.stage-mode .pads.has-pad-layout {
 
 .pad.has-color .pad-trigger {
   box-shadow: inset 5px 0 0 var(--pad-color);
+}
+
+body[data-skin="classic"] .pad.has-color .pad-trigger {
+  box-shadow: none;
+}
+
+body[data-skin="classic"] .pad.has-color {
+  border-color: var(--line);
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) {
+  background-image:
+    linear-gradient(145deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)),
+    var(--pad-image);
+  background-position: center;
+  background-size: cover;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
+  overflow: hidden;
+  background-image:
+    linear-gradient(145deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.2)),
+    var(--pad-image);
+  background-position: center;
+  background-size: cover;
+}
+
+body[data-skin="visual"] .pad.has-visual-image.is-visual-hidden {
+  background-image: none;
+}
+
+body[data-skin="visual"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
+body[data-skin="visual"] .pad.has-visual-image.is-editing .pad-trigger {
+  background-image: linear-gradient(145deg, #252a32, #1c1f27);
+}
+
+.visual-toggle-button {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  right: 6px;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 7px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.visual-toggle-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button {
+  display: grid;
+}
+
+.visual-preview {
+  display: none;
+  width: 44px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background-position: center;
+  background-size: cover;
+}
+
+body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
+  display: block;
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
 }
 
 .pad.is-empty {
@@ -928,13 +1025,29 @@ body.stage-mode .pads.has-pad-layout {
 
 .pad-label {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 3px 6px;
   min-width: 0;
 }
 
+.pad-title {
+  grid-column: 2 / 4;
+}
+
+.pad-shortcut.is-number {
+  grid-column: 3;
+  grid-row: 1;
+  margin-right: 0;
+  margin-left: 2px;
+}
+
+.pad-shortcut.is-number + .pad-title {
+  grid-column: 1 / 3;
+  grid-row: 1;
+}
+
 .pad-tags {
-  grid-column: 2;
+  grid-column: 2 / 4;
   min-width: 0;
   overflow: hidden;
   color: var(--accent-2);
@@ -942,6 +1055,10 @@ body.stage-mode .pads.has-pad-layout {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pad-shortcut.is-number ~ .pad-tags {
+  grid-column: 1 / 4;
 }
 
 .pad,
@@ -1082,7 +1199,7 @@ body.board-edit-mode .board-action-grid .stage-button {
 }
 
 .pad.is-editing .pad-fade-field {
-  order: 30;
+  display: none;
 }
 
 .pad.is-editing .pad-actions {
@@ -1096,7 +1213,7 @@ body.board-edit-mode .board-action-grid .stage-button {
 }
 
 .pad.is-editing .trim-field {
-  order: 60;
+  display: none;
 }
 
 .pad.is-editing .crossfade-field {
@@ -1104,7 +1221,7 @@ body.board-edit-mode .board-action-grid .stage-button {
 }
 
 .pad.is-editing .normalize-field {
-  order: 80;
+  display: none;
 }
 
 .pad.is-editing .color-field {
@@ -1394,7 +1511,7 @@ body.board-edit-mode .board-action-grid .stage-button {
 
 .pad.is-editing .manage-group {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .pad.is-editing .pad-action-line {
@@ -1426,11 +1543,12 @@ body.board-edit-mode .board-action-grid .stage-button {
 }
 
 .manage-group {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .help-dialog,
-.shortcut-dialog {
+.shortcut-dialog,
+.audio-dialog {
   width: min(680px, calc(100vw - 28px));
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1441,13 +1559,91 @@ body.board-edit-mode .board-action-grid .stage-button {
 }
 
 .help-dialog::backdrop,
-.shortcut-dialog::backdrop {
+.shortcut-dialog::backdrop,
+.audio-dialog::backdrop {
   background: rgba(0, 0, 0, 0.62);
 }
 
 .help-panel,
-.shortcut-panel {
+.shortcut-panel,
+.audio-panel {
   padding: 14px;
+}
+
+.audio-dialog {
+  width: min(720px, calc(100vw - 28px));
+}
+
+.audio-sections {
+  display: grid;
+  gap: 10px;
+}
+
+.audio-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.45);
+}
+
+.audio-section h3 {
+  margin: 0;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.audio-section label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.audio-section label span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.audio-section input,
+.audio-section select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 9px;
+  background: #111319;
+  color: var(--text);
+}
+
+.audio-section input[type="range"] {
+  min-height: auto;
+  padding: 0;
+}
+
+.audio-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.audio-waveform {
+  height: 86px;
+}
+
+.audio-normalize-field {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+}
+
+.shortcut-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .help-head {
@@ -1740,7 +1936,7 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(78px, 0.8fr) 8px 64px;
+    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(var(--stop-group-width, 78px), max-content) 8px 64px;
     grid-template-areas:
       "master master master master vu stop"
       ". fade duck group vu stop";
@@ -1816,7 +2012,7 @@ body.stage-mode .pad-time {
   }
 
   .group-stop-row {
-    grid-template-columns: minmax(0, var(--stop-group-width, 8ch)) 32px;
+    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 32px;
     gap: 4px;
   }
 
@@ -1975,7 +2171,7 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(78px, 0.8fr) 8px 64px;
+    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(var(--stop-group-width, 78px), max-content) 8px 64px;
     grid-template-areas:
       "master master master master vu stop"
       ". fade duck group vu stop";
@@ -1998,7 +2194,7 @@ body.stage-mode .pad-time {
   }
 
   .group-stop-row {
-    grid-template-columns: minmax(0, var(--stop-group-width, 8ch)) 32px;
+    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 32px;
     gap: 4px;
   }
 
@@ -2092,6 +2288,12 @@ body.stage-mode .pad-time {
   .controls {
     display: none;
   }
+
+  .icon-button,
+  .control-group button {
+    width: 34px;
+    height: 34px;
+  }
 }
 
 @media (max-width: 950px) {
@@ -2143,4 +2345,45 @@ body.stage-mode .pad-time {
 body.stage-mode .pads.has-pad-layout,
 body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  .board-layout-controls {
+    display: none !important;
+  }
+
+  .pads,
+  body.stage-mode .pads,
+  body[data-skin="minimal"] .pads,
+  body[data-skin="minimal"].stage-mode .pads {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .pad,
+  body.stage-mode .pad {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .pad-trigger,
+  body.stage-mode .pad-trigger {
+    min-height: 76px;
+    padding: 6px 6px 32px;
+    gap: 6px;
+  }
+
+  .pad-title,
+  body.stage-mode .pad-title {
+    font-size: 0.86rem;
+  }
+
+  .pad-time,
+  body.stage-mode .pad-time {
+    font-size: 0.72rem;
+  }
+
+  .controls {
+    display: none;
+  }
 }
