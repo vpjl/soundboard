@@ -12,6 +12,7 @@ const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
+const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
   green: "#49d3a0",
   yellow: "#ffce5c",
@@ -61,6 +62,8 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
+  saveVersion: document.querySelector("#saveVersion"),
+  restoreVersion: document.querySelector("#restoreVersion"),
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
@@ -147,6 +150,10 @@ function padAudioKey(pad) {
 
 function padMetaKey(pad) {
   return padMetaKeyFor(state.currentBoardId, pad.index);
+}
+
+function boardHistoryKey(boardId) {
+  return `board-history-${boardId}`;
 }
 
 function setPadTitle(pad, title) {
@@ -729,6 +736,76 @@ async function shareOrDownloadBoard(blob, filename, boardName) {
   setStatus(`${boardName} exporte`);
 }
 
+async function createBoardSnapshot(board) {
+  const pads = [];
+  for (let index = 0; index < board.padCount; index += 1) {
+    pads.push({
+      index,
+      meta: await dbGet(padMetaKeyFor(board.id, index)),
+      audio: await dbGet(padAudioKeyFor(board.id, index)),
+    });
+  }
+  return {
+    id: createId(),
+    savedAt: new Date().toISOString(),
+    board: {
+      name: board.name,
+      padCount: board.padCount,
+      masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
+    },
+    pads,
+  };
+}
+
+async function saveBoardVersion() {
+  const board = currentBoard();
+  const snapshot = await createBoardSnapshot(board);
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  history.unshift(snapshot);
+  await dbSet(boardHistoryKey(board.id), history.slice(0, HISTORY_LIMIT));
+  setStatus(`Version sauvegardee: ${board.name}`);
+}
+
+async function restoreLatestBoardVersion() {
+  const board = currentBoard();
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const snapshot = history[0];
+  if (!snapshot) {
+    setStatus("Aucune version sauvegardee");
+    return;
+  }
+
+  const date = new Date(snapshot.savedAt);
+  const label = Number.isNaN(date.getTime()) ? "derniere version" : date.toLocaleString("fr-FR");
+  if (!window.confirm(`Restaurer "${board.name}" depuis ${label} ?`)) return;
+
+  stopAll();
+  resetRecordingState();
+  const previousPadCount = board.padCount;
+  board.name = snapshot.board?.name || board.name;
+  board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
+  board.masterVolume = clamp01(snapshot.board?.masterVolume);
+
+  const maxPadCount = Math.max(previousPadCount, board.padCount);
+  for (let index = 0; index < maxPadCount; index += 1) {
+    await dbDelete(padMetaKeyFor(board.id, index));
+    await dbDelete(padAudioKeyFor(board.id, index));
+  }
+
+  for (const item of snapshot.pads || []) {
+    const index = Number(item.index);
+    if (!Number.isInteger(index) || index < 0 || index >= board.padCount) continue;
+    if (item.meta) await dbSet(padMetaKeyFor(board.id, index), item.meta);
+    if (item.audio) await dbSet(padAudioKeyFor(board.id, index), item.audio);
+  }
+
+  saveBoards();
+  renderBoardOptions();
+  await renderPads();
+  setBoardPadEditing(true);
+  setStatus(`Version restauree: ${board.name}`);
+}
+
 async function exportCurrentBoard(includeAudio = true) {
   const board = currentBoard();
   const pads = [];
@@ -910,6 +987,7 @@ async function deleteCurrentBoard() {
     await dbDelete(padMetaKeyFor(board.id, index));
     await dbDelete(padAudioKeyFor(board.id, index));
   }
+  await dbDelete(boardHistoryKey(board.id));
 
   const deletedIndex = state.boards.findIndex((item) => item.id === board.id);
   state.boards = state.boards.filter((item) => item.id !== board.id);
@@ -1802,6 +1880,12 @@ async function init() {
   });
   els.editPads?.addEventListener("click", () => {
     setBoardPadEditing(!state.boardEditMode);
+  });
+  els.saveVersion?.addEventListener("click", () => {
+    saveBoardVersion().catch(() => setStatus("Sauvegarde impossible"));
+  });
+  els.restoreVersion?.addEventListener("click", () => {
+    restoreLatestBoardVersion().catch(() => setStatus("Restauration impossible"));
   });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));

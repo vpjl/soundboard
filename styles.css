@@ -341,7 +341,7 @@ h1 {
 }
 
 body.board-edit-mode .board-action-grid {
-  grid-template-columns: repeat(8, 38px);
+  grid-template-columns: repeat(5, 38px);
   gap: 5px;
 }
 
@@ -767,10 +767,12 @@ button.is-pressed {
   height: 42px;
 }
 
+.board-action-grid .board-history-button,
 .board-action-grid .board-delete-button {
   display: none;
 }
 
+body.board-edit-mode .board-action-grid .board-history-button,
 body.board-edit-mode .board-action-grid .board-delete-button {
   display: grid;
 }
@@ -1376,7 +1378,7 @@ body.stage-mode .pad-time {
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: repeat(8, 30px);
+    grid-template-columns: repeat(5, 30px);
     gap: 4px;
   }
 
@@ -1504,7 +1506,7 @@ body.stage-mode .pad-time {
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: repeat(8, 30px);
+    grid-template-columns: repeat(5, 30px);
     gap: 4px;
   }
 
