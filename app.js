@@ -12,7 +12,7 @@ const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
-const HISTORY_LIMIT = 8;
+const HISTORY_LIMIT = 4;
 const PAD_COLORS = {
   green: "#49d3a0",
   yellow: "#ffce5c",
@@ -64,6 +64,7 @@ const els = {
   editPads: document.querySelector("#editPads"),
   saveVersion: document.querySelector("#saveVersion"),
   restoreVersion: document.querySelector("#restoreVersion"),
+  versionSelect: document.querySelector("#versionSelect"),
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
   addPad: document.querySelector("#addPad"),
@@ -154,6 +155,17 @@ function padMetaKey(pad) {
 
 function boardHistoryKey(boardId) {
   return `board-history-${boardId}`;
+}
+
+function formatVersionLabel(savedAt) {
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return "Version sauvegardee";
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function setPadTitle(pad, title) {
@@ -459,6 +471,7 @@ function renderBoardOptions() {
   els.boardSelect.value = state.currentBoardId;
   if (els.boardName) els.boardName.value = currentBoard().name;
   setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
+  refreshVersionOptions();
 }
 
 function setBoardEditing(editing, focusName = true) {
@@ -763,20 +776,35 @@ async function saveBoardVersion() {
   const history = await dbGet(boardHistoryKey(board.id)) || [];
   history.unshift(snapshot);
   await dbSet(boardHistoryKey(board.id), history.slice(0, HISTORY_LIMIT));
+  await refreshVersionOptions(snapshot.id);
   setStatus(`Version sauvegardee: ${board.name}`);
 }
 
-async function restoreLatestBoardVersion() {
+async function refreshVersionOptions(selectedId = "") {
+  if (!els.versionSelect || !state.db) return;
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
-  const snapshot = history[0];
+  els.versionSelect.innerHTML = '<option value="">Versions</option>';
+  history.slice(0, HISTORY_LIMIT).forEach((snapshot, index) => {
+    const option = document.createElement("option");
+    option.value = snapshot.id;
+    option.textContent = `${index + 1}. ${formatVersionLabel(snapshot.savedAt)}`;
+    els.versionSelect.append(option);
+  });
+  els.versionSelect.value = history.some((snapshot) => snapshot.id === selectedId) ? selectedId : "";
+}
+
+async function restoreSelectedBoardVersion() {
+  const board = currentBoard();
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const selectedId = els.versionSelect?.value;
+  const snapshot = history.find((item) => item.id === selectedId);
   if (!snapshot) {
-    setStatus("Aucune version sauvegardee");
+    setStatus("Choisir une version");
     return;
   }
 
-  const date = new Date(snapshot.savedAt);
-  const label = Number.isNaN(date.getTime()) ? "derniere version" : date.toLocaleString("fr-FR");
+  const label = formatVersionLabel(snapshot.savedAt);
   if (!window.confirm(`Restaurer "${board.name}" depuis ${label} ?`)) return;
 
   stopAll();
@@ -803,6 +831,7 @@ async function restoreLatestBoardVersion() {
   renderBoardOptions();
   await renderPads();
   setBoardPadEditing(true);
+  await refreshVersionOptions(snapshot.id);
   setStatus(`Version restauree: ${board.name}`);
 }
 
@@ -1885,7 +1914,7 @@ async function init() {
     saveBoardVersion().catch(() => setStatus("Sauvegarde impossible"));
   });
   els.restoreVersion?.addEventListener("click", () => {
-    restoreLatestBoardVersion().catch(() => setStatus("Restauration impossible"));
+    restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible"));
   });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));

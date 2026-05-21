@@ -341,13 +341,28 @@ h1 {
 }
 
 body.board-edit-mode .board-action-grid {
-  grid-template-columns: repeat(5, 38px);
+  grid-template-columns: repeat(5, 38px) minmax(116px, 1fr);
   gap: 5px;
 }
 
 body.board-edit-mode .board-action-grid .icon-button {
   width: 38px;
   height: 38px;
+}
+
+body.board-edit-mode .version-select {
+  grid-column: 1 / -1;
+}
+
+.version-select {
+  width: 100%;
+  height: 38px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 8px;
+  background: #111319;
+  color: var(--text);
 }
 
 .board-select,
@@ -1378,13 +1393,20 @@ body.stage-mode .pad-time {
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: repeat(5, 30px);
+    grid-template-columns: repeat(5, 30px) minmax(84px, 1fr);
     gap: 4px;
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
     width: 30px;
     height: 30px;
+  }
+
+  body.board-edit-mode .version-select {
+    grid-column: 1 / -1;
+    height: 30px;
+    padding: 0 5px;
+    font-size: 0.66rem;
   }
 
   .pads {
@@ -1506,13 +1528,20 @@ body.stage-mode .pad-time {
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: repeat(5, 30px);
+    grid-template-columns: repeat(5, 30px) minmax(84px, 1fr);
     gap: 4px;
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
     width: 30px;
     height: 30px;
+  }
+
+  body.board-edit-mode .version-select {
+    grid-column: 1 / -1;
+    height: 30px;
+    padding: 0 5px;
+    font-size: 0.66rem;
   }
 
   .board-select select,
