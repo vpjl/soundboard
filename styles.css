@@ -340,14 +340,6 @@ h1 {
   justify-content: end;
 }
 
-.board-delete-button {
-  display: none;
-}
-
-body.board-edit-mode .board-delete-button {
-  display: grid;
-}
-
 body.board-edit-mode .board-action-grid {
   grid-template-columns: repeat(8, 38px);
   gap: 5px;
@@ -773,6 +765,14 @@ button.is-pressed {
   place-items: center;
   width: 42px;
   height: 42px;
+}
+
+.board-action-grid .board-delete-button {
+  display: none;
+}
+
+body.board-edit-mode .board-action-grid .board-delete-button {
+  display: grid;
 }
 
 .icon-button svg {
