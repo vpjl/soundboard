@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=56">
+    <link rel="stylesheet" href="styles.css?v=57">
   </head>
   <body>
     <div class="app">
@@ -82,6 +82,12 @@
                   <path d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+              <button id="keyboardShortcuts" class="icon-button" type="button" aria-label="Raccourcis clavier">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
               <button id="editPads" class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" aria-pressed="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -108,25 +114,39 @@
                 </svg>
               </button>
             </div>
-            <label class="skin-select board-skin-select">
-              <span class="field-title">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <circle cx="8" cy="10" r="1" fill="currentColor"/>
-                  <circle cx="12" cy="7" r="1" fill="currentColor"/>
-                  <circle cx="16" cy="10" r="1" fill="currentColor"/>
-                </svg>
-                Skin
-              </span>
-              <select id="skinSelect">
-                <option value="classic">Classic Dark</option>
-                <option value="contrast">High Contrast</option>
-                <option value="minimal">Minimal iPhone</option>
-                <option value="neon">Neon Stage</option>
-                <option value="scene">Scène</option>
-                <option value="studio">Studio Grey</option>
-              </select>
-            </label>
+            <div class="board-filter-row">
+              <label class="skin-select board-skin-select">
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
+                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
+                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
+                  </svg>
+                  Skin
+                </span>
+                <select id="skinSelect">
+                  <option value="candy">Candy</option>
+                  <option value="classic">Classic Dark</option>
+                  <option value="contrast">High Contrast</option>
+                  <option value="minimal">Minimal iPhone</option>
+                  <option value="neon">Neon Stage</option>
+                  <option value="studio">Studio Grey</option>
+                </select>
+              </label>
+              <label class="board-tag-filter">
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+                  </svg>
+                  Tag
+                </span>
+                <select id="boardTagFilter">
+                  <option value="">Tous</option>
+                </select>
+              </label>
+            </div>
             <div class="board-layout-controls" aria-label="Disposition des pads">
               <label>
                 <span class="field-title">
@@ -465,6 +485,12 @@
                     <circle cx="16" cy="10" r="1" fill="currentColor"/>
                   </svg>
                 </dt><dd>change l’apparence du board.</dd>
+                <dt aria-label="Filtre par tag">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Sélectionne visuellement les pads du tag choisi.</dd>
                 <dt aria-label="Disposition des pads">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -503,6 +529,12 @@
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Bascule le board et ses pads en mode edit.</dd>
+                <dt aria-label="Raccourcis clavier">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Associe une touche clavier à un pad du board.</dd>
                 <dt aria-label="Sauvegarder une version">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 4h12l2 2v14H5V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -636,6 +668,20 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=56"></script>
+    <dialog id="shortcutDialog" class="shortcut-dialog" aria-labelledby="shortcutTitle">
+      <div class="shortcut-panel">
+        <div class="help-head">
+          <h2 id="shortcutTitle">Raccourcis clavier</h2>
+          <button id="closeShortcuts" class="icon-button" type="button" aria-label="Fermer les raccourcis">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div id="shortcutRows" class="shortcut-rows"></div>
+      </div>
+    </dialog>
+
+    <script src="app.js?v=57"></script>
   </body>
 </html>

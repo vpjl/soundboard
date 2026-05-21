@@ -9,6 +9,7 @@ const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
+const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
@@ -51,6 +52,7 @@ const state = {
   drag: null,
   trimDrag: null,
   progressDrag: null,
+  shortcuts: [],
   stageMode: false,
   boardEditMode: false,
 };
@@ -68,6 +70,11 @@ const els = {
   stopGroup: document.querySelector("#stopGroup"),
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
   stageMode: document.querySelector("#stageMode"),
+  boardTagFilter: document.querySelector("#boardTagFilter"),
+  keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
+  shortcutDialog: document.querySelector("#shortcutDialog"),
+  closeShortcuts: document.querySelector("#closeShortcuts"),
+  shortcutRows: document.querySelector("#shortcutRows"),
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
@@ -173,6 +180,10 @@ function boardHistoryKey(boardId) {
   return `board-history-${boardId}`;
 }
 
+function boardShortcutsKey(boardId) {
+  return `${SHORTCUTS_STORAGE_PREFIX}-${boardId}`;
+}
+
 function normalizeLayoutMode(mode) {
   return Object.prototype.hasOwnProperty.call(PAD_LAYOUTS, mode) ? mode : "auto";
 }
@@ -213,6 +224,119 @@ function setPadTitle(pad, title) {
 
 function padTargetValue(pad) {
   return `pad:${pad.index}`;
+}
+
+function defaultShortcuts() {
+  return state.pads.map((pad) => ({
+    key: KEYS[pad.index] || "",
+    padIndex: pad.index,
+  }));
+}
+
+function normalizeShortcutKey(value) {
+  const key = String(value || "").trim();
+  if (!key) return "";
+  if (key.length === 1) return key.toUpperCase();
+  return key.replace(/^Key/i, "").slice(0, 1).toUpperCase();
+}
+
+function loadShortcutsForCurrentBoard() {
+  const key = boardShortcutsKey(state.currentBoardId);
+  try {
+    const saved = JSON.parse(localStorage.getItem(key));
+    if (Array.isArray(saved)) {
+      state.shortcuts = saved.map((item) => ({
+        key: normalizeShortcutKey(item.key),
+        padIndex: Math.min(state.pads.length - 1, Math.max(0, Number(item.padIndex) || 0)),
+      })).filter((item) => item.key && state.pads[item.padIndex]);
+      return;
+    }
+  } catch {
+    state.shortcuts = [];
+  }
+  state.shortcuts = defaultShortcuts();
+}
+
+function saveShortcutsForCurrentBoard() {
+  localStorage.setItem(boardShortcutsKey(state.currentBoardId), JSON.stringify(state.shortcuts));
+}
+
+function padIndexForShortcutKey(key) {
+  const shortcut = state.shortcuts.find((item) => item.key === key);
+  return shortcut ? shortcut.padIndex : -1;
+}
+
+function setShortcut(rowIndex, key, padIndex) {
+  const normalizedKey = normalizeShortcutKey(key);
+  state.shortcuts[rowIndex] = {
+    key: normalizedKey,
+    padIndex: Math.min(state.pads.length - 1, Math.max(0, Number(padIndex) || 0)),
+  };
+  const seen = new Set();
+  state.shortcuts = state.shortcuts.filter((item, index) => {
+    if (!item.key || !state.pads[item.padIndex]) return false;
+    const token = `${item.key}:${index}`;
+    if (seen.has(item.key)) return false;
+    seen.add(item.key);
+    return token;
+  });
+  saveShortcutsForCurrentBoard();
+  renderShortcutRows();
+}
+
+function renderShortcutRows() {
+  if (!els.shortcutRows) return;
+  if (!state.shortcuts.length) state.shortcuts = defaultShortcuts();
+  const shortcuts = state.shortcuts.filter((item) => state.pads[item.padIndex]);
+  if (shortcuts.length < state.pads.length) {
+    state.pads.forEach((pad) => {
+      if (!shortcuts.some((item) => item.padIndex === pad.index)) {
+        shortcuts.push({ key: KEYS[pad.index] || "", padIndex: pad.index });
+      }
+    });
+  }
+  state.shortcuts = shortcuts;
+  els.shortcutRows.innerHTML = "";
+  state.shortcuts.forEach((shortcut, rowIndex) => {
+    const row = document.createElement("label");
+    row.className = "shortcut-row";
+
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.maxLength = 1;
+    keyInput.inputMode = "text";
+    keyInput.value = shortcut.key;
+    keyInput.setAttribute("aria-label", "Touche du clavier");
+    keyInput.addEventListener("keydown", (event) => {
+      event.preventDefault();
+      if (event.key === "Backspace" || event.key === "Delete") {
+        keyInput.value = "";
+        setShortcut(rowIndex, "", padSelect.value);
+        return;
+      }
+      const nextKey = normalizeShortcutKey(event.key);
+      keyInput.value = nextKey;
+      setShortcut(rowIndex, nextKey, padSelect.value);
+    });
+    keyInput.addEventListener("input", () => {
+      keyInput.value = normalizeShortcutKey(keyInput.value);
+      setShortcut(rowIndex, keyInput.value, padSelect.value);
+    });
+
+    const padSelect = document.createElement("select");
+    padSelect.setAttribute("aria-label", "Pad associe");
+    state.pads.forEach((pad) => {
+      const option = document.createElement("option");
+      option.value = String(pad.index);
+      option.textContent = pad.title;
+      padSelect.append(option);
+    });
+    padSelect.value = String(shortcut.padIndex);
+    padSelect.addEventListener("change", () => setShortcut(rowIndex, keyInput.value, padSelect.value));
+
+    row.append(keyInput, padSelect);
+    els.shortcutRows.append(row);
+  });
 }
 
 function setPadEditing(pad, editing) {
@@ -403,11 +527,13 @@ function makePad(index) {
   pad.nameEl.addEventListener("input", () => {
     setPadTitle(pad, pad.nameEl.value);
     refreshCrossfadeTargetOptions();
+    renderShortcutRows();
     savePadMeta(pad);
   });
   pad.tagsEl.addEventListener("input", () => {
     setPadTags(pad, pad.tagsEl.value);
     refreshStopGroupOptions();
+    refreshBoardTagFilterOptions();
     refreshCrossfadeTargetOptions();
     savePadMeta(pad);
   });
@@ -563,6 +689,16 @@ function applyPadLayout(board = currentBoard()) {
     els.pads.style.removeProperty("--pad-columns");
     els.pads.style.removeProperty("--pad-rows");
   }
+}
+
+function applyBoardTagFilter() {
+  const tag = String(els.boardTagFilter?.value || "").trim().toLowerCase();
+  state.pads.forEach((pad) => {
+    const matches = !tag || padTagList(pad).includes(tag);
+    pad.node.classList.toggle("is-tag-match", Boolean(tag && matches));
+    pad.node.classList.toggle("is-tag-dimmed", Boolean(tag && !matches));
+  });
+  if (tag) setStatus(`Pads tag ${tag}`);
 }
 
 function renderBoardLayoutControls() {
@@ -764,14 +900,19 @@ async function renderPads() {
     restorePad(pad)
       .then(() => {
         refreshStopGroupOptions();
+        refreshBoardTagFilterOptions();
         refreshCrossfadeTargetOptions();
+        renderShortcutRows();
       })
       .catch(() => {
         pad.node.classList.add("is-empty");
       });
   }
   refreshStopGroupOptions();
+  refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
+  loadShortcutsForCurrentBoard();
+  renderShortcutRows();
   setStatus(`${board.name} charge`);
 }
 
@@ -857,7 +998,8 @@ function updateSkinOptions() {
 }
 
 function applySkin(skin) {
-  const requestedSkin = ["classic", "contrast", "minimal", "neon", "scene", "studio"].includes(skin) ? skin : "classic";
+  const migratedSkin = skin === "scene" ? "candy" : skin;
+  const requestedSkin = ["candy", "classic", "contrast", "minimal", "neon", "studio"].includes(migratedSkin) ? migratedSkin : "classic";
   const skinName = requestedSkin === "minimal" && !canUseMinimalSkin() ? "classic" : requestedSkin;
   updateSkinOptions();
   document.body.dataset.skin = skinName;
@@ -1545,6 +1687,21 @@ function refreshStopGroupOptions() {
 
 function boardTags() {
   return [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
+}
+
+function refreshBoardTagFilterOptions() {
+  if (!els.boardTagFilter) return;
+  const currentValue = els.boardTagFilter.value;
+  const tags = boardTags();
+  els.boardTagFilter.innerHTML = '<option value="">Tous</option>';
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    els.boardTagFilter.append(option);
+  });
+  els.boardTagFilter.value = tags.includes(currentValue) ? currentValue : "";
+  applyBoardTagFilter();
 }
 
 function fillCrossfadeTargetSelect(select, selectedValue = "") {
@@ -2238,7 +2395,7 @@ function togglePad(pad) {
 
 function stopAll() {
   state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
-  setStatus("Tout est stoppe");
+  setStatus("Tout est stoppé");
 }
 
 function stopGroup() {
@@ -2260,7 +2417,7 @@ function bindKeyboard() {
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) return;
 
     const key = event.key.toUpperCase();
-    const index = KEYS.indexOf(key);
+    const index = padIndexForShortcutKey(key);
     if (index >= 0 && state.pads[index]) {
       event.preventDefault();
       flashButton(state.pads[index].node.querySelector('[data-action="play"]'));
@@ -2280,7 +2437,7 @@ function bindKeyboard() {
 
   window.addEventListener("keyup", (event) => {
     const key = event.key.toUpperCase();
-    const index = KEYS.indexOf(key);
+    const index = padIndexForShortcutKey(key);
     if (index >= 0 && state.pads[index] && state.heldKeys.has(key)) {
       event.preventDefault();
       state.heldKeys.delete(key);
@@ -2310,6 +2467,7 @@ async function init() {
     setMasterVolume(els.masterVolume.value);
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
+  els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padLayoutMode?.addEventListener("change", updateBoardLayout);
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
@@ -2387,6 +2545,18 @@ async function init() {
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
   els.helpDialog?.addEventListener("click", (event) => {
     if (event.target === els.helpDialog) els.helpDialog.close();
+  });
+  els.keyboardShortcuts?.addEventListener("click", () => {
+    renderShortcutRows();
+    if (els.shortcutDialog?.showModal) {
+      els.shortcutDialog.showModal();
+    } else {
+      setStatus("Raccourcis clavier");
+    }
+  });
+  els.closeShortcuts?.addEventListener("click", () => els.shortcutDialog?.close());
+  els.shortcutDialog?.addEventListener("click", (event) => {
+    if (event.target === els.shortcutDialog) els.shortcutDialog.close();
   });
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
