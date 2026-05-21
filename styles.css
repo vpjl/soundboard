@@ -955,7 +955,10 @@ body.board-edit-mode .board-action-grid .board-delete-button {
 .name-field > span,
 .tag-field span,
 .pad-fade-field span,
-.color-field > span {
+.color-field > span,
+.normalize-field > span,
+.crossfade-field > span,
+.crossfade-field label span {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 0.72rem;
@@ -964,7 +967,9 @@ body.board-edit-mode .board-action-grid .board-delete-button {
 
 .name-field input,
 .tag-field input,
-.pad-fade-field input {
+.pad-fade-field input,
+.crossfade-field input,
+.crossfade-field select {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -977,10 +982,43 @@ body.board-edit-mode .board-action-grid .board-delete-button {
 .tag-field,
 .pad-fade-field,
 .trim-field,
-.color-field {
+.color-field,
+.normalize-field,
+.crossfade-field {
   display: grid;
   grid-column: 1 / -1;
   gap: 6px;
+}
+
+.normalize-field {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.normalize-field input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.normalize-field output {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.crossfade-field {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.crossfade-field > span {
+  grid-column: 1 / -1;
+}
+
+.crossfade-field label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .trim-field {

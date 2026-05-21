@@ -28,6 +28,10 @@ const PAD_LAYOUTS = {
   "4x4": { columns: 4, rows: 4 },
   custom: { columns: 0, rows: 0 },
 };
+const NORMALIZE_TARGET_RMS = 0.16;
+const NORMALIZE_PEAK_LIMIT = 0.95;
+const NORMALIZE_MIN_GAIN = 0.25;
+const NORMALIZE_MAX_GAIN = 3.5;
 
 const state = {
   audioContext: null,
@@ -284,6 +288,12 @@ function makePad(index) {
     tags: "",
     color: "",
     fadeSeconds: "",
+    normalizeEnabled: true,
+    normalizedGain: 1,
+    startStopMode: "none",
+    startStopTag: "",
+    endStartMode: "none",
+    endStartTarget: "",
     trimStart: 0,
     trimEnd: 0,
     waveformPeaks: [],
@@ -314,11 +324,24 @@ function makePad(index) {
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
+  pad.normalizeEl = node.querySelector("[data-normalize]");
+  pad.normalizeValueEl = node.querySelector("[data-normalize-value]");
+  pad.startStopModeEl = node.querySelector("[data-start-stop-mode]");
+  pad.startStopTagEl = node.querySelector("[data-start-stop-tag]");
+  pad.endStartModeEl = node.querySelector("[data-end-start-mode]");
+  pad.endStartTargetEl = node.querySelector("[data-end-start-target]");
 
   setPadTitle(pad, pad.title);
   setPadTags(pad, pad.tags);
   setPadFade(pad, pad.fadeSeconds);
   setPadColor(pad, pad.color);
+  setPadNormalization(pad, pad.normalizeEnabled, pad.normalizedGain);
+  setPadCrossfade(pad, {
+    startStopMode: pad.startStopMode,
+    startStopTag: pad.startStopTag,
+    endStartMode: pad.endStartMode,
+    endStartTarget: pad.endStartTarget,
+  });
   setPadTrim(pad, pad.trimStart, pad.trimEnd);
   setPadMode(pad, pad.playMode);
   setPadLoop(pad, pad.loop);
@@ -434,6 +457,24 @@ function makePad(index) {
   pad.colorButtons.forEach((button) => {
     button.addEventListener("click", () => {
       setPadColor(pad, button.dataset.color || "");
+      savePadMeta(pad);
+    });
+  });
+
+  pad.normalizeEl.addEventListener("change", () => {
+    setPadNormalization(pad, pad.normalizeEl.checked, pad.normalizedGain);
+    if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+    savePadMeta(pad);
+  });
+
+  [pad.startStopModeEl, pad.startStopTagEl, pad.endStartModeEl, pad.endStartTargetEl].forEach((element) => {
+    element.addEventListener("input", () => {
+      setPadCrossfade(pad, {
+        startStopMode: pad.startStopModeEl.value,
+        startStopTag: pad.startStopTagEl.value,
+        endStartMode: pad.endStartModeEl.value,
+        endStartTarget: pad.endStartTargetEl.value,
+      });
       savePadMeta(pad);
     });
   });
@@ -951,6 +992,12 @@ async function exportCurrentBoard(includeAudio = true) {
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
       fadeSeconds: meta?.fadeSeconds ?? saved?.fadeSeconds ?? "",
+      normalizeEnabled: meta?.normalizeEnabled ?? saved?.normalizeEnabled ?? true,
+      normalizedGain: meta?.normalizedGain ?? saved?.normalizedGain ?? 1,
+      startStopMode: meta?.startStopMode ?? saved?.startStopMode ?? "none",
+      startStopTag: meta?.startStopTag ?? saved?.startStopTag ?? "",
+      endStartMode: meta?.endStartMode ?? saved?.endStartMode ?? "none",
+      endStartTarget: meta?.endStartTarget ?? saved?.endStartTarget ?? "",
       trimStart: meta?.trimStart ?? saved?.trimStart ?? 0,
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
@@ -1026,6 +1073,12 @@ async function importBoardFile(file) {
       tags: item.tags || "",
       color: item.color || "",
       fadeSeconds: item.fadeSeconds ?? "",
+      normalizeEnabled: item.normalizeEnabled ?? true,
+      normalizedGain: item.normalizedGain ?? 1,
+      startStopMode: item.startStopMode || "none",
+      startStopTag: item.startStopTag || "",
+      endStartMode: item.endStartMode || "none",
+      endStartTarget: item.endStartTarget || "",
       trimStart: item.trimStart ?? 0,
       trimEnd: item.trimEnd ?? 0,
       playMode: item.playMode || "oneshot",
@@ -1173,6 +1226,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   pad.buffer = buffer;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
+  setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, cleanName(name));
   setPadDuration(pad, buffer.duration);
   renderWaveform(pad);
@@ -1189,12 +1243,18 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
+    normalizeEnabled: pad.normalizeEnabled,
+    normalizedGain: pad.normalizedGain,
+    startStopMode: pad.startStopMode,
+    startStopTag: pad.startStopTag,
+    endStartMode: pad.endStartMode,
+    endStartTarget: pad.endStartTarget,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
   });
   await savePadMeta(pad);
-  setStatus(`${pad.title} charge`);
+  setStatus(`${pad.title} charge - norm ${pad.normalizedGain.toFixed(2)}x`);
 }
 
 async function toggleRecording(pad) {
@@ -1293,6 +1353,13 @@ async function restorePad(pad) {
     setPadTags(pad, meta.tags || "");
     setPadColor(pad, meta.color || "");
     setPadFade(pad, meta.fadeSeconds ?? "");
+    setPadNormalization(pad, meta.normalizeEnabled ?? true, meta.normalizedGain ?? 1);
+    setPadCrossfade(pad, {
+      startStopMode: meta.startStopMode,
+      startStopTag: meta.startStopTag,
+      endStartMode: meta.endStartMode,
+      endStartTarget: meta.endStartTarget,
+    });
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
@@ -1313,6 +1380,13 @@ async function restorePad(pad) {
   setPadTags(pad, meta?.tags ?? saved.tags ?? "");
   setPadColor(pad, meta?.color ?? saved.color ?? "");
   setPadFade(pad, meta?.fadeSeconds ?? saved.fadeSeconds ?? "");
+  setPadNormalization(pad, meta?.normalizeEnabled ?? saved.normalizeEnabled ?? true, meta?.normalizedGain ?? saved.normalizedGain ?? 1);
+  setPadCrossfade(pad, {
+    startStopMode: meta?.startStopMode ?? saved.startStopMode,
+    startStopTag: meta?.startStopTag ?? saved.startStopTag,
+    endStartMode: meta?.endStartMode ?? saved.endStartMode,
+    endStartTarget: meta?.endStartTarget ?? saved.endStartTarget,
+  });
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
   setPadDuration(pad, pad.buffer.duration);
@@ -1332,6 +1406,12 @@ async function savePadMeta(pad) {
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
+    normalizeEnabled: pad.normalizeEnabled,
+    normalizedGain: pad.normalizedGain,
+    startStopMode: pad.startStopMode,
+    startStopTag: pad.startStopTag,
+    endStartMode: pad.endStartMode,
+    endStartTarget: pad.endStartTarget,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
@@ -1468,6 +1548,35 @@ function setPadColor(pad, color) {
   });
 }
 
+function setPadNormalization(pad, enabled, gain = 1) {
+  const number = Number(gain);
+  pad.normalizedGain = Number.isFinite(number)
+    ? Math.min(NORMALIZE_MAX_GAIN, Math.max(NORMALIZE_MIN_GAIN, number))
+    : 1;
+  pad.normalizeEnabled = Boolean(enabled);
+  if (pad.normalizeEl) pad.normalizeEl.checked = pad.normalizeEnabled;
+  if (pad.normalizeValueEl) pad.normalizeValueEl.textContent = `${pad.normalizedGain.toFixed(2)}x`;
+}
+
+function normalizeStartStopMode(mode) {
+  return ["none", "all", "tag"].includes(mode) ? mode : "none";
+}
+
+function normalizeEndStartMode(mode) {
+  return ["none", "pad", "tag"].includes(mode) ? mode : "none";
+}
+
+function setPadCrossfade(pad, rule = {}) {
+  pad.startStopMode = normalizeStartStopMode(rule.startStopMode);
+  pad.startStopTag = String(rule.startStopTag || "").trim();
+  pad.endStartMode = normalizeEndStartMode(rule.endStartMode);
+  pad.endStartTarget = String(rule.endStartTarget || "").trim();
+  if (pad.startStopModeEl) pad.startStopModeEl.value = pad.startStopMode;
+  if (pad.startStopTagEl) pad.startStopTagEl.value = pad.startStopTag;
+  if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
+  if (pad.endStartTargetEl) pad.endStartTargetEl.value = pad.endStartTarget;
+}
+
 function numericInputValue(value) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, number) : 0;
@@ -1542,6 +1651,29 @@ function buildWaveformPeaks(buffer, sampleCount = 180) {
 
   const maxPeak = Math.max(...peaks, 0.001);
   return peaks.map((peak) => peak / maxPeak);
+}
+
+function normalizedGainForBuffer(buffer) {
+  let sumSquares = 0;
+  let sampleCount = 0;
+  let peak = 0;
+  const step = Math.max(1, Math.floor(buffer.length / 16000));
+
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    const data = buffer.getChannelData(channel);
+    for (let index = 0; index < data.length; index += step) {
+      const value = Math.abs(data[index]);
+      peak = Math.max(peak, value);
+      sumSquares += value * value;
+      sampleCount += 1;
+    }
+  }
+
+  if (!sampleCount || peak < 0.0001) return 1;
+  const rms = Math.sqrt(sumSquares / sampleCount);
+  if (rms < 0.0001) return 1;
+  const gain = Math.min(NORMALIZE_TARGET_RMS / rms, NORMALIZE_PEAK_LIMIT / peak, NORMALIZE_MAX_GAIN);
+  return Math.round(Math.max(NORMALIZE_MIN_GAIN, gain) * 100) / 100;
 }
 
 function updateTrimHandles(pad) {
@@ -1685,7 +1817,7 @@ function duckFactorForPad(pad) {
 }
 
 function targetPadGain(pad) {
-  return pad.volume * duckFactorForPad(pad);
+  return pad.volume * (pad.normalizeEnabled ? pad.normalizedGain : 1) * duckFactorForPad(pad);
 }
 
 function fadeDurationForPad(pad) {
@@ -1707,14 +1839,76 @@ function applyDucking(exceptPad = null) {
   updateAllPadAlerts();
 }
 
-async function playPad(pad, fade = false, offset = 0) {
+function padsWithTag(tag, exceptPad = null) {
+  const normalizedTag = String(tag || "").trim().toLowerCase();
+  if (!normalizedTag) return [];
+  return state.pads.filter((pad) => pad !== exceptPad && padTagList(pad).includes(normalizedTag));
+}
+
+function padFromTarget(target, exceptPad = null) {
+  const value = String(target || "").trim();
+  if (!value) return null;
+  const number = Number(value.replace(/^pad\s*/i, ""));
+  if (Number.isInteger(number) && number >= 1 && number <= state.pads.length) {
+    const pad = state.pads[number - 1];
+    return pad === exceptPad ? null : pad;
+  }
+  return state.pads.find((pad) => pad !== exceptPad && pad.title.toLowerCase() === value.toLowerCase()) || null;
+}
+
+function executeStartCrossfade(pad) {
+  if (pad.startStopMode === "all") {
+    state.pads.forEach((other) => {
+      if (other !== pad && other.source) stopPad(other, true, false, { triggerEnd: false });
+    });
+    return;
+  }
+  if (pad.startStopMode === "tag") {
+    padsWithTag(pad.startStopTag, pad).forEach((other) => {
+      if (other.source) stopPad(other, true, false, { triggerEnd: false });
+    });
+  }
+}
+
+function executeEndCrossfade(pad) {
+  if (pad.endStartMode === "pad") {
+    const target = padFromTarget(pad.endStartTarget, pad);
+    if (target?.buffer) playPad(target, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
+    return;
+  }
+  if (pad.endStartMode === "tag") {
+    padsWithTag(pad.endStartTarget, pad).forEach((target) => {
+      if (target.buffer) playPad(target, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
+    });
+  }
+}
+
+function clearPlayingPad(pad, source, triggerEnd = false) {
+  if (source && pad.source !== source) return;
+  pad.source = null;
+  pad.gain = null;
+  pad.pan = null;
+  pad.analyser = null;
+  pad.meterData = null;
+  pad.stopAt = 0;
+  pad.resumeOffset = 0;
+  pad.node.classList.remove("is-playing");
+  setMeterLevel(pad.vuEl, 0);
+  updatePadTime(pad);
+  applyDucking();
+  updateAllPadAlerts();
+  if (triggerEnd) executeEndCrossfade(pad);
+}
+
+async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (!pad.buffer) {
     pad.fileInput.click();
     return;
   }
 
   await ensureAudio();
-  stopPad(pad, false);
+  if (!options.skipStartCrossfade) executeStartCrossfade(pad);
+  stopPad(pad, false, false, { triggerEnd: false });
   const segmentStart = trimStart(pad);
   const segmentEnd = trimEnd(pad);
   const segmentDuration = playableDuration(pad);
@@ -1756,18 +1950,7 @@ async function playPad(pad, fade = false, offset = 0) {
 
   source.onended = () => {
     if (pad.source === source) {
-      pad.source = null;
-      pad.gain = null;
-      pad.pan = null;
-      pad.analyser = null;
-      pad.meterData = null;
-      pad.stopAt = 0;
-      pad.resumeOffset = 0;
-      pad.node.classList.remove("is-playing");
-      setMeterLevel(pad.vuEl, 0);
-      updatePadTime(pad);
-      applyDucking();
-      updateAllPadAlerts();
+      clearPlayingPad(pad, source, !pad.loop);
     }
   };
 
@@ -1779,7 +1962,7 @@ async function playPad(pad, fade = false, offset = 0) {
   updateAllPadAlerts();
 }
 
-function stopPad(pad, fade = false, preservePosition = false) {
+function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   if (!pad.source || !state.audioContext) return;
 
   const source = pad.source;
@@ -1805,16 +1988,7 @@ function stopPad(pad, fade = false, preservePosition = false) {
     pad.stopAt = now;
   }
 
-  pad.source = null;
-  pad.gain = null;
-  pad.pan = null;
-  pad.analyser = null;
-  pad.meterData = null;
-  pad.node.classList.remove("is-playing");
-  setMeterLevel(pad.vuEl, 0);
-  updatePadTime(pad);
-  applyDucking();
-  updateAllPadAlerts();
+  clearPlayingPad(pad, source, options.triggerEnd ?? true);
   setStatus(`${pad.title} stop`);
 }
 
@@ -1917,7 +2091,7 @@ function togglePad(pad) {
 }
 
 function stopAll() {
-  state.pads.forEach((pad) => stopPad(pad, true));
+  state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
   setStatus("Tout est stoppe");
 }
 
@@ -1928,7 +2102,7 @@ function stopGroup() {
     return;
   }
   const pads = state.pads.filter((pad) => pad.source && padTagList(pad).includes(tag));
-  pads.forEach((pad) => stopPad(pad, true));
+  pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
   setStatus(pads.length ? `Groupe ${tag} stoppe` : `Aucun pad joue: ${tag}`);
 }
 

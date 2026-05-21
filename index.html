@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=54">
+    <link rel="stylesheet" href="styles.css?v=55">
   </head>
   <body>
     <div class="app">
@@ -257,6 +257,38 @@
                 <button type="button" data-color="pink" aria-label="Rose"></button>
                 <button type="button" data-color="purple" aria-label="Violet"></button>
               </div>
+            </div>
+            <label class="normalize-field">
+              <span>Normalisation</span>
+              <input type="checkbox" data-normalize>
+              <output data-normalize-value>1.00x</output>
+            </label>
+            <div class="crossfade-field" aria-label="Crossfade du pad">
+              <span>Crossfade</span>
+              <label>
+                <span>Au lancement</span>
+                <select data-start-stop-mode>
+                  <option value="none">Ne stoppe rien</option>
+                  <option value="all">Stoppe tout</option>
+                  <option value="tag">Stoppe tag</option>
+                </select>
+              </label>
+              <label>
+                <span>Tag</span>
+                <input type="text" maxlength="32" placeholder="ex: voix" data-start-stop-tag>
+              </label>
+              <label>
+                <span>À l’arrêt/fin</span>
+                <select data-end-start-mode>
+                  <option value="none">Ne lance rien</option>
+                  <option value="pad">Lance pad</option>
+                  <option value="tag">Lance tag</option>
+                </select>
+              </label>
+              <label>
+                <span>Cible</span>
+                <input type="text" maxlength="32" placeholder="pad 3 ou tag" data-end-start-target>
+              </label>
             </div>
           </div>
           <input class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
@@ -536,6 +568,18 @@
                     <circle cx="16" cy="10" r="1" fill="currentColor"/>
                   </svg>
                 </dt><dd>Choisit la couleur du pad, dont violet.</dd>
+                <dt aria-label="Normalisation de volume">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M13 9h8M13 15h8M17 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Équilibre automatiquement le niveau du son importé.</dd>
+                <dt aria-label="Crossfade">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h3c4 0 5 10 10 10h3M4 17h3c4 0 5-10 10-10h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M17 4l3 3-3 3M17 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Déclenche des fades entre pads ou tags au lancement et à l’arrêt.</dd>
                 <dt aria-label="Déplacer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
@@ -564,6 +608,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=54"></script>
+    <script src="app.js?v=55"></script>
   </body>
 </html>
