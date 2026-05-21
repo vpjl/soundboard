@@ -302,9 +302,9 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(96px, 1fr) minmax(76px, 0.7fr) minmax(118px, 0.9fr) 18px 58px;
+  grid-template-columns: minmax(150px, 0.7fr) 62px minmax(120px, 0.85fr) 18px 82px;
   grid-template-areas:
-    "master master master vu stop"
+    "master master group vu stop"
     "fade duck group vu stop";
   gap: 10px;
   align-items: stretch;
@@ -441,6 +441,10 @@ body.board-edit-mode .version-select {
   grid-area: stop;
 }
 
+.master-control.small {
+  justify-items: start;
+}
+
 .master-control span,
 .controls span {
   color: var(--muted);
@@ -462,6 +466,12 @@ body.board-edit-mode .version-select {
   padding: 0 9px;
   background: #111319;
   color: var(--text);
+}
+
+#fadeSeconds,
+#duckPercent {
+  width: 54px;
+  text-align: center;
 }
 
 .group-stop-row {
@@ -511,9 +521,11 @@ button.is-pressed {
 }
 
 #stopAll {
-  width: 58px;
-  height: 100%;
-  min-height: 88px;
+  width: 82px;
+  height: 82px;
+  min-height: 82px;
+  aspect-ratio: 1 / 1;
+  align-self: center;
 }
 
 #stopGroup {
@@ -1306,9 +1318,9 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(96px, 1fr) minmax(70px, 0.7fr) minmax(106px, 0.9fr) 16px 54px;
+  grid-template-columns: minmax(150px, 0.7fr) 62px minmax(120px, 0.85fr) 18px 82px;
   grid-template-areas:
-    "master master master vu stop"
+    "master master group vu stop"
     "fade duck group vu stop";
 }
 
@@ -1370,17 +1382,24 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 48px minmax(82px, 0.8fr) 12px 52px;
+    grid-template-columns: minmax(44px, 0.65fr) 48px minmax(78px, 0.8fr) 8px 64px;
     grid-template-areas:
-      "master master master vu stop"
+      "master master group vu stop"
       "fade duck group vu stop";
     align-items: stretch;
+    gap: 5px;
+    padding: 6px;
   }
 
   #stopAll {
-    width: 52px;
-    height: 100%;
-    min-height: 74px;
+    width: 64px;
+    height: 64px;
+    min-height: 64px;
+  }
+
+  #fadeSeconds,
+  #duckPercent {
+    width: 48px;
   }
 
   .board-strip {
@@ -1558,17 +1577,22 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 52px minmax(92px, 0.8fr) 12px 60px;
+    grid-template-columns: minmax(44px, 0.7fr) 48px minmax(84px, 0.8fr) 8px 64px;
     grid-template-areas:
-      "master master master vu stop"
+      "master master group vu stop"
       "fade duck group vu stop";
     align-items: stretch;
   }
 
   #stopAll {
-    width: 60px;
-    height: 100%;
-    min-height: 68px;
+    width: 64px;
+    height: 64px;
+    min-height: 64px;
+  }
+
+  #fadeSeconds,
+  #duckPercent {
+    width: 48px;
   }
 
   .master-strip > .master-control:first-child {

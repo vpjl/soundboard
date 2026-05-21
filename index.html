@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=49">
+    <link rel="stylesheet" href="styles.css?v=50">
   </head>
   <body>
     <div class="app">
@@ -135,7 +135,7 @@
             <input id="fadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
           </label>
           <label class="master-control small">
-            <span>Ducking %</span>
+            <span>Ducking</span>
             <input id="duckPercent" type="number" min="0" max="100" step="5" value="60">
           </label>
           <label class="master-control group-stop-control">
@@ -345,12 +345,6 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête tous les pads en cours.</dd>
-                <dt aria-label="Arrêter un groupe">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Arrête seulement les pads du tag choisi.</dd>
               </dl>
             </section>
 
@@ -405,6 +399,24 @@
                     <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Affiche seulement la vue scène et les contrôles essentiels.</dd>
+                <dt aria-label="Fade global">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Fade global en secondes.</dd>
+                <dt aria-label="Ducking">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Ducking en %, 100 = mute, 0 = aucun ducking.</dd>
+                <dt aria-label="Arrêter un groupe">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Stop groupé : arrête seulement les pads du tag choisi.</dd>
                 <dt aria-label="Ajouter un pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -511,6 +523,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=49"></script>
+    <script src="app.js?v=50"></script>
   </body>
 </html>
