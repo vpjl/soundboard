@@ -42,6 +42,39 @@ body[data-skin="neon"] {
   --danger: #ff315f;
 }
 
+body[data-skin="scene"] {
+  --bg: #07090d;
+  --bg-glow: rgba(73, 211, 160, 0.14);
+  --bg-end: #101014;
+  --panel: #151922;
+  --panel-2: #202634;
+  --text: #fffaf0;
+  --muted: #bec4cc;
+  --line: #394152;
+  --accent: #5ee0a2;
+  --accent-2: #ffd45f;
+  --danger: #ff665e;
+}
+
+body[data-skin="scene"] .pad-trigger {
+  border: 1px solid rgba(94, 224, 162, 0.32);
+  background: linear-gradient(145deg, #123b44, #20283a);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+body[data-skin="scene"] .pad.is-playing .pad-trigger {
+  background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
+}
+
+body[data-skin="scene"] .pad.is-ducked .pad-trigger {
+  filter: saturate(0.78) brightness(0.82);
+}
+
+body[data-skin="scene"] .pad-alert {
+  background: rgba(5, 7, 11, 0.92);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
+}
+
 body[data-skin="minimal"] {
   --bg: #0c0d0f;
   --bg-glow: rgba(255, 255, 255, 0.05);
@@ -279,8 +312,12 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 9px;
   width: min(210px, 100%);
+}
+
+.board-skin-select {
+  justify-self: end;
+  margin-top: 0;
 }
 
 .skin-select span {
@@ -302,10 +339,10 @@ h1 {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(150px, 0.7fr) 62px minmax(120px, 0.85fr) 18px 82px;
+  grid-template-columns: minmax(0, 1fr) 54px 54px minmax(118px, 0.95fr) 18px 88px;
   grid-template-areas:
-    "master master group vu stop"
-    "fade duck group vu stop";
+    "master master master master vu stop"
+    ". fade duck group vu stop";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -521,9 +558,9 @@ button.is-pressed {
 }
 
 #stopAll {
-  width: 82px;
-  height: 82px;
-  min-height: 82px;
+  width: 88px;
+  height: 88px;
+  min-height: 88px;
   aspect-ratio: 1 / 1;
   align-self: center;
 }
@@ -1201,30 +1238,6 @@ body.board-edit-mode .board-action-grid .board-delete-button {
   align-self: center;
 }
 
-.help-subhead {
-  grid-column: 1 / -1;
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  padding-top: 9px;
-  background: transparent;
-  color: var(--accent-2);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-}
-
-.help-subhead:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.help-grid-subgroups .help-subhead + dd {
-  display: none;
-}
-
 .controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1274,7 +1287,6 @@ body.stage-mode .mark svg {
 }
 
 body.stage-mode h1,
-body.stage-mode .skin-select,
 body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
 body.stage-mode .board-name,
@@ -1304,9 +1316,32 @@ body.stage-mode .board-strip {
   grid-template-columns: minmax(150px, 1fr);
 }
 
+body.stage-mode .board-main {
+  grid-template-columns: 40px minmax(120px, 1fr);
+  align-items: end;
+}
+
+body.stage-mode .board-select {
+  grid-column: 1 / -1;
+}
+
 body.stage-mode .board-action-grid {
+  grid-column: 1;
   grid-template-columns: 40px;
   justify-content: start;
+}
+
+body.stage-mode .board-skin-select {
+  grid-column: 2;
+  width: 100%;
+}
+
+body.stage-mode .board-skin-select span {
+  display: none;
+}
+
+body.stage-mode .board-skin-select select {
+  height: 40px;
 }
 
 body.stage-mode.board-edit-mode .board-action-grid {
@@ -1318,10 +1353,10 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(150px, 0.7fr) 62px minmax(120px, 0.85fr) 18px 82px;
+  grid-template-columns: minmax(0, 1fr) 54px 54px minmax(118px, 0.95fr) 18px 88px;
   grid-template-areas:
-    "master master group vu stop"
-    "fade duck group vu stop";
+    "master master master master vu stop"
+    ". fade duck group vu stop";
 }
 
 body.stage-mode .deck {
@@ -1382,10 +1417,10 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(44px, 0.65fr) 48px minmax(78px, 0.8fr) 8px 64px;
+    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(78px, 0.8fr) 8px 64px;
     grid-template-areas:
-      "master master group vu stop"
-      "fade duck group vu stop";
+      "master master master master vu stop"
+      ". fade duck group vu stop";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -1577,10 +1612,10 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(44px, 0.7fr) 48px minmax(84px, 0.8fr) 8px 64px;
+    grid-template-columns: minmax(0, 1fr) 48px 48px minmax(78px, 0.8fr) 8px 64px;
     grid-template-areas:
-      "master master group vu stop"
-      "fade duck group vu stop";
+      "master master master master vu stop"
+      ". fade duck group vu stop";
     align-items: stretch;
   }
 

@@ -709,7 +709,7 @@ function updateSkinOptions() {
 }
 
 function applySkin(skin) {
-  const requestedSkin = ["classic", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
+  const requestedSkin = ["classic", "scene", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
   const skinName = requestedSkin === "minimal" && !canUseMinimalSkin() ? "classic" : requestedSkin;
   updateSkinOptions();
   document.body.dataset.skin = skinName;
