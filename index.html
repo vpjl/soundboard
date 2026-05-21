@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=51">
+    <link rel="stylesheet" href="styles.css?v=54">
   </head>
   <body>
     <div class="app">
@@ -112,13 +112,33 @@
               <span>Skin</span>
               <select id="skinSelect">
                 <option value="classic">Classic Dark</option>
-                <option value="scene">Scène</option>
                 <option value="contrast">High Contrast</option>
-                <option value="neon">Neon Stage</option>
                 <option value="minimal">Minimal iPhone</option>
+                <option value="neon">Neon Stage</option>
+                <option value="scene">Scène</option>
                 <option value="studio">Studio Grey</option>
               </select>
             </label>
+            <div class="board-layout-controls" aria-label="Disposition des pads">
+              <label>
+                <span>Disposition</span>
+                <select id="padLayoutMode">
+                  <option value="auto">Auto</option>
+                  <option value="2x3">2 x 3</option>
+                  <option value="3x4">3 x 4</option>
+                  <option value="4x4">4 x 4</option>
+                  <option value="custom">Perso</option>
+                </select>
+              </label>
+              <label>
+                <span>Colonnes</span>
+                <input id="padColumns" type="number" min="1" max="8" step="1" inputmode="numeric">
+              </label>
+              <label>
+                <span>Lignes</span>
+                <input id="padRows" type="number" min="1" max="8" step="1" inputmode="numeric">
+              </label>
+            </div>
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
         </div>
@@ -235,6 +255,7 @@
                 <button type="button" data-color="red" aria-label="Rouge"></button>
                 <button type="button" data-color="blue" aria-label="Bleu"></button>
                 <button type="button" data-color="pink" aria-label="Rose"></button>
+                <button type="button" data-color="purple" aria-label="Violet"></button>
               </div>
             </div>
           </div>
@@ -367,46 +388,6 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Live">
-              <h3>Live</h3>
-              <dl class="help-grid">
-                <dt aria-label="Fade in">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Lance le son avec montée progressive.</dd>
-                <dt aria-label="One shot">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 5v14M10 7l8 5-8 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Relance le son depuis le début.</dd>
-                <dt aria-label="Hold">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 12V6a2 2 0 0 1 4 0v5M12 11V8a2 2 0 0 1 4 0v5M16 13v-2a2 2 0 0 1 4 0v4c0 4-2.5 6-6.5 6H12c-2.7 0-4.7-1.3-6-3.8L4 13.5a1.8 1.8 0 0 1 3.2-1.6L8 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Joue seulement pendant l’appui.</dd>
-                <dt aria-label="Toggle">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 6v12M11 7l7 5-7 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Stoppe puis reprend au même endroit.</dd>
-                <dt aria-label="Fade out">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Baisse le son progressivement puis stoppe.</dd>
-                <dt aria-label="Stop">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Arrête le pad immédiatement.</dd>
-              </dl>
-            </section>
-          </div>
-
-          <div class="help-column">
             <section class="help-section" aria-label="Board">
               <h3>Board</h3>
               <dl class="help-grid">
@@ -416,6 +397,19 @@
                     <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Affiche seulement la vue scène et les contrôles essentiels.</dd>
+                <dt aria-label="Skin">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
+                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
+                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Change l’apparence, dont le skin Scène.</dd>
+                <dt aria-label="Disposition des pads">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>En mode edit, règle les lignes et colonnes du board.</dd>
                 <dt aria-label="Ajouter un pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -468,6 +462,46 @@
                 </dt><dd>Supprime le board courant après confirmation.</dd>
               </dl>
             </section>
+          </div>
+
+          <div class="help-column">
+            <section class="help-section" aria-label="Live">
+              <h3>Live</h3>
+              <dl class="help-grid">
+                <dt aria-label="Fade in">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Lance le son avec montée progressive.</dd>
+                <dt aria-label="One shot">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 5v14M10 7l8 5-8 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Relance le son depuis le début.</dd>
+                <dt aria-label="Hold">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 12V6a2 2 0 0 1 4 0v5M12 11V8a2 2 0 0 1 4 0v5M16 13v-2a2 2 0 0 1 4 0v4c0 4-2.5 6-6.5 6H12c-2.7 0-4.7-1.3-6-3.8L4 13.5a1.8 1.8 0 0 1 3.2-1.6L8 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Joue seulement pendant l’appui.</dd>
+                <dt aria-label="Toggle">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 6v12M11 7l7 5-7 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Stoppe puis reprend au même endroit.</dd>
+                <dt aria-label="Fade out">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Baisse le son progressivement puis stoppe.</dd>
+                <dt aria-label="Stop">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Arrête le pad immédiatement.</dd>
+              </dl>
+            </section>
 
             <section class="help-section" aria-label="Pad principal">
               <h3>Pad (edit mode)</h3>
@@ -494,6 +528,14 @@
                     <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Répète le son en boucle.</dd>
+                <dt aria-label="Couleur du pad">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
+                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
+                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Choisit la couleur du pad, dont violet.</dd>
                 <dt aria-label="Déplacer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
@@ -522,6 +564,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=51"></script>
+    <script src="app.js?v=54"></script>
   </body>
 </html>

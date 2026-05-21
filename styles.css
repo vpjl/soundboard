@@ -66,6 +66,15 @@ body[data-skin="scene"] .pad.is-playing .pad-trigger {
   background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
 }
 
+body[data-skin="scene"] .pad.has-color .pad-trigger {
+  border-color: var(--pad-color);
+  border-color: color-mix(in srgb, var(--pad-color) 72%, white 10%);
+  background:
+    linear-gradient(145deg, rgba(5, 7, 11, 0.52), rgba(5, 7, 11, 0.18)),
+    linear-gradient(145deg, var(--pad-color), #20283a);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 body[data-skin="scene"] .pad.is-ducked .pad-trigger {
   filter: saturate(0.78) brightness(0.82);
 }
@@ -318,6 +327,44 @@ h1 {
 .board-skin-select {
   justify-self: end;
   margin-top: 0;
+}
+
+.board-layout-controls {
+  display: none;
+  grid-template-columns: minmax(112px, 1fr) repeat(2, minmax(64px, 74px));
+  gap: 6px;
+  align-items: end;
+}
+
+body.board-edit-mode .board-layout-controls {
+  display: grid;
+}
+
+.board-layout-controls label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.board-layout-controls span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.board-layout-controls select,
+.board-layout-controls input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 8px;
+  background: #111319;
+  color: var(--text);
+}
+
+.board-layout-controls input:disabled {
+  opacity: 0.56;
 }
 
 .skin-select span {
@@ -580,6 +627,14 @@ button.is-pressed {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.pads.has-pad-layout {
+  grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
+}
+
+body.stage-mode .pads.has-pad-layout {
+  grid-auto-rows: minmax(92px, calc((100vh - 152px - (var(--pad-rows) - 1) * 10px) / var(--pad-rows)));
 }
 
 .pad {
@@ -1030,7 +1085,7 @@ body.board-edit-mode .board-action-grid .board-delete-button {
 
 .color-swatches {
   display: grid;
-  grid-template-columns: repeat(6, 32px);
+  grid-template-columns: repeat(7, 32px);
   gap: 7px;
 }
 
@@ -1067,6 +1122,10 @@ body.board-edit-mode .board-action-grid .board-delete-button {
 
 .color-swatches button[data-color="pink"] {
   background: #ff6bd6;
+}
+
+.color-swatches button[data-color="purple"] {
+  background: #a875ff;
 }
 
 .color-swatches button.is-active {
@@ -1463,6 +1522,18 @@ body.stage-mode .pad-time {
     font-size: 0.66rem;
   }
 
+  .board-layout-controls {
+    grid-template-columns: minmax(90px, 1fr) repeat(2, 58px);
+    gap: 4px;
+  }
+
+  .board-layout-controls select,
+  .board-layout-controls input {
+    height: 30px;
+    padding: 0 5px;
+    font-size: 0.66rem;
+  }
+
   .pads {
     grid-template-columns: 1fr;
   }
@@ -1593,6 +1664,18 @@ body.stage-mode .pad-time {
 
   body.board-edit-mode .version-select {
     grid-column: 1 / -1;
+    height: 30px;
+    padding: 0 5px;
+    font-size: 0.66rem;
+  }
+
+  .board-layout-controls {
+    grid-template-columns: minmax(100px, 1fr) repeat(2, 58px);
+    gap: 4px;
+  }
+
+  .board-layout-controls select,
+  .board-layout-controls input {
     height: 30px;
     padding: 0 5px;
     font-size: 0.66rem;
@@ -1774,4 +1857,10 @@ body.stage-mode .pad-time {
   body.stage-mode .pads {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+.pads.has-pad-layout,
+body.stage-mode .pads.has-pad-layout,
+body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
+  grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
 }

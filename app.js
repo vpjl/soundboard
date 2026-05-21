@@ -19,6 +19,14 @@ const PAD_COLORS = {
   red: "#ff5f56",
   blue: "#61a8ff",
   pink: "#ff6bd6",
+  purple: "#a875ff",
+};
+const PAD_LAYOUTS = {
+  auto: { columns: 0, rows: 0 },
+  "2x3": { columns: 3, rows: 2 },
+  "3x4": { columns: 4, rows: 3 },
+  "4x4": { columns: 4, rows: 4 },
+  custom: { columns: 0, rows: 0 },
 };
 
 const state = {
@@ -72,6 +80,9 @@ const els = {
   exportBoardLite: document.querySelector("#exportBoardLite"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
+  padLayoutMode: document.querySelector("#padLayoutMode"),
+  padColumns: document.querySelector("#padColumns"),
+  padRows: document.querySelector("#padRows"),
 };
 
 function openDb() {
@@ -155,6 +166,27 @@ function padMetaKey(pad) {
 
 function boardHistoryKey(boardId) {
   return `board-history-${boardId}`;
+}
+
+function normalizeLayoutMode(mode) {
+  return Object.prototype.hasOwnProperty.call(PAD_LAYOUTS, mode) ? mode : "auto";
+}
+
+function normalizeLayoutNumber(value, fallback = 0) {
+  if (value === "" || value == null) return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(8, Math.max(1, Math.round(number)));
+}
+
+function layoutForBoard(board) {
+  const mode = normalizeLayoutMode(board?.layoutMode);
+  if (mode !== "custom") return { mode, ...PAD_LAYOUTS[mode] };
+  return {
+    mode,
+    columns: normalizeLayoutNumber(board?.padColumns, 4),
+    rows: normalizeLayoutNumber(board?.padRows, 3),
+  };
 }
 
 function formatVersionLabel(savedAt) {
@@ -416,17 +448,25 @@ function makePad(index) {
   return pad;
 }
 
+function normalizeBoard(board, fallbackName = "Projet") {
+  const mode = normalizeLayoutMode(board?.layoutMode);
+  return {
+    id: board?.id || createId(),
+    name: board?.name || fallbackName,
+    padCount: Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT),
+    masterVolume: clamp01(board?.masterVolume),
+    layoutMode: mode,
+    padColumns: mode === "custom" ? normalizeLayoutNumber(board?.padColumns, 4) : 0,
+    padRows: mode === "custom" ? normalizeLayoutNumber(board?.padRows, 3) : 0,
+  };
+}
+
 function loadBoards() {
-  const fallback = [{ id: DEFAULT_BOARD_ID, name: "Projet 1", padCount: DEFAULT_PAD_COUNT, masterVolume: DEFAULT_MASTER_VOLUME }];
+  const fallback = [normalizeBoard({ id: DEFAULT_BOARD_ID, name: "Projet 1", padCount: DEFAULT_PAD_COUNT, masterVolume: DEFAULT_MASTER_VOLUME })];
   try {
     const boards = JSON.parse(localStorage.getItem(BOARDS_STORAGE));
     if (Array.isArray(boards) && boards.length) {
-      return boards.map((board) => ({
-        id: board.id || createId(),
-        name: board.name || "Projet",
-        padCount: Math.max(1, Number(board.padCount) || DEFAULT_PAD_COUNT),
-        masterVolume: clamp01(board.masterVolume),
-      }));
+      return boards.map((board) => normalizeBoard(board));
     }
   } catch {
     return fallback;
@@ -459,6 +499,53 @@ function setMasterVolume(value, persist = true) {
   }
 }
 
+function applyPadLayout(board = currentBoard()) {
+  if (!els.pads) return;
+  const layout = layoutForBoard(board);
+  const enabled = layout.columns > 0 && layout.rows > 0;
+  els.pads.classList.toggle("has-pad-layout", enabled);
+  if (enabled) {
+    els.pads.style.setProperty("--pad-columns", String(layout.columns));
+    els.pads.style.setProperty("--pad-rows", String(layout.rows));
+  } else {
+    els.pads.style.removeProperty("--pad-columns");
+    els.pads.style.removeProperty("--pad-rows");
+  }
+}
+
+function renderBoardLayoutControls() {
+  const board = currentBoard();
+  if (!board || !els.padLayoutMode) return;
+  const layout = layoutForBoard(board);
+  els.padLayoutMode.value = layout.mode;
+  if (els.padColumns) {
+    els.padColumns.value = layout.columns || "";
+    els.padColumns.disabled = layout.mode !== "custom";
+  }
+  if (els.padRows) {
+    els.padRows.value = layout.rows || "";
+    els.padRows.disabled = layout.mode !== "custom";
+  }
+}
+
+function updateBoardLayout() {
+  const board = currentBoard();
+  if (!board) return;
+  const mode = normalizeLayoutMode(els.padLayoutMode?.value);
+  board.layoutMode = mode;
+  if (mode === "custom") {
+    board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
+    board.padRows = normalizeLayoutNumber(els.padRows?.value, board.padRows || 3);
+  } else {
+    board.padColumns = 0;
+    board.padRows = 0;
+  }
+  saveBoards();
+  renderBoardLayoutControls();
+  applyPadLayout(board);
+  setStatus(mode === "auto" ? "Disposition auto" : "Disposition pads modifiee");
+}
+
 function renderBoardOptions() {
   if (!els.boardSelect) return;
   els.boardSelect.innerHTML = "";
@@ -471,6 +558,8 @@ function renderBoardOptions() {
   els.boardSelect.value = state.currentBoardId;
   if (els.boardName) els.boardName.value = currentBoard().name;
   setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
+  renderBoardLayoutControls();
+  applyPadLayout();
   refreshVersionOptions();
 }
 
@@ -646,6 +735,9 @@ async function addBoard() {
     name,
     padCount: DEFAULT_PAD_COUNT,
     masterVolume: DEFAULT_MASTER_VOLUME,
+    layoutMode: "auto",
+    padColumns: 0,
+    padRows: 0,
   };
   state.boards.push(board);
   state.currentBoardId = board.id;
@@ -709,7 +801,7 @@ function updateSkinOptions() {
 }
 
 function applySkin(skin) {
-  const requestedSkin = ["classic", "scene", "contrast", "neon", "minimal", "studio"].includes(skin) ? skin : "classic";
+  const requestedSkin = ["classic", "contrast", "minimal", "neon", "scene", "studio"].includes(skin) ? skin : "classic";
   const skinName = requestedSkin === "minimal" && !canUseMinimalSkin() ? "classic" : requestedSkin;
   updateSkinOptions();
   document.body.dataset.skin = skinName;
@@ -765,6 +857,9 @@ async function createBoardSnapshot(board) {
       name: board.name,
       padCount: board.padCount,
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
+      layoutMode: board.layoutMode || "auto",
+      padColumns: board.padColumns || 0,
+      padRows: board.padRows || 0,
     },
     pads,
   };
@@ -813,6 +908,9 @@ async function restoreSelectedBoardVersion() {
   board.name = snapshot.board?.name || board.name;
   board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
   board.masterVolume = clamp01(snapshot.board?.masterVolume);
+  board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
+  board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
+  board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
 
   const maxPadCount = Math.max(previousPadCount, board.padCount);
   for (let index = 0; index < maxPadCount; index += 1) {
@@ -873,6 +971,9 @@ async function exportCurrentBoard(includeAudio = true) {
       name: board.name,
       padCount: board.padCount,
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
+      layoutMode: board.layoutMode || "auto",
+      padColumns: board.padColumns || 0,
+      padRows: board.padRows || 0,
       pads,
     },
   };
@@ -896,12 +997,15 @@ async function importBoardFile(file) {
     return;
   }
 
-  const importedBoard = {
+  const importedBoard = normalizeBoard({
     id: createId(),
     name: payload.board.name || cleanName(file.name),
     padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
     masterVolume: clamp01(payload.board.masterVolume),
-  };
+    layoutMode: payload.board.layoutMode,
+    padColumns: payload.board.padColumns,
+    padRows: payload.board.padRows,
+  });
   setBoardPadEditing(false);
   state.boards.push(importedBoard);
   state.currentBoardId = importedBoard.id;
@@ -1885,6 +1989,11 @@ async function init() {
     setMasterVolume(els.masterVolume.value);
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
+  els.padLayoutMode?.addEventListener("change", updateBoardLayout);
+  els.padColumns?.addEventListener("input", updateBoardLayout);
+  els.padColumns?.addEventListener("change", updateBoardLayout);
+  els.padRows?.addEventListener("input", updateBoardLayout);
+  els.padRows?.addEventListener("change", updateBoardLayout);
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   });
