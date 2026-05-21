@@ -242,19 +242,23 @@ function normalizeShortcutKey(value) {
 
 function loadShortcutsForCurrentBoard() {
   const key = boardShortcutsKey(state.currentBoardId);
+  const defaults = defaultShortcuts();
   try {
     const saved = JSON.parse(localStorage.getItem(key));
     if (Array.isArray(saved)) {
-      state.shortcuts = saved.map((item) => ({
-        key: normalizeShortcutKey(item.key),
-        padIndex: Math.min(state.pads.length - 1, Math.max(0, Number(item.padIndex) || 0)),
-      })).filter((item) => item.key && state.pads[item.padIndex]);
+      state.shortcuts = defaults.map((fallback, index) => {
+        const savedItem = saved.find((item) => Number(item.padIndex) === fallback.padIndex) || saved[index];
+        return {
+          key: normalizeShortcutKey(savedItem?.key ?? fallback.key),
+          padIndex: fallback.padIndex,
+        };
+      });
       return;
     }
   } catch {
     state.shortcuts = [];
   }
-  state.shortcuts = defaultShortcuts();
+  state.shortcuts = defaults;
 }
 
 function saveShortcutsForCurrentBoard() {
@@ -272,21 +276,19 @@ function setShortcut(rowIndex, key, padIndex) {
     key: normalizedKey,
     padIndex: Math.min(state.pads.length - 1, Math.max(0, Number(padIndex) || 0)),
   };
-  const seen = new Set();
-  state.shortcuts = state.shortcuts.filter((item, index) => {
-    if (!item.key || !state.pads[item.padIndex]) return false;
-    const token = `${item.key}:${index}`;
-    if (seen.has(item.key)) return false;
-    seen.add(item.key);
-    return token;
-  });
+  if (normalizedKey) {
+    state.shortcuts.forEach((item, index) => {
+      if (index !== rowIndex && item.key === normalizedKey) item.key = "";
+    });
+  }
   saveShortcutsForCurrentBoard();
+  updateShortcutIndicators();
   renderShortcutRows();
 }
 
 function renderShortcutRows() {
   if (!els.shortcutRows) return;
-  if (!state.shortcuts.length) state.shortcuts = defaultShortcuts();
+  if (!state.shortcuts.length) loadShortcutsForCurrentBoard();
   const shortcuts = state.shortcuts.filter((item) => state.pads[item.padIndex]);
   if (shortcuts.length < state.pads.length) {
     state.pads.forEach((pad) => {
@@ -336,6 +338,15 @@ function renderShortcutRows() {
 
     row.append(keyInput, padSelect);
     els.shortcutRows.append(row);
+  });
+}
+
+function updateShortcutIndicators() {
+  state.pads.forEach((pad) => {
+    const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
+    if (!pad.shortcutEl) return;
+    pad.shortcutEl.textContent = shortcut?.key || "";
+    pad.shortcutEl.hidden = !shortcut?.key;
   });
 }
 
@@ -430,6 +441,7 @@ function makePad(index) {
   };
 
   pad.titleEl = node.querySelector("[data-title]");
+  pad.shortcutEl = node.querySelector("[data-shortcut]");
   pad.nameEl = node.querySelector("[data-name]");
   pad.tagsEl = node.querySelector("[data-tags]");
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
@@ -913,6 +925,7 @@ async function renderPads() {
   refreshCrossfadeTargetOptions();
   loadShortcutsForCurrentBoard();
   renderShortcutRows();
+  updateShortcutIndicators();
   setStatus(`${board.name} charge`);
 }
 
@@ -1683,6 +1696,8 @@ function refreshStopGroupOptions() {
     els.stopGroupSelect.append(option);
   });
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
+  const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
+  els.stopGroupSelect.style.setProperty("--stop-group-width", `${Math.min(22, longestLength + 3)}ch`);
 }
 
 function boardTags() {
@@ -2334,7 +2349,8 @@ function setMeterLevel(element, level) {
 }
 
 function updateMeters() {
-  setMeterLevel(els.masterVu, meterLevel(state.masterAnalyser, state.masterMeterData));
+  const hasPlayingPad = state.pads.some((pad) => pad.source);
+  setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
   state.pads.forEach((pad) => {
     setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
   });
