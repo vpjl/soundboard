@@ -1697,7 +1697,7 @@ function refreshStopGroupOptions() {
   });
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
   const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
-  els.stopGroupSelect.style.setProperty("--stop-group-width", `${Math.min(22, longestLength + 3)}ch`);
+  els.stopGroupSelect.closest(".group-stop-row")?.style.setProperty("--stop-group-width", `${Math.min(22, longestLength + 3)}ch`);
 }
 
 function boardTags() {
