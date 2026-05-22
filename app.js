@@ -65,6 +65,8 @@ const state = {
   audioPad: null,
   audioTrimDrag: null,
   reverbBuffers: {},
+  imagePad: null,
+  sketchDrawing: false,
   stageMode: false,
   boardEditMode: false,
 };
@@ -90,6 +92,13 @@ const els = {
   shortcutRows: document.querySelector("#shortcutRows"),
   audioDialog: document.querySelector("#audioDialog"),
   closeAudio: document.querySelector("#closeAudio"),
+  audioPadName: document.querySelector("#audioPadName"),
+  audioFilePath: document.querySelector("#audioFilePath"),
+  audioTestPlay: document.querySelector("#audioTestPlay"),
+  audioTestStop: document.querySelector("#audioTestStop"),
+  audioRecord: document.querySelector("#audioRecord"),
+  audioImport: document.querySelector("#audioImport"),
+  audioReset: document.querySelector("#audioReset"),
   audioWaveform: document.querySelector("#audioWaveform"),
   audioWaveformCanvas: document.querySelector("#audioWaveformCanvas"),
   audioTrimSelection: document.querySelector("#audioTrimSelection"),
@@ -99,6 +108,9 @@ const els = {
   audioTrimEndValue: document.querySelector("#audioTrimEndValue"),
   audioNormalize: document.querySelector("#audioNormalize"),
   audioNormalizeValue: document.querySelector("#audioNormalizeValue"),
+  audioMono: document.querySelector("#audioMono"),
+  audioLoop: document.querySelector("#audioLoop"),
+  audioDuck: document.querySelector("#audioDuck"),
   audioFadeIn: document.querySelector("#audioFadeIn"),
   audioFadeOut: document.querySelector("#audioFadeOut"),
   audioPitchSemitones: document.querySelector("#audioPitchSemitones"),
@@ -109,6 +121,21 @@ const els = {
   audioReverbPreset: document.querySelector("#audioReverbPreset"),
   audioReverbWet: document.querySelector("#audioReverbWet"),
   audioReverbValue: document.querySelector("#audioReverbValue"),
+  audioStartStopMode: document.querySelector("#audioStartStopMode"),
+  audioStartStopTarget: document.querySelector("#audioStartStopTarget"),
+  audioEndStartMode: document.querySelector("#audioEndStartMode"),
+  audioEndStartTarget: document.querySelector("#audioEndStartTarget"),
+  imageDialog: document.querySelector("#imageDialog"),
+  closeImage: document.querySelector("#closeImage"),
+  imageLibrary: document.querySelector("#imageLibrary"),
+  imageCamera: document.querySelector("#imageCamera"),
+  imageOnline: document.querySelector("#imageOnline"),
+  imageSketch: document.querySelector("#imageSketch"),
+  imageRemove: document.querySelector("#imageRemove"),
+  imageSketchCanvas: document.querySelector("#imageSketchCanvas"),
+  imagePosX: document.querySelector("#imagePosX"),
+  imagePosY: document.querySelector("#imagePosY"),
+  imageZoom: document.querySelector("#imageZoom"),
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
@@ -236,10 +263,11 @@ function normalizeLayoutNumber(value, fallback = 0) {
 function layoutForBoard(board) {
   const mode = normalizeLayoutMode(board?.layoutMode);
   if (mode !== "custom") return { mode, ...PAD_LAYOUTS[mode] };
+  const columns = normalizeLayoutNumber(board?.padColumns, 4);
   return {
     mode,
-    columns: normalizeLayoutNumber(board?.padColumns, 4),
-    rows: normalizeLayoutNumber(board?.padRows, 3),
+    columns,
+    rows: Math.max(1, Math.ceil((Number(board?.padCount) || DEFAULT_PAD_COUNT) / columns)),
   };
 }
 
@@ -462,6 +490,7 @@ function makePad(index) {
     pan: null,
     analyser: null,
     meterData: null,
+    audioName: "",
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -481,7 +510,8 @@ function makePad(index) {
     pitchFine: 0,
     speedRate: 1,
     reverbPreset: "none",
-    reverbWet: 0,
+    reverbWet: 0.5,
+    mono: false,
     normalizeEnabled: true,
     normalizedGain: 1,
     startStopMode: "none",
@@ -493,6 +523,9 @@ function makePad(index) {
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
+    visualPositionX: 50,
+    visualPositionY: 50,
+    visualZoom: 1,
   };
 
   pad.titleEl = node.querySelector("[data-title]");
@@ -528,6 +561,7 @@ function makePad(index) {
   pad.visualPreviewEl = node.querySelector("[data-visual-preview]");
   pad.visualToggleEl = node.querySelector('[data-action="visual-toggle"]');
   pad.imageInput = node.querySelector("[data-image-file]");
+  pad.cameraInput = node.querySelector("[data-camera-file]");
   pad.startStopModeEl = node.querySelector("[data-start-stop-mode]");
   pad.startStopTagEl = node.querySelector("[data-start-stop-tag]");
   pad.endStartModeEl = node.querySelector("[data-end-start-mode]");
@@ -546,8 +580,13 @@ function makePad(index) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    mono: pad.mono,
   });
-  setPadVisualImage(pad, pad.visualImage, pad.visualImageHidden);
+  setPadVisualImage(pad, pad.visualImage, pad.visualImageHidden, {
+    visualPositionX: pad.visualPositionX,
+    visualPositionY: pad.visualPositionY,
+    visualZoom: pad.visualZoom,
+  });
   setPadCrossfade(pad, {
     startStopMode: pad.startStopMode,
     startStopTag: pad.startStopTag,
@@ -580,8 +619,22 @@ function makePad(index) {
     savePadMeta(pad);
     pad.imageInput.value = "";
   });
+  pad.cameraInput?.addEventListener("change", async () => {
+    const file = pad.cameraInput.files?.[0];
+    if (!file) return;
+    const image = await fileToDataUrl(file);
+    setPadVisualImage(pad, image, false);
+    savePadMeta(pad);
+    pad.cameraInput.value = "";
+  });
 
   const trigger = node.querySelector('[data-action="play"]');
+  node.addEventListener("click", (event) => {
+    if (document.body.dataset.skin !== "visual" || pad.node.classList.contains("is-editing")) return;
+    if (event.target.closest("button, input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
+    event.preventDefault();
+    togglePad(pad);
+  });
   trigger.addEventListener("click", (event) => {
     if (pad.playMode === "hold") return;
     event.preventDefault();
@@ -612,7 +665,7 @@ function makePad(index) {
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, false));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
-  node.querySelector('[data-action="visual-image"]').addEventListener("click", () => pad.imageInput?.click());
+  node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -696,6 +749,7 @@ function makePad(index) {
   pad.colorButtons.forEach((button) => {
     button.addEventListener("click", () => {
       setPadColor(pad, button.dataset.color || "");
+      if (!button.dataset.color) setPadVisualImage(pad, "", false);
       savePadMeta(pad);
     });
   });
@@ -805,35 +859,27 @@ function applyBoardTagFilter() {
 
 function renderBoardLayoutControls() {
   const board = currentBoard();
-  if (!board || !els.padLayoutMode) return;
+  if (!board) return;
   const layout = layoutForBoard(board);
-  els.padLayoutMode.value = layout.mode;
   if (els.padColumns) {
-    els.padColumns.value = layout.columns || "";
-    els.padColumns.disabled = layout.mode !== "custom";
+    els.padColumns.value = layout.columns || 4;
   }
   if (els.padRows) {
     els.padRows.value = layout.rows || "";
-    els.padRows.disabled = layout.mode !== "custom";
+    els.padRows.textContent = String(layout.rows || "");
   }
 }
 
 function updateBoardLayout() {
   const board = currentBoard();
   if (!board) return;
-  const mode = normalizeLayoutMode(els.padLayoutMode?.value);
-  board.layoutMode = mode;
-  if (mode === "custom") {
-    board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
-    board.padRows = normalizeLayoutNumber(els.padRows?.value, board.padRows || 3);
-  } else {
-    board.padColumns = 0;
-    board.padRows = 0;
-  }
+  board.layoutMode = "custom";
+  board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
+  board.padRows = Math.max(1, Math.ceil(board.padCount / board.padColumns));
   saveBoards();
   renderBoardLayoutControls();
   applyPadLayout(board);
-  setStatus(mode === "auto" ? "Disposition auto" : "Disposition pads modifiee");
+  setStatus("Disposition pads modifiee");
 }
 
 function renderBoardOptions() {
@@ -1098,6 +1144,11 @@ function safeFileName(name) {
     .toLowerCase() || "soundboard";
 }
 
+function timestampForFile(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
 function canUseMinimalSkin() {
   return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
 }
@@ -1110,9 +1161,9 @@ function updateSkinOptions() {
 }
 
 function applySkin(skin) {
-  const migratedSkin = skin === "scene" ? "candy" : skin;
-  const requestedSkin = ["candy", "classic", "contrast", "minimal", "neon", "studio", "visual"].includes(migratedSkin) ? migratedSkin : "classic";
-  const skinName = requestedSkin === "minimal" && !canUseMinimalSkin() ? "classic" : requestedSkin;
+  const migratedSkin = skin === "scene" ? "candy" : skin === "minimal" ? "classic" : skin;
+  const requestedSkin = ["candy", "classic", "contrast", "neon", "studio", "visual"].includes(migratedSkin) ? migratedSkin : "classic";
+  const skinName = requestedSkin;
   updateSkinOptions();
   document.body.dataset.skin = skinName;
   if (els.skinSelect) els.skinSelect.value = skinName;
@@ -1261,8 +1312,21 @@ async function exportCurrentBoard(includeAudio = true) {
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
       fadeSeconds: meta?.fadeSeconds ?? saved?.fadeSeconds ?? "",
+      fadeInSeconds: meta?.fadeInSeconds ?? saved?.fadeInSeconds ?? "",
+      fadeOutSeconds: meta?.fadeOutSeconds ?? saved?.fadeOutSeconds ?? "",
+      pitchSemitones: meta?.pitchSemitones ?? saved?.pitchSemitones ?? 0,
+      pitchFine: meta?.pitchFine ?? saved?.pitchFine ?? 0,
+      speedRate: meta?.speedRate ?? saved?.speedRate ?? 1,
+      reverbPreset: meta?.reverbPreset ?? saved?.reverbPreset ?? "none",
+      reverbWet: meta?.reverbWet ?? saved?.reverbWet ?? 0.5,
+      mono: Boolean(meta?.mono ?? saved?.mono),
       normalizeEnabled: meta?.normalizeEnabled ?? saved?.normalizeEnabled ?? true,
       normalizedGain: meta?.normalizedGain ?? saved?.normalizedGain ?? 1,
+      visualImage: meta?.visualImage ?? saved?.visualImage ?? "",
+      visualImageHidden: Boolean(meta?.visualImageHidden ?? saved?.visualImageHidden),
+      visualPositionX: meta?.visualPositionX ?? saved?.visualPositionX ?? 50,
+      visualPositionY: meta?.visualPositionY ?? saved?.visualPositionY ?? 50,
+      visualZoom: meta?.visualZoom ?? saved?.visualZoom ?? 1,
       startStopMode: meta?.startStopMode ?? saved?.startStopMode ?? "none",
       startStopTag: meta?.startStopTag ?? saved?.startStopTag ?? "",
       endStartMode: meta?.endStartMode ?? saved?.endStartMode ?? "none",
@@ -1296,7 +1360,7 @@ async function exportCurrentBoard(includeAudio = true) {
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
   const suffix = includeAudio ? "soundboard" : "soundboard-settings";
-  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${suffix}.json`, board.name);
+  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${timestampForFile()}.${suffix}.json`, board.name);
 }
 
 async function importBoardFile(file) {
@@ -1342,8 +1406,21 @@ async function importBoardFile(file) {
       tags: item.tags || "",
       color: item.color || "",
       fadeSeconds: item.fadeSeconds ?? "",
+      fadeInSeconds: item.fadeInSeconds ?? "",
+      fadeOutSeconds: item.fadeOutSeconds ?? "",
+      pitchSemitones: item.pitchSemitones ?? 0,
+      pitchFine: item.pitchFine ?? 0,
+      speedRate: item.speedRate ?? 1,
+      reverbPreset: item.reverbPreset || "none",
+      reverbWet: item.reverbWet ?? 0.5,
+      mono: Boolean(item.mono),
       normalizeEnabled: item.normalizeEnabled ?? true,
       normalizedGain: item.normalizedGain ?? 1,
+      visualImage: item.visualImage || "",
+      visualImageHidden: Boolean(item.visualImageHidden),
+      visualPositionX: item.visualPositionX ?? 50,
+      visualPositionY: item.visualPositionY ?? 50,
+      visualZoom: item.visualZoom ?? 1,
       startStopMode: item.startStopMode || "none",
       startStopTag: item.startStopTag || "",
       endStartMode: item.endStartMode || "none",
@@ -1494,6 +1571,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
   await ensureAudio();
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   pad.buffer = buffer;
+  pad.audioName = name;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, cleanName(name));
@@ -1519,10 +1597,14 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
     visualImage: pad.visualImage,
     visualImageHidden: pad.visualImageHidden,
+    visualPositionX: pad.visualPositionX,
+    visualPositionY: pad.visualPositionY,
+    visualZoom: pad.visualZoom,
     startStopMode: pad.startStopMode,
     startStopTag: pad.startStopTag,
     endStartMode: pad.endStartMode,
@@ -1532,6 +1614,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     playMode: pad.playMode,
   });
   await savePadMeta(pad);
+  if (state.audioPad === pad) syncAudioDialog(pad);
   setStatus(`${pad.title} charge - norm ${pad.normalizedGain.toFixed(2)}x`);
 }
 
@@ -1546,7 +1629,7 @@ async function toggleRecording(pad) {
   }
 
   if (!window.isSecureContext) {
-    setStatus("Micro: HTTPS requis sur iPhone");
+    setStatus("Micro: HTTPS requis sur smartphone");
     return;
   }
 
@@ -1633,7 +1716,7 @@ async function restorePad(pad) {
     setPadFade(pad, meta.fadeSeconds ?? "");
     setPadAudioSettings(pad, meta);
     setPadNormalization(pad, meta.normalizeEnabled ?? true, meta.normalizedGain ?? 1);
-    setPadVisualImage(pad, meta.visualImage || "", Boolean(meta.visualImageHidden));
+    setPadVisualImage(pad, meta.visualImage || "", Boolean(meta.visualImageHidden), meta);
     setPadCrossfade(pad, {
       startStopMode: meta.startStopMode,
       startStopTag: meta.startStopTag,
@@ -1651,6 +1734,7 @@ async function restorePad(pad) {
 
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  pad.audioName = saved.name || "";
   pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
@@ -1669,9 +1753,14 @@ async function restorePad(pad) {
     speedRate: meta?.speedRate ?? saved.speedRate,
     reverbPreset: meta?.reverbPreset ?? saved.reverbPreset,
     reverbWet: meta?.reverbWet ?? saved.reverbWet,
+    mono: meta?.mono ?? saved.mono,
   });
   setPadNormalization(pad, meta?.normalizeEnabled ?? saved.normalizeEnabled ?? true, meta?.normalizedGain ?? saved.normalizedGain ?? 1);
-  setPadVisualImage(pad, meta?.visualImage ?? saved.visualImage ?? "", Boolean(meta?.visualImageHidden ?? saved.visualImageHidden));
+  setPadVisualImage(pad, meta?.visualImage ?? saved.visualImage ?? "", Boolean(meta?.visualImageHidden ?? saved.visualImageHidden), {
+    visualPositionX: meta?.visualPositionX ?? saved.visualPositionX,
+    visualPositionY: meta?.visualPositionY ?? saved.visualPositionY,
+    visualZoom: meta?.visualZoom ?? saved.visualZoom,
+  });
   setPadCrossfade(pad, {
     startStopMode: meta?.startStopMode ?? saved.startStopMode,
     startStopTag: meta?.startStopTag ?? saved.startStopTag,
@@ -1704,10 +1793,14 @@ async function savePadMeta(pad) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
     visualImage: pad.visualImage,
     visualImageHidden: pad.visualImageHidden,
+    visualPositionX: pad.visualPositionX,
+    visualPositionY: pad.visualPositionY,
+    visualZoom: pad.visualZoom,
     startStopMode: pad.startStopMode,
     startStopTag: pad.startStopTag,
     endStartMode: pad.endStartMode,
@@ -1743,7 +1836,7 @@ function setStageMode(enabled, requestFullscreen = false) {
     if (requestFullscreen && !document.fullscreenElement && canRequestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
-    setStatus(requestFullscreen && !canRequestFullscreen ? "Mode scene: plein ecran via icone iPhone" : "Mode scene");
+    setStatus(requestFullscreen && !canRequestFullscreen ? "Mode scene: plein ecran via icone smartphone" : "Mode scene");
   } else {
     if (requestFullscreen && document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});
@@ -1922,15 +2015,21 @@ function setPadAudioSettings(pad, settings = {}) {
   pad.pitchFine = Math.min(100, Math.max(-100, Number(settings.pitchFine) || 0));
   pad.speedRate = Math.min(2, Math.max(0.5, Number(settings.speedRate) || 1));
   pad.reverbPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : "none";
-  pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet) || 0));
+  pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
+  pad.mono = Boolean(settings.mono ?? pad.mono);
 }
 
-function setPadVisualImage(pad, image = "", hidden = false) {
+function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.visualImage = String(image || "");
   pad.visualImageHidden = Boolean(hidden);
+  pad.visualPositionX = Math.min(100, Math.max(0, Number(settings.visualPositionX ?? pad.visualPositionX ?? 50)));
+  pad.visualPositionY = Math.min(100, Math.max(0, Number(settings.visualPositionY ?? pad.visualPositionY ?? 50)));
+  pad.visualZoom = Math.min(2.5, Math.max(1, Number(settings.visualZoom ?? pad.visualZoom ?? 1)));
   pad.node.classList.toggle("has-visual-image", Boolean(pad.visualImage));
   pad.node.classList.toggle("is-visual-hidden", pad.visualImageHidden);
   pad.visualToggleEl?.setAttribute("aria-pressed", String(pad.visualImageHidden));
+  pad.node.style.setProperty("--pad-image-position", `${pad.visualPositionX}% ${pad.visualPositionY}%`);
+  pad.node.style.setProperty("--pad-image-size", pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`);
   if (pad.visualImage) {
     pad.node.style.setProperty("--pad-image", `url("${pad.visualImage}")`);
     pad.visualPreviewEl?.style.setProperty("background-image", `url("${pad.visualImage}")`);
@@ -2320,19 +2419,51 @@ function bindAudioDialogTrim() {
 
 function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
+  if (els.audioPadName) els.audioPadName.textContent = pad.title;
+  if (els.audioFilePath) els.audioFilePath.textContent = pad.audioName || "Aucun fichier";
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
+  if (els.audioMono) els.audioMono.checked = pad.mono;
+  if (els.audioLoop) {
+    els.audioLoop.classList.toggle("is-active", pad.loop);
+    els.audioLoop.setAttribute("aria-pressed", String(pad.loop));
+  }
+  if (els.audioDuck) {
+    els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
+    els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
+  }
   if (els.audioFadeIn) els.audioFadeIn.value = pad.fadeInSeconds === "" ? "" : String(pad.fadeInSeconds);
   if (els.audioFadeOut) els.audioFadeOut.value = pad.fadeOutSeconds === "" ? "" : String(pad.fadeOutSeconds);
   if (els.audioPitchSemitones) els.audioPitchSemitones.value = String(pad.pitchSemitones);
   if (els.audioPitchFine) els.audioPitchFine.value = String(pad.pitchFine);
-  if (els.audioPitchTotal) els.audioPitchTotal.textContent = `${(pad.pitchSemitones + pad.pitchFine / 100).toFixed(2)} st`;
+  if (els.audioPitchTotal) {
+    const cents = Math.round(pad.pitchFine);
+    const semitoneText = `${pad.pitchSemitones >= 0 ? "+" : ""}${pad.pitchSemitones} demi-ton${Math.abs(pad.pitchSemitones) > 1 ? "s" : ""}`;
+    const centText = `${cents >= 0 ? "+" : ""}${cents} cents`;
+    els.audioPitchTotal.textContent = `${semitoneText} ${centText}`;
+  }
   if (els.audioSpeed) els.audioSpeed.value = String(pad.speedRate);
   if (els.audioSpeedValue) els.audioSpeedValue.textContent = `${pad.speedRate.toFixed(2)}x`;
   if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset;
   if (els.audioReverbWet) els.audioReverbWet.value = String(pad.reverbWet);
   if (els.audioReverbValue) els.audioReverbValue.textContent = `${Math.round(pad.reverbWet * 100)}%`;
+  fillAudioCrossfadeControls(pad);
   renderAudioDialogWaveform(pad);
+}
+
+function fillAudioCrossfadeControls(pad = state.audioPad) {
+  if (!pad) return;
+  const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
+  if (els.audioStartStopMode) {
+    els.audioStartStopMode.innerHTML = actionOptions;
+    els.audioStartStopMode.value = pad.startStopMode;
+  }
+  if (els.audioEndStartMode) {
+    els.audioEndStartMode.innerHTML = actionOptions;
+    els.audioEndStartMode.value = pad.endStartMode;
+  }
+  fillCrossfadeTargetSelect(els.audioStartStopTarget, pad.startStopTag);
+  fillCrossfadeTargetSelect(els.audioEndStartTarget, pad.endStartTarget);
 }
 
 function openAudioDialog(pad) {
@@ -2344,6 +2475,102 @@ function openAudioDialog(pad) {
   } else {
     setStatus("Réglages audio");
   }
+}
+
+function resetAudioDialogSettings() {
+  const pad = state.audioPad;
+  if (!pad) return;
+  setPadAudioSettings(pad, {
+    fadeInSeconds: "",
+    fadeOutSeconds: "",
+    pitchSemitones: 0,
+    pitchFine: 0,
+    speedRate: 1,
+    reverbPreset: "none",
+    reverbWet: 0.5,
+    mono: false,
+  });
+  setPadNormalization(pad, true, pad.normalizedGain);
+  setPadLoop(pad, false);
+  setPadDuckTrigger(pad, false);
+  syncAudioDialog(pad);
+  savePadMeta(pad);
+}
+
+function syncImageDialog(pad = state.imagePad) {
+  if (!pad) return;
+  if (els.imagePosX) els.imagePosX.value = String(pad.visualPositionX);
+  if (els.imagePosY) els.imagePosY.value = String(pad.visualPositionY);
+  if (els.imageZoom) els.imageZoom.value = String(pad.visualZoom);
+}
+
+function openImageDialog(pad) {
+  state.imagePad = pad;
+  syncImageDialog(pad);
+  if (els.imageDialog?.showModal) {
+    els.imageDialog.showModal();
+  } else {
+    pad.imageInput?.click();
+  }
+}
+
+function sketchPoint(event) {
+  const canvas = els.imageSketchCanvas;
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+  };
+}
+
+function bindImageSketch() {
+  const canvas = els.imageSketchCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#111319";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    state.sketchDrawing = true;
+    canvas.setPointerCapture?.(event.pointerId);
+    const point = sketchPoint(event);
+    if (!point) return;
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!state.sketchDrawing) return;
+    event.preventDefault();
+    const point = sketchPoint(event);
+    if (!point) return;
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  });
+  const finish = (event) => {
+    if (!state.sketchDrawing) return;
+    state.sketchDrawing = false;
+    canvas.releasePointerCapture?.(event.pointerId);
+    const pad = state.imagePad;
+    if (!pad) return;
+    setPadVisualImage(pad, canvas.toDataURL("image/png"), false);
+    savePadMeta(pad);
+  };
+  canvas.addEventListener("pointerup", finish);
+  canvas.addEventListener("pointercancel", finish);
+  els.imageSketch?.addEventListener("click", () => {
+    ctx.fillStyle = "#111319";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const pad = state.imagePad;
+    if (pad) {
+      setPadVisualImage(pad, canvas.toDataURL("image/png"), false);
+      savePadMeta(pad);
+    }
+  });
 }
 
 function playbackOffset(pad) {
@@ -2534,6 +2761,28 @@ function connectPadOutput(pad, pan, analyser) {
   pad.reverbNodes = { dry, wet, convolver };
 }
 
+function connectSourceToGain(pad, source, gain) {
+  if (!pad.mono || !state.audioContext || (pad.buffer?.numberOfChannels || 1) < 2) {
+    source.connect(gain);
+    return;
+  }
+  const splitter = state.audioContext.createChannelSplitter(2);
+  const merger = state.audioContext.createChannelMerger(2);
+  const left = state.audioContext.createGain();
+  const right = state.audioContext.createGain();
+  left.gain.value = 0.5;
+  right.gain.value = 0.5;
+  source.connect(splitter);
+  splitter.connect(left, 0);
+  splitter.connect(right, 1);
+  left.connect(merger, 0, 0);
+  right.connect(merger, 0, 0);
+  left.connect(merger, 0, 1);
+  right.connect(merger, 0, 1);
+  merger.connect(gain);
+  pad.monoNodes = { splitter, merger, left, right };
+}
+
 function clearPlayingPad(pad, source, triggerEnd = false) {
   if (source && pad.source !== source) return;
   pad.source = null;
@@ -2542,6 +2791,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.analyser = null;
   pad.meterData = null;
   pad.reverbNodes = null;
+  pad.monoNodes = null;
   pad.stopAt = 0;
   pad.node.classList.remove("is-playing");
   setMeterLevel(pad.vuEl, 0);
@@ -2583,7 +2833,8 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
   gain.gain.setValueAtTime(fade ? 0 : targetPadGain(pad), now);
   pan.pan.setValueAtTime(pad.panValue, now);
-  source.connect(gain).connect(pan);
+  connectSourceToGain(pad, source, gain);
+  gain.connect(pan);
   connectPadOutput(pad, pan, analyser);
 
   if (fade && fadeTime > 0) {
@@ -2825,11 +3076,8 @@ async function init() {
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
-  els.padLayoutMode?.addEventListener("change", updateBoardLayout);
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
-  els.padRows?.addEventListener("input", updateBoardLayout);
-  els.padRows?.addEventListener("change", updateBoardLayout);
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   });
@@ -2908,9 +3156,42 @@ async function init() {
     if (event.target === els.audioDialog) els.audioDialog.close();
   });
   bindAudioDialogTrim();
+  els.audioTestPlay?.addEventListener("click", () => {
+    if (state.audioPad) playPad(state.audioPad, false, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
+  });
+  els.audioTestStop?.addEventListener("click", () => {
+    if (state.audioPad) stopPad(state.audioPad, false);
+  });
+  els.audioRecord?.addEventListener("click", () => {
+    if (state.audioPad) toggleRecording(state.audioPad);
+  });
+  els.audioImport?.addEventListener("click", () => {
+    if (state.audioPad) state.audioPad.fileInput?.click();
+  });
+  els.audioReset?.addEventListener("click", resetAudioDialogSettings);
   els.audioNormalize?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadNormalization(state.audioPad, els.audioNormalize.checked, state.audioPad.normalizedGain);
+    syncAudioDialog(state.audioPad);
+    savePadMeta(state.audioPad);
+  });
+  els.audioMono?.addEventListener("change", () => {
+    if (!state.audioPad) return;
+    setPadAudioSettings(state.audioPad, { mono: els.audioMono.checked });
+    syncAudioDialog(state.audioPad);
+    savePadMeta(state.audioPad);
+  });
+  els.audioLoop?.addEventListener("click", () => {
+    if (!state.audioPad) return;
+    setPadLoop(state.audioPad, !state.audioPad.loop);
+    if (state.audioPad.source) state.audioPad.source.loop = state.audioPad.loop;
+    syncAudioDialog(state.audioPad);
+    savePadMeta(state.audioPad);
+  });
+  els.audioDuck?.addEventListener("click", () => {
+    if (!state.audioPad) return;
+    setPadDuckTrigger(state.audioPad, !state.audioPad.duckTrigger);
+    applyDucking();
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
@@ -2926,10 +3207,66 @@ async function init() {
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
       });
+      if (state.audioPad.source && state.audioContext) {
+        const now = state.audioContext.currentTime;
+        state.audioPad.source.playbackRate.setTargetAtTime(state.audioPad.speedRate, now, 0.015);
+        state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
+      }
       syncAudioDialog(state.audioPad);
       savePadMeta(state.audioPad);
     });
   });
+  [els.audioStartStopMode, els.audioStartStopTarget, els.audioEndStartMode, els.audioEndStartTarget].forEach((element) => {
+    element?.addEventListener("input", () => {
+      if (!state.audioPad) return;
+      setPadCrossfade(state.audioPad, {
+        startStopMode: els.audioStartStopMode?.value,
+        startStopTag: els.audioStartStopTarget?.value,
+        endStartMode: els.audioEndStartMode?.value,
+        endStartTarget: els.audioEndStartTarget?.value,
+      });
+      savePadMeta(state.audioPad);
+    });
+  });
+  els.closeImage?.addEventListener("click", () => els.imageDialog?.close());
+  els.imageDialog?.addEventListener("click", (event) => {
+    if (event.target === els.imageDialog) els.imageDialog.close();
+  });
+  els.imageLibrary?.addEventListener("click", () => state.imagePad?.imageInput?.click());
+  els.imageCamera?.addEventListener("click", () => state.imagePad?.cameraInput?.click());
+  els.imageOnline?.addEventListener("click", () => {
+    const pad = state.imagePad;
+    if (!pad) return;
+    const value = window.prompt("Adresse de l’image, ou mots-clés de recherche");
+    if (!value) return;
+    if (/^https?:\/\//i.test(value)) {
+      setPadVisualImage(pad, value, false);
+      syncImageDialog(pad);
+      savePadMeta(pad);
+      return;
+    }
+    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(value)}`, "_blank", "noopener");
+    setStatus("Recherche image ouverte");
+  });
+  els.imageRemove?.addEventListener("click", () => {
+    const pad = state.imagePad;
+    if (!pad) return;
+    setPadVisualImage(pad, "", false);
+    savePadMeta(pad);
+  });
+  [els.imagePosX, els.imagePosY, els.imageZoom].forEach((element) => {
+    element?.addEventListener("input", () => {
+      const pad = state.imagePad;
+      if (!pad) return;
+      setPadVisualImage(pad, pad.visualImage, pad.visualImageHidden, {
+        visualPositionX: els.imagePosX?.value,
+        visualPositionY: els.imagePosY?.value,
+        visualZoom: els.imageZoom?.value,
+      });
+      savePadMeta(pad);
+    });
+  });
+  bindImageSketch();
   els.shortcutEnabled?.addEventListener("change", () => {
     state.shortcutsEnabled = els.shortcutEnabled.checked;
     saveShortcutsEnabledForCurrentBoard();

@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=62">
+    <link rel="stylesheet" href="styles.css?v=63">
   </head>
   <body>
     <div class="app">
@@ -54,6 +54,7 @@
                   <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                 </svg>
               </button>
+              <div class="board-center-actions">
               <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -88,6 +89,7 @@
                   <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+              </div>
               <button id="editPads" class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" aria-pressed="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -129,10 +131,9 @@
                   <option value="candy">Candy</option>
                   <option value="classic">Classic Dark</option>
                   <option value="contrast">High Contrast</option>
-                  <option value="minimal">Minimal iPhone</option>
                   <option value="neon">Neon Stage</option>
                   <option value="studio">Studio Grey</option>
-                  <option value="visual">Visual</option>
+                  <option value="visual">Visuel/tactile</option>
                 </select>
               </label>
               <label class="board-tag-filter">
@@ -150,28 +151,10 @@
             </div>
             <div class="board-layout-controls" aria-label="Disposition des pads">
               <label>
-                <span class="field-title">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
-                  Disposition
-                </span>
-                <select id="padLayoutMode">
-                  <option value="auto">Auto</option>
-                  <option value="2x3">2 x 3</option>
-                  <option value="3x4">3 x 4</option>
-                  <option value="4x4">4 x 4</option>
-                  <option value="custom">Perso</option>
-                </select>
-              </label>
-              <label>
                 <span>Colonnes</span>
                 <input id="padColumns" type="number" min="1" max="8" step="1" inputmode="numeric">
               </label>
-              <label>
-                <span>Lignes</span>
-                <input id="padRows" type="number" min="1" max="8" step="1" inputmode="numeric">
-              </label>
+              <span class="layout-rows-display">Lignes <output id="padRows">3</output></span>
             </div>
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
@@ -361,17 +344,18 @@
             </button>
             <button type="button" data-mode="oneshot" aria-label="Mode one shot">
               <svg viewBox="0 0 24 24">
-                <path d="M7 5v14M10 7l8 5-8 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M5 7a7 7 0 0 1 11.7-3.1L19 6M19 6h-5M19 6v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 9v6l5-3-5-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" data-mode="toggle" aria-label="Mode toggle">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 5v14M9 7l5 5-5 5V7ZM15 7l5 5-5 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
             <button type="button" data-mode="hold" aria-label="Mode hold">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 12V6a2 2 0 0 1 4 0v5M12 11V8a2 2 0 0 1 4 0v5M16 13v-2a2 2 0 0 1 4 0v4c0 4-2.5 6-6.5 6H12c-2.7 0-4.7-1.3-6-3.8L4 13.5a1.8 1.8 0 0 1 3.2-1.6L8 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button type="button" data-mode="toggle" aria-label="Mode toggle">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 6v12M11 7l7 5-7 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
           </div>
@@ -448,6 +432,7 @@
           </label>
         </div>
         <input class="file-input" type="file" accept="image/*" data-image-file>
+        <input class="file-input" type="file" accept="image/*" capture="environment" data-camera-file>
       </article>
     </template>
 
@@ -581,8 +566,8 @@
           </div>
 
           <div class="help-column">
-            <section class="help-section" aria-label="Live">
-              <h3>Live</h3>
+            <section class="help-section" aria-label="Pad live">
+              <h3>Pad (live)</h3>
               <dl class="help-grid">
                 <dt aria-label="Fade in">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -619,8 +604,8 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Pad principal">
-              <h3>Pad (edit mode)</h3>
+            <section class="help-section" aria-label="Pad edit">
+              <h3>Pad (edit)</h3>
               <dl class="help-grid">
                 <dt aria-label="Micro">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -646,7 +631,7 @@
                     <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="8.5" cy="9.5" r="1" fill="currentColor"/>
                   </svg>
-                </dt><dd>Importe l’image du pad pour le skin Visual.</dd>
+                </dt><dd>Affecte une image au pad (skin visuel/tactile).</dd>
                 <dt aria-label="Duck trigger">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -701,6 +686,33 @@
                 </dt><dd>Supprime ce pad après confirmation.</dd>
               </dl>
             </section>
+
+            <section class="help-section" aria-label="Audio">
+              <h3>Audio</h3>
+              <dl class="help-grid">
+                <dt aria-label="Play audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Teste le son et les réglages audio.</dd>
+                <dt aria-label="Stop audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Arrête le test audio.</dd>
+                <dt aria-label="Reset audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Réinitialise fades, pitch, vitesse, mono, loop, ducking et reverb.</dd>
+                <dt aria-label="Crossfade audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h3c4 0 5 10 10 10h3M4 17h3c4 0 5-10 10-10h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M17 4l3 3-3 3M17 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Règle les déclenchements entre pads ou tags.</dd>
+              </dl>
+            </section>
           </div>
         </div>
       </div>
@@ -708,8 +720,39 @@
 
     <dialog id="audioDialog" class="audio-dialog" aria-labelledby="audioTitle">
       <div class="audio-panel">
-        <div class="help-head">
-          <h2 id="audioTitle">Audio</h2>
+        <div class="audio-head">
+          <div>
+            <h2 id="audioTitle">Audio</h2>
+            <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span></p>
+          </div>
+          <div class="audio-head-actions">
+            <button id="audioTestPlay" class="icon-button" type="button" aria-label="Tester le son">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button id="audioTestStop" class="icon-button" type="button" aria-label="Stop test">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="audioImport" class="icon-button" type="button" aria-label="Importer un fichier audio">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="audioReset" class="icon-button" type="button" aria-label="Reset audio">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
           <button id="closeAudio" class="icon-button" type="button" aria-label="Fermer audio">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -742,24 +785,36 @@
               <input id="audioNormalize" type="checkbox">
               <output id="audioNormalizeValue">1.00x</output>
             </label>
+            <div class="audio-toggle-row">
+              <label><input id="audioMono" type="checkbox"> Mono</label>
+              <button id="audioLoop" class="icon-button" type="button" aria-label="Loop" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button id="audioDuck" class="icon-button" type="button" aria-label="Duck trigger" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </section>
           <section class="audio-section audio-grid-2" aria-label="Fades">
             <label><span>Fade in</span><input id="audioFadeIn" type="number" min="0" max="30" step="0.5" placeholder="global"></label>
             <label><span>Fade out</span><input id="audioFadeOut" type="number" min="0" max="30" step="0.5" placeholder="global"></label>
           </section>
           <section class="audio-section" aria-label="Pitch">
-            <h3>Pitch</h3>
-            <label><span>Demi-tons</span><input id="audioPitchSemitones" type="range" min="-12" max="12" step="1" value="0"></label>
-            <label><span>Fine tune %</span><input id="audioPitchFine" type="range" min="-100" max="100" step="1" value="0"></label>
-            <output id="audioPitchTotal">0.00 st</output>
+            <h3>Pitch <output id="audioPitchTotal">0 demi-ton + 0 cents</output></h3>
+            <label><span>Demi-tons</span><input id="audioPitchSemitones" class="range-nominal range-center" type="range" min="-12" max="12" step="1" value="0"></label>
+            <label><span>Cents</span><input id="audioPitchFine" class="range-nominal range-center" type="range" min="-100" max="100" step="1" value="0"></label>
           </section>
           <section class="audio-section" aria-label="Vitesse">
-            <h3>Vitesse</h3>
-            <label><span>Vitesse</span><input id="audioSpeed" type="range" min="0.5" max="2" step="0.01" value="1"></label>
-            <output id="audioSpeedValue">1.00x</output>
+            <h3>Vitesse <output id="audioSpeedValue">1.00x</output></h3>
+            <label><span>Vitesse</span><input id="audioSpeed" class="range-nominal range-speed" type="range" min="0.5" max="2" step="0.01" value="1"></label>
           </section>
           <section class="audio-section" aria-label="Reverb">
-            <h3>Reverb</h3>
+            <h3>Reverb <output id="audioReverbValue">50%</output></h3>
             <label><span>Preset</span><select id="audioReverbPreset">
               <option value="none">Aucune</option>
               <option value="room">Room</option>
@@ -767,9 +822,66 @@
               <option value="plate">Plate</option>
               <option value="cathedral">Cathedral</option>
             </select></label>
-            <label><span>Wet / dry</span><input id="audioReverbWet" type="range" min="0" max="1" step="0.01" value="0"></label>
-            <output id="audioReverbValue">0%</output>
+            <label><span>Wet / dry</span><input id="audioReverbWet" class="range-nominal range-center" type="range" min="0" max="1" step="0.01" value="0.5"></label>
           </section>
+          <section class="audio-section audio-crossfade-section" aria-label="Crossfade audio">
+            <h3>Crossfade</h3>
+            <div class="crossfade-field audio-crossfade-field">
+              <label><span>Au lancement</span><select id="audioStartStopMode"></select></label>
+              <label><span>Cible (pad ou tag)</span><select id="audioStartStopTarget"></select></label>
+              <label><span>À l’arrêt/fin</span><select id="audioEndStartMode"></select></label>
+              <label><span>Cible (pad ou tag)</span><select id="audioEndStartTarget"></select></label>
+            </div>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="imageDialog" class="image-dialog" aria-labelledby="imageTitle">
+      <div class="image-panel">
+        <div class="help-head">
+          <h2 id="imageTitle">Image</h2>
+          <button id="closeImage" class="icon-button" type="button" aria-label="Fermer image">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="image-tools">
+          <button id="imageLibrary" class="icon-button" type="button" aria-label="Photothèque">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button id="imageCamera" class="icon-button" type="button" aria-label="Prendre une photo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 8h4l2-3h4l2 3h4v11H4V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <circle cx="12" cy="13" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+          <button id="imageOnline" class="icon-button" type="button" aria-label="Image en ligne">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M3 12h18M12 3c2.2 2.4 3.2 5.4 3.2 9S14.2 18.6 12 21c-2.2-2.4-3.2-5.4-3.2-9S9.8 5.4 12 3Z" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+          <button id="imageSketch" class="icon-button" type="button" aria-label="Faire un croquis">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button id="imageRemove" class="icon-button danger-button" type="button" aria-label="Supprimer l’image">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <canvas id="imageSketchCanvas" class="image-sketch-canvas" width="640" height="360" aria-label="Croquis"></canvas>
+        <div class="image-crop-controls">
+          <label><span>Centre X</span><input id="imagePosX" type="range" min="0" max="100" step="1" value="50"></label>
+          <label><span>Centre Y</span><input id="imagePosY" type="range" min="0" max="100" step="1" value="50"></label>
+          <label><span>Zoom</span><input id="imageZoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
         </div>
       </div>
     </dialog>
@@ -789,6 +901,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=62"></script>
+    <script src="app.js?v=63"></script>
   </body>
 </html>
