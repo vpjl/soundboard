@@ -1171,6 +1171,28 @@ function applySkin(skin) {
 }
 
 async function shareOrDownloadBoard(blob, filename, boardName) {
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{
+          description: "Board Soundboard Live",
+          accept: { "application/json": [".json"] },
+        }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      setStatus(`${boardName} exporte`);
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        setStatus("Export annule");
+        return;
+      }
+    }
+  }
+
   const file = new File([blob], filename, { type: "application/json" });
 
   if (navigator.canShare?.({ files: [file] }) && navigator.share) {
@@ -1920,7 +1942,8 @@ function refreshStopGroupOptions() {
   });
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
   const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
-  const width = `${Math.min(34, longestLength + 8)}ch`;
+  const maxChars = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches ? 16 : 34;
+  const width = `${Math.min(maxChars, longestLength + 8)}ch`;
   els.stopGroupSelect.style.setProperty("--stop-group-width", width);
   els.stopGroupSelect.style.width = width;
   els.stopGroupSelect.style.minWidth = width;
@@ -1953,6 +1976,11 @@ function fillCrossfadeTargetSelect(select, selectedValue = "") {
   const currentValue = String(selectedValue || select.value || "").trim();
   select.innerHTML = '<option value="">Choisir</option>';
 
+  const allOption = document.createElement("option");
+  allOption.value = "tag:*";
+  allOption.textContent = "Tous";
+  select.append(allOption);
+
   const padGroup = document.createElement("optgroup");
   padGroup.label = "Pads";
   state.pads.forEach((pad) => {
@@ -1967,10 +1995,6 @@ function fillCrossfadeTargetSelect(select, selectedValue = "") {
   if (tags.length) {
     const tagGroup = document.createElement("optgroup");
     tagGroup.label = "Tags";
-    const allOption = document.createElement("option");
-    allOption.value = "tag:*";
-    allOption.textContent = "Tous";
-    tagGroup.append(allOption);
     tags.forEach((tag) => {
       const option = document.createElement("option");
       option.value = `tag:${tag}`;
@@ -2995,7 +3019,7 @@ function togglePad(pad) {
     stopPad(pad, true, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
-    playPad(pad, false, offset);
+    playPad(pad, true, offset);
   }
 }
 
@@ -3157,7 +3181,7 @@ async function init() {
   });
   bindAudioDialogTrim();
   els.audioTestPlay?.addEventListener("click", () => {
-    if (state.audioPad) playPad(state.audioPad, false, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
+    if (state.audioPad) playPad(state.audioPad, true, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
   });
   els.audioTestStop?.addEventListener("click", () => {
     if (state.audioPad) stopPad(state.audioPad, false);
@@ -3245,8 +3269,11 @@ async function init() {
       savePadMeta(pad);
       return;
     }
-    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(value)}`, "_blank", "noopener");
-    setStatus("Recherche image ouverte");
+    const words = encodeURIComponent(value.trim().replace(/\s+/g, ","));
+    setPadVisualImage(pad, `https://loremflickr.com/900/700/${words}`, false);
+    syncImageDialog(pad);
+    savePadMeta(pad);
+    setStatus("Image en ligne affectee");
   });
   els.imageRemove?.addEventListener("click", () => {
     const pad = state.imagePad;
