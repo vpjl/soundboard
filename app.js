@@ -8,6 +8,7 @@ const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
+const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
@@ -47,6 +48,10 @@ const REVERB_PRESETS = {
 const state = {
   audioContext: null,
   masterGain: null,
+  masterBypassGain: null,
+  masterDry: null,
+  masterWet: null,
+  masterConvolver: null,
   masterAnalyser: null,
   masterMeterData: null,
   boards: [],
@@ -82,6 +87,13 @@ const els = {
   masterVolume: document.querySelector("#masterVolume"),
   masterVolumeValue: document.querySelector("#masterVolumeValue"),
   masterVu: document.querySelector("#masterVu"),
+  masterAudio: document.querySelector("#masterAudio"),
+  masterAudioDialog: document.querySelector("#masterAudioDialog"),
+  closeMasterAudio: document.querySelector("#closeMasterAudio"),
+  masterOptionBadges: document.querySelector("#masterOptionBadges"),
+  masterReverbPreset: document.querySelector("#masterReverbPreset"),
+  masterReverbWet: document.querySelector("#masterReverbWet"),
+  masterReverbValue: document.querySelector("#masterReverbValue"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
   stopGroup: document.querySelector("#stopGroup"),
@@ -102,6 +114,7 @@ const els = {
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
   audioReset: document.querySelector("#audioReset"),
+  audioOptionBadges: document.querySelector("#audioOptionBadges"),
   audioWaveform: document.querySelector("#audioWaveform"),
   audioWaveformCanvas: document.querySelector("#audioWaveformCanvas"),
   audioTrimSelection: document.querySelector("#audioTrimSelection"),
@@ -128,6 +141,9 @@ const els = {
   audioReverbPreset: document.querySelector("#audioReverbPreset"),
   audioReverbWet: document.querySelector("#audioReverbWet"),
   audioReverbValue: document.querySelector("#audioReverbValue"),
+  audioReverbGlobal: document.querySelector("#audioReverbGlobal"),
+  audioReverbPad: document.querySelector("#audioReverbPad"),
+  audioPadReverbFields: document.querySelector("#audioPadReverbFields"),
   audioStartStopMode: document.querySelector("#audioStartStopMode"),
   audioStartStopTarget: document.querySelector("#audioStartStopTarget"),
   audioEndStartMode: document.querySelector("#audioEndStartMode"),
@@ -492,11 +508,20 @@ function prepareAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     state.audioContext = new AudioContext();
     state.masterGain = state.audioContext.createGain();
+    state.masterBypassGain = state.audioContext.createGain();
+    state.masterDry = state.audioContext.createGain();
+    state.masterWet = state.audioContext.createGain();
+    state.masterConvolver = state.audioContext.createConvolver();
     state.masterAnalyser = state.audioContext.createAnalyser();
     state.masterAnalyser.fftSize = 256;
     state.masterMeterData = new Uint8Array(state.masterAnalyser.fftSize);
     state.masterGain.gain.value = clamp01(els.masterVolume.value);
-    state.masterGain.connect(state.masterAnalyser).connect(state.audioContext.destination);
+    state.masterBypassGain.gain.value = clamp01(els.masterVolume.value);
+    state.masterGain.connect(state.masterDry).connect(state.masterAnalyser);
+    state.masterGain.connect(state.masterConvolver).connect(state.masterWet).connect(state.masterAnalyser);
+    state.masterBypassGain.connect(state.masterAnalyser);
+    state.masterAnalyser.connect(state.audioContext.destination);
+    applyMasterReverb();
   }
 }
 
@@ -521,6 +546,7 @@ function makePad(index) {
     analyser: null,
     meterData: null,
     audioName: "",
+    audioPath: "",
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -544,6 +570,7 @@ function makePad(index) {
     speedRate: 1,
     reverbPreset: "none",
     reverbWet: 0.5,
+    reverbMode: "global",
     mono: false,
     normalizeEnabled: true,
     normalizedGain: 1,
@@ -556,6 +583,7 @@ function makePad(index) {
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
+    visualKind: "",
     visualPositionX: 50,
     visualPositionY: 50,
     visualZoom: 1,
@@ -617,12 +645,14 @@ function makePad(index) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    reverbMode: pad.reverbMode,
     mono: pad.mono,
   });
   setPadVisualImage(pad, pad.visualImage, pad.visualImageHidden, {
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
+    visualKind: pad.visualKind,
   });
   setPadCrossfade(pad, {
     startStopMode: pad.startStopMode,
@@ -652,7 +682,7 @@ function makePad(index) {
     const file = pad.imageInput.files?.[0];
     if (!file) return;
     const image = await fileToDataUrl(file);
-    setPadVisualImage(pad, image, false);
+    setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
     pad.imageInput.value = "";
@@ -661,7 +691,7 @@ function makePad(index) {
     const file = pad.cameraInput.files?.[0];
     if (!file) return;
     const image = await fileToDataUrl(file);
-    setPadVisualImage(pad, image, false);
+    setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
     pad.cameraInput.value = "";
@@ -892,6 +922,9 @@ function setMasterVolume(value, persist = true) {
   if (els.masterVolumeValue) els.masterVolumeValue.textContent = `${Math.round(volume * 100)}%`;
   if (state.masterGain && state.audioContext) {
     state.masterGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
+  }
+  if (state.masterBypassGain && state.audioContext) {
+    state.masterBypassGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
   }
   if (persist) {
     const board = currentBoard();
@@ -1509,11 +1542,13 @@ async function exportCurrentBoard(includeAudio = true) {
       speedRate: meta?.speedRate ?? saved?.speedRate ?? 1,
       reverbPreset: meta?.reverbPreset ?? saved?.reverbPreset ?? "none",
       reverbWet: meta?.reverbWet ?? saved?.reverbWet ?? 0.5,
+      reverbMode: meta?.reverbMode ?? saved?.reverbMode ?? "global",
       mono: Boolean(meta?.mono ?? saved?.mono),
       normalizeEnabled: meta?.normalizeEnabled ?? saved?.normalizeEnabled ?? true,
       normalizedGain: meta?.normalizedGain ?? saved?.normalizedGain ?? 1,
       visualImage: meta?.visualImage ?? saved?.visualImage ?? "",
       visualImageHidden: Boolean(meta?.visualImageHidden ?? saved?.visualImageHidden),
+      visualKind: meta?.visualKind ?? saved?.visualKind ?? "",
       visualPositionX: meta?.visualPositionX ?? saved?.visualPositionX ?? 50,
       visualPositionY: meta?.visualPositionY ?? saved?.visualPositionY ?? 50,
       visualZoom: meta?.visualZoom ?? saved?.visualZoom ?? 1,
@@ -1526,6 +1561,7 @@ async function exportCurrentBoard(includeAudio = true) {
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audio: includeAudio && saved?.audio ? {
         name: saved.name || `Pad ${index + 1}`,
+        path: saved.path || meta?.audioPath || saved.name || `Pad ${index + 1}`,
         type: saved.type || "audio/mpeg",
         data: arrayBufferToBase64(saved.audio),
       } : null,
@@ -1606,11 +1642,13 @@ async function importBoardFile(file) {
       speedRate: item.speedRate ?? 1,
       reverbPreset: item.reverbPreset || "none",
       reverbWet: item.reverbWet ?? 0.5,
+      reverbMode: item.reverbMode || "global",
       mono: Boolean(item.mono),
       normalizeEnabled: item.normalizeEnabled ?? true,
       normalizedGain: item.normalizedGain ?? 1,
       visualImage: item.visualImage || "",
       visualImageHidden: Boolean(item.visualImageHidden),
+      visualKind: item.visualKind || "",
       visualPositionX: item.visualPositionX ?? 50,
       visualPositionY: item.visualPositionY ?? 50,
       visualZoom: item.visualZoom ?? 1,
@@ -1626,6 +1664,7 @@ async function importBoardFile(file) {
     if (item.audio?.data) {
       await dbSet(padAudioKey(transientPad), {
         name: item.audio.name || meta.title,
+        path: item.audio.path || item.audio.name || meta.title,
         title: meta.title,
         type: item.audio.type || "audio/mpeg",
         audio: base64ToArrayBuffer(item.audio.data),
@@ -1757,14 +1796,15 @@ async function repairAccidentalPadTitles() {
 async function loadFileIntoPad(pad, file) {
   await ensureAudio();
   const arrayBuffer = await file.arrayBuffer();
-  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type);
+  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, file.path || file.webkitRelativePath || file.name);
 }
 
-async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
+async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "") {
   await ensureAudio();
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   pad.buffer = buffer;
   pad.audioName = name;
+  pad.audioPath = path || name;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, cleanName(name));
@@ -1773,6 +1813,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
   pad.node.classList.remove("is-empty");
   await dbSet(padAudioKey(pad), {
     name,
+    path: pad.audioPath,
     title: pad.title,
     type,
     audio: arrayBuffer,
@@ -1793,11 +1834,13 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    reverbMode: pad.reverbMode,
     mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
     visualImage: pad.visualImage,
     visualImageHidden: pad.visualImageHidden,
+    visualKind: pad.visualKind,
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
@@ -1932,6 +1975,7 @@ async function restorePad(pad) {
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
   pad.audioName = saved.name || "";
+  pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
   pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
@@ -1952,6 +1996,7 @@ async function restorePad(pad) {
     speedRate: meta?.speedRate ?? saved.speedRate,
     reverbPreset: meta?.reverbPreset ?? saved.reverbPreset,
     reverbWet: meta?.reverbWet ?? saved.reverbWet,
+    reverbMode: meta?.reverbMode ?? saved.reverbMode ?? "global",
     mono: meta?.mono ?? saved.mono,
   });
   setPadNormalization(pad, meta?.normalizeEnabled ?? saved.normalizeEnabled ?? true, meta?.normalizedGain ?? saved.normalizedGain ?? 1);
@@ -1959,6 +2004,7 @@ async function restorePad(pad) {
     visualPositionX: meta?.visualPositionX ?? saved.visualPositionX,
     visualPositionY: meta?.visualPositionY ?? saved.visualPositionY,
     visualZoom: meta?.visualZoom ?? saved.visualZoom,
+    visualKind: meta?.visualKind ?? saved.visualKind,
   });
   setPadCrossfade(pad, {
     startStopMode: meta?.startStopMode ?? saved.startStopMode,
@@ -1995,11 +2041,14 @@ async function savePadMeta(pad) {
     speedRate: pad.speedRate,
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
+    reverbMode: pad.reverbMode,
     mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
     visualImage: pad.visualImage,
     visualImageHidden: pad.visualImageHidden,
+    visualKind: pad.visualKind,
+    audioPath: pad.audioPath,
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
@@ -2051,6 +2100,33 @@ function duckingActive() {
   return duckAmount() > 0 && state.pads.some((pad) => pad.source && pad.duckTrigger);
 }
 
+function badgeMarkup(items) {
+  return items.map((item) => `<span class="option-badge">${item}</span>`).join("");
+}
+
+function padOptionBadges(pad) {
+  const items = [];
+  if (pad.loop) items.push("Loop");
+  if (pad.duckTrigger) items.push("Duck");
+  if (pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled) items.push("Fade");
+  if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
+  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xfade");
+  return items;
+}
+
+function updateMasterOptionBadges() {
+  const items = [];
+  if (Number(els.fadeSeconds?.value) > 0) items.push("Fade");
+  if (duckAmount() > 0) items.push("Ducking");
+  const reverb = masterReverbSettings();
+  if (reverb.preset !== "none" && reverb.wet > 0) items.push("Reverb");
+  if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
+}
+
+function updateAudioOptionBadges(pad = state.audioPad) {
+  if (els.audioOptionBadges) els.audioOptionBadges.innerHTML = pad ? badgeMarkup(padOptionBadges(pad)) : "";
+}
+
 function updatePadAlerts(pad) {
   if (!pad?.node) return;
   const remaining = remainingSeconds(pad);
@@ -2065,6 +2141,9 @@ function updatePadAlerts(pad) {
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger);
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
+  pad.node.classList.toggle("has-audio-fade", pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled);
+  pad.node.classList.toggle("has-reverb", pad.reverbMode === "pad" && pad.reverbPreset !== "none");
+  pad.node.classList.toggle("has-crossfade", pad.startStopMode !== "none" || pad.endStartMode !== "none");
 }
 
 function updateAllPadAlerts() {
@@ -2092,6 +2171,7 @@ function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
   if (pad.fadeOutToggleEl) pad.fadeOutToggleEl.checked = pad.fadeOutEnabled;
   pad.node?.classList.toggle("has-fade-in", pad.fadeInEnabled);
   pad.node?.classList.toggle("has-fade-out", pad.fadeOutEnabled);
+  updatePadAlerts(pad);
 }
 
 function setPadLoop(pad, loop) {
@@ -2233,14 +2313,17 @@ function setPadAudioSettings(pad, settings = {}) {
   pad.pitchSemitones = Math.min(12, Math.max(-12, Number(settings.pitchSemitones) || 0));
   pad.pitchFine = Math.min(100, Math.max(-100, Number(settings.pitchFine) || 0));
   pad.speedRate = 1;
+  pad.reverbMode = ["global", "pad"].includes(settings.reverbMode) ? settings.reverbMode : (pad.reverbMode || "global");
   pad.reverbPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : "none";
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
   pad.mono = Boolean(settings.mono ?? pad.mono);
+  updatePadAlerts(pad);
 }
 
 function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.visualImage = String(image || "");
   pad.visualImageHidden = Boolean(hidden);
+  pad.visualKind = pad.visualImage ? (settings.visualKind || pad.visualKind || "image") : "";
   pad.visualPositionX = Math.min(100, Math.max(0, Number(settings.visualPositionX ?? pad.visualPositionX ?? 50)));
   pad.visualPositionY = Math.min(100, Math.max(0, Number(settings.visualPositionY ?? pad.visualPositionY ?? 50)));
   pad.visualZoom = Math.min(2.5, Math.max(1, Number(settings.visualZoom ?? pad.visualZoom ?? 1)));
@@ -2308,6 +2391,7 @@ function setPadCrossfade(pad, rule = {}) {
   if (pad.startStopTagEl) pad.startStopTagEl.value = pad.startStopTag;
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
   if (pad.endStartTargetEl) pad.endStartTargetEl.value = pad.endStartTarget;
+  updatePadAlerts(pad);
 }
 
 function numericInputValue(value) {
@@ -2640,7 +2724,7 @@ function bindAudioDialogTrim() {
 function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
-  if (els.audioFilePath) els.audioFilePath.textContent = pad.audioName || "Aucun fichier";
+  if (els.audioFilePath) els.audioFilePath.textContent = pad.audioPath || pad.audioName || "Aucun fichier";
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) els.audioMono.checked = pad.mono;
@@ -2669,9 +2753,13 @@ function syncAudioDialog(pad = state.audioPad) {
   }
   if (els.audioSpeed) els.audioSpeed.value = String(pad.speedRate);
   if (els.audioSpeedValue) els.audioSpeedValue.textContent = `${pad.speedRate.toFixed(2)}x`;
+  if (els.audioReverbGlobal) els.audioReverbGlobal.checked = pad.reverbMode !== "pad";
+  if (els.audioReverbPad) els.audioReverbPad.checked = pad.reverbMode === "pad";
+  if (els.audioPadReverbFields) els.audioPadReverbFields.hidden = pad.reverbMode !== "pad";
   if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset;
   if (els.audioReverbWet) els.audioReverbWet.value = String(pad.reverbWet);
   if (els.audioReverbValue) els.audioReverbValue.textContent = `${Math.round(pad.reverbWet * 100)}%`;
+  updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   renderAudioDialogWaveform(pad);
 }
@@ -2714,6 +2802,7 @@ function resetAudioDialogSettings() {
     speedRate: 1,
     reverbPreset: "none",
     reverbWet: 0.5,
+    reverbMode: "global",
     mono: false,
   });
   setPadNormalization(pad, true, pad.normalizedGain);
@@ -2725,6 +2814,8 @@ function resetAudioDialogSettings() {
 
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
+  els.imageDialog?.classList.toggle("is-image-mode", Boolean(pad.visualImage && pad.visualKind !== "sketch"));
+  els.imageDialog?.classList.toggle("is-sketch-mode", Boolean(pad.visualImage && pad.visualKind === "sketch"));
   if (els.imagePosX) els.imagePosX.value = String(pad.visualPositionX);
   if (els.imagePosY) els.imagePosY.value = String(pad.visualPositionY);
   if (els.imageZoom) els.imageZoom.value = String(pad.visualZoom);
@@ -2789,7 +2880,8 @@ function bindImageSketch() {
     canvas.releasePointerCapture?.(event.pointerId);
     const pad = state.imagePad;
     if (!pad) return;
-    setPadVisualImage(pad, canvas.toDataURL("image/png"), false);
+    setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
+    syncImageDialog(pad);
     savePadMeta(pad);
   };
   canvas.addEventListener("pointerup", finish);
@@ -2799,7 +2891,8 @@ function bindImageSketch() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const pad = state.imagePad;
     if (pad) {
-      setPadVisualImage(pad, canvas.toDataURL("image/png"), false);
+      setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
+      syncImageDialog(pad);
       savePadMeta(pad);
     }
   });
@@ -2988,9 +3081,52 @@ function reverbImpulse(preset) {
   return buffer;
 }
 
+function masterReverbSettings() {
+  return {
+    preset: Object.prototype.hasOwnProperty.call(REVERB_PRESETS, els.masterReverbPreset?.value) ? els.masterReverbPreset.value : "none",
+    wet: Math.min(1, Math.max(0, Number(els.masterReverbWet?.value ?? 0.5))),
+  };
+}
+
+function saveMasterReverbSettings() {
+  localStorage.setItem(MASTER_REVERB_STORAGE, JSON.stringify(masterReverbSettings()));
+}
+
+function loadMasterReverbSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(MASTER_REVERB_STORAGE)) || {};
+  } catch {
+    saved = {};
+  }
+  if (els.masterReverbPreset) els.masterReverbPreset.value = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, saved.preset) ? saved.preset : "none";
+  if (els.masterReverbWet) els.masterReverbWet.value = String(Math.min(1, Math.max(0, Number(saved.wet ?? 0.5))));
+  updateMasterReverbValue();
+}
+
+function updateMasterReverbValue() {
+  if (els.masterReverbValue) els.masterReverbValue.textContent = `${Math.round((Number(els.masterReverbWet?.value) || 0) * 100)}%`;
+  updateMasterOptionBadges();
+}
+
+function applyMasterReverb() {
+  if (!state.audioContext || !state.masterDry || !state.masterWet || !state.masterConvolver) return;
+  const { preset, wet } = masterReverbSettings();
+  const activeWet = preset === "none" ? 0 : wet;
+  state.masterConvolver.buffer = reverbImpulse(preset);
+  state.masterDry.gain.value = 1 - activeWet;
+  state.masterWet.gain.value = activeWet;
+  updateMasterReverbValue();
+}
+
+function padHasPadReverb(pad) {
+  return pad.reverbMode === "pad" && pad.reverbPreset !== "none" && pad.reverbWet > 0;
+}
+
 function connectPadOutput(pad, pan, analyser) {
-  if (!state.audioContext || pad.reverbPreset === "none" || pad.reverbWet <= 0) {
-    pan.connect(analyser).connect(state.masterGain);
+  const output = padHasPadReverb(pad) ? state.masterBypassGain : state.masterGain;
+  if (!state.audioContext || !padHasPadReverb(pad)) {
+    pan.connect(analyser).connect(output);
     return;
   }
   const dry = state.audioContext.createGain();
@@ -3001,7 +3137,7 @@ function connectPadOutput(pad, pan, analyser) {
   wet.gain.value = pad.reverbWet;
   pan.connect(dry).connect(analyser);
   pan.connect(convolver).connect(wet).connect(analyser);
-  analyser.connect(state.masterGain);
+  analyser.connect(output);
   pad.reverbNodes = { dry, wet, convolver };
 }
 
@@ -3212,6 +3348,7 @@ function flashButton(button) {
 
 function bindButtonFeedback(root = document) {
   root.querySelectorAll("button").forEach((button) => {
+    if (button.classList.contains("pad-trigger")) return;
     button.addEventListener("click", () => flashButton(button));
   });
 }
@@ -3309,6 +3446,7 @@ async function init() {
   if (els.duckPercent) {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
+  loadMasterReverbSettings();
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
@@ -3318,6 +3456,7 @@ async function init() {
   await renderPads();
   await repairAccidentalPadTitles();
   setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
+  updateMasterOptionBadges();
 
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
@@ -3337,22 +3476,26 @@ async function init() {
     const value = Math.round(duckAmount() * 100);
     localStorage.setItem(DUCKING_STORAGE, String(value));
     applyDucking();
+    updateMasterOptionBadges();
   });
   els.duckPercent?.addEventListener("change", () => {
     const value = Math.round(duckAmount() * 100);
     els.duckPercent.value = value;
     localStorage.setItem(DUCKING_STORAGE, String(value));
     applyDucking();
+    updateMasterOptionBadges();
   });
   els.fadeSeconds?.addEventListener("input", () => {
     const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
     els.fadeSeconds.value = String(value);
     localStorage.setItem(FADE_OUT_STORAGE, String(value));
+    updateMasterOptionBadges();
   });
   els.fadeSeconds?.addEventListener("change", () => {
     const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
     els.fadeSeconds.value = String(value);
     localStorage.setItem(FADE_OUT_STORAGE, String(value));
+    updateMasterOptionBadges();
   });
   els.stopGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
@@ -3427,6 +3570,23 @@ async function init() {
     if (event.target === els.helpDialog) els.helpDialog.close();
   });
   els.closeAudio?.addEventListener("click", () => els.audioDialog?.close());
+  els.masterAudio?.addEventListener("click", () => {
+    if (els.masterAudioDialog?.showModal) {
+      els.masterAudioDialog.showModal();
+    } else {
+      setStatus("Audio master");
+    }
+  });
+  els.closeMasterAudio?.addEventListener("click", () => els.masterAudioDialog?.close());
+  els.masterAudioDialog?.addEventListener("click", (event) => {
+    if (event.target === els.masterAudioDialog) els.masterAudioDialog.close();
+  });
+  [els.masterReverbPreset, els.masterReverbWet].forEach((element) => {
+    element?.addEventListener("input", () => {
+      saveMasterReverbSettings();
+      applyMasterReverb();
+    });
+  });
   els.audioDialog?.addEventListener("click", (event) => {
     if (event.target === els.audioDialog) els.audioDialog.close();
   });
@@ -3487,6 +3647,18 @@ async function init() {
       savePadMeta(state.audioPad);
     });
   });
+  [els.audioReverbGlobal, els.audioReverbPad].forEach((element) => {
+    element?.addEventListener("change", () => {
+      if (!state.audioPad) return;
+      setPadAudioSettings(state.audioPad, {
+        reverbMode: els.audioReverbPad?.checked ? "pad" : "global",
+        reverbPreset: state.audioPad.reverbPreset,
+        reverbWet: state.audioPad.reverbWet,
+      });
+      syncAudioDialog(state.audioPad);
+      savePadMeta(state.audioPad);
+    });
+  });
   [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
@@ -3496,6 +3668,7 @@ async function init() {
         fadeOutSeconds: els.audioFadeOut?.value,
         pitchSemitones: els.audioPitchSemitones?.value,
         pitchFine: els.audioPitchFine?.value,
+        reverbMode: els.audioReverbPad?.checked ? "pad" : "global",
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
       });

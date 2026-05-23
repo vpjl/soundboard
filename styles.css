@@ -415,10 +415,11 @@ body.board-edit-mode .board-layout-controls {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px 64px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
+  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
   grid-template-areas:
-    "master master master master vu stop"
-    "fade fade duck group vu stop";
+    "title title title vu stop"
+    "master audio group vu stop"
+    "badges badges group vu stop";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -448,7 +449,7 @@ body.board-edit-mode .board-layout-controls {
 
 .board-action-grid {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  grid-template-columns: 42px minmax(0, 1fr) 42px 42px;
   gap: 8px;
   align-items: center;
 }
@@ -459,22 +460,27 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .board-center-actions {
-  grid-column: 2;
+  grid-column: 2 / 4;
   grid-row: 1;
 }
 
 #editPads {
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 1;
 }
 
-#restoreVersion {
+#saveVersion {
   grid-column: 1;
   grid-row: 2;
 }
 
+#restoreVersion {
+  grid-column: 2;
+  grid-row: 2;
+}
+
 #versionSelect {
-  grid-column: 2 / 4;
+  grid-column: 3 / 5;
   grid-row: 2;
 }
 
@@ -594,20 +600,32 @@ body.board-edit-mode .version-select {
   min-width: 0;
 }
 
-.master-strip > .master-control:first-child {
+.master-title {
+  grid-area: title;
+  margin: 0;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.master-volume-control {
   grid-area: master;
 }
 
-.master-strip > .master-control.small:nth-child(3) {
-  grid-area: fade;
-}
-
-.master-strip > .master-control.small:nth-child(4) {
-  grid-area: duck;
+.master-audio-button {
+  grid-area: audio;
+  width: 42px;
+  height: 42px;
+  align-self: end;
 }
 
 .group-stop-control {
   grid-area: group;
+}
+
+.master-option-badges {
+  grid-area: badges;
 }
 
 .master-strip > #stopAll {
@@ -651,13 +669,23 @@ body.board-edit-mode .version-select {
 
 .group-stop-row {
   display: grid;
-  grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 36px;
+  grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 42px;
   gap: 6px;
   min-width: 0;
 }
 
 .group-stop-control {
   min-width: calc(var(--stop-group-width, 8ch) + 42px);
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.42);
+}
+
+#stopGroup {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
 }
 
 input[type="range"] {
@@ -1042,7 +1070,10 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .pad.is-ending .pad-alert-ending,
 .pad.is-looping .pad-alert-loop,
 .pad.is-duck-trigger .pad-alert-duck-source,
-.pad.is-ducked .pad-alert-ducked {
+.pad.is-ducked .pad-alert-ducked,
+.pad.has-audio-fade .pad-alert-fade,
+.pad.has-reverb .pad-alert-reverb,
+.pad.has-crossfade .pad-alert-crossfade {
   display: inline-flex;
 }
 
@@ -1062,13 +1093,61 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   color: #c7cbd1;
 }
 
+.pad-alert-fade {
+  color: #d9b5ff;
+}
+
+.pad-alert-reverb {
+  color: #a8f3ff;
+}
+
+.pad-alert-crossfade {
+  color: #ffc28a;
+}
+
+.option-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-height: 20px;
+}
+
+.option-badges:empty {
+  display: none;
+}
+
+.option-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(17, 19, 25, 0.82);
+  color: var(--accent-2);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .pad.is-playing .pad-trigger {
   background: linear-gradient(145deg, rgba(73, 211, 160, 0.3), #20272a);
 }
 
-.pad-trigger.is-pressed,
-.pad-trigger:active {
+.pad-trigger.is-pressed {
   background: linear-gradient(145deg, rgba(255, 206, 92, 0.32), rgba(73, 211, 160, 0.22));
+}
+
+.pad-trigger:active {
+  border-color: transparent;
+  background: linear-gradient(145deg, #252a32, #1c1f27);
+  color: var(--text);
+  transform: none;
+}
+
+.pad.is-playing .pad-trigger:active {
+  background: linear-gradient(145deg, rgba(73, 211, 160, 0.3), #20272a);
 }
 
 .pad-title {
@@ -1178,7 +1257,6 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 .board-action-grid #addPad,
 .board-action-grid #addBoard,
-.board-action-grid #saveVersion,
 .bulk-edit-button,
 .board-action-grid .board-delete-button,
 .keyboard-shortcuts-button {
@@ -1924,22 +2002,42 @@ body[data-skin="contrast"] .color-field {
 
 .audio-fade-mode {
   grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+}
+
+.audio-fade-mode h3 {
+  margin: 0;
+}
+
+.audio-radio-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
+.audio-radio-row label,
 .audio-fade-mode label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+.audio-radio-row input,
 .audio-fade-mode input {
   width: 20px;
   height: 20px;
   min-height: 20px;
   accent-color: var(--accent);
+}
+
+.audio-pad-reverb-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.audio-pad-reverb-fields[hidden] {
+  display: none;
 }
 
 .audio-pad-fade-fields {
@@ -2040,6 +2138,11 @@ body[data-skin="contrast"] .color-field {
   touch-action: none;
 }
 
+.image-dialog.is-image-mode .image-sketch-canvas,
+.image-dialog.is-sketch-mode .image-preview {
+  display: none;
+}
+
 .image-crop-controls {
   display: grid;
   gap: 8px;
@@ -2094,6 +2197,18 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(17, 19, 25, 0.45);
+}
+
+.help-section[aria-label="Pad live"] {
+  order: 1;
+}
+
+.help-section[aria-label="Audio"] {
+  order: 2;
+}
+
+.help-section[aria-label="Pad edit"] {
+  order: 3;
 }
 
 .help-section h3 {
@@ -2287,10 +2402,11 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(0, 1fr) 56px 64px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
+  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
   grid-template-areas:
-    "master master master master vu stop"
-    "fade fade duck group vu stop";
+    "title title title vu stop"
+    "master audio group vu stop"
+    "badges badges group vu stop";
 }
 
 body.stage-mode .deck {
@@ -2352,10 +2468,11 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 52px 58px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
+    grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
     grid-template-areas:
-      "master master master master vu stop"
-      "fade fade duck group vu stop";
+      "title title title vu stop"
+      "master audio group vu stop"
+      "badges badges group vu stop";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -2377,12 +2494,12 @@ body.stage-mode .pad-time {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px 34px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-columns: 30px minmax(0, 1fr) 30px 30px;
     gap: 4px;
   }
 
@@ -2419,10 +2536,7 @@ body.stage-mode .pad-time {
     font-size: 0.66rem;
   }
 
-  .pads {
-    grid-template-columns: 1fr;
-  }
-
+  .pads,
   body[data-skin="minimal"] .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2430,10 +2544,6 @@ body.stage-mode .pad-time {
   .pad-trigger {
     min-height: 76px;
     padding-bottom: 32px;
-  }
-
-  .master-strip > .master-control:first-child {
-    grid-area: master;
   }
 
   .group-stop-row {
@@ -2452,14 +2562,6 @@ body.stage-mode .pad-time {
     width: 32px;
     height: 32px;
     min-height: 32px;
-  }
-
-  .master-strip > .master-control.small:nth-child(3) {
-    grid-area: fade;
-  }
-
-  .master-strip > .master-control.small:nth-child(4) {
-    grid-area: duck;
   }
 
   .group-stop-control {
@@ -2549,12 +2651,12 @@ body.stage-mode .pad-time {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px 34px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-columns: 30px minmax(0, 1fr) 30px 30px;
     gap: 4px;
   }
 
@@ -2605,10 +2707,11 @@ body.stage-mode .pad-time {
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) 52px 58px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
+    grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
     grid-template-areas:
-      "master master master master vu stop"
-      "fade fade duck group vu stop";
+      "title title title vu stop"
+      "master audio group vu stop"
+      "badges badges group vu stop";
     align-items: stretch;
   }
 
@@ -2623,10 +2726,6 @@ body.stage-mode .pad-time {
     width: 48px;
   }
 
-  .master-strip > .master-control:first-child {
-    grid-area: master;
-  }
-
   .group-stop-row {
     grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 32px;
     gap: 4px;
@@ -2636,14 +2735,6 @@ body.stage-mode .pad-time {
     width: 32px;
     height: 32px;
     min-height: 32px;
-  }
-
-  .master-strip > .master-control.small:nth-child(3) {
-    grid-area: fade;
-  }
-
-  .master-strip > .master-control.small:nth-child(4) {
-    grid-area: duck;
   }
 
   .group-stop-control {
