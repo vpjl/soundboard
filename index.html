@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=65">
+    <link rel="stylesheet" href="styles.css?v=66">
   </head>
   <body>
     <div class="app">
@@ -87,6 +87,14 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
                   <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="bulkEditPads" class="icon-button bulk-edit-button" type="button" aria-label="Modification groupée des pads">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               </div>
@@ -338,54 +346,62 @@
         </div>
 
         <div class="pad-actions">
-          <div class="control-group start-group" aria-label="Départ son">
-            <button type="button" data-action="fadeIn" aria-label="Fade in">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button type="button" data-mode="oneshot" aria-label="Mode one shot">
+          <div class="control-group live-button-group" aria-label="Contrôles live">
+            <button type="button" data-mode="oneshot" aria-label="Relance le son depuis le début">
               <svg viewBox="0 0 24 24">
                 <path d="M5 7a7 7 0 0 1 11.7-3.1L19 6M19 6h-5M19 6v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M9 9v6l5-3-5-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button type="button" data-mode="toggle" aria-label="Mode toggle">
+            <button type="button" data-mode="toggle" aria-label="Stoppe puis reprend au même endroit">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 5v14M9 7l5 5-5 5V7ZM15 7l5 5-5 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button type="button" data-mode="hold" aria-label="Mode hold">
+            <button type="button" data-mode="hold" aria-label="Joue seulement pendant l’appui">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 12V6a2 2 0 0 1 4 0v5M12 11V8a2 2 0 0 1 4 0v5M16 13v-2a2 2 0 0 1 4 0v4c0 4-2.5 6-6.5 6H12c-2.7 0-4.7-1.3-6-3.8L4 13.5a1.8 1.8 0 0 1 3.2-1.6L8 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button type="button" data-action="stop" aria-label="Stop">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="pad-live-options" aria-label="Options live">
+            <label class="pad-live-check">
+              <input type="checkbox" data-fade-in-toggle>
+              <span class="field-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Fade in
+              </span>
+            </label>
+            <label class="pad-live-check">
+              <input type="checkbox" data-fade-out-toggle>
+              <span class="field-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Fade out
+              </span>
+            </label>
+            <button type="button" data-action="audio" aria-label="Réglages audio">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
               </svg>
             </button>
           </div>
 
           <div class="pad-action-line">
-            <div class="control-group stop-group" aria-label="Arrêt son">
-              <button type="button" data-action="fadeOut" aria-label="Fade out">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button type="button" data-action="stop" aria-label="Stop">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                </svg>
-              </button>
-            </div>
-
             <div class="control-group manage-group" aria-label="Gestion">
-              <button type="button" data-action="audio" aria-label="Réglages audio">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-              </button>
               <button class="record-button" type="button" data-action="record" aria-label="Enregistrer au micro">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -807,8 +823,32 @@
             </div>
           </section>
           <section class="audio-section audio-grid-2" aria-label="Fades">
-            <label><span>Fade in</span><input id="audioFadeIn" type="number" min="0" max="30" step="0.5" placeholder="global"></label>
-            <label><span>Fade out</span><input id="audioFadeOut" type="number" min="0" max="30" step="0.5" placeholder="global"></label>
+            <div class="audio-fade-mode">
+              <label><input id="audioFadeGlobal" name="audioFadeMode" type="radio" value="global"> Global</label>
+              <label><input id="audioFadePad" name="audioFadeMode" type="radio" value="pad"> Pad</label>
+            </div>
+            <div class="audio-pad-fade-fields" id="audioPadFadeFields">
+              <label>
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Fade in
+                </span>
+                <input id="audioFadeIn" type="number" min="0" max="30" step="1" value="2">
+              </label>
+              <label>
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Fade out
+                </span>
+                <input id="audioFadeOut" type="number" min="0" max="30" step="1" value="2">
+              </label>
+            </div>
           </section>
           <section class="audio-section" aria-label="Pitch">
             <h3>Pitch <output id="audioPitchTotal">0 demi-ton + 0 cents</output></h3>
@@ -892,6 +932,58 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=65"></script>
+    <dialog id="bulkEditDialog" class="bulk-edit-dialog" aria-labelledby="bulkEditTitle">
+      <div class="bulk-edit-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="bulkEditTitle">Modification groupée</h2>
+            <p id="bulkEditCount">Pads sélectionnés</p>
+          </div>
+          <button id="closeBulkEdit" class="icon-button" type="button" aria-label="Fermer la modification groupée">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="bulk-edit-grid">
+          <label class="bulk-template-field">
+            <span>Pad modèle</span>
+            <select id="bulkTemplatePad"></select>
+          </label>
+          <label class="bulk-apply-field"><input id="bulkApplyVolume" type="checkbox"> Volume</label>
+          <input id="bulkVolume" type="range" min="0" max="1" step="0.01">
+          <label class="bulk-apply-field"><input id="bulkApplyPan" type="checkbox"> Pan</label>
+          <input id="bulkPan" type="range" min="-1" max="1" step="0.01">
+          <label class="bulk-apply-field"><input id="bulkApplyTags" type="checkbox"> Tags</label>
+          <input id="bulkTags" type="text" maxlength="64">
+          <label class="bulk-apply-field"><input id="bulkApplyColor" type="checkbox"> Couleur</label>
+          <select id="bulkColor">
+            <option value="">Pas de couleur</option>
+            <option value="green">Vert</option>
+            <option value="yellow">Jaune</option>
+            <option value="red">Rouge</option>
+            <option value="blue">Bleu</option>
+            <option value="pink">Rose</option>
+            <option value="purple">Violet</option>
+          </select>
+          <label class="bulk-apply-field"><input id="bulkApplyLiveFade" type="checkbox"> Fades live</label>
+          <div class="bulk-inline">
+            <label><input id="bulkFadeInEnabled" type="checkbox"> Fade in</label>
+            <label><input id="bulkFadeOutEnabled" type="checkbox"> Fade out</label>
+          </div>
+          <label class="bulk-apply-field"><input id="bulkApplyAudioFlags" type="checkbox"> Loop / ducking</label>
+          <div class="bulk-inline">
+            <label><input id="bulkLoop" type="checkbox"> Loop</label>
+            <label><input id="bulkDuck" type="checkbox"> Ducking</label>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button id="applyBulkEdit" class="small-button" type="button">Modifier</button>
+          <button id="cancelBulkEdit" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="app.js?v=66"></script>
   </body>
 </html>

@@ -68,6 +68,7 @@ const state = {
   audioTrimDrag: null,
   reverbBuffers: {},
   imagePad: null,
+  bulkEditPads: [],
   sketchDrawing: false,
   stageMode: false,
   boardEditMode: false,
@@ -114,6 +115,9 @@ const els = {
   audioMono: document.querySelector("#audioMono"),
   audioLoop: document.querySelector("#audioLoop"),
   audioDuck: document.querySelector("#audioDuck"),
+  audioFadeGlobal: document.querySelector("#audioFadeGlobal"),
+  audioFadePad: document.querySelector("#audioFadePad"),
+  audioPadFadeFields: document.querySelector("#audioPadFadeFields"),
   audioFadeIn: document.querySelector("#audioFadeIn"),
   audioFadeOut: document.querySelector("#audioFadeOut"),
   audioPitchSemitones: document.querySelector("#audioPitchSemitones"),
@@ -147,6 +151,27 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
+  bulkEditPads: document.querySelector("#bulkEditPads"),
+  bulkEditDialog: document.querySelector("#bulkEditDialog"),
+  closeBulkEdit: document.querySelector("#closeBulkEdit"),
+  cancelBulkEdit: document.querySelector("#cancelBulkEdit"),
+  applyBulkEdit: document.querySelector("#applyBulkEdit"),
+  bulkEditCount: document.querySelector("#bulkEditCount"),
+  bulkTemplatePad: document.querySelector("#bulkTemplatePad"),
+  bulkApplyVolume: document.querySelector("#bulkApplyVolume"),
+  bulkVolume: document.querySelector("#bulkVolume"),
+  bulkApplyPan: document.querySelector("#bulkApplyPan"),
+  bulkPan: document.querySelector("#bulkPan"),
+  bulkApplyTags: document.querySelector("#bulkApplyTags"),
+  bulkTags: document.querySelector("#bulkTags"),
+  bulkApplyColor: document.querySelector("#bulkApplyColor"),
+  bulkColor: document.querySelector("#bulkColor"),
+  bulkApplyLiveFade: document.querySelector("#bulkApplyLiveFade"),
+  bulkFadeInEnabled: document.querySelector("#bulkFadeInEnabled"),
+  bulkFadeOutEnabled: document.querySelector("#bulkFadeOutEnabled"),
+  bulkApplyAudioFlags: document.querySelector("#bulkApplyAudioFlags"),
+  bulkLoop: document.querySelector("#bulkLoop"),
+  bulkDuck: document.querySelector("#bulkDuck"),
   saveVersion: document.querySelector("#saveVersion"),
   restoreVersion: document.querySelector("#restoreVersion"),
   versionSelect: document.querySelector("#versionSelect"),
@@ -509,8 +534,11 @@ function makePad(index) {
     tags: "",
     color: "",
     fadeSeconds: "",
+    fadeMode: "global",
     fadeInSeconds: "",
     fadeOutSeconds: "",
+    fadeInEnabled: false,
+    fadeOutEnabled: false,
     pitchSemitones: 0,
     pitchFine: 0,
     speedRate: 1,
@@ -555,6 +583,8 @@ function makePad(index) {
   pad.fileInput = node.querySelector("[data-file]");
   pad.recordButton = node.querySelector('[data-action="record"]');
   pad.modeButtons = [...node.querySelectorAll("[data-mode]")];
+  pad.fadeInToggleEl = node.querySelector("[data-fade-in-toggle]");
+  pad.fadeOutToggleEl = node.querySelector("[data-fade-out-toggle]");
   pad.volumeEl = node.querySelector("[data-volume]");
   pad.panEl = node.querySelector("[data-pan]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
@@ -575,9 +605,11 @@ function makePad(index) {
   setPadTitle(pad, pad.title);
   setPadTags(pad, pad.tags);
   setPadFade(pad, pad.fadeSeconds);
+  setPadLiveFade(pad, pad.fadeInEnabled, pad.fadeOutEnabled);
   setPadColor(pad, pad.color);
   setPadNormalization(pad, pad.normalizeEnabled, pad.normalizedGain);
   setPadAudioSettings(pad, {
+    fadeMode: pad.fadeMode,
     fadeInSeconds: pad.fadeInSeconds,
     fadeOutSeconds: pad.fadeOutSeconds,
     pitchSemitones: pad.pitchSemitones,
@@ -656,9 +688,7 @@ function makePad(index) {
     pad.holdPointerId = null;
   });
   bindPadProgress(pad);
-  node.querySelector('[data-action="fadeIn"]').addEventListener("click", () => playPad(pad, true));
-  node.querySelector('[data-action="fadeOut"]').addEventListener("click", () => stopPad(pad, true));
-  node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, false));
+  node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, pad.fadeOutEnabled));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
@@ -690,6 +720,14 @@ function makePad(index) {
   });
   pad.fadeEl.addEventListener("input", () => {
     setPadFade(pad, pad.fadeEl.value, false);
+    savePadMeta(pad);
+  });
+  pad.fadeInToggleEl?.addEventListener("change", () => {
+    setPadLiveFade(pad, pad.fadeInToggleEl.checked, pad.fadeOutEnabled);
+    savePadMeta(pad);
+  });
+  pad.fadeOutToggleEl?.addEventListener("change", () => {
+    setPadLiveFade(pad, pad.fadeInEnabled, pad.fadeOutToggleEl.checked);
     savePadMeta(pad);
   });
   pad.trimStartEl.addEventListener("input", () => {
@@ -776,7 +814,7 @@ function makePad(index) {
       setPadMode(pad, mode);
       savePadMeta(pad);
       if (mode === "oneshot") {
-        playPad(pad, false, 0).catch(() => setStatus("Lecture impossible"));
+        playPad(pad, pad.fadeInEnabled, 0).catch(() => setStatus("Lecture impossible"));
       } else if (mode === "toggle") {
         togglePad(pad);
       }
@@ -788,13 +826,13 @@ function makePad(index) {
         savePadMeta(pad);
         button.setPointerCapture?.(event.pointerId);
         pad.holdPointerId = event.pointerId;
-        playPad(pad, false, 0).catch(() => setStatus("Lecture impossible"));
+        playPad(pad, pad.fadeInEnabled, 0).catch(() => setStatus("Lecture impossible"));
       });
       const endHold = (event) => {
         if (pad.holdPointerId !== event.pointerId) return;
         event.preventDefault();
         pad.holdPointerId = null;
-        stopPad(pad, false);
+        stopPad(pad, pad.fadeOutEnabled);
       };
       button.addEventListener("pointerup", endHold);
       button.addEventListener("pointercancel", endHold);
@@ -805,7 +843,7 @@ function makePad(index) {
     button.addEventListener("pointerleave", () => {
       if (button.dataset.mode === "hold" && pad.holdPointerId != null) {
         pad.holdPointerId = null;
-        stopPad(pad, false);
+        stopPad(pad, pad.fadeOutEnabled);
       }
     });
   });
@@ -886,6 +924,102 @@ function applyBoardTagFilter() {
     pad.node.classList.toggle("is-tag-dimmed", Boolean(tag && !matches));
   });
   if (tag) setStatus(`Pads tag ${tag}`);
+}
+
+function padsForBoardTagSelection() {
+  const tag = String(els.boardTagFilter?.value || "").trim().toLowerCase();
+  if (!tag) return state.pads;
+  return state.pads.filter((pad) => padTagList(pad).includes(tag));
+}
+
+function syncBulkTemplateFields(pad) {
+  if (!pad) return;
+  if (els.bulkVolume) els.bulkVolume.value = String(pad.volume);
+  if (els.bulkPan) els.bulkPan.value = String(pad.panValue);
+  if (els.bulkTags) els.bulkTags.value = pad.tags;
+  if (els.bulkColor) els.bulkColor.value = pad.color || "";
+  if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
+  if (els.bulkFadeOutEnabled) els.bulkFadeOutEnabled.checked = pad.fadeOutEnabled;
+  if (els.bulkLoop) els.bulkLoop.checked = pad.loop;
+  if (els.bulkDuck) els.bulkDuck.checked = pad.duckTrigger;
+}
+
+function openBulkEditDialog() {
+  let pads = padsForBoardTagSelection();
+  const selectedTag = String(els.boardTagFilter?.value || "").trim();
+  if (!pads.length) {
+    window.alert("sélectionner des pads avec le menu tag du cadre board");
+    return;
+  }
+  if (!selectedTag || pads.length === state.pads.length) {
+    const shouldEditAll = window.confirm("Modifier tous les pads ?");
+    if (!shouldEditAll) {
+      window.alert("sélectionner des pads avec le menu tag du cadre board");
+      return;
+    }
+    pads = state.pads;
+  }
+
+  state.bulkEditPads = pads;
+  if (els.bulkEditCount) {
+    els.bulkEditCount.textContent = `${pads.length} pad${pads.length > 1 ? "s" : ""} sélectionné${pads.length > 1 ? "s" : ""}`;
+  }
+  if (els.bulkTemplatePad) {
+    els.bulkTemplatePad.innerHTML = "";
+    pads.forEach((pad) => {
+      const option = document.createElement("option");
+      option.value = String(pad.index);
+      option.textContent = `${pad.index + 1}. ${pad.title}`;
+      els.bulkTemplatePad.append(option);
+    });
+    els.bulkTemplatePad.value = String(pads[0].index);
+  }
+  [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyColor, els.bulkApplyLiveFade, els.bulkApplyAudioFlags]
+    .forEach((checkbox) => { if (checkbox) checkbox.checked = false; });
+  syncBulkTemplateFields(pads[0]);
+  if (els.bulkEditDialog?.showModal) {
+    els.bulkEditDialog.showModal();
+  } else {
+    setStatus("Modification groupée prête");
+  }
+}
+
+async function applyBulkEdit() {
+  const pads = state.bulkEditPads.filter(Boolean);
+  if (!pads.length) return;
+  for (const pad of pads) {
+    if (els.bulkApplyVolume?.checked) {
+      pad.volume = Number(els.bulkVolume?.value) || 0;
+      if (pad.volumeEl) pad.volumeEl.value = String(pad.volume);
+      if (pad.gain && state.audioContext) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+    }
+    if (els.bulkApplyPan?.checked) {
+      pad.panValue = Number(els.bulkPan?.value) || 0;
+      if (pad.panEl) pad.panEl.value = String(pad.panValue);
+      if (pad.pan && state.audioContext) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
+    }
+    if (els.bulkApplyTags?.checked) {
+      setPadTags(pad, els.bulkTags?.value || "");
+    }
+    if (els.bulkApplyColor?.checked) {
+      setPadColor(pad, els.bulkColor?.value || "");
+    }
+    if (els.bulkApplyLiveFade?.checked) {
+      setPadLiveFade(pad, Boolean(els.bulkFadeInEnabled?.checked), Boolean(els.bulkFadeOutEnabled?.checked));
+    }
+    if (els.bulkApplyAudioFlags?.checked) {
+      setPadLoop(pad, Boolean(els.bulkLoop?.checked));
+      if (pad.source) pad.source.loop = pad.loop;
+      setPadDuckTrigger(pad, Boolean(els.bulkDuck?.checked));
+    }
+    await savePadMeta(pad);
+  }
+  refreshStopGroupOptions();
+  refreshBoardTagFilterOptions();
+  refreshCrossfadeTargetOptions();
+  applyDucking();
+  els.bulkEditDialog?.close();
+  setStatus(`${pads.length} pad${pads.length > 1 ? "s" : ""} modifié${pads.length > 1 ? "s" : ""}`);
 }
 
 function renderBoardLayoutControls() {
@@ -1365,8 +1499,11 @@ async function exportCurrentBoard(includeAudio = true) {
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
       fadeSeconds: meta?.fadeSeconds ?? saved?.fadeSeconds ?? "",
+      fadeMode: meta?.fadeMode ?? saved?.fadeMode ?? "global",
       fadeInSeconds: meta?.fadeInSeconds ?? saved?.fadeInSeconds ?? "",
       fadeOutSeconds: meta?.fadeOutSeconds ?? saved?.fadeOutSeconds ?? "",
+      fadeInEnabled: Boolean(meta?.fadeInEnabled ?? saved?.fadeInEnabled),
+      fadeOutEnabled: Boolean(meta?.fadeOutEnabled ?? saved?.fadeOutEnabled),
       pitchSemitones: meta?.pitchSemitones ?? saved?.pitchSemitones ?? 0,
       pitchFine: meta?.pitchFine ?? saved?.pitchFine ?? 0,
       speedRate: meta?.speedRate ?? saved?.speedRate ?? 1,
@@ -1459,8 +1596,11 @@ async function importBoardFile(file) {
       tags: item.tags || "",
       color: item.color || "",
       fadeSeconds: item.fadeSeconds ?? "",
+      fadeMode: item.fadeMode || "global",
       fadeInSeconds: item.fadeInSeconds ?? "",
       fadeOutSeconds: item.fadeOutSeconds ?? "",
+      fadeInEnabled: Boolean(item.fadeInEnabled),
+      fadeOutEnabled: Boolean(item.fadeOutEnabled),
       pitchSemitones: item.pitchSemitones ?? 0,
       pitchFine: item.pitchFine ?? 0,
       speedRate: item.speedRate ?? 1,
@@ -1643,8 +1783,11 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type) {
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
+    fadeMode: pad.fadeMode,
     fadeInSeconds: pad.fadeInSeconds,
     fadeOutSeconds: pad.fadeOutSeconds,
+    fadeInEnabled: pad.fadeInEnabled,
+    fadeOutEnabled: pad.fadeOutEnabled,
     pitchSemitones: pad.pitchSemitones,
     pitchFine: pad.pitchFine,
     speedRate: pad.speedRate,
@@ -1767,6 +1910,7 @@ async function restorePad(pad) {
     setPadTags(pad, meta.tags || "");
     setPadColor(pad, meta.color || "");
     setPadFade(pad, meta.fadeSeconds ?? "");
+    setPadLiveFade(pad, Boolean(meta.fadeInEnabled), Boolean(meta.fadeOutEnabled));
     setPadAudioSettings(pad, meta);
     setPadNormalization(pad, meta.normalizeEnabled ?? true, meta.normalizedGain ?? 1);
     setPadVisualImage(pad, meta.visualImage || "", Boolean(meta.visualImageHidden), meta);
@@ -1797,8 +1941,10 @@ async function restorePad(pad) {
   setPadTags(pad, meta?.tags ?? saved.tags ?? "");
   setPadColor(pad, meta?.color ?? saved.color ?? "");
   setPadFade(pad, meta?.fadeSeconds ?? saved.fadeSeconds ?? "");
+  setPadLiveFade(pad, Boolean(meta?.fadeInEnabled ?? saved.fadeInEnabled), Boolean(meta?.fadeOutEnabled ?? saved.fadeOutEnabled));
   setPadAudioSettings(pad, {
     fadeSeconds: meta?.fadeSeconds ?? saved.fadeSeconds ?? "",
+    fadeMode: meta?.fadeMode ?? saved.fadeMode ?? "global",
     fadeInSeconds: meta?.fadeInSeconds ?? saved.fadeInSeconds,
     fadeOutSeconds: meta?.fadeOutSeconds ?? saved.fadeOutSeconds,
     pitchSemitones: meta?.pitchSemitones ?? saved.pitchSemitones,
@@ -1839,8 +1985,11 @@ async function savePadMeta(pad) {
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
+    fadeMode: pad.fadeMode,
     fadeInSeconds: pad.fadeInSeconds,
     fadeOutSeconds: pad.fadeOutSeconds,
+    fadeInEnabled: pad.fadeInEnabled,
+    fadeOutEnabled: pad.fadeOutEnabled,
     pitchSemitones: pad.pitchSemitones,
     pitchFine: pad.pitchFine,
     speedRate: pad.speedRate,
@@ -1924,12 +2073,25 @@ function updateAllPadAlerts() {
 
 function setPadMode(pad, mode) {
   pad.playMode = ["oneshot", "hold", "toggle"].includes(mode) ? mode : "oneshot";
-  pad.modeButtons?.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.mode === pad.playMode);
-  });
+  updatePadModeButtons(pad);
   if (pad.playMode !== "toggle") {
     pad.resumeOffset = 0;
   }
+}
+
+function updatePadModeButtons(pad) {
+  pad.modeButtons?.forEach((button) => {
+    button.classList.toggle("is-active", Boolean(pad.source && button.dataset.mode === pad.playMode));
+  });
+}
+
+function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
+  pad.fadeInEnabled = Boolean(fadeInEnabled);
+  pad.fadeOutEnabled = Boolean(fadeOutEnabled);
+  if (pad.fadeInToggleEl) pad.fadeInToggleEl.checked = pad.fadeInEnabled;
+  if (pad.fadeOutToggleEl) pad.fadeOutToggleEl.checked = pad.fadeOutEnabled;
+  pad.node?.classList.toggle("has-fade-in", pad.fadeInEnabled);
+  pad.node?.classList.toggle("has-fade-out", pad.fadeOutEnabled);
 }
 
 function setPadLoop(pad, loop) {
@@ -2065,6 +2227,7 @@ function normalizeOptionalSeconds(value) {
 }
 
 function setPadAudioSettings(pad, settings = {}) {
+  pad.fadeMode = ["global", "pad"].includes(settings.fadeMode) ? settings.fadeMode : (pad.fadeMode || "global");
   pad.fadeInSeconds = normalizeOptionalSeconds(settings.fadeInSeconds ?? settings.fadeSeconds ?? pad.fadeInSeconds);
   pad.fadeOutSeconds = normalizeOptionalSeconds(settings.fadeOutSeconds ?? settings.fadeSeconds ?? pad.fadeOutSeconds);
   pad.pitchSemitones = Math.min(12, Math.max(-12, Number(settings.pitchSemitones) || 0));
@@ -2491,6 +2654,9 @@ function syncAudioDialog(pad = state.audioPad) {
     els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
     els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
   }
+  if (els.audioFadeGlobal) els.audioFadeGlobal.checked = pad.fadeMode !== "pad";
+  if (els.audioFadePad) els.audioFadePad.checked = pad.fadeMode === "pad";
+  if (els.audioPadFadeFields) els.audioPadFadeFields.hidden = pad.fadeMode !== "pad";
   if (els.audioFadeIn) els.audioFadeIn.value = pad.fadeInSeconds === "" ? "" : String(pad.fadeInSeconds);
   if (els.audioFadeOut) els.audioFadeOut.value = pad.fadeOutSeconds === "" ? "" : String(pad.fadeOutSeconds);
   if (els.audioPitchSemitones) els.audioPitchSemitones.value = String(pad.pitchSemitones);
@@ -2540,6 +2706,7 @@ function resetAudioDialogSettings() {
   const pad = state.audioPad;
   if (!pad) return;
   setPadAudioSettings(pad, {
+    fadeMode: "global",
     fadeInSeconds: "",
     fadeOutSeconds: "",
     pitchSemitones: 0,
@@ -2725,13 +2892,15 @@ function targetPadGain(pad) {
 
 function fadeDurationForPad(pad, type = "out") {
   const padValue = type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds;
-  if (padValue !== "" && Number.isFinite(Number(padValue))) {
-    return Math.max(0, Number(padValue));
+  if (pad.fadeMode === "pad") {
+    if (padValue !== "" && Number.isFinite(Number(padValue))) {
+      return Math.max(0, Number(padValue));
+    }
+    if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) {
+      return Math.max(0, Number(pad.fadeSeconds));
+    }
+    return 0;
   }
-  if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) {
-    return Math.max(0, Number(pad.fadeSeconds));
-  }
-  if (type === "in") return 0;
   return Math.max(0, Number(els.fadeSeconds.value) || 0);
 }
 
@@ -2869,6 +3038,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.monoNodes = null;
   pad.stopAt = 0;
   pad.node.classList.remove("is-playing");
+  updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
   updatePadTime(pad);
   applyDucking();
@@ -2924,6 +3094,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
   pad.node.classList.add("is-playing");
+  updatePadModeButtons(pad);
   updatePadTime(pad);
   startTimer();
   setStatus(`${pad.title} joue`);
@@ -3067,10 +3238,10 @@ function bindPerformanceTouchGuards() {
 
 function togglePad(pad) {
   if (pad.source) {
-    stopPad(pad, true, pad.playMode === "toggle");
+    stopPad(pad, pad.fadeOutEnabled, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
-    playPad(pad, false, offset);
+    playPad(pad, pad.fadeInEnabled, offset);
   }
 }
 
@@ -3194,6 +3365,19 @@ async function init() {
   els.editPads?.addEventListener("click", () => {
     setBoardPadEditing(!state.boardEditMode);
   });
+  els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
+  els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
+  els.cancelBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
+  els.bulkEditDialog?.addEventListener("click", (event) => {
+    if (event.target === els.bulkEditDialog) els.bulkEditDialog.close();
+  });
+  els.bulkTemplatePad?.addEventListener("change", () => {
+    const pad = state.bulkEditPads.find((item) => String(item.index) === els.bulkTemplatePad.value);
+    syncBulkTemplateFields(pad);
+  });
+  els.applyBulkEdit?.addEventListener("click", () => {
+    applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
+  });
   els.saveVersion?.addEventListener("click", () => {
     saveBoardVersion().catch(() => setStatus("Sauvegarde impossible"));
   });
@@ -3286,10 +3470,28 @@ async function init() {
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
+  [els.audioFadeGlobal, els.audioFadePad].forEach((element) => {
+    element?.addEventListener("change", () => {
+      if (!state.audioPad) return;
+      const nextMode = els.audioFadePad?.checked ? "pad" : "global";
+      if (nextMode === "pad") {
+        if (state.audioPad.fadeInSeconds === "") state.audioPad.fadeInSeconds = 2;
+        if (state.audioPad.fadeOutSeconds === "") state.audioPad.fadeOutSeconds = 2;
+      }
+      setPadAudioSettings(state.audioPad, {
+        fadeMode: nextMode,
+        fadeInSeconds: state.audioPad.fadeInSeconds,
+        fadeOutSeconds: state.audioPad.fadeOutSeconds,
+      });
+      syncAudioDialog(state.audioPad);
+      savePadMeta(state.audioPad);
+    });
+  });
   [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
+        fadeMode: els.audioFadePad?.checked ? "pad" : "global",
         fadeInSeconds: els.audioFadeIn?.value,
         fadeOutSeconds: els.audioFadeOut?.value,
         pitchSemitones: els.audioPitchSemitones?.value,

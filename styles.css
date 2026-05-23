@@ -141,8 +141,8 @@ body[data-skin="minimal"] .pad-trigger {
 }
 
 body[data-skin="minimal"] .pad-action-line,
-body[data-skin="minimal"] .start-group,
-body[data-skin="minimal"] .stop-group,
+body[data-skin="minimal"] .live-button-group,
+body[data-skin="minimal"] .pad-live-options,
 body[data-skin="minimal"] .manage-group {
   min-width: 0;
 }
@@ -182,7 +182,7 @@ body[data-skin="minimal"] .control-group {
 }
 
 body[data-skin="minimal"] .pad-action-line {
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 5px;
 }
 
@@ -484,9 +484,13 @@ body.board-edit-mode .board-action-grid {
 
 .board-center-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(34px, 42px));
+  grid-template-columns: repeat(3, minmax(34px, 42px));
   gap: 8px;
   justify-content: center;
+}
+
+body.board-edit-mode .board-center-actions {
+  grid-template-columns: repeat(4, minmax(34px, 42px));
 }
 
 .board-action-grid > .icon-button,
@@ -1175,6 +1179,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-action-grid #addPad,
 .board-action-grid #addBoard,
 .board-action-grid #saveVersion,
+.bulk-edit-button,
 .board-action-grid .board-delete-button,
 .keyboard-shortcuts-button {
   display: none;
@@ -1188,6 +1193,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
+body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
 body.board-edit-mode .board-action-grid #addBoard {
   display: grid;
@@ -1599,17 +1605,12 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   display: none;
 }
 
-.pad.is-editing .start-group,
-.pad.is-editing .stop-group {
+.pad.is-editing .live-button-group,
+.pad.is-editing .pad-live-options {
   display: none;
 }
 
-.pad:not(.is-editing) .manage-group {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.pad:not(.is-editing) .manage-group button:not([data-action="audio"]) {
+.pad:not(.is-editing) .pad-action-line {
   display: none;
 }
 
@@ -1644,13 +1645,66 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   background: rgba(17, 19, 25, 0.45);
 }
 
-.start-group {
+.live-button-group {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pad-live-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pad-live-check,
+.pad-live-options button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.72);
+  color: var(--muted);
+}
+
+.pad-live-check {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  padding: 0 7px;
+}
+
+.pad-live-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.pad-live-check .field-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pad-live-check svg,
+.pad-live-options button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pad-live-check:has(input:checked) {
+  border-color: rgba(73, 211, 160, 0.72);
+  background: rgba(73, 211, 160, 0.2);
+  color: var(--text);
 }
 
 .pad-action-line {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -1669,6 +1723,7 @@ body[data-skin="contrast"] .color-field {
 
 .help-dialog,
 .shortcut-dialog,
+.bulk-edit-dialog,
 .audio-dialog,
 .image-dialog {
   width: min(680px, calc(100vw - 28px));
@@ -1682,6 +1737,7 @@ body[data-skin="contrast"] .color-field {
 
 .help-dialog::backdrop,
 .shortcut-dialog::backdrop,
+.bulk-edit-dialog::backdrop,
 .audio-dialog::backdrop,
 .image-dialog::backdrop {
   background: rgba(0, 0, 0, 0.62);
@@ -1689,9 +1745,73 @@ body[data-skin="contrast"] .color-field {
 
 .help-panel,
 .shortcut-panel,
+.bulk-edit-panel,
 .audio-panel,
 .image-panel {
   padding: 14px;
+}
+
+.bulk-edit-dialog {
+  width: min(560px, calc(100vw - 28px));
+}
+
+.bulk-edit-panel .help-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.bulk-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.bulk-template-field {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+}
+
+.bulk-template-field span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.bulk-apply-field,
+.bulk-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.bulk-edit-grid input[type="text"],
+.bulk-edit-grid select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 9px;
+  background: #111319;
+  color: var(--text);
+}
+
+.bulk-edit-grid input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .audio-dialog {
@@ -1800,6 +1920,37 @@ body[data-skin="contrast"] .color-field {
 
 .audio-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.audio-fade-mode {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.audio-fade-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-fade-mode input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: var(--accent);
+}
+
+.audio-pad-fade-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.audio-pad-fade-fields[hidden] {
+  display: none;
 }
 
 .audio-waveform {
@@ -2161,11 +2312,11 @@ body.stage-mode .pad-actions {
 }
 
 body.stage-mode .pad-action-line {
-  grid-template-columns: minmax(70px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
-body.stage-mode .start-group,
-body.stage-mode .stop-group {
+body.stage-mode .live-button-group,
+body.stage-mode .pad-live-options {
   gap: 5px;
   padding: 5px;
 }
@@ -2236,8 +2387,12 @@ body.stage-mode .pad-time {
   }
 
   .board-center-actions {
-    grid-template-columns: repeat(5, 30px);
+    grid-template-columns: repeat(3, 30px);
     gap: 4px;
+  }
+
+  body.board-edit-mode .board-center-actions {
+    grid-template-columns: repeat(4, 30px);
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
@@ -2404,8 +2559,12 @@ body.stage-mode .pad-time {
   }
 
   .board-center-actions {
-    grid-template-columns: repeat(5, 30px);
+    grid-template-columns: repeat(3, 30px);
     gap: 4px;
+  }
+
+  body.board-edit-mode .board-center-actions {
+    grid-template-columns: repeat(4, 30px);
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
@@ -2552,7 +2711,7 @@ body.stage-mode .pad-time {
   }
 
   .pad-action-line {
-    grid-template-columns: minmax(70px, 0.8fr) minmax(104px, 1.2fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 5px;
   }
 
