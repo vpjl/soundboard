@@ -7,6 +7,8 @@ const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
+const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
+const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
@@ -102,6 +104,7 @@ const els = {
   audioWaveform: document.querySelector("#audioWaveform"),
   audioWaveformCanvas: document.querySelector("#audioWaveformCanvas"),
   audioTrimSelection: document.querySelector("#audioTrimSelection"),
+  audioPlayhead: document.querySelector("#audioPlayhead"),
   audioTrimStartHandle: document.querySelector("#audioTrimStartHandle"),
   audioTrimEndHandle: document.querySelector("#audioTrimEndHandle"),
   audioTrimStartValue: document.querySelector("#audioTrimStartValue"),
@@ -132,6 +135,7 @@ const els = {
   imageOnline: document.querySelector("#imageOnline"),
   imageSketch: document.querySelector("#imageSketch"),
   imageRemove: document.querySelector("#imageRemove"),
+  imagePreview: document.querySelector("#imagePreview"),
   imageSketchCanvas: document.querySelector("#imageSketchCanvas"),
   imagePosX: document.querySelector("#imagePosX"),
   imagePosY: document.querySelector("#imagePosY"),
@@ -435,6 +439,7 @@ function setBoardPadEditing(editing) {
   document.body.classList.toggle("board-edit-mode", state.boardEditMode);
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
+  els.editPads?.setAttribute("aria-label", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   setStatus(state.boardEditMode ? "Mode edit pads" : "Mode live");
@@ -616,6 +621,7 @@ function makePad(index) {
     if (!file) return;
     const image = await fileToDataUrl(file);
     setPadVisualImage(pad, image, false);
+    if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
     pad.imageInput.value = "";
   });
@@ -624,6 +630,7 @@ function makePad(index) {
     if (!file) return;
     const image = await fileToDataUrl(file);
     setPadVisualImage(pad, image, false);
+    if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
     pad.cameraInput.value = "";
   });
@@ -631,33 +638,22 @@ function makePad(index) {
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
     if (document.body.dataset.skin !== "visual" || pad.node.classList.contains("is-editing")) return;
+    if (!pad.visualImage && !pad.color) return;
     if (event.target.closest("button, input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
     event.preventDefault();
     togglePad(pad);
   });
   trigger.addEventListener("click", (event) => {
-    if (pad.playMode === "hold") return;
     event.preventDefault();
-    togglePad(pad);
   });
   trigger.addEventListener("pointerdown", (event) => {
-    if (pad.playMode !== "hold") return;
     event.preventDefault();
-    pad.holdPointerId = event.pointerId;
-    trigger.setPointerCapture?.(event.pointerId);
-    playPad(pad, false, 0);
   });
   trigger.addEventListener("pointerup", (event) => {
-    if (pad.playMode !== "hold" || pad.holdPointerId !== event.pointerId) return;
     event.preventDefault();
-    pad.holdPointerId = null;
-    stopPad(pad, false);
   });
   trigger.addEventListener("pointercancel", () => {
-    if (pad.playMode === "hold") {
-      pad.holdPointerId = null;
-      stopPad(pad, false);
-    }
+    pad.holdPointerId = null;
   });
   bindPadProgress(pad);
   node.querySelector('[data-action="fadeIn"]').addEventListener("click", () => playPad(pad, true));
@@ -773,9 +769,44 @@ function makePad(index) {
   });
 
   pad.modeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setPadMode(pad, button.dataset.mode);
+    const mode = button.dataset.mode;
+    button.addEventListener("click", (event) => {
+      if (mode === "hold") return;
+      event.preventDefault();
+      setPadMode(pad, mode);
       savePadMeta(pad);
+      if (mode === "oneshot") {
+        playPad(pad, false, 0).catch(() => setStatus("Lecture impossible"));
+      } else if (mode === "toggle") {
+        togglePad(pad);
+      }
+    });
+    if (mode === "hold") {
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        setPadMode(pad, "hold");
+        savePadMeta(pad);
+        button.setPointerCapture?.(event.pointerId);
+        pad.holdPointerId = event.pointerId;
+        playPad(pad, false, 0).catch(() => setStatus("Lecture impossible"));
+      });
+      const endHold = (event) => {
+        if (pad.holdPointerId !== event.pointerId) return;
+        event.preventDefault();
+        pad.holdPointerId = null;
+        stopPad(pad, false);
+      };
+      button.addEventListener("pointerup", endHold);
+      button.addEventListener("pointercancel", endHold);
+    }
+  });
+
+  pad.modeButtons.forEach((button) => {
+    button.addEventListener("pointerleave", () => {
+      if (button.dataset.mode === "hold" && pad.holdPointerId != null) {
+        pad.holdPointerId = null;
+        stopPad(pad, false);
+      }
     });
   });
 
@@ -1931,7 +1962,8 @@ function padTagList(pad) {
 
 function refreshStopGroupOptions() {
   if (!els.stopGroupSelect) return;
-  const currentValue = els.stopGroupSelect.value;
+  const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
+  const currentValue = els.stopGroupSelect.value || savedValue;
   const tags = [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
   els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
   tags.forEach((tag) => {
@@ -2037,7 +2069,7 @@ function setPadAudioSettings(pad, settings = {}) {
   pad.fadeOutSeconds = normalizeOptionalSeconds(settings.fadeOutSeconds ?? settings.fadeSeconds ?? pad.fadeOutSeconds);
   pad.pitchSemitones = Math.min(12, Math.max(-12, Number(settings.pitchSemitones) || 0));
   pad.pitchFine = Math.min(100, Math.max(-100, Number(settings.pitchFine) || 0));
-  pad.speedRate = Math.min(2, Math.max(0.5, Number(settings.speedRate) || 1));
+  pad.speedRate = 1;
   pad.reverbPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : "none";
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
   pad.mono = Boolean(settings.mono ?? pad.mono);
@@ -2387,6 +2419,7 @@ function renderAudioDialogWaveform(pad = state.audioPad) {
   if (els.audioTrimEndHandle) els.audioTrimEndHandle.style.left = `${pad.duration ? (trimDisplayEnd(pad) / pad.duration) * 100 : 100}%`;
   if (els.audioTrimStartValue) els.audioTrimStartValue.textContent = formatSecondsTenths(trimStart(pad));
   if (els.audioTrimEndValue) els.audioTrimEndValue.textContent = formatSecondsTenths(trimDisplayEnd(pad));
+  updateAudioPlayhead(pad);
 }
 
 function audioTrimPositionFromPointer(event) {
@@ -2449,10 +2482,12 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) els.audioMono.checked = pad.mono;
   if (els.audioLoop) {
+    els.audioLoop.checked = pad.loop;
     els.audioLoop.classList.toggle("is-active", pad.loop);
     els.audioLoop.setAttribute("aria-pressed", String(pad.loop));
   }
   if (els.audioDuck) {
+    els.audioDuck.checked = pad.duckTrigger;
     els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
     els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
   }
@@ -2526,6 +2561,12 @@ function syncImageDialog(pad = state.imagePad) {
   if (els.imagePosX) els.imagePosX.value = String(pad.visualPositionX);
   if (els.imagePosY) els.imagePosY.value = String(pad.visualPositionY);
   if (els.imageZoom) els.imageZoom.value = String(pad.visualZoom);
+  if (els.imagePreview) {
+    els.imagePreview.classList.toggle("has-image", Boolean(pad.visualImage));
+    els.imagePreview.style.backgroundImage = pad.visualImage ? `url("${pad.visualImage}")` : "";
+    els.imagePreview.style.backgroundPosition = `${pad.visualPositionX}% ${pad.visualPositionY}%`;
+    els.imagePreview.style.backgroundSize = pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`;
+  }
 }
 
 function openImageDialog(pad) {
@@ -2612,6 +2653,15 @@ function updatePadProgress(pad) {
   const duration = playableDuration(pad);
   const ratio = duration ? playbackOffset(pad) / duration : 0;
   pad.progressFillEl.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
+  if (state.audioPad === pad) updateAudioPlayhead(pad);
+}
+
+function updateAudioPlayhead(pad = state.audioPad) {
+  if (!pad || !els.audioPlayhead) return;
+  const duration = playableDuration(pad);
+  const ratio = duration ? Math.min(1, Math.max(0, playbackOffset(pad) / duration)) : 0;
+  els.audioPlayhead.style.left = `${ratio * 100}%`;
+  els.audioPlayhead.hidden = !pad.source;
 }
 
 function seekPadToRatio(pad, ratio) {
@@ -2681,6 +2731,7 @@ function fadeDurationForPad(pad, type = "out") {
   if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) {
     return Math.max(0, Number(pad.fadeSeconds));
   }
+  if (type === "in") return 0;
   return Math.max(0, Number(els.fadeSeconds.value) || 0);
 }
 
@@ -2853,9 +2904,9 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   source.loop = pad.loop;
   source.loopStart = segmentStart;
   source.loopEnd = segmentEnd;
-  source.playbackRate.setValueAtTime(pad.speedRate, now);
+  source.playbackRate.setValueAtTime(1, now);
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
-  gain.gain.setValueAtTime(fade ? 0 : targetPadGain(pad), now);
+  gain.gain.setValueAtTime(fade && fadeTime > 0 ? 0 : targetPadGain(pad), now);
   pan.pan.setValueAtTime(pad.panValue, now);
   connectSourceToGain(pad, source, gain);
   gain.connect(pan);
@@ -2870,7 +2921,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.pan = pan;
   pad.analyser = analyser;
   pad.meterData = new Uint8Array(analyser.fftSize);
-  pad.startedAt = now - (segmentOffset / pad.speedRate);
+  pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
   pad.node.classList.add("is-playing");
   updatePadTime(pad);
@@ -2886,7 +2937,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   source.start(now, startOffset);
   if (!pad.loop) {
-    source.stop(now + Math.max(0.01, (segmentEnd - startOffset) / pad.speedRate));
+    source.stop(now + Math.max(0.01, segmentEnd - startOffset));
   }
   applyDucking(pad);
   updateAllPadAlerts();
@@ -3019,7 +3070,7 @@ function togglePad(pad) {
     stopPad(pad, true, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
-    playPad(pad, true, offset);
+    playPad(pad, false, offset);
   }
 }
 
@@ -3036,7 +3087,7 @@ function stopGroup() {
   }
   const pads = state.pads.filter((pad) => pad.source && padTagList(pad).includes(tag));
   pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
-  setStatus(pads.length ? `Groupe ${tag} stoppe` : `Aucun pad joue: ${tag}`);
+  setStatus(pads.length ? `Groupe ${tag} stoppé` : `Aucun pad joue: ${tag}`);
 }
 
 function bindKeyboard() {
@@ -3081,6 +3132,9 @@ function bindKeyboard() {
 async function init() {
   state.db = await openDb();
   applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+  if (els.fadeSeconds) {
+    els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
+  }
   if (els.duckPercent) {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
@@ -3118,6 +3172,19 @@ async function init() {
     els.duckPercent.value = value;
     localStorage.setItem(DUCKING_STORAGE, String(value));
     applyDucking();
+  });
+  els.fadeSeconds?.addEventListener("input", () => {
+    const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
+    els.fadeSeconds.value = String(value);
+    localStorage.setItem(FADE_OUT_STORAGE, String(value));
+  });
+  els.fadeSeconds?.addEventListener("change", () => {
+    const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
+    els.fadeSeconds.value = String(value);
+    localStorage.setItem(FADE_OUT_STORAGE, String(value));
+  });
+  els.stopGroupSelect?.addEventListener("change", () => {
+    localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
   });
   els.stopAll.addEventListener("click", stopAll);
   els.stopGroup?.addEventListener("click", stopGroup);
@@ -3181,7 +3248,7 @@ async function init() {
   });
   bindAudioDialogTrim();
   els.audioTestPlay?.addEventListener("click", () => {
-    if (state.audioPad) playPad(state.audioPad, true, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
+    if (state.audioPad) playPad(state.audioPad, false, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
   });
   els.audioTestStop?.addEventListener("click", () => {
     if (state.audioPad) stopPad(state.audioPad, false);
@@ -3219,7 +3286,7 @@ async function init() {
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
-  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioSpeed, els.audioReverbPreset, els.audioReverbWet].forEach((element) => {
+  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
@@ -3227,13 +3294,11 @@ async function init() {
         fadeOutSeconds: els.audioFadeOut?.value,
         pitchSemitones: els.audioPitchSemitones?.value,
         pitchFine: els.audioPitchFine?.value,
-        speedRate: els.audioSpeed?.value,
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
       });
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
-        state.audioPad.source.playbackRate.setTargetAtTime(state.audioPad.speedRate, now, 0.015);
         state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
       }
       syncAudioDialog(state.audioPad);
@@ -3258,27 +3323,11 @@ async function init() {
   });
   els.imageLibrary?.addEventListener("click", () => state.imagePad?.imageInput?.click());
   els.imageCamera?.addEventListener("click", () => state.imagePad?.cameraInput?.click());
-  els.imageOnline?.addEventListener("click", () => {
-    const pad = state.imagePad;
-    if (!pad) return;
-    const value = window.prompt("Adresse de l’image, ou mots-clés de recherche");
-    if (!value) return;
-    if (/^https?:\/\//i.test(value)) {
-      setPadVisualImage(pad, value, false);
-      syncImageDialog(pad);
-      savePadMeta(pad);
-      return;
-    }
-    const words = encodeURIComponent(value.trim().replace(/\s+/g, ","));
-    setPadVisualImage(pad, `https://loremflickr.com/900/700/${words}`, false);
-    syncImageDialog(pad);
-    savePadMeta(pad);
-    setStatus("Image en ligne affectee");
-  });
   els.imageRemove?.addEventListener("click", () => {
     const pad = state.imagePad;
     if (!pad) return;
     setPadVisualImage(pad, "", false);
+    syncImageDialog(pad);
     savePadMeta(pad);
   });
   [els.imagePosX, els.imagePosY, els.imageZoom].forEach((element) => {
@@ -3290,6 +3339,7 @@ async function init() {
         visualPositionY: els.imagePosY?.value,
         visualZoom: els.imageZoom?.value,
       });
+      syncImageDialog(pad);
       savePadMeta(pad);
     });
   });

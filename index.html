@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=64">
+    <link rel="stylesheet" href="styles.css?v=65">
   </head>
   <body>
     <div class="app">
@@ -91,8 +91,11 @@
               </button>
               </div>
               <button id="editPads" class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
+                <svg class="edit-mode-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg class="live-mode-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               <button id="saveVersion" class="icon-button board-history-button" type="button" aria-label="Sauvegarder une version">
@@ -162,22 +165,22 @@
 
         <div class="master-strip" aria-label="Controle principal">
           <label class="master-control">
-            <span>Master <output id="masterVolumeValue">90%</output></span>
+            <span>Volume global <output id="masterVolumeValue">90%</output></span>
             <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
           </label>
           <div class="vu-meter master-vu" aria-label="VU-mètre master">
             <span id="masterVu" class="vu-fill"></span>
           </div>
           <label class="master-control small">
-            <span>Fade</span>
-            <input id="fadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
+            <span>Fade out</span>
+            <input id="fadeSeconds" type="number" min="0" max="30" step="1" value="2">
           </label>
           <label class="master-control small">
             <span>Ducking</span>
             <input id="duckPercent" type="number" min="0" max="100" step="5" value="60">
           </label>
           <label class="master-control group-stop-control">
-            <span>Stop groupe</span>
+            <span>Stop groupé</span>
             <span class="group-stop-row">
               <select id="stopGroupSelect" aria-label="Groupe à arrêter">
                 <option value="">Tags</option>
@@ -461,13 +464,13 @@
                     <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Fade out (en secondes).</dd>
+                </dt><dd>Fade out global (0" = inactif).</dd>
                 <dt aria-label="Ducking">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Ducking (en %, 100 = mute).</dd>
+                </dt><dd>atténuation ciblée de pads (ducking 100 % = mute).</dd>
                 <dt aria-label="Arrêter un groupe">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
@@ -624,7 +627,7 @@
                     <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
-                </dt><dd>Ouvre waveform, trim, normalisation, fades, pitch, vitesse et reverb.</dd>
+                </dt><dd>ouvre les réglages audio du pad.</dd>
                 <dt aria-label="Image du pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -645,7 +648,7 @@
                     <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M13 9h8M13 15h8M17 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Dans Audio, équilibre automatiquement le niveau du son importé.</dd>
+                </dt><dd>normalise le niveau du son importé.</dd>
                 <dt aria-label="Déplacer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
@@ -661,7 +664,7 @@
                     <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Dans Audio, règle les fades propres à ce pad.</dd>
+                </dt><dd>règle la durée des fades in/out du pad.</dd>
                 <dt aria-label="Supprimer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -687,7 +690,7 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                </dt><dd>Réinitialise fades, pitch, vitesse, mono, loop, ducking et reverb.</dd>
+                </dt><dd>Réinitialise fades, pitch, mono, loop, ducking et reverb.</dd>
                 <dt aria-label="Duck trigger">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -759,6 +762,7 @@
             <div class="waveform-trim audio-waveform" id="audioWaveform">
               <canvas id="audioWaveformCanvas" aria-hidden="true"></canvas>
               <div class="trim-selection" id="audioTrimSelection"></div>
+              <div class="audio-playhead" id="audioPlayhead" aria-hidden="true" hidden></div>
               <button class="trim-handle trim-handle-start" type="button" id="audioTrimStartHandle" aria-label="Début du trim"></button>
               <button class="trim-handle trim-handle-end" type="button" id="audioTrimEndHandle" aria-label="Fin du trim"></button>
             </div>
@@ -781,17 +785,25 @@
                 <output id="audioNormalizeValue">1.00x</output>
               </label>
               <label><input id="audioMono" type="checkbox"> Mono</label>
-              <button id="audioLoop" class="icon-button" type="button" aria-label="Loop" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button id="audioDuck" class="icon-button" type="button" aria-label="Duck trigger" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
+              <label class="audio-check-field">
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Loop
+                </span>
+                <input id="audioLoop" type="checkbox">
+              </label>
+              <label class="audio-check-field">
+                <span class="field-title">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Ducking
+                </span>
+                <input id="audioDuck" type="checkbox">
+              </label>
             </div>
           </section>
           <section class="audio-section audio-grid-2" aria-label="Fades">
@@ -802,10 +814,6 @@
             <h3>Pitch <output id="audioPitchTotal">0 demi-ton + 0 cents</output></h3>
             <label><span>Demi-tons</span><input id="audioPitchSemitones" class="range-nominal range-center" type="range" min="-12" max="12" step="1" value="0"></label>
             <label><span>Cents</span><input id="audioPitchFine" class="range-nominal range-center" type="range" min="-100" max="100" step="1" value="0"></label>
-          </section>
-          <section class="audio-section" aria-label="Vitesse">
-            <h3>Vitesse <output id="audioSpeedValue">1.00x</output></h3>
-            <label><span>Vitesse</span><input id="audioSpeed" class="range-nominal range-speed" type="range" min="0.5" max="2" step="0.01" value="1"></label>
           </section>
           <section class="audio-section" aria-label="Reverb">
             <h3>Reverb <output id="audioReverbValue">50%</output></h3>
@@ -848,18 +856,6 @@
               <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <button id="imageCamera" class="icon-button" type="button" aria-label="Prendre une photo">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 8h4l2-3h4l2 3h4v11H4V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <circle cx="12" cy="13" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </button>
-          <button id="imageOnline" class="icon-button" type="button" aria-label="Image en ligne">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-              <path d="M3 12h18M12 3c2.2 2.4 3.2 5.4 3.2 9S14.2 18.6 12 21c-2.2-2.4-3.2-5.4-3.2-9S9.8 5.4 12 3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </button>
           <button id="imageSketch" class="icon-button" type="button" aria-label="Faire un croquis">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -871,6 +867,7 @@
             </svg>
           </button>
         </div>
+        <div id="imagePreview" class="image-preview" aria-label="Aperçu image"></div>
         <canvas id="imageSketchCanvas" class="image-sketch-canvas" width="640" height="360" aria-label="Croquis"></canvas>
         <div class="image-crop-controls">
           <label><span>Centre X</span><input id="imagePosX" type="range" min="0" max="100" step="1" value="50"></label>
@@ -895,6 +892,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=64"></script>
+    <script src="app.js?v=65"></script>
   </body>
 </html>
