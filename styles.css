@@ -2719,8 +2719,20 @@ body.stage-mode .pad-time {
     grid-template-columns: 1fr;
   }
 
-  .controls {
-    display: none;
+  .controls,
+  body.stage-mode .controls,
+  body[data-skin="minimal"] .controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .controls label {
+    gap: 3px;
+  }
+
+  .controls span {
+    font-size: 0.62rem;
   }
 
   .icon-button,
@@ -2848,7 +2860,32 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     font-size: 0.72rem;
   }
 
-  .controls {
-    display: none;
+  .controls,
+  body.stage-mode .controls,
+  body[data-skin="minimal"] .controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .controls label {
+    gap: 3px;
+  }
+
+  .controls span {
+    font-size: 0.62rem;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  .pads,
+  .pads.has-pad-layout,
+  body.stage-mode .pads,
+  body.stage-mode .pads.has-pad-layout,
+  body[data-skin="minimal"] .pads,
+  body[data-skin="minimal"] .pads.has-pad-layout,
+  body[data-skin="minimal"].stage-mode .pads,
+  body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
