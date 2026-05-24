@@ -416,13 +416,13 @@ body.board-edit-mode .board-layout-controls {
 .master-strip {
   --master-stop-size: 44px;
   display: grid;
-  grid-template-columns: minmax(76px, 88px) minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-columns: minmax(76px, 88px) 22px minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content);
   grid-template-rows: auto minmax(42px, 1fr) auto auto;
   grid-template-areas:
-    "title title title vu stop"
-    "master . . vu stop"
-    "master audio audio audio group"
-    "master badges badges badges group";
+    "title title title title stop"
+    "master vu . . stop"
+    "audio audio audio audio group"
+    "badges badges badges badges group";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -2614,12 +2614,12 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(76px, 88px) minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-columns: minmax(76px, 88px) 22px minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
-    "title title title vu stop"
-    "master . . vu stop"
-    "master audio audio audio group"
-    "master badges badges badges group";
+    "title title title title stop"
+    "master vu . . stop"
+    "audio audio audio audio group"
+    "badges badges badges badges group";
 }
 
 body.stage-mode .deck {
@@ -2682,12 +2682,12 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(64px, 76px) minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
+    grid-template-columns: minmax(64px, 76px) 28px minmax(0, 1fr) 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title title title vu stop"
-      "master . . vu stop"
-      "master audio audio audio group"
-      "master badges badges badges group";
+      "title title title title stop"
+      "master vu . . stop"
+      "audio audio audio audio group"
+      "badges badges badges badges group";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -2915,12 +2915,12 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(64px, 76px) minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
+    grid-template-columns: minmax(64px, 76px) 28px minmax(0, 1fr) 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title title title vu stop"
-      "master . . vu stop"
-      "master audio audio audio group"
-      "master badges badges badges group";
+      "title title title title stop"
+      "master vu . . stop"
+      "audio audio audio audio group"
+      "badges badges badges badges group";
     align-items: stretch;
   }
 
@@ -3099,12 +3099,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
-    grid-template-columns: minmax(58px, 68px) minmax(0, 1fr) 34px 8px minmax(70px, 86px);
+    grid-template-columns: minmax(58px, 68px) 28px minmax(0, 1fr) 8px minmax(70px, 86px);
     grid-template-areas:
-      "title title title vu stop"
-      "master . . vu stop"
-      "master audio audio audio group"
-      "master badges badges badges group";
+      "title title title title stop"
+      "master vu . . stop"
+      "audio audio audio audio group"
+      "badges badges badges badges group";
     gap: 6px;
     overflow: hidden;
   }
