@@ -287,7 +287,7 @@ textarea *,
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) minmax(280px, 520px);
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) max-content;
   gap: 18px;
   align-items: stretch;
   width: min(1280px, 100%);
@@ -430,6 +430,9 @@ body.board-edit-mode .board-layout-controls {
   border-radius: 8px;
   background: rgba(24, 26, 32, 0.88);
   box-shadow: 0 12px 34px var(--shadow);
+  width: fit-content;
+  max-width: 100%;
+  justify-self: end;
 }
 
 .board-strip {
@@ -2519,7 +2522,7 @@ body.stage-mode .app {
 }
 
 body.stage-mode .topbar {
-  grid-template-columns: auto minmax(150px, 250px) minmax(260px, 500px);
+  grid-template-columns: auto minmax(150px, 250px) max-content;
   gap: 8px;
   width: min(1440px, 100%);
   margin-bottom: 8px;
@@ -2801,24 +2804,24 @@ body.stage-mode .pad-time {
 
   .topbar,
   body.stage-mode .topbar {
-    grid-template-columns: minmax(150px, 0.65fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
     gap: 6px;
     margin-bottom: 6px;
   }
 
   .brand,
   body.stage-mode .brand {
-    grid-column: 1;
+    grid-column: 1 / -1;
   }
 
   .board-strip,
   body.stage-mode .board-strip {
-    grid-column: 2;
+    grid-column: 1;
   }
 
   .master-strip,
   body.stage-mode .master-strip {
-    grid-column: 1 / -1;
+    grid-column: 2;
   }
 
   .brand {
