@@ -2052,6 +2052,12 @@ body[data-skin="contrast"] .color-field {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.master-audio-fade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .audio-section .field-title {
   display: inline-flex;
   align-items: center;
@@ -2289,12 +2295,16 @@ body[data-skin="contrast"] .color-field {
   order: 1;
 }
 
-.help-section[aria-label="Audio"] {
+.help-section[aria-label="Audio pad"] {
   order: 2;
 }
 
 .help-section[aria-label="Pad edit"] {
   order: 3;
+}
+
+.help-section[aria-label="Audio master"] {
+  order: 4;
 }
 
 .help-section h3 {

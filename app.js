@@ -9,7 +9,8 @@ const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const MASTER_DUCK_ENABLED_STORAGE = "soundboard-live-ducking-enabled";
 const FADE_IN_STORAGE = "soundboard-live-fade-in-seconds";
-const MASTER_FADE_ENABLED_STORAGE = "soundboard-live-fade-enabled";
+const MASTER_FADE_IN_ENABLED_STORAGE = "soundboard-live-fade-in-enabled";
+const MASTER_FADE_OUT_ENABLED_STORAGE = "soundboard-live-fade-out-enabled";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
@@ -97,7 +98,8 @@ const els = {
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
-  masterFadeEnabled: document.querySelector("#masterFadeEnabled"),
+  masterFadeInEnabled: document.querySelector("#masterFadeInEnabled"),
+  masterFadeOutEnabled: document.querySelector("#masterFadeOutEnabled"),
   masterDuckEnabled: document.querySelector("#masterDuckEnabled"),
   masterAudioReset: document.querySelector("#masterAudioReset"),
   fadeInSeconds: document.querySelector("#fadeInSeconds"),
@@ -2153,8 +2155,17 @@ function duckingActive() {
   return duckAmount() > 0 && state.pads.some((pad) => pad.source && pad.duckTrigger);
 }
 
-function masterFadeEnabled() {
-  return Boolean(els.masterFadeEnabled?.checked);
+function masterFadeEnabled(type = "out") {
+  const control = type === "in" ? els.masterFadeInEnabled : els.masterFadeOutEnabled;
+  return Boolean(control?.checked);
+}
+
+function setMasterFadeEnabled(type, enabled) {
+  const control = type === "in" ? els.masterFadeInEnabled : els.masterFadeOutEnabled;
+  const storage = type === "in" ? MASTER_FADE_IN_ENABLED_STORAGE : MASTER_FADE_OUT_ENABLED_STORAGE;
+  if (control) control.checked = Boolean(enabled);
+  localStorage.setItem(storage, enabled ? "on" : "off");
+  updateMasterOptionBadges();
 }
 
 function masterDuckEnabled() {
@@ -2178,7 +2189,9 @@ function padOptionBadges(pad) {
 
 function updateMasterOptionBadges() {
   const items = [];
-  if (masterFadeEnabled() && (Number(els.fadeInSeconds?.value) > 0 || Number(els.fadeSeconds?.value) > 0)) items.push("Fade");
+  const fadeInActive = masterFadeEnabled("in") && Number(els.fadeInSeconds?.value) > 0;
+  const fadeOutActive = masterFadeEnabled("out") && Number(els.fadeSeconds?.value) > 0;
+  if (fadeInActive || fadeOutActive) items.push("Fade");
   if (masterDuckEnabled() && duckAmount() > 0) items.push("Ducking");
   const reverb = masterReverbSettings();
   if (reverb.preset !== "none" && reverb.wet > 0) items.push("Reverb");
@@ -2229,6 +2242,10 @@ function updatePadModeButtons(pad) {
 function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
   pad.fadeInEnabled = Boolean(fadeInEnabled);
   pad.fadeOutEnabled = Boolean(fadeOutEnabled);
+  if (pad.fadeMode !== "pad") {
+    if (pad.fadeInEnabled) setMasterFadeEnabled("in", true);
+    if (pad.fadeOutEnabled) setMasterFadeEnabled("out", true);
+  }
   if (pad.fadeInToggleEl) pad.fadeInToggleEl.checked = pad.fadeInEnabled;
   if (pad.fadeOutToggleEl) pad.fadeOutToggleEl.checked = pad.fadeOutEnabled;
   pad.node?.classList.toggle("has-fade-in", pad.fadeInEnabled);
@@ -2301,18 +2318,8 @@ function refreshBoardTagFilterOptions() {
   if (els.boardTagFilterLabel) {
     els.boardTagFilterLabel.textContent = state.boardEditMode ? "Modification groupée" : "Sélection groupée";
   }
-  els.boardTagFilter.innerHTML = '<option value="">-</option>';
+  els.boardTagFilter.innerHTML = "";
   if (state.boardEditMode) {
-    state.pads.forEach((pad) => {
-      const option = document.createElement("option");
-      option.value = `pad:${pad.index}`;
-      option.textContent = `${pad.index + 1}. ${pad.title}`;
-      els.boardTagFilter.append(option);
-    });
-    const separator = document.createElement("option");
-    separator.disabled = true;
-    separator.textContent = "-";
-    els.boardTagFilter.append(separator);
     audioOptionFilterOptions().forEach(({ value, label }) => {
       const option = document.createElement("option");
       option.value = value;
@@ -2320,6 +2327,7 @@ function refreshBoardTagFilterOptions() {
       els.boardTagFilter.append(option);
     });
   } else {
+    els.boardTagFilter.innerHTML = '<option value="">-</option>';
     boardTags().forEach((tag) => {
       const option = document.createElement("option");
       option.value = tag;
@@ -2947,14 +2955,16 @@ function resetAudioDialogSettings() {
 }
 
 function resetMasterAudioSettings() {
-  if (els.masterFadeEnabled) els.masterFadeEnabled.checked = false;
+  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = false;
+  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = false;
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = false;
   if (els.fadeInSeconds) els.fadeInSeconds.value = "2";
   if (els.fadeSeconds) els.fadeSeconds.value = "2";
   if (els.duckPercent) els.duckPercent.value = "60";
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
-  localStorage.setItem(MASTER_FADE_ENABLED_STORAGE, "off");
+  localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, "off");
+  localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "off");
   localStorage.setItem(FADE_IN_STORAGE, "2");
   localStorage.setItem(FADE_OUT_STORAGE, "2");
@@ -3150,7 +3160,7 @@ function fadeDurationForPad(pad, type = "out") {
     }
     return 0;
   }
-  if (!masterFadeEnabled()) return 0;
+  if (!masterFadeEnabled(type)) return 0;
   const globalInput = type === "in" ? els.fadeInSeconds : els.fadeSeconds;
   return Math.max(0, Number(globalInput?.value) || 0);
 }
@@ -3259,9 +3269,11 @@ function loadMasterReverbSettings() {
   }
   if (els.masterReverbPreset) els.masterReverbPreset.value = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, saved.preset) ? saved.preset : "none";
   if (els.masterReverbWet) els.masterReverbWet.value = String(Math.min(1, Math.max(0, Number(saved.wet ?? 0.5))));
-  const savedFadeEnabled = localStorage.getItem(MASTER_FADE_ENABLED_STORAGE);
+  const savedFadeInEnabled = localStorage.getItem(MASTER_FADE_IN_ENABLED_STORAGE);
+  const savedFadeOutEnabled = localStorage.getItem(MASTER_FADE_OUT_ENABLED_STORAGE);
   const savedDuckEnabled = localStorage.getItem(MASTER_DUCK_ENABLED_STORAGE);
-  if (els.masterFadeEnabled) els.masterFadeEnabled.checked = savedFadeEnabled == null ? true : savedFadeEnabled === "on";
+  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = savedFadeInEnabled == null ? true : savedFadeInEnabled === "on";
+  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = savedFadeOutEnabled == null ? true : savedFadeOutEnabled === "on";
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? true : savedDuckEnabled === "on";
   updateMasterReverbValue();
 }
@@ -3421,7 +3433,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   const now = state.audioContext.currentTime;
   const fadeTime = fadeDurationForPad(pad, "out");
   if (preservePosition && pad.duration) {
-  const elapsed = Math.max(0, (now - pad.startedAt) * pad.speedRate);
+    const elapsed = Math.max(0, (now - pad.startedAt) * pad.speedRate);
     const duration = playableDuration(pad);
     pad.resumeOffset = pad.loop ? elapsed % duration : Math.min(elapsed, duration);
   } else {
@@ -3433,14 +3445,24 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
       gain.gain.cancelAndHoldAtTime(now);
     } else {
       gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(targetPadGain(pad), now);
+      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || targetPadGain(pad)), now);
     }
     gain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
-    source.stop(now + fadeTime + 0.02);
+    try {
+      source.stop(now + fadeTime + 0.02);
+    } catch {
+      clearPlayingPad(pad, source, options.triggerEnd ?? true);
+      return;
+    }
     pad.stopAt = now + fadeTime + 0.02;
     setStatus(`${pad.title} fade out`);
   } else {
-    source.stop(now);
+    try {
+      source.stop(now);
+    } catch {
+      clearPlayingPad(pad, source, options.triggerEnd ?? true);
+      return;
+    }
     pad.stopAt = now;
     clearPlayingPad(pad, source, options.triggerEnd ?? true);
     setStatus(`${pad.title} stop`);
@@ -3764,8 +3786,12 @@ async function init() {
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) els.masterAudioDialog.close();
   });
-  els.masterFadeEnabled?.addEventListener("change", () => {
-    localStorage.setItem(MASTER_FADE_ENABLED_STORAGE, els.masterFadeEnabled.checked ? "on" : "off");
+  els.masterFadeInEnabled?.addEventListener("change", () => {
+    localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled.checked ? "on" : "off");
+    updateMasterOptionBadges();
+  });
+  els.masterFadeOutEnabled?.addEventListener("change", () => {
+    localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled.checked ? "on" : "off");
     updateMasterOptionBadges();
   });
   els.masterDuckEnabled?.addEventListener("change", () => {
