@@ -414,7 +414,7 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .master-strip {
-  --master-stop-size: 54px;
+  --master-stop-size: 44px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px var(--master-stop-size);
   grid-template-areas:
@@ -629,6 +629,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .master-title {
   grid-area: title;
   margin: 0;
+  font-weight: 500;
 }
 
 .master-volume-control {
@@ -645,6 +646,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .group-stop-control {
   grid-area: group;
+  align-self: start;
 }
 
 .master-option-badges {
@@ -656,12 +658,13 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .stop-all-control {
   grid-area: stop;
+  align-self: start;
 }
 
 .stop-all-control {
   display: grid;
-  grid-template-rows: auto 30px var(--master-stop-size);
-  gap: 4px;
+  grid-template-rows: auto 26px var(--master-stop-size);
+  gap: 3px;
   align-content: start;
   justify-items: stretch;
 }
@@ -686,6 +689,15 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   text-transform: uppercase;
 }
 
+.master-control.group-stop-control > span:first-child,
+.stop-all-control > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .master-control output {
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -695,7 +707,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .group-stop-row select {
   width: 100%;
   min-width: var(--stop-group-width, 8ch);
-  height: 30px;
+  height: 28px;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 9px;
@@ -714,17 +726,17 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .group-stop-row {
   display: grid;
   grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-  grid-template-rows: 30px var(--master-stop-size);
-  gap: 4px;
+  grid-template-rows: 28px var(--master-stop-size);
+  gap: 3px;
   min-width: 0;
 }
 
 .group-stop-control {
   min-width: calc(var(--stop-group-width, 8ch) + 54px);
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
-  padding: 4px 6px 6px;
+  padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(17, 19, 25, 0.42);
@@ -2009,9 +2021,12 @@ body[data-skin="contrast"] .color-field {
 
 .audio-toggle-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.35fr) minmax(90px, 0.55fr) minmax(126px, 0.75fr) minmax(150px, 0.85fr);
-  gap: 8px;
+  grid-template-columns: max-content max-content max-content max-content;
+  gap: 14px;
   align-items: center;
+  justify-content: space-between;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .audio-sections {
@@ -2154,7 +2169,8 @@ body[data-skin="contrast"] .color-field {
 
 .audio-option-badges {
   justify-content: flex-end;
-  margin: -6px 48px 8px 0;
+  flex-direction: row-reverse;
+  margin: -6px 0 8px 0;
 }
 
 .audio-fade-mode {
