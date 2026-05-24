@@ -124,7 +124,6 @@ const els = {
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
   audioReset: document.querySelector("#audioReset"),
-  audioLocate: document.querySelector("#audioLocate"),
   audioOptionBadges: document.querySelector("#audioOptionBadges"),
   audioWaveform: document.querySelector("#audioWaveform"),
   audioWaveformCanvas: document.querySelector("#audioWaveformCanvas"),
@@ -2842,7 +2841,6 @@ function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
   if (els.audioFilePath) els.audioFilePath.textContent = pad.audioPath || pad.audioName || "Aucun fichier";
-  if (els.audioLocate) els.audioLocate.hidden = !pad.audioPathTrusted;
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) els.audioMono.checked = pad.mono;
@@ -2912,18 +2910,6 @@ function refreshPlayingPadOutput(pad) {
   if (!pad?.source || !state.audioContext) return;
   const offset = playbackOffset(pad);
   playPad(pad, false, offset, { skipStartCrossfade: true }).catch(() => setStatus("Réglage audio impossible"));
-}
-
-function locateAudioFile(pad = state.audioPad) {
-  if (!pad) return;
-  if (pad.audioPathTrusted && pad.audioPath) {
-    navigator.clipboard?.writeText(pad.audioPath).then(
-      () => setStatus("Chemin audio copié"),
-      () => setStatus("Chemin audio affiché dans la fenêtre")
-    );
-    return;
-  }
-  setStatus("Localisation Finder indisponible dans le navigateur");
 }
 
 function resetAudioDialogSettings() {
@@ -3822,7 +3808,6 @@ async function init() {
     if (state.audioPad) state.audioPad.fileInput?.click();
   });
   els.audioReset?.addEventListener("click", resetAudioDialogSettings);
-  els.audioLocate?.addEventListener("click", () => locateAudioFile(state.audioPad));
   els.audioNormalize?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadNormalization(state.audioPad, els.audioNormalize.checked, state.audioPad.normalizedGain);
