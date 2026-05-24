@@ -2063,51 +2063,29 @@ body[data-skin="contrast"] .color-field {
   border: 0;
 }
 
-.master-audio-fade-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.master-fade-row {
-  min-width: 0;
-}
-
-.master-fade-settings {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.master-fade-labels,
-.master-fade-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.master-fade-labels {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.master-fade-control {
+.master-audio-control {
   display: grid !important;
-  grid-template-columns: 18px 22px minmax(58px, 1fr) !important;
+  grid-template-columns: 18px minmax(78px, 1fr) 22px minmax(58px, 74px) !important;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
 }
 
-.master-fade-control svg {
+.master-audio-control svg {
   width: 18px;
   height: 18px;
   color: var(--accent-2);
 }
 
-.master-fade-control input[type="checkbox"] {
+.master-audio-control span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.master-audio-control input[type="checkbox"] {
   width: 20px;
   height: 20px;
   accent-color: var(--accent);
