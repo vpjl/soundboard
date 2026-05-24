@@ -7,7 +7,9 @@ const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
+const MASTER_DUCK_ENABLED_STORAGE = "soundboard-live-ducking-enabled";
 const FADE_IN_STORAGE = "soundboard-live-fade-in-seconds";
+const MASTER_FADE_ENABLED_STORAGE = "soundboard-live-fade-enabled";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
@@ -95,6 +97,9 @@ const els = {
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
+  masterFadeEnabled: document.querySelector("#masterFadeEnabled"),
+  masterDuckEnabled: document.querySelector("#masterDuckEnabled"),
+  masterAudioReset: document.querySelector("#masterAudioReset"),
   fadeInSeconds: document.querySelector("#fadeInSeconds"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
@@ -102,6 +107,7 @@ const els = {
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
   stageMode: document.querySelector("#stageMode"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
+  boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   shortcutDialog: document.querySelector("#shortcutDialog"),
   closeShortcuts: document.querySelector("#closeShortcuts"),
@@ -486,6 +492,7 @@ function setBoardPadEditing(editing) {
   els.editPads?.setAttribute("aria-label", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
+  refreshBoardTagFilterOptions();
   setStatus(state.boardEditMode ? "Mode edit pads" : "Mode live");
 }
 
@@ -550,6 +557,7 @@ function makePad(index) {
     meterData: null,
     audioName: "",
     audioPath: "",
+    audioPathTrusted: false,
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -619,6 +627,7 @@ function makePad(index) {
   pad.volumeEl = node.querySelector("[data-volume]");
   pad.volumeValueEl = node.querySelector("[data-volume-value]");
   pad.panEl = node.querySelector("[data-pan]");
+  pad.panValueEl = node.querySelector("[data-pan-value]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
@@ -671,6 +680,7 @@ function makePad(index) {
   pad.volumeEl.value = pad.volume;
   updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
+  updatePadPanValue(pad);
   node.classList.add("is-empty");
 
   node.querySelector('[data-action="load"]').addEventListener("click", () => {
@@ -800,6 +810,7 @@ function makePad(index) {
 
   pad.panEl.addEventListener("input", () => {
     pad.panValue = Number(pad.panEl.value);
+    updatePadPanValue(pad);
     if (pad.pan) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
     savePadMeta(pad);
   });
@@ -945,6 +956,12 @@ function updatePadVolumeValue(pad) {
   if (pad?.volumeValueEl) pad.volumeValueEl.textContent = `${Math.round((Number(pad.volume) || 0) * 100)}%`;
 }
 
+function updatePadPanValue(pad) {
+  if (!pad?.panValueEl) return;
+  const value = Number(pad.panValue) || 0;
+  pad.panValueEl.textContent = Math.abs(value) < 0.005 ? "0" : value.toFixed(2).replace(/0$/, "").replace(/\.0$/, "");
+}
+
 function applyPadLayout(board = currentBoard()) {
   if (!els.pads) return;
   const layout = layoutForBoard(board);
@@ -960,19 +977,32 @@ function applyPadLayout(board = currentBoard()) {
 }
 
 function applyBoardTagFilter() {
-  const tag = String(els.boardTagFilter?.value || "").trim().toLowerCase();
+  const value = String(els.boardTagFilter?.value || "").trim();
   state.pads.forEach((pad) => {
-    const matches = !tag || padTagList(pad).includes(tag);
-    pad.node.classList.toggle("is-tag-match", Boolean(tag && matches));
-    pad.node.classList.toggle("is-tag-dimmed", Boolean(tag && !matches));
+    const matches = !value ? false : padsForBoardFilterValue(value).includes(pad);
+    pad.node.classList.toggle("is-tag-match", Boolean(value && matches));
+    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !matches));
   });
-  if (tag) setStatus(`Pads tag ${tag}`);
+  if (value) setStatus(`Pads sélectionnés`);
 }
 
 function padsForBoardTagSelection() {
-  const tag = String(els.boardTagFilter?.value || "").trim().toLowerCase();
-  if (!tag) return state.pads;
-  return state.pads.filter((pad) => padTagList(pad).includes(tag));
+  const value = String(els.boardTagFilter?.value || "").trim();
+  return padsForBoardFilterValue(value);
+}
+
+function padsForBoardFilterValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return [];
+  if (normalized.startsWith("pad:")) {
+    const index = Number(normalized.slice(4));
+    return Number.isInteger(index) && state.pads[index] ? [state.pads[index]] : [];
+  }
+  if (normalized.startsWith("option:")) {
+    const option = normalized.slice(7);
+    return state.pads.filter((pad) => padMatchesAudioOption(pad, option));
+  }
+  return state.pads.filter((pad) => padTagList(pad).includes(normalized));
 }
 
 function syncBulkTemplateFields(pad) {
@@ -991,13 +1021,13 @@ function openBulkEditDialog() {
   let pads = padsForBoardTagSelection();
   const selectedTag = String(els.boardTagFilter?.value || "").trim();
   if (!pads.length) {
-    window.alert("sélectionner des pads avec le menu tag du cadre board");
+    window.alert("Sélectionner des pads avec le menu Modification groupée du cadre board");
     return;
   }
   if (!selectedTag || pads.length === state.pads.length) {
     const shouldEditAll = window.confirm("Modifier tous les pads ?");
     if (!shouldEditAll) {
-      window.alert("sélectionner des pads avec le menu tag du cadre board");
+      window.alert("Sélectionner des pads avec le menu Modification groupée du cadre board");
       return;
     }
     pads = state.pads;
@@ -1040,6 +1070,7 @@ async function applyBulkEdit() {
     if (els.bulkApplyPan?.checked) {
       pad.panValue = Number(els.bulkPan?.value) || 0;
       if (pad.panEl) pad.panEl.value = String(pad.panValue);
+      updatePadPanValue(pad);
       if (pad.pan && state.audioContext) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
     }
     if (els.bulkApplyTags?.checked) {
@@ -1573,6 +1604,7 @@ async function exportCurrentBoard(includeAudio = true) {
       audio: includeAudio && saved?.audio ? {
         name: saved.name || `Pad ${index + 1}`,
         path: saved.path || meta?.audioPath || saved.name || `Pad ${index + 1}`,
+        pathTrusted: Boolean(saved.pathTrusted || meta?.audioPathTrusted),
         type: saved.type || "audio/mpeg",
         data: arrayBufferToBase64(saved.audio),
       } : null,
@@ -1676,6 +1708,7 @@ async function importBoardFile(file) {
       await dbSet(padAudioKey(transientPad), {
         name: item.audio.name || meta.title,
         path: item.audio.path || item.audio.name || meta.title,
+        pathTrusted: Boolean(item.audio.pathTrusted),
         title: meta.title,
         type: item.audio.type || "audio/mpeg",
         audio: base64ToArrayBuffer(item.audio.data),
@@ -1807,15 +1840,17 @@ async function repairAccidentalPadTitles() {
 async function loadFileIntoPad(pad, file) {
   await ensureAudio();
   const arrayBuffer = await file.arrayBuffer();
-  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, file.path || file.webkitRelativePath || file.name);
+  const exposedPath = file.path || file.webkitRelativePath || "";
+  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath));
 }
 
-async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "") {
+async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false) {
   await ensureAudio();
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   pad.buffer = buffer;
   pad.audioName = name;
   pad.audioPath = path || name;
+  pad.audioPathTrusted = Boolean(pathTrusted && path);
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, cleanName(name));
@@ -1825,6 +1860,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "") {
   await dbSet(padAudioKey(pad), {
     name,
     path: pad.audioPath,
+    pathTrusted: pad.audioPathTrusted,
     title: pad.title,
     type,
     audio: arrayBuffer,
@@ -1979,6 +2015,7 @@ async function restorePad(pad) {
     pad.volumeEl.value = pad.volume;
     updatePadVolumeValue(pad);
     pad.panEl.value = pad.panValue;
+    updatePadPanValue(pad);
   }
 
   const saved = await dbGet(padAudioKey(pad));
@@ -1988,6 +2025,7 @@ async function restorePad(pad) {
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
   pad.audioName = saved.name || "";
   pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
+  pad.audioPathTrusted = Boolean(meta?.audioPathTrusted || saved.pathTrusted);
   pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
@@ -2031,6 +2069,7 @@ async function restorePad(pad) {
   pad.volumeEl.value = pad.volume;
   updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
+  updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
 }
 
@@ -2062,6 +2101,7 @@ async function savePadMeta(pad) {
     visualImageHidden: pad.visualImageHidden,
     visualKind: pad.visualKind,
     audioPath: pad.audioPath,
+    audioPathTrusted: pad.audioPathTrusted,
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
@@ -2113,6 +2153,14 @@ function duckingActive() {
   return duckAmount() > 0 && state.pads.some((pad) => pad.source && pad.duckTrigger);
 }
 
+function masterFadeEnabled() {
+  return Boolean(els.masterFadeEnabled?.checked);
+}
+
+function masterDuckEnabled() {
+  return Boolean(els.masterDuckEnabled?.checked);
+}
+
 function badgeMarkup(items) {
   return items.map((item) => `<span class="option-badge">${item}</span>`).join("");
 }
@@ -2121,6 +2169,7 @@ function padOptionBadges(pad) {
   const items = [];
   if (pad.loop) items.push("Loop");
   if (pad.duckTrigger) items.push("Duck");
+  if (pad.mono) items.push("Mono");
   if (pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled) items.push("Fade");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xfade");
@@ -2129,8 +2178,8 @@ function padOptionBadges(pad) {
 
 function updateMasterOptionBadges() {
   const items = [];
-  if (Number(els.fadeInSeconds?.value) > 0 || Number(els.fadeSeconds?.value) > 0) items.push("Fade");
-  if (duckAmount() > 0) items.push("Ducking");
+  if (masterFadeEnabled() && (Number(els.fadeInSeconds?.value) > 0 || Number(els.fadeSeconds?.value) > 0)) items.push("Fade");
+  if (masterDuckEnabled() && duckAmount() > 0) items.push("Ducking");
   const reverb = masterReverbSettings();
   if (reverb.preset !== "none" && reverb.wet > 0) items.push("Reverb");
   if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
@@ -2185,6 +2234,7 @@ function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
   pad.node?.classList.toggle("has-fade-in", pad.fadeInEnabled);
   pad.node?.classList.toggle("has-fade-out", pad.fadeOutEnabled);
   updatePadAlerts(pad);
+  if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function setPadLoop(pad, loop) {
@@ -2192,6 +2242,7 @@ function setPadLoop(pad, loop) {
   pad.loopEl?.classList.toggle("is-active", pad.loop);
   pad.loopEl?.setAttribute("aria-pressed", String(pad.loop));
   updatePadAlerts(pad);
+  if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function setPadDuckTrigger(pad, duckTrigger) {
@@ -2199,6 +2250,7 @@ function setPadDuckTrigger(pad, duckTrigger) {
   pad.duckEl?.classList.toggle("is-active", pad.duckTrigger);
   pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
   updatePadAlerts(pad);
+  if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function setPadTags(pad, tags) {
@@ -2246,16 +2298,58 @@ function boardTags() {
 function refreshBoardTagFilterOptions() {
   if (!els.boardTagFilter) return;
   const currentValue = els.boardTagFilter.value;
-  const tags = boardTags();
-  els.boardTagFilter.innerHTML = '<option value="">Tous</option>';
-  tags.forEach((tag) => {
-    const option = document.createElement("option");
-    option.value = tag;
-    option.textContent = tag;
-    els.boardTagFilter.append(option);
-  });
-  els.boardTagFilter.value = tags.includes(currentValue) ? currentValue : "";
+  if (els.boardTagFilterLabel) {
+    els.boardTagFilterLabel.textContent = state.boardEditMode ? "Modification groupée" : "Sélection groupée";
+  }
+  els.boardTagFilter.innerHTML = '<option value="">-</option>';
+  if (state.boardEditMode) {
+    state.pads.forEach((pad) => {
+      const option = document.createElement("option");
+      option.value = `pad:${pad.index}`;
+      option.textContent = `${pad.index + 1}. ${pad.title}`;
+      els.boardTagFilter.append(option);
+    });
+    const separator = document.createElement("option");
+    separator.disabled = true;
+    separator.textContent = "-";
+    els.boardTagFilter.append(separator);
+    audioOptionFilterOptions().forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      els.boardTagFilter.append(option);
+    });
+  } else {
+    boardTags().forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = tag;
+      option.textContent = tag;
+      els.boardTagFilter.append(option);
+    });
+  }
+  els.boardTagFilter.value = [...els.boardTagFilter.options].some((option) => option.value === currentValue && !option.disabled) ? currentValue : "";
   applyBoardTagFilter();
+}
+
+function audioOptionFilterOptions() {
+  return [
+    { value: "option:loop", label: "Loop" },
+    { value: "option:duck", label: "Ducking" },
+    { value: "option:fade", label: "Fade" },
+    { value: "option:reverb", label: "Reverb" },
+    { value: "option:crossfade", label: "Crossfade" },
+    { value: "option:mono", label: "Mono" },
+  ].filter(({ value }) => state.pads.some((pad) => padMatchesAudioOption(pad, value.slice(7))));
+}
+
+function padMatchesAudioOption(pad, option) {
+  if (option === "loop") return pad.loop;
+  if (option === "duck") return pad.duckTrigger;
+  if (option === "fade") return pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled;
+  if (option === "reverb") return pad.reverbMode === "pad" && pad.reverbPreset !== "none";
+  if (option === "crossfade") return pad.startStopMode !== "none" || pad.endStartMode !== "none";
+  if (option === "mono") return pad.mono;
+  return false;
 }
 
 function fillCrossfadeTargetSelect(select, selectedValue = "") {
@@ -2331,6 +2425,7 @@ function setPadAudioSettings(pad, settings = {}) {
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
   pad.mono = Boolean(settings.mono ?? pad.mono);
   updatePadAlerts(pad);
+  if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
@@ -2405,6 +2500,7 @@ function setPadCrossfade(pad, rule = {}) {
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
   if (pad.endStartTargetEl) pad.endStartTargetEl.value = pad.endStartTarget;
   updatePadAlerts(pad);
+  if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function numericInputValue(value) {
@@ -2738,6 +2834,7 @@ function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
   if (els.audioFilePath) els.audioFilePath.textContent = pad.audioPath || pad.audioName || "Aucun fichier";
+  if (els.audioLocate) els.audioLocate.hidden = !pad.audioPathTrusted;
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) els.audioMono.checked = pad.mono;
@@ -2811,7 +2908,7 @@ function refreshPlayingPadOutput(pad) {
 
 function locateAudioFile(pad = state.audioPad) {
   if (!pad) return;
-  if (pad.audioPath && pad.audioPath !== pad.audioName) {
+  if (pad.audioPathTrusted && pad.audioPath) {
     navigator.clipboard?.writeText(pad.audioPath).then(
       () => setStatus("Chemin audio copié"),
       () => setStatus("Chemin audio affiché dans la fenêtre")
@@ -2839,8 +2936,35 @@ function resetAudioDialogSettings() {
   setPadNormalization(pad, true, pad.normalizedGain);
   setPadLoop(pad, false);
   setPadDuckTrigger(pad, false);
+  setPadCrossfade(pad, {
+    startStopMode: "none",
+    startStopTag: "",
+    endStartMode: "none",
+    endStartTarget: "",
+  });
   syncAudioDialog(pad);
   savePadMeta(pad);
+}
+
+function resetMasterAudioSettings() {
+  if (els.masterFadeEnabled) els.masterFadeEnabled.checked = false;
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = false;
+  if (els.fadeInSeconds) els.fadeInSeconds.value = "2";
+  if (els.fadeSeconds) els.fadeSeconds.value = "2";
+  if (els.duckPercent) els.duckPercent.value = "60";
+  if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
+  if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
+  localStorage.setItem(MASTER_FADE_ENABLED_STORAGE, "off");
+  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "off");
+  localStorage.setItem(FADE_IN_STORAGE, "2");
+  localStorage.setItem(FADE_OUT_STORAGE, "2");
+  localStorage.setItem(DUCKING_STORAGE, "60");
+  saveMasterReverbSettings();
+  updateMasterReverbValue();
+  applyMasterReverb();
+  applyDucking();
+  updateMasterOptionBadges();
+  setStatus("Audio master réinitialisé");
 }
 
 function syncImageDialog(pad = state.imagePad) {
@@ -3002,6 +3126,7 @@ function bindPadProgress(pad) {
 }
 
 function duckAmount() {
+  if (!masterDuckEnabled()) return 0;
   return Math.min(100, Math.max(0, Number(els.duckPercent?.value) || 0)) / 100;
 }
 
@@ -3025,6 +3150,7 @@ function fadeDurationForPad(pad, type = "out") {
     }
     return 0;
   }
+  if (!masterFadeEnabled()) return 0;
   const globalInput = type === "in" ? els.fadeInSeconds : els.fadeSeconds;
   return Math.max(0, Number(globalInput?.value) || 0);
 }
@@ -3133,6 +3259,10 @@ function loadMasterReverbSettings() {
   }
   if (els.masterReverbPreset) els.masterReverbPreset.value = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, saved.preset) ? saved.preset : "none";
   if (els.masterReverbWet) els.masterReverbWet.value = String(Math.min(1, Math.max(0, Number(saved.wet ?? 0.5))));
+  const savedFadeEnabled = localStorage.getItem(MASTER_FADE_ENABLED_STORAGE);
+  const savedDuckEnabled = localStorage.getItem(MASTER_DUCK_ENABLED_STORAGE);
+  if (els.masterFadeEnabled) els.masterFadeEnabled.checked = savedFadeEnabled == null ? true : savedFadeEnabled === "on";
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? true : savedDuckEnabled === "on";
   updateMasterReverbValue();
 }
 
@@ -3630,8 +3760,18 @@ async function init() {
     }
   });
   els.closeMasterAudio?.addEventListener("click", () => els.masterAudioDialog?.close());
+  els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) els.masterAudioDialog.close();
+  });
+  els.masterFadeEnabled?.addEventListener("change", () => {
+    localStorage.setItem(MASTER_FADE_ENABLED_STORAGE, els.masterFadeEnabled.checked ? "on" : "off");
+    updateMasterOptionBadges();
+  });
+  els.masterDuckEnabled?.addEventListener("change", () => {
+    localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled.checked ? "on" : "off");
+    applyDucking();
+    updateMasterOptionBadges();
   });
   [els.masterReverbPreset, els.masterReverbWet].forEach((element) => {
     element?.addEventListener("input", () => {
