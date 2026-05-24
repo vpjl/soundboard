@@ -416,12 +416,13 @@ body.board-edit-mode .board-layout-controls {
 .master-strip {
   --master-stop-size: 44px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-columns: minmax(76px, 88px) minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-rows: auto minmax(42px, 1fr) auto auto;
   grid-template-areas:
-    "title title vu stop"
-    "master master master stop"
-    "audio audio audio group"
-    "badges badges badges group";
+    "title title title vu stop"
+    "master . . vu stop"
+    "master audio audio audio group"
+    "master badges badges badges group";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -635,6 +636,17 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .master-volume-control {
   grid-area: master;
+  grid-template-rows: auto minmax(96px, 1fr);
+  align-self: stretch;
+}
+
+.master-volume-control input[type="range"] {
+  justify-self: center;
+  width: 34px;
+  height: 100%;
+  min-height: 112px;
+  writing-mode: vertical-lr;
+  direction: rtl;
 }
 
 .master-audio-button {
@@ -2602,12 +2614,12 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-columns: minmax(76px, 88px) minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
-    "title title vu stop"
-    "master master master stop"
-    "audio audio audio group"
-    "badges badges badges group";
+    "title title title vu stop"
+    "master . . vu stop"
+    "master audio audio audio group"
+    "master badges badges badges group";
 }
 
 body.stage-mode .deck {
@@ -2670,12 +2682,12 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
+    grid-template-columns: minmax(64px, 76px) minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title title vu stop"
-      "master master master stop"
-      "audio audio audio group"
-      "badges badges badges group";
+      "title title title vu stop"
+      "master . . vu stop"
+      "master audio audio audio group"
+      "master badges badges badges group";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -2903,12 +2915,12 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
+    grid-template-columns: minmax(64px, 76px) minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title title vu stop"
-      "master master master stop"
-      "audio audio audio group"
-      "badges badges badges group";
+      "title title title vu stop"
+      "master . . vu stop"
+      "master audio audio audio group"
+      "master badges badges badges group";
     align-items: stretch;
   }
 
@@ -3087,14 +3099,23 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
-    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(70px, 86px);
+    grid-template-columns: minmax(58px, 68px) minmax(0, 1fr) 34px 8px minmax(70px, 86px);
     grid-template-areas:
-      "title title vu stop"
-      "master master master stop"
-      "audio audio audio group"
-      "badges badges badges group";
+      "title title title vu stop"
+      "master . . vu stop"
+      "master audio audio audio group"
+      "master badges badges badges group";
     gap: 6px;
     overflow: hidden;
+  }
+
+  .master-volume-control {
+    grid-template-rows: auto minmax(104px, 1fr);
+  }
+
+  .master-volume-control input[type="range"] {
+    width: 30px;
+    min-height: 104px;
   }
 
   .group-stop-control {
