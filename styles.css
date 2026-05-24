@@ -416,11 +416,11 @@ body.board-edit-mode .board-layout-controls {
 .master-strip {
   --master-stop-size: 44px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px var(--master-stop-size);
+  grid-template-columns: minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
-    "title audio group vu stop"
-    "master master group vu stop"
-    "badges badges group vu stop";
+    "title audio vu stop"
+    "master master master stop"
+    "badges badges badges group";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -663,10 +663,15 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .stop-all-control {
   display: grid;
-  grid-template-rows: auto 26px var(--master-stop-size);
+  grid-template-rows: auto var(--master-stop-size);
   gap: 3px;
   align-content: start;
   justify-items: stretch;
+  min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  padding: 3px 6px 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.42);
 }
 
 .group-stop-control > span:first-child,
@@ -791,7 +796,7 @@ button.is-pressed {
 }
 
 #stopAll {
-  grid-row: 3;
+  grid-row: 2;
   justify-self: center;
   width: var(--master-stop-size);
   height: var(--master-stop-size);
@@ -2020,11 +2025,11 @@ body[data-skin="contrast"] .color-field {
 }
 
 .audio-toggle-row {
-  display: grid;
-  grid-template-columns: max-content max-content max-content max-content;
-  gap: 14px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 18px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -2169,7 +2174,7 @@ body[data-skin="contrast"] .color-field {
 
 .audio-option-badges {
   justify-content: flex-end;
-  flex-direction: row-reverse;
+  flex-direction: row;
   margin: -6px 0 8px 0;
 }
 
@@ -2241,7 +2246,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .audio-normalize-field {
-  grid-template-columns: auto minmax(0, max-content) auto auto;
+  grid-template-columns: 18px max-content 24px max-content;
 }
 
 .audio-toggle-block {
@@ -2251,6 +2256,11 @@ body[data-skin="contrast"] .color-field {
   align-items: center;
   justify-content: start;
   min-width: 0;
+  flex: 0 0 auto;
+}
+
+.audio-toggle-block.audio-normalize-field {
+  grid-template-columns: 18px max-content 24px max-content;
 }
 
 .audio-mono-field {
@@ -2587,11 +2597,11 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px var(--master-stop-size);
+  grid-template-columns: minmax(0, 1fr) 42px 18px minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
-    "title audio group vu stop"
-    "master master group vu stop"
-    "badges badges group vu stop";
+    "title audio vu stop"
+    "master master master stop"
+    "badges badges badges group";
 }
 
 body.stage-mode .deck {
@@ -2654,11 +2664,11 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px var(--master-stop-size);
+    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title audio group vu stop"
-      "master master group vu stop"
-      "badges badges group vu stop";
+      "title audio vu stop"
+      "master master master stop"
+      "badges badges badges group";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -2886,11 +2896,11 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px var(--master-stop-size);
+    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
-      "title audio group vu stop"
-      "master master group vu stop"
-      "badges badges group vu stop";
+      "title audio vu stop"
+      "master master master stop"
+      "badges badges badges group";
     align-items: stretch;
   }
 
@@ -3063,11 +3073,11 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 0.82fr) 8px var(--master-stop-size);
+    grid-template-columns: minmax(0, 1fr) 34px 8px minmax(0, 0.82fr);
     grid-template-areas:
-      "title audio group vu stop"
-      "master master group vu stop"
-      "badges badges group vu stop";
+      "title audio vu stop"
+      "master master master stop"
+      "badges badges badges group";
     gap: 6px;
     overflow: hidden;
   }
