@@ -138,6 +138,7 @@ const els = {
   audioMono: document.querySelector("#audioMono"),
   audioLoop: document.querySelector("#audioLoop"),
   audioDuck: document.querySelector("#audioDuck"),
+  audioFadeNone: document.querySelector("#audioFadeNone"),
   audioFadeGlobal: document.querySelector("#audioFadeGlobal"),
   audioFadePad: document.querySelector("#audioFadePad"),
   audioPadFadeFields: document.querySelector("#audioPadFadeFields"),
@@ -151,6 +152,7 @@ const els = {
   audioReverbPreset: document.querySelector("#audioReverbPreset"),
   audioReverbWet: document.querySelector("#audioReverbWet"),
   audioReverbValue: document.querySelector("#audioReverbValue"),
+  audioReverbNone: document.querySelector("#audioReverbNone"),
   audioReverbGlobal: document.querySelector("#audioReverbGlobal"),
   audioReverbPad: document.querySelector("#audioReverbPad"),
   audioPadReverbFields: document.querySelector("#audioPadReverbFields"),
@@ -254,6 +256,30 @@ function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+function audioFileType(pad) {
+  const extension = String(pad.audioName || pad.audioPath || "").split(".").pop()?.toLowerCase();
+  if (extension && extension.length <= 5 && extension !== pad.audioName) return extension;
+  const type = String(pad.audioType || "").toLowerCase();
+  if (type.includes("mpeg")) return "mp3";
+  if (type.includes("wav")) return "wav";
+  if (type.includes("mp4") || type.includes("aac")) return "m4a";
+  if (type.includes("ogg")) return "ogg";
+  if (type.includes("flac")) return "flac";
+  return "audio";
+}
+
+function formatSampleRate(sampleRate = 0) {
+  if (!sampleRate) return "-- kHz";
+  const khz = sampleRate / 1000;
+  return `${Number.isInteger(khz) ? khz : khz.toFixed(1)} kHz`;
+}
+
+function audioCharacteristics(pad) {
+  if (!pad?.buffer) return "Aucun fichier";
+  const channels = pad.buffer.numberOfChannels === 1 ? "mono" : "stéréo";
+  return `${audioFileType(pad)} · ${channels} · ${formatTime(pad.buffer.duration)} · ${formatSampleRate(pad.buffer.sampleRate)}`;
 }
 
 function cleanName(name) {
@@ -2180,7 +2206,7 @@ function padOptionBadges(pad) {
   if (pad.loop) items.push("Loop");
   if (pad.duckTrigger) items.push("Duck");
   if (pad.mono) items.push("Mono");
-  if (pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled) items.push("Fade");
+  if ((pad.fadeMode !== "none" && pad.fadeMode === "pad") || pad.fadeInEnabled || pad.fadeOutEnabled) items.push("Fade");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xfade");
   return items;
@@ -2215,7 +2241,7 @@ function updatePadAlerts(pad) {
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger);
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
-  pad.node.classList.toggle("has-audio-fade", pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled);
+  pad.node.classList.toggle("has-audio-fade", (pad.fadeMode !== "none" && pad.fadeMode === "pad") || pad.fadeInEnabled || pad.fadeOutEnabled);
   pad.node.classList.toggle("has-reverb", pad.reverbMode === "pad" && pad.reverbPreset !== "none");
   pad.node.classList.toggle("has-crossfade", pad.startStopMode !== "none" || pad.endStartMode !== "none");
 }
@@ -2352,7 +2378,7 @@ function audioOptionFilterOptions() {
 function padMatchesAudioOption(pad, option) {
   if (option === "loop") return pad.loop;
   if (option === "duck") return pad.duckTrigger;
-  if (option === "fade") return pad.fadeMode === "pad" || pad.fadeInEnabled || pad.fadeOutEnabled;
+  if (option === "fade") return (pad.fadeMode !== "none" && pad.fadeMode === "pad") || pad.fadeInEnabled || pad.fadeOutEnabled;
   if (option === "reverb") return pad.reverbMode === "pad" && pad.reverbPreset !== "none";
   if (option === "crossfade") return pad.startStopMode !== "none" || pad.endStartMode !== "none";
   if (option === "mono") return pad.mono;
@@ -2421,14 +2447,15 @@ function normalizeOptionalSeconds(value) {
 }
 
 function setPadAudioSettings(pad, settings = {}) {
-  pad.fadeMode = ["global", "pad"].includes(settings.fadeMode) ? settings.fadeMode : (pad.fadeMode || "global");
+  pad.fadeMode = ["none", "global", "pad"].includes(settings.fadeMode) ? settings.fadeMode : (pad.fadeMode || "global");
   pad.fadeInSeconds = normalizeOptionalSeconds(settings.fadeInSeconds ?? settings.fadeSeconds ?? pad.fadeInSeconds);
   pad.fadeOutSeconds = normalizeOptionalSeconds(settings.fadeOutSeconds ?? settings.fadeSeconds ?? pad.fadeOutSeconds);
   pad.pitchSemitones = Math.min(12, Math.max(-12, Number(settings.pitchSemitones) || 0));
   pad.pitchFine = Math.min(100, Math.max(-100, Number(settings.pitchFine) || 0));
   pad.speedRate = 1;
-  pad.reverbMode = ["global", "pad"].includes(settings.reverbMode) ? settings.reverbMode : (pad.reverbMode || "global");
-  pad.reverbPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : "none";
+  pad.reverbMode = ["none", "global", "pad"].includes(settings.reverbMode) ? settings.reverbMode : (pad.reverbMode || "global");
+  const nextPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : (pad.reverbPreset || "hall");
+  pad.reverbPreset = pad.reverbMode === "pad" && nextPreset === "none" ? "hall" : nextPreset;
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
   pad.mono = Boolean(settings.mono ?? pad.mono);
   updatePadAlerts(pad);
@@ -2840,7 +2867,7 @@ function bindAudioDialogTrim() {
 function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
-  if (els.audioFilePath) els.audioFilePath.textContent = pad.audioPath || pad.audioName || "Aucun fichier";
+  if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) els.audioMono.checked = pad.mono;
@@ -2854,7 +2881,8 @@ function syncAudioDialog(pad = state.audioPad) {
     els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
     els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
   }
-  if (els.audioFadeGlobal) els.audioFadeGlobal.checked = pad.fadeMode !== "pad";
+  if (els.audioFadeNone) els.audioFadeNone.checked = pad.fadeMode === "none";
+  if (els.audioFadeGlobal) els.audioFadeGlobal.checked = pad.fadeMode !== "none" && pad.fadeMode !== "pad";
   if (els.audioFadePad) els.audioFadePad.checked = pad.fadeMode === "pad";
   if (els.audioPadFadeFields) els.audioPadFadeFields.hidden = pad.fadeMode !== "pad";
   if (els.audioFadeIn) els.audioFadeIn.value = pad.fadeInSeconds === "" ? "" : String(pad.fadeInSeconds);
@@ -2869,10 +2897,11 @@ function syncAudioDialog(pad = state.audioPad) {
   }
   if (els.audioSpeed) els.audioSpeed.value = String(pad.speedRate);
   if (els.audioSpeedValue) els.audioSpeedValue.textContent = `${pad.speedRate.toFixed(2)}x`;
-  if (els.audioReverbGlobal) els.audioReverbGlobal.checked = pad.reverbMode !== "pad";
+  if (els.audioReverbNone) els.audioReverbNone.checked = pad.reverbMode === "none";
+  if (els.audioReverbGlobal) els.audioReverbGlobal.checked = pad.reverbMode !== "none" && pad.reverbMode !== "pad";
   if (els.audioReverbPad) els.audioReverbPad.checked = pad.reverbMode === "pad";
   if (els.audioPadReverbFields) els.audioPadReverbFields.hidden = pad.reverbMode !== "pad";
-  if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset;
+  if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset === "none" ? "hall" : pad.reverbPreset;
   if (els.audioReverbWet) els.audioReverbWet.value = String(pad.reverbWet);
   if (els.audioReverbValue) els.audioReverbValue.textContent = `${Math.round(pad.reverbWet * 100)}%`;
   updateAudioOptionBadges(pad);
@@ -3136,6 +3165,7 @@ function targetPadGain(pad) {
 }
 
 function fadeDurationForPad(pad, type = "out") {
+  if (pad.fadeMode === "none") return 0;
   const padValue = type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds;
   if (pad.fadeMode === "pad") {
     if (padValue !== "" && Number.isFinite(Number(padValue))) {
@@ -3284,8 +3314,9 @@ function padHasPadReverb(pad) {
 }
 
 function connectPadOutput(pad, pan, analyser) {
-  const output = padHasPadReverb(pad) ? state.masterBypassGain : state.masterGain;
-  if (!state.audioContext || !padHasPadReverb(pad)) {
+  const hasPadReverb = padHasPadReverb(pad);
+  const output = hasPadReverb || pad.reverbMode === "none" ? state.masterBypassGain : state.masterGain;
+  if (!state.audioContext || !hasPadReverb) {
     pan.connect(analyser).connect(output);
     return;
   }
@@ -3838,10 +3869,10 @@ async function init() {
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
-  [els.audioFadeGlobal, els.audioFadePad].forEach((element) => {
+  [els.audioFadeNone, els.audioFadeGlobal, els.audioFadePad].forEach((element) => {
     element?.addEventListener("change", () => {
       if (!state.audioPad) return;
-      const nextMode = els.audioFadePad?.checked ? "pad" : "global";
+      const nextMode = els.audioFadeNone?.checked ? "none" : (els.audioFadePad?.checked ? "pad" : "global");
       if (nextMode === "pad") {
         if (state.audioPad.fadeInSeconds === "") state.audioPad.fadeInSeconds = 2;
         if (state.audioPad.fadeOutSeconds === "") state.audioPad.fadeOutSeconds = 2;
@@ -3855,12 +3886,12 @@ async function init() {
       savePadMeta(state.audioPad);
     });
   });
-  [els.audioReverbGlobal, els.audioReverbPad].forEach((element) => {
+  [els.audioReverbNone, els.audioReverbGlobal, els.audioReverbPad].forEach((element) => {
     element?.addEventListener("change", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
-        reverbMode: els.audioReverbPad?.checked ? "pad" : "global",
-        reverbPreset: state.audioPad.reverbPreset,
+        reverbMode: els.audioReverbNone?.checked ? "none" : (els.audioReverbPad?.checked ? "pad" : "global"),
+        reverbPreset: state.audioPad.reverbPreset === "none" ? "hall" : state.audioPad.reverbPreset,
         reverbWet: state.audioPad.reverbWet,
       });
       refreshPlayingPadOutput(state.audioPad);
@@ -3872,12 +3903,12 @@ async function init() {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
-        fadeMode: els.audioFadePad?.checked ? "pad" : "global",
+        fadeMode: els.audioFadeNone?.checked ? "none" : (els.audioFadePad?.checked ? "pad" : "global"),
         fadeInSeconds: els.audioFadeIn?.value,
         fadeOutSeconds: els.audioFadeOut?.value,
         pitchSemitones: els.audioPitchSemitones?.value,
         pitchFine: els.audioPitchFine?.value,
-        reverbMode: els.audioReverbPad?.checked ? "pad" : "global",
+        reverbMode: els.audioReverbNone?.checked ? "none" : (els.audioReverbPad?.checked ? "pad" : "global"),
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
       });
