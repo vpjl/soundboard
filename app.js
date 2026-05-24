@@ -7,6 +7,7 @@ const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
+const FADE_IN_STORAGE = "soundboard-live-fade-in-seconds";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
@@ -94,6 +95,7 @@ const els = {
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
+  fadeInSeconds: document.querySelector("#fadeInSeconds"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
   stopGroup: document.querySelector("#stopGroup"),
@@ -114,6 +116,7 @@ const els = {
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
   audioReset: document.querySelector("#audioReset"),
+  audioLocate: document.querySelector("#audioLocate"),
   audioOptionBadges: document.querySelector("#audioOptionBadges"),
   audioWaveform: document.querySelector("#audioWaveform"),
   audioWaveformCanvas: document.querySelector("#audioWaveformCanvas"),
@@ -614,6 +617,7 @@ function makePad(index) {
   pad.fadeInToggleEl = node.querySelector("[data-fade-in-toggle]");
   pad.fadeOutToggleEl = node.querySelector("[data-fade-out-toggle]");
   pad.volumeEl = node.querySelector("[data-volume]");
+  pad.volumeValueEl = node.querySelector("[data-volume-value]");
   pad.panEl = node.querySelector("[data-pan]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
@@ -665,6 +669,7 @@ function makePad(index) {
   setPadLoop(pad, pad.loop);
   setPadDuckTrigger(pad, pad.duckTrigger);
   pad.volumeEl.value = pad.volume;
+  updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
   node.classList.add("is-empty");
 
@@ -788,6 +793,7 @@ function makePad(index) {
 
   pad.volumeEl.addEventListener("input", () => {
     pad.volume = Number(pad.volumeEl.value);
+    updatePadVolumeValue(pad);
     if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
     savePadMeta(pad);
   });
@@ -935,6 +941,10 @@ function setMasterVolume(value, persist = true) {
   }
 }
 
+function updatePadVolumeValue(pad) {
+  if (pad?.volumeValueEl) pad.volumeValueEl.textContent = `${Math.round((Number(pad.volume) || 0) * 100)}%`;
+}
+
 function applyPadLayout(board = currentBoard()) {
   if (!els.pads) return;
   const layout = layoutForBoard(board);
@@ -1024,6 +1034,7 @@ async function applyBulkEdit() {
     if (els.bulkApplyVolume?.checked) {
       pad.volume = Number(els.bulkVolume?.value) || 0;
       if (pad.volumeEl) pad.volumeEl.value = String(pad.volume);
+      updatePadVolumeValue(pad);
       if (pad.gain && state.audioContext) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
     }
     if (els.bulkApplyPan?.checked) {
@@ -1966,6 +1977,7 @@ async function restorePad(pad) {
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.volumeEl.value = pad.volume;
+    updatePadVolumeValue(pad);
     pad.panEl.value = pad.panValue;
   }
 
@@ -2017,6 +2029,7 @@ async function restorePad(pad) {
   setPadDuration(pad, pad.buffer.duration);
   renderWaveform(pad);
   pad.volumeEl.value = pad.volume;
+  updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
   pad.node.classList.remove("is-empty");
 }
@@ -2116,7 +2129,7 @@ function padOptionBadges(pad) {
 
 function updateMasterOptionBadges() {
   const items = [];
-  if (Number(els.fadeSeconds?.value) > 0) items.push("Fade");
+  if (Number(els.fadeInSeconds?.value) > 0 || Number(els.fadeSeconds?.value) > 0) items.push("Fade");
   if (duckAmount() > 0) items.push("Ducking");
   const reverb = masterReverbSettings();
   if (reverb.preset !== "none" && reverb.wet > 0) items.push("Reverb");
@@ -2790,6 +2803,24 @@ function openAudioDialog(pad) {
   }
 }
 
+function refreshPlayingPadOutput(pad) {
+  if (!pad?.source || !state.audioContext) return;
+  const offset = playbackOffset(pad);
+  playPad(pad, false, offset, { skipStartCrossfade: true }).catch(() => setStatus("Réglage audio impossible"));
+}
+
+function locateAudioFile(pad = state.audioPad) {
+  if (!pad) return;
+  if (pad.audioPath && pad.audioPath !== pad.audioName) {
+    navigator.clipboard?.writeText(pad.audioPath).then(
+      () => setStatus("Chemin audio copié"),
+      () => setStatus("Chemin audio affiché dans la fenêtre")
+    );
+    return;
+  }
+  setStatus("Localisation Finder indisponible dans le navigateur");
+}
+
 function resetAudioDialogSettings() {
   const pad = state.audioPad;
   if (!pad) return;
@@ -2994,7 +3025,8 @@ function fadeDurationForPad(pad, type = "out") {
     }
     return 0;
   }
-  return Math.max(0, Number(els.fadeSeconds.value) || 0);
+  const globalInput = type === "in" ? els.fadeInSeconds : els.fadeSeconds;
+  return Math.max(0, Number(globalInput?.value) || 0);
 }
 
 function applyDucking(exceptPad = null) {
@@ -3252,6 +3284,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   if (!pad.source || !state.audioContext) return;
+  if (pad.stopAt) return;
 
   const source = pad.source;
   const gain = pad.gain;
@@ -3266,18 +3299,22 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   }
 
   if (fade && fadeTime > 0 && gain) {
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
+    if (typeof gain.gain.cancelAndHoldAtTime === "function") {
+      gain.gain.cancelAndHoldAtTime(now);
+    } else {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(targetPadGain(pad), now);
+    }
     gain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
     source.stop(now + fadeTime + 0.02);
     pad.stopAt = now + fadeTime + 0.02;
+    setStatus(`${pad.title} fade out`);
   } else {
     source.stop(now);
     pad.stopAt = now;
+    clearPlayingPad(pad, source, options.triggerEnd ?? true);
+    setStatus(`${pad.title} stop`);
   }
-
-  clearPlayingPad(pad, source, options.triggerEnd ?? true);
-  setStatus(`${pad.title} stop`);
 }
 
 function remainingSeconds(pad) {
@@ -3443,6 +3480,9 @@ async function init() {
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
   }
+  if (els.fadeInSeconds) {
+    els.fadeInSeconds.value = localStorage.getItem(FADE_IN_STORAGE) || els.fadeInSeconds.value;
+  }
   if (els.duckPercent) {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
@@ -3483,6 +3523,18 @@ async function init() {
     els.duckPercent.value = value;
     localStorage.setItem(DUCKING_STORAGE, String(value));
     applyDucking();
+    updateMasterOptionBadges();
+  });
+  els.fadeInSeconds?.addEventListener("input", () => {
+    const value = Math.max(0, Math.round(Number(els.fadeInSeconds.value) || 0));
+    els.fadeInSeconds.value = String(value);
+    localStorage.setItem(FADE_IN_STORAGE, String(value));
+    updateMasterOptionBadges();
+  });
+  els.fadeInSeconds?.addEventListener("change", () => {
+    const value = Math.max(0, Math.round(Number(els.fadeInSeconds.value) || 0));
+    els.fadeInSeconds.value = String(value);
+    localStorage.setItem(FADE_IN_STORAGE, String(value));
     updateMasterOptionBadges();
   });
   els.fadeSeconds?.addEventListener("input", () => {
@@ -3604,15 +3656,20 @@ async function init() {
     if (state.audioPad) state.audioPad.fileInput?.click();
   });
   els.audioReset?.addEventListener("click", resetAudioDialogSettings);
+  els.audioLocate?.addEventListener("click", () => locateAudioFile(state.audioPad));
   els.audioNormalize?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadNormalization(state.audioPad, els.audioNormalize.checked, state.audioPad.normalizedGain);
+    if (state.audioPad.gain && state.audioContext) {
+      state.audioPad.gain.gain.setTargetAtTime(targetPadGain(state.audioPad), state.audioContext.currentTime, 0.015);
+    }
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
   els.audioMono?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadAudioSettings(state.audioPad, { mono: els.audioMono.checked });
+    refreshPlayingPadOutput(state.audioPad);
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
@@ -3655,6 +3712,7 @@ async function init() {
         reverbPreset: state.audioPad.reverbPreset,
         reverbWet: state.audioPad.reverbWet,
       });
+      refreshPlayingPadOutput(state.audioPad);
       syncAudioDialog(state.audioPad);
       savePadMeta(state.audioPad);
     });
@@ -3675,6 +3733,9 @@ async function init() {
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
         state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
+        if (element === els.audioReverbPreset || element === els.audioReverbWet) {
+          refreshPlayingPadOutput(state.audioPad);
+        }
       }
       syncAudioDialog(state.audioPad);
       savePadMeta(state.audioPad);

@@ -415,11 +415,11 @@ body.board-edit-mode .board-layout-controls {
 
 .master-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
+  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 100px;
   grid-template-areas:
-    "title title title vu stop"
-    "master audio group vu stop"
-    "badges badges group vu stop";
+    "title title group vu stop"
+    "master master group vu stop"
+    "audio badges group vu stop";
   gap: 10px;
   align-items: stretch;
   padding: 12px;
@@ -449,7 +449,7 @@ body.board-edit-mode .board-layout-controls {
 
 .board-action-grid {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px 42px;
+  grid-template-columns: 42px 42px minmax(0, 1fr) 42px;
   gap: 8px;
   align-items: center;
 }
@@ -617,7 +617,8 @@ body.board-edit-mode .version-select {
   grid-area: audio;
   width: 42px;
   height: 42px;
-  align-self: end;
+  justify-self: start;
+  align-self: center;
 }
 
 .group-stop-control {
@@ -628,8 +629,23 @@ body.board-edit-mode .version-select {
   grid-area: badges;
 }
 
-.master-strip > #stopAll {
+.stop-all-control {
   grid-area: stop;
+}
+
+.stop-all-control {
+  display: grid;
+  gap: 5px;
+  align-content: stretch;
+  justify-items: stretch;
+}
+
+.stop-all-control > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .master-control.small {
@@ -660,6 +676,7 @@ body.board-edit-mode .version-select {
   color: var(--text);
 }
 
+#fadeInSeconds,
 #fadeSeconds,
 #duckPercent {
   width: 54px;
@@ -669,23 +686,23 @@ body.board-edit-mode .version-select {
 
 .group-stop-row {
   display: grid;
-  grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 42px;
+  grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 48px;
   gap: 6px;
   min-width: 0;
 }
 
 .group-stop-control {
-  min-width: calc(var(--stop-group-width, 8ch) + 42px);
-  padding: 7px;
+  min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(17, 19, 25, 0.42);
 }
 
 #stopGroup {
-  width: 42px;
-  height: 42px;
-  min-height: 42px;
+  width: 48px;
+  height: 38px;
+  min-height: 38px;
 }
 
 input[type="range"] {
@@ -728,17 +745,17 @@ button.is-pressed {
 }
 
 #stopAll {
-  width: 88px;
-  height: 88px;
-  min-height: 88px;
+  width: 100%;
+  height: 70px;
+  min-height: 70px;
   aspect-ratio: 1 / 1;
   align-self: center;
 }
 
 #stopGroup {
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 48px;
+  height: 38px;
+  min-height: 38px;
 }
 
 .deck {
@@ -1729,7 +1746,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad-live-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 40px 40px minmax(0, 1fr) 40px;
   gap: 8px;
 }
 
@@ -1746,9 +1763,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad-live-check {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto auto;
   gap: 6px;
   padding: 0 7px;
+  justify-self: start;
+  width: 40px;
 }
 
 .pad-live-check input {
@@ -1766,6 +1785,17 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.pad-live-check .field-title svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pad-live-options button {
+  grid-column: 4;
+  width: 40px;
+  justify-self: end;
 }
 
 .pad-live-check svg,
@@ -2000,6 +2030,26 @@ body[data-skin="contrast"] .color-field {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.audio-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audio-section .field-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.audio-section .field-title svg {
+  width: 18px;
+  height: 18px;
+}
+
+.audio-option-badges {
+  justify-content: flex-end;
+  margin: -6px 48px 8px 0;
+}
+
 .audio-fade-mode {
   grid-column: 1 / -1;
   display: grid;
@@ -2110,7 +2160,8 @@ body[data-skin="contrast"] .color-field {
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 180px;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
   margin-bottom: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2402,11 +2453,11 @@ body.stage-mode .board-action-grid button:not(#stageMode) {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 96px;
+  grid-template-columns: minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content) 18px 100px;
   grid-template-areas:
-    "title title title vu stop"
-    "master audio group vu stop"
-    "badges badges group vu stop";
+    "title title group vu stop"
+    "master master group vu stop"
+    "audio badges group vu stop";
 }
 
 body.stage-mode .deck {
@@ -2470,9 +2521,9 @@ body.stage-mode .pad-time {
   body.stage-mode .master-strip {
     grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
     grid-template-areas:
-      "title title title vu stop"
-      "master audio group vu stop"
-      "badges badges group vu stop";
+      "title title group vu stop"
+      "master master group vu stop"
+      "audio badges group vu stop";
     align-items: stretch;
     gap: 5px;
     padding: 6px;
@@ -2484,6 +2535,7 @@ body.stage-mode .pad-time {
     min-height: 68px;
   }
 
+  #fadeInSeconds,
   #fadeSeconds,
   #duckPercent {
     width: 48px;
@@ -2494,12 +2546,12 @@ body.stage-mode .pad-time {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px minmax(0, 1fr) 34px 34px;
+    grid-template-columns: 34px 34px minmax(0, 1fr) 34px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: 30px minmax(0, 1fr) 30px 30px;
+    grid-template-columns: 30px 30px minmax(0, 1fr) 30px;
     gap: 4px;
   }
 
@@ -2547,7 +2599,7 @@ body.stage-mode .pad-time {
   }
 
   .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 32px;
+    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 40px;
     gap: 4px;
   }
 
@@ -2559,7 +2611,7 @@ body.stage-mode .pad-time {
   }
 
   #stopGroup {
-    width: 32px;
+    width: 40px;
     height: 32px;
     min-height: 32px;
   }
@@ -2651,12 +2703,12 @@ body.stage-mode .pad-time {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px minmax(0, 1fr) 34px 34px;
+    grid-template-columns: 34px 34px minmax(0, 1fr) 34px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: 30px minmax(0, 1fr) 30px 30px;
+    grid-template-columns: 30px 30px minmax(0, 1fr) 30px;
     gap: 4px;
   }
 
@@ -2709,9 +2761,9 @@ body.stage-mode .pad-time {
   body.stage-mode .master-strip {
     grid-template-columns: minmax(0, 1fr) 34px minmax(var(--stop-group-width, 78px), max-content) 8px 68px;
     grid-template-areas:
-      "title title title vu stop"
-      "master audio group vu stop"
-      "badges badges group vu stop";
+      "title title group vu stop"
+      "master master group vu stop"
+      "audio badges group vu stop";
     align-items: stretch;
   }
 
@@ -2721,18 +2773,19 @@ body.stage-mode .pad-time {
     min-height: 68px;
   }
 
+  #fadeInSeconds,
   #fadeSeconds,
   #duckPercent {
     width: 48px;
   }
 
   .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 32px;
+    grid-template-columns: minmax(var(--stop-group-width, 8ch), max-content) 40px;
     gap: 4px;
   }
 
   #stopGroup {
-    width: 32px;
+    width: 40px;
     height: 32px;
     min-height: 32px;
   }
@@ -2905,7 +2958,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .group-stop-row {
-    grid-template-columns: minmax(0, 1fr) 32px;
+    grid-template-columns: minmax(0, 1fr) 40px;
     width: 100%;
   }
 
