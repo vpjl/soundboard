@@ -1468,11 +1468,12 @@ function renameCurrentBoard(name) {
 
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
+  const parts = [];
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    parts.push(String.fromCharCode(...bytes.subarray(index, index + chunkSize)));
   }
-  return btoa(binary);
+  return btoa(parts.join(""));
 }
 
 function base64ToArrayBuffer(base64) {
@@ -1789,10 +1790,15 @@ async function importBoardFile(file) {
     return;
   }
 
+  const pads = Array.isArray(payload.board.pads) ? payload.board.pads : [];
+  const maxImportedIndex = pads.reduce((max, item) => {
+    const index = Number(item?.index);
+    return Number.isInteger(index) && index >= 0 ? Math.max(max, index) : max;
+  }, -1);
   const importedBoard = normalizeBoard({
     id: createId(),
     name: payload.board.name || cleanName(file.name),
-    padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT),
+    padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT, maxImportedIndex + 1),
     masterVolume: clamp01(payload.board.masterVolume),
     layoutMode: payload.board.layoutMode,
     padColumns: payload.board.padColumns,
@@ -1804,10 +1810,9 @@ async function importBoardFile(file) {
   saveBoards();
   renderBoardOptions();
 
-  const pads = Array.isArray(payload.board.pads) ? payload.board.pads : [];
-  for (const item of pads) {
-    const index = Number(item.index);
-    if (!Number.isInteger(index) || index < 0) continue;
+  let audioFailures = 0;
+  for (let index = 0; index < importedBoard.padCount; index += 1) {
+    const item = pads.find((padItem) => Number(padItem?.index) === index) || {};
     const transientPad = { index };
     const meta = {
       title: item.title || `Pad ${index + 1}`,
@@ -1848,20 +1853,26 @@ async function importBoardFile(file) {
     };
     await dbSet(padMetaKey(transientPad), meta);
     if (item.audio?.data) {
-      await dbSet(padAudioKey(transientPad), {
-        name: item.audio.name || meta.title,
-        path: item.audio.path || item.audio.name || meta.title,
-        pathTrusted: Boolean(item.audio.pathTrusted),
-        title: meta.title,
-        type: item.audio.type || "audio/mpeg",
-        audio: base64ToArrayBuffer(item.audio.data),
-        ...meta,
-      });
+      try {
+        await dbSet(padAudioKey(transientPad), {
+          name: item.audio.name || meta.title,
+          path: item.audio.path || item.audio.name || meta.title,
+          pathTrusted: Boolean(item.audio.pathTrusted),
+          title: meta.title,
+          type: item.audio.type || "audio/mpeg",
+          audio: base64ToArrayBuffer(item.audio.data),
+          ...meta,
+        });
+      } catch {
+        audioFailures += 1;
+      }
     }
   }
 
   await renderPads();
-  setStatus(`${importedBoard.name} importe`);
+  setStatus(audioFailures
+    ? `${importedBoard.name} importe (${audioFailures} audio ignore${audioFailures > 1 ? "s" : ""})`
+    : `${importedBoard.name} importe`);
 }
 
 async function addPad() {
@@ -3694,6 +3705,14 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const analyser = ctx.createAnalyser();
   const now = ctx.currentTime;
   const fadeTime = fadeDurationForPad(pad, "in");
+  const naturalDuration = Math.max(0.01, segmentEnd - startOffset);
+  const naturalStopAt = now + naturalDuration;
+  const naturalFadeOutTime = !pad.loop ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
+  const naturalFadeOutStart = naturalStopAt - naturalFadeOutTime;
+  const effectiveFadeInTime = fade && fadeTime > 0
+    ? Math.min(fadeTime, naturalFadeOutTime > 0 ? Math.max(0, naturalFadeOutStart - now) : naturalDuration)
+    : 0;
+  const targetGain = targetPadGain(pad);
 
   analyser.fftSize = 256;
   source.buffer = pad.buffer;
@@ -3702,14 +3721,21 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   source.loopEnd = segmentEnd;
   source.playbackRate.setValueAtTime(1, now);
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
-  gain.gain.setValueAtTime(fade && fadeTime > 0 ? 0 : targetPadGain(pad), now);
+  gain.gain.setValueAtTime(effectiveFadeInTime > 0 ? 0 : targetGain, now);
   pan.pan.setValueAtTime(pad.panValue, now);
   connectSourceToGain(pad, source, gain);
   gain.connect(pan);
   connectPadOutput(pad, pan, analyser);
 
-  if (fade && fadeTime > 0) {
-    gain.gain.linearRampToValueAtTime(targetPadGain(pad), now + fadeTime);
+  if (effectiveFadeInTime > 0) {
+    gain.gain.linearRampToValueAtTime(targetGain, now + effectiveFadeInTime);
+  }
+
+  if (naturalFadeOutTime > 0) {
+    if (naturalFadeOutStart > now + effectiveFadeInTime) {
+      gain.gain.setValueAtTime(targetGain, naturalFadeOutStart);
+    }
+    gain.gain.linearRampToValueAtTime(0.0001, naturalStopAt);
   }
 
   pad.source = source;
@@ -3734,7 +3760,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   source.start(now, startOffset);
   if (!pad.loop) {
-    source.stop(now + Math.max(0.01, segmentEnd - startOffset));
+    source.stop(naturalStopAt);
   }
   applyDucking(pad);
   updateAllPadAlerts();
