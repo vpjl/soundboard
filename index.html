@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=84">
+    <link rel="stylesheet" href="styles.css?v=85">
   </head>
   <body>
     <div class="app">
@@ -813,11 +813,6 @@
               </svg>
             </button>
           </div>
-          <button id="closeAudio" class="icon-button" type="button" aria-label="Fermer audio">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
         </div>
         <div id="audioOptionBadges" class="option-badges audio-option-badges" aria-label="Options audio du pad"></div>
         <div class="audio-sections">
@@ -931,6 +926,10 @@
             </div>
           </section>
         </div>
+        <div class="dialog-actions">
+          <button id="applyAudio" class="small-button" type="button">Modifier</button>
+          <button id="cancelAudio" class="small-button" type="button">Annuler</button>
+        </div>
       </div>
     </dialog>
 
@@ -944,11 +943,6 @@
           <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <button id="closeMasterAudio" class="icon-button" type="button" aria-label="Fermer audio master">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
         </div>
@@ -998,20 +992,27 @@
             <label><span>Wet / dry</span><input id="masterReverbWet" class="range-nominal range-center" type="range" min="0" max="1" step="0.01" value="0.5"></label>
           </section>
         </div>
+        <div class="dialog-actions">
+          <button id="applyMasterAudio" class="small-button" type="button">Modifier</button>
+          <button id="cancelMasterAudio" class="small-button" type="button">Annuler</button>
+        </div>
       </div>
     </dialog>
 
     <dialog id="imageDialog" class="image-dialog" aria-labelledby="imageTitle">
       <div class="image-panel">
         <div class="help-head">
-          <h2 id="imageTitle">Image</h2>
-          <button id="closeImage" class="icon-button" type="button" aria-label="Fermer image">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <h2 id="imageTitle">Aspect du pad</h2>
         </div>
         <div class="image-tools">
+          <button id="imageColorToggle" class="icon-button" type="button" aria-label="Couleur du pad">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <circle cx="8" cy="10" r="1" fill="currentColor"/>
+              <circle cx="12" cy="7" r="1" fill="currentColor"/>
+              <circle cx="16" cy="10" r="1" fill="currentColor"/>
+            </svg>
+          </button>
           <button id="imageLibrary" class="icon-button" type="button" aria-label="Photothèque">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -1029,12 +1030,27 @@
             </svg>
           </button>
         </div>
+        <div id="imageColorFrame" class="image-color-frame" hidden>
+          <div class="color-swatches image-color-swatches" aria-label="Couleur du pad">
+            <button type="button" data-image-color="" aria-label="Aucune couleur"></button>
+            <button type="button" data-image-color="green" aria-label="Vert"></button>
+            <button type="button" data-image-color="yellow" aria-label="Jaune"></button>
+            <button type="button" data-image-color="red" aria-label="Rouge"></button>
+            <button type="button" data-image-color="blue" aria-label="Bleu"></button>
+            <button type="button" data-image-color="pink" aria-label="Rose"></button>
+            <button type="button" data-image-color="purple" aria-label="Violet"></button>
+          </div>
+        </div>
         <div id="imagePreview" class="image-preview" aria-label="Aperçu image"></div>
         <canvas id="imageSketchCanvas" class="image-sketch-canvas" width="640" height="360" aria-label="Croquis"></canvas>
         <div class="image-crop-controls">
           <label><span>Centre X</span><input id="imagePosX" type="range" min="0" max="100" step="1" value="50"></label>
           <label><span>Centre Y</span><input id="imagePosY" type="range" min="0" max="100" step="1" value="50"></label>
           <label><span>Zoom</span><input id="imageZoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="applyImage" class="small-button" type="button">Modifier</button>
+          <button id="cancelImage" class="small-button" type="button">Annuler</button>
         </div>
       </div>
     </dialog>
@@ -1061,11 +1077,6 @@
             <h2 id="bulkEditTitle">Modification groupée</h2>
             <p id="bulkEditCount">Pads sélectionnés</p>
           </div>
-          <button id="closeBulkEdit" class="icon-button" type="button" aria-label="Fermer la modification groupée">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
         </div>
         <div class="bulk-edit-grid">
           <select id="bulkTemplatePad" class="bulk-template-field" aria-label="Pad modèle"></select>
@@ -1076,15 +1087,18 @@
           <label class="bulk-apply-field"><input id="bulkApplyTags" type="checkbox"> Tags</label>
           <input id="bulkTags" type="text" maxlength="64">
           <label class="bulk-apply-field"><input id="bulkApplyColor" type="checkbox"> Couleur</label>
-          <select id="bulkColor">
-            <option value="">Pas de couleur</option>
-            <option value="green">Vert</option>
-            <option value="yellow">Jaune</option>
-            <option value="red">Rouge</option>
-            <option value="blue">Bleu</option>
-            <option value="pink">Rose</option>
-            <option value="purple">Violet</option>
-          </select>
+          <div class="bulk-color-picker">
+            <input id="bulkColor" type="hidden" value="">
+            <div id="bulkColorSwatches" class="color-swatches bulk-color-swatches" aria-label="Couleur groupée">
+              <button type="button" data-bulk-color="" aria-label="Aucune couleur"></button>
+              <button type="button" data-bulk-color="green" aria-label="Vert"></button>
+              <button type="button" data-bulk-color="yellow" aria-label="Jaune"></button>
+              <button type="button" data-bulk-color="red" aria-label="Rouge"></button>
+              <button type="button" data-bulk-color="blue" aria-label="Bleu"></button>
+              <button type="button" data-bulk-color="pink" aria-label="Rose"></button>
+              <button type="button" data-bulk-color="purple" aria-label="Violet"></button>
+            </div>
+          </div>
           <label class="bulk-apply-field"><input id="bulkApplyAudioFlags" type="checkbox"> Loop / ducking</label>
           <div class="bulk-inline">
             <label><input id="bulkLoop" type="checkbox"> Loop</label>
@@ -1118,6 +1132,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=84"></script>
+    <script src="app.js?v=85"></script>
   </body>
 </html>

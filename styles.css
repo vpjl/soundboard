@@ -737,6 +737,9 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   padding: 0 9px;
   background: #111319;
   color: var(--text);
+  justify-self: center;
+  text-align: center;
+  text-align-last: center;
 }
 
 #fadeInSeconds,
@@ -1510,6 +1513,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad.is-editing .controls {
   order: 50;
   grid-column: 1 / -1;
+  display: none;
 }
 
 .pad.is-editing .trim-field {
@@ -1738,33 +1742,47 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   cursor: pointer;
 }
 
-.color-swatches button[data-color=""] {
+.color-swatches button[data-color=""],
+.color-swatches button[data-image-color=""],
+.color-swatches button[data-bulk-color=""] {
   background:
     linear-gradient(135deg, transparent 44%, var(--danger) 45%, var(--danger) 55%, transparent 56%),
     #111319;
 }
 
-.color-swatches button[data-color="green"] {
+.color-swatches button[data-color="green"],
+.color-swatches button[data-image-color="green"],
+.color-swatches button[data-bulk-color="green"] {
   background: #49d3a0;
 }
 
-.color-swatches button[data-color="yellow"] {
+.color-swatches button[data-color="yellow"],
+.color-swatches button[data-image-color="yellow"],
+.color-swatches button[data-bulk-color="yellow"] {
   background: #ffce5c;
 }
 
-.color-swatches button[data-color="red"] {
+.color-swatches button[data-color="red"],
+.color-swatches button[data-image-color="red"],
+.color-swatches button[data-bulk-color="red"] {
   background: #ff5f56;
 }
 
-.color-swatches button[data-color="blue"] {
+.color-swatches button[data-color="blue"],
+.color-swatches button[data-image-color="blue"],
+.color-swatches button[data-bulk-color="blue"] {
   background: #61a8ff;
 }
 
-.color-swatches button[data-color="pink"] {
+.color-swatches button[data-color="pink"],
+.color-swatches button[data-image-color="pink"],
+.color-swatches button[data-bulk-color="pink"] {
   background: #ff6bd6;
 }
 
-.color-swatches button[data-color="purple"] {
+.color-swatches button[data-color="purple"],
+.color-swatches button[data-image-color="purple"],
+.color-swatches button[data-bulk-color="purple"] {
   background: #a875ff;
 }
 
@@ -2045,6 +2063,27 @@ body[data-skin="contrast"] .color-field {
   color: var(--text);
 }
 
+.bulk-color-picker,
+.image-color-frame {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.42);
+}
+
+.bulk-color-swatches,
+.image-color-swatches {
+  grid-template-columns: repeat(7, 28px);
+  gap: 6px;
+}
+
+.bulk-color-swatches button,
+.image-color-swatches button {
+  width: 28px;
+  height: 28px;
+}
+
 .bulk-edit-grid input[type="checkbox"] {
   width: 20px;
   height: 20px;
@@ -2068,10 +2107,15 @@ body[data-skin="contrast"] .color-field {
 
 .audio-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
   margin-bottom: 12px;
+}
+
+.audio-head > div:first-child {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .audio-head h2,
@@ -2088,17 +2132,20 @@ body[data-skin="contrast"] .color-field {
 
 #audioPadName {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--text);
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 #audioFilePath {
+  display: block;
+  min-width: 0;
   font-style: normal;
+  overflow-wrap: anywhere;
 }
 
 .audio-head-actions,
@@ -2379,6 +2426,10 @@ body[data-skin="contrast"] .color-field {
 }
 
 .image-tools {
+  margin-bottom: 10px;
+}
+
+.image-color-frame {
   margin-bottom: 10px;
 }
 
@@ -3296,5 +3347,27 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   body.stage-mode .pad-trigger {
     min-height: 88px;
     padding-bottom: 38px;
+  }
+
+  .master-audio-button {
+    width: 54px;
+    height: 54px;
+    min-height: 54px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .audio-toggle-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    white-space: normal;
+    gap: 8px 12px;
+  }
+
+  .audio-toggle-block {
+    flex: 1 1 calc(50% - 12px);
+  }
+
+  .audio-normalize-field {
+    flex-basis: 100%;
   }
 }

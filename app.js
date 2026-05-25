@@ -74,9 +74,12 @@ const state = {
   shortcuts: [],
   shortcutsEnabled: true,
   audioPad: null,
+  audioDraft: null,
+  masterAudioDraft: null,
   audioTrimDrag: null,
   reverbBuffers: {},
   imagePad: null,
+  imageDraft: null,
   bulkEditPads: [],
   sketchDrawing: false,
   stageMode: false,
@@ -94,6 +97,8 @@ const els = {
   masterAudio: document.querySelector("#masterAudio"),
   masterAudioDialog: document.querySelector("#masterAudioDialog"),
   closeMasterAudio: document.querySelector("#closeMasterAudio"),
+  applyMasterAudio: document.querySelector("#applyMasterAudio"),
+  cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
@@ -117,6 +122,8 @@ const els = {
   shortcutRows: document.querySelector("#shortcutRows"),
   audioDialog: document.querySelector("#audioDialog"),
   closeAudio: document.querySelector("#closeAudio"),
+  applyAudio: document.querySelector("#applyAudio"),
+  cancelAudio: document.querySelector("#cancelAudio"),
   audioPadName: document.querySelector("#audioPadName"),
   audioFilePath: document.querySelector("#audioFilePath"),
   audioTestPlay: document.querySelector("#audioTestPlay"),
@@ -162,6 +169,11 @@ const els = {
   audioEndStartTarget: document.querySelector("#audioEndStartTarget"),
   imageDialog: document.querySelector("#imageDialog"),
   closeImage: document.querySelector("#closeImage"),
+  applyImage: document.querySelector("#applyImage"),
+  cancelImage: document.querySelector("#cancelImage"),
+  imageColorToggle: document.querySelector("#imageColorToggle"),
+  imageColorFrame: document.querySelector("#imageColorFrame"),
+  imageColorButtons: [...document.querySelectorAll("[data-image-color]")],
   imageLibrary: document.querySelector("#imageLibrary"),
   imageCamera: document.querySelector("#imageCamera"),
   imageOnline: document.querySelector("#imageOnline"),
@@ -194,6 +206,7 @@ const els = {
   bulkTags: document.querySelector("#bulkTags"),
   bulkApplyColor: document.querySelector("#bulkApplyColor"),
   bulkColor: document.querySelector("#bulkColor"),
+  bulkColorButtons: [...document.querySelectorAll("[data-bulk-color]")],
   bulkApplyLiveFade: document.querySelector("#bulkApplyLiveFade"),
   bulkFadeInEnabled: document.querySelector("#bulkFadeInEnabled"),
   bulkFadeOutEnabled: document.querySelector("#bulkFadeOutEnabled"),
@@ -531,7 +544,7 @@ function setBoardPadEditing(editing) {
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
-  setStatus(state.boardEditMode ? "Mode edit pads" : "Mode live");
+  setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
 }
 
 function setPadDuration(pad, seconds) {
@@ -1048,7 +1061,7 @@ function syncBulkTemplateFields(pad) {
   if (els.bulkVolume) els.bulkVolume.value = String(pad.volume);
   if (els.bulkPan) els.bulkPan.value = String(pad.panValue);
   if (els.bulkTags) els.bulkTags.value = pad.tags;
-  if (els.bulkColor) els.bulkColor.value = pad.color || "";
+  setBulkColorValue(pad.color || "");
   if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
   if (els.bulkFadeOutEnabled) els.bulkFadeOutEnabled.checked = pad.fadeOutEnabled;
   if (els.bulkLoop) els.bulkLoop.checked = pad.loop;
@@ -1059,6 +1072,14 @@ function syncBulkTemplateFields(pad) {
   if (els.bulkReverbPreset) els.bulkReverbPreset.value = pad.reverbPreset === "none" ? "hall" : pad.reverbPreset;
   if (els.bulkReverbWet) els.bulkReverbWet.value = String(pad.reverbWet ?? 0.5);
   fillBulkCrossfadeControls(pad);
+}
+
+function setBulkColorValue(color = "") {
+  const value = PAD_COLORS[color] ? color : "";
+  if (els.bulkColor) els.bulkColor.value = value;
+  els.bulkColorButtons?.forEach((button) => {
+    button.classList.toggle("is-active", (button.dataset.bulkColor || "") === value);
+  });
 }
 
 function fillActionSelect(select, selectedValue = "none") {
@@ -1481,6 +1502,15 @@ function applySkin(skin) {
   document.body.dataset.skin = skinName;
   if (els.skinSelect) els.skinSelect.value = skinName;
   localStorage.setItem(SKIN_STORAGE, skinName);
+  if (skinName === "visual") revealGalleryPads();
+}
+
+function revealGalleryPads(save = true) {
+  state.pads.forEach((pad) => {
+    if (!pad.visualImageHidden) return;
+    setPadVisualImage(pad, pad.visualImage, false);
+    if (save) savePadMeta(pad).catch(() => {});
+  });
 }
 
 async function shareOrDownloadBoard(blob, filename, boardName) {
@@ -1831,6 +1861,7 @@ async function deletePad(pad) {
 
   for (let index = 0; index < snapshots.length; index += 1) {
     const snapshot = snapshots[index];
+    renumberDefaultPadSnapshot(snapshot, index);
     if (snapshot.meta) {
       await dbSet(padMetaKeyFor(boardId, index), snapshot.meta);
     } else {
@@ -1850,6 +1881,20 @@ async function deletePad(pad) {
   await renderPads();
   setBoardPadEditing(true);
   setStatus(`${pad.title} supprime`);
+}
+
+function isDefaultPadTitle(title) {
+  return /^Pad\s+\d+$/i.test(String(title || "").trim());
+}
+
+function renumberDefaultPadSnapshot(snapshot, index) {
+  const title = `Pad ${index + 1}`;
+  if (snapshot.meta && isDefaultPadTitle(snapshot.meta.title)) {
+    snapshot.meta.title = title;
+  }
+  if (snapshot.audio && isDefaultPadTitle(snapshot.audio.title)) {
+    snapshot.audio.title = title;
+  }
 }
 
 async function deleteCurrentBoard() {
@@ -2092,7 +2137,10 @@ async function restorePad(pad) {
   }
 
   const saved = await dbGet(padAudioKey(pad));
-  if (!saved) return;
+  if (!saved) {
+    if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    return;
+  }
 
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
@@ -2144,6 +2192,7 @@ async function restorePad(pad) {
   pad.panEl.value = pad.panValue;
   updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
+  if (document.body.dataset.skin === "visual") revealGalleryPads(false);
 }
 
 async function savePadMeta(pad) {
@@ -2246,7 +2295,7 @@ function masterDuckEnabled() {
 
 function badgeClassFor(label) {
   const text = String(label || "").toLowerCase();
-  if (text.includes("fade")) return "is-fade";
+  if (text.includes("fade") || text === "f in" || text === "f out") return "is-fade";
   if (text.includes("duck")) return "is-duck";
   if (text.includes("rev")) return "is-reverb";
   if (text.includes("xf") || text.includes("cross")) return "is-crossfade";
@@ -2277,11 +2326,11 @@ function updateMasterOptionBadges() {
   const items = [];
   const fadeInActive = masterFadeEnabled("in") && Number(els.fadeInSeconds?.value) > 0;
   const fadeOutActive = masterFadeEnabled("out") && Number(els.fadeSeconds?.value) > 0;
-  if (fadeInActive) items.push("Fade in");
-  if (fadeOutActive) items.push("Fade out");
+  if (fadeInActive) items.push("f in");
+  if (fadeOutActive) items.push("f out");
   if (masterDuckEnabled() && duckAmount() > 0) items.push("Ducking");
   const reverb = masterReverbSettings();
-  if (reverb.preset !== "none" && reverb.wet > 0) items.push("Reverb");
+  if (reverb.preset !== "none" && reverb.wet > 0) items.push("rev");
   if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
 }
 
@@ -2580,6 +2629,14 @@ function setPadColor(pad, color) {
   }
   pad.colorButtons?.forEach((button) => {
     button.classList.toggle("is-active", (button.dataset.color || "") === pad.color);
+  });
+  if (state.imagePad === pad) syncImageColorButtons(pad);
+}
+
+function syncImageColorButtons(pad = state.imagePad) {
+  if (!pad) return;
+  els.imageColorButtons?.forEach((button) => {
+    button.classList.toggle("is-active", (button.dataset.imageColor || "") === pad.color);
   });
 }
 
@@ -3013,6 +3070,7 @@ function fillAudioCrossfadeControls(pad = state.audioPad) {
 
 function openAudioDialog(pad) {
   state.audioPad = pad;
+  state.audioDraft = audioDraftFromPad(pad);
   syncAudioDialog(pad);
   if (els.audioDialog?.showModal) {
     els.audioDialog.showModal();
@@ -3020,6 +3078,47 @@ function openAudioDialog(pad) {
   } else {
     setStatus("Réglages audio");
   }
+}
+
+function audioDraftFromPad(pad) {
+  return {
+    normalizeEnabled: pad.normalizeEnabled,
+    normalizedGain: pad.normalizedGain,
+    mono: pad.mono,
+    loop: pad.loop,
+    duckTrigger: pad.duckTrigger,
+    fadeMode: pad.fadeMode,
+    fadeInSeconds: pad.fadeInSeconds,
+    fadeOutSeconds: pad.fadeOutSeconds,
+    pitchSemitones: pad.pitchSemitones,
+    pitchFine: pad.pitchFine,
+    reverbPreset: pad.reverbPreset,
+    reverbWet: pad.reverbWet,
+    reverbMode: pad.reverbMode,
+    startStopMode: pad.startStopMode,
+    startStopTag: pad.startStopTag,
+    endStartMode: pad.endStartMode,
+    endStartTarget: pad.endStartTarget,
+    trimStart: pad.trimStart,
+    trimEnd: pad.trimEnd,
+  };
+}
+
+function restoreAudioDraft() {
+  const pad = state.audioPad;
+  const draft = state.audioDraft;
+  if (!pad || !draft) return;
+  setPadNormalization(pad, draft.normalizeEnabled, draft.normalizedGain);
+  setPadLoop(pad, draft.loop);
+  if (pad.source) pad.source.loop = pad.loop;
+  setPadDuckTrigger(pad, draft.duckTrigger);
+  setPadAudioSettings(pad, draft);
+  setPadCrossfade(pad, draft);
+  setPadTrim(pad, draft.trimStart, draft.trimEnd);
+  if (pad.source) refreshPlayingPadOutput(pad);
+  applyDucking();
+  syncAudioDialog(pad);
+  savePadMeta(pad);
 }
 
 function refreshPlayingPadOutput(pad) {
@@ -3079,6 +3178,48 @@ function resetMasterAudioSettings() {
   setStatus("Audio master réinitialisé");
 }
 
+function masterAudioDraftFromControls() {
+  return {
+    fadeInEnabled: Boolean(els.masterFadeInEnabled?.checked),
+    fadeOutEnabled: Boolean(els.masterFadeOutEnabled?.checked),
+    duckEnabled: Boolean(els.masterDuckEnabled?.checked),
+    fadeInSeconds: els.fadeInSeconds?.value ?? "2",
+    fadeOutSeconds: els.fadeSeconds?.value ?? "2",
+    duckPercent: els.duckPercent?.value ?? "60",
+    reverbPreset: els.masterReverbPreset?.value || "none",
+    reverbWet: els.masterReverbWet?.value ?? "0.5",
+  };
+}
+
+function persistMasterAudioControls() {
+  localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled?.checked ? "on" : "off");
+  localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled?.checked ? "on" : "off");
+  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled?.checked ? "on" : "off");
+  localStorage.setItem(FADE_IN_STORAGE, String(els.fadeInSeconds?.value ?? "2"));
+  localStorage.setItem(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
+  localStorage.setItem(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
+  saveMasterReverbSettings();
+  updateMasterReverbValue();
+  applyMasterReverb();
+  applyDucking();
+  updateMasterOptionBadges();
+  updateAllPadAlerts();
+}
+
+function restoreMasterAudioDraft() {
+  const draft = state.masterAudioDraft;
+  if (!draft) return;
+  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = draft.fadeInEnabled;
+  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = draft.fadeOutEnabled;
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = draft.duckEnabled;
+  if (els.fadeInSeconds) els.fadeInSeconds.value = draft.fadeInSeconds;
+  if (els.fadeSeconds) els.fadeSeconds.value = draft.fadeOutSeconds;
+  if (els.duckPercent) els.duckPercent.value = draft.duckPercent;
+  if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
+  if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
+  persistMasterAudioControls();
+}
+
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
   const livePadRect = pad.node?.getBoundingClientRect();
@@ -3098,16 +3239,41 @@ function syncImageDialog(pad = state.imagePad) {
     els.imagePreview.style.backgroundPosition = `${pad.visualPositionX}% ${pad.visualPositionY}%`;
     els.imagePreview.style.backgroundSize = pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`;
   }
+  syncImageColorButtons(pad);
 }
 
 function openImageDialog(pad) {
   state.imagePad = pad;
+  state.imageDraft = imageDraftFromPad(pad);
+  if (els.imageColorFrame) els.imageColorFrame.hidden = true;
   syncImageDialog(pad);
   if (els.imageDialog?.showModal) {
     els.imageDialog.showModal();
   } else {
     pad.imageInput?.click();
   }
+}
+
+function imageDraftFromPad(pad) {
+  return {
+    color: pad.color,
+    visualImage: pad.visualImage,
+    visualImageHidden: pad.visualImageHidden,
+    visualKind: pad.visualKind,
+    visualPositionX: pad.visualPositionX,
+    visualPositionY: pad.visualPositionY,
+    visualZoom: pad.visualZoom,
+  };
+}
+
+function restoreImageDraft() {
+  const pad = state.imagePad;
+  const draft = state.imageDraft;
+  if (!pad || !draft) return;
+  setPadColor(pad, draft.color);
+  setPadVisualImage(pad, draft.visualImage, draft.visualImageHidden, draft);
+  syncImageDialog(pad);
+  savePadMeta(pad);
 }
 
 function sketchPoint(event) {
@@ -3838,6 +4004,9 @@ async function init() {
     const pad = state.bulkEditPads.find((item) => String(item.index) === els.bulkTemplatePad.value);
     syncBulkTemplateFields(pad);
   });
+  els.bulkColorButtons?.forEach((button) => {
+    button.addEventListener("click", () => setBulkColorValue(button.dataset.bulkColor || ""));
+  });
   els.applyBulkEdit?.addEventListener("click", () => {
     applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
   });
@@ -3890,7 +4059,18 @@ async function init() {
     if (event.target === els.helpDialog) els.helpDialog.close();
   });
   els.closeAudio?.addEventListener("click", () => els.audioDialog?.close());
+  els.applyAudio?.addEventListener("click", () => {
+    if (state.audioPad) savePadMeta(state.audioPad);
+    state.audioDraft = null;
+    els.audioDialog?.close();
+  });
+  els.cancelAudio?.addEventListener("click", () => {
+    restoreAudioDraft();
+    state.audioDraft = null;
+    els.audioDialog?.close();
+  });
   els.masterAudio?.addEventListener("click", () => {
+    state.masterAudioDraft = masterAudioDraftFromControls();
     if (els.masterAudioDialog?.showModal) {
       els.masterAudioDialog.showModal();
     } else {
@@ -3898,9 +4078,22 @@ async function init() {
     }
   });
   els.closeMasterAudio?.addEventListener("click", () => els.masterAudioDialog?.close());
+  els.applyMasterAudio?.addEventListener("click", () => {
+    state.masterAudioDraft = null;
+    els.masterAudioDialog?.close();
+  });
+  els.cancelMasterAudio?.addEventListener("click", () => {
+    restoreMasterAudioDraft();
+    state.masterAudioDraft = null;
+    els.masterAudioDialog?.close();
+  });
   els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
   els.masterAudioDialog?.addEventListener("click", (event) => {
-    if (event.target === els.masterAudioDialog) els.masterAudioDialog.close();
+    if (event.target === els.masterAudioDialog) {
+      restoreMasterAudioDraft();
+      state.masterAudioDraft = null;
+      els.masterAudioDialog.close();
+    }
   });
   els.masterFadeInEnabled?.addEventListener("change", () => {
     localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled.checked ? "on" : "off");
@@ -3924,7 +4117,11 @@ async function init() {
     });
   });
   els.audioDialog?.addEventListener("click", (event) => {
-    if (event.target === els.audioDialog) els.audioDialog.close();
+    if (event.target === els.audioDialog) {
+      restoreAudioDraft();
+      state.audioDraft = null;
+      els.audioDialog.close();
+    }
   });
   bindAudioDialogTrim();
   els.audioTestPlay?.addEventListener("click", () => {
@@ -4037,8 +4234,36 @@ async function init() {
     });
   });
   els.closeImage?.addEventListener("click", () => els.imageDialog?.close());
+  els.applyImage?.addEventListener("click", () => {
+    if (state.imagePad) savePadMeta(state.imagePad);
+    state.imageDraft = null;
+    els.imageDialog?.close();
+  });
+  els.cancelImage?.addEventListener("click", () => {
+    restoreImageDraft();
+    state.imageDraft = null;
+    els.imageDialog?.close();
+  });
   els.imageDialog?.addEventListener("click", (event) => {
-    if (event.target === els.imageDialog) els.imageDialog.close();
+    if (event.target === els.imageDialog) {
+      restoreImageDraft();
+      state.imageDraft = null;
+      els.imageDialog.close();
+    }
+  });
+  els.imageColorToggle?.addEventListener("click", () => {
+    if (!els.imageColorFrame) return;
+    els.imageColorFrame.hidden = !els.imageColorFrame.hidden;
+  });
+  els.imageColorButtons?.forEach((button) => {
+    button.addEventListener("click", () => {
+      const pad = state.imagePad;
+      if (!pad) return;
+      setPadColor(pad, button.dataset.imageColor || "");
+      if (!button.dataset.imageColor) setPadVisualImage(pad, "", false);
+      syncImageDialog(pad);
+      savePadMeta(pad);
+    });
   });
   els.imageLibrary?.addEventListener("click", () => state.imagePad?.imageInput?.click());
   els.imageCamera?.addEventListener("click", () => state.imagePad?.cameraInput?.click());
