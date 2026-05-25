@@ -1538,8 +1538,14 @@ function revealGalleryPads(save = true) {
 }
 
 async function shareOrDownloadBoard(blob, filename, boardName) {
+  const file = new File([blob], filename, { type: "application/json" });
+  const preferShareSheet = shouldPreferShareSheetForExport();
+
+  if (preferShareSheet && await tryShareBoardFile(file, boardName)) return;
+
   if (window.showSaveFilePicker) {
     try {
+      setStatus("Choisir un dossier de sauvegarde");
       const handle = await window.showSaveFilePicker({
         suggestedName: filename,
         types: [{
@@ -1560,24 +1566,9 @@ async function shareOrDownloadBoard(blob, filename, boardName) {
     }
   }
 
-  const file = new File([blob], filename, { type: "application/json" });
+  if (!preferShareSheet && await tryShareBoardFile(file, boardName)) return;
 
-  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: boardName,
-        text: `Board Soundboard Live: ${boardName}`,
-      });
-      setStatus(`${boardName} exporte`);
-      return;
-    } catch (error) {
-      if (error?.name === "AbortError") {
-        setStatus("Export annule");
-        return;
-      }
-    }
-  }
+  setStatus("Export par telechargement");
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1589,6 +1580,31 @@ async function shareOrDownloadBoard(blob, filename, boardName) {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   setStatus(`${boardName} exporte`);
+}
+
+function shouldPreferShareSheetForExport() {
+  return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
+}
+
+async function tryShareBoardFile(file, boardName) {
+  if (!navigator.share) return false;
+  if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+  try {
+    setStatus("Choisir Fichiers, iCloud Drive ou Dropbox");
+    await navigator.share({
+      files: [file],
+      title: boardName,
+      text: `Board Soundboard Live: ${boardName}`,
+    });
+    setStatus(`${boardName} exporte`);
+    return true;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      setStatus("Export annule");
+      return true;
+    }
+    return false;
+  }
 }
 
 async function createBoardSnapshot(board) {
