@@ -3082,7 +3082,9 @@ function resetMasterAudioSettings() {
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
   const livePadRect = pad.node?.getBoundingClientRect();
-  if (livePadRect?.width && livePadRect?.height) {
+  if (document.body.dataset.skin === "visual") {
+    els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
+  } else if (livePadRect?.width && livePadRect?.height) {
     els.imageDialog?.style.setProperty("--image-pad-aspect", `${livePadRect.width} / ${livePadRect.height}`);
   }
   els.imageDialog?.classList.toggle("is-image-mode", Boolean(pad.visualImage && pad.visualKind !== "sketch"));
