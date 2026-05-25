@@ -58,6 +58,8 @@ const state = {
   masterConvolver: null,
   masterAnalyser: null,
   masterMeterData: null,
+  crossfadeDucks: new Map(),
+  crossfadeDuckTimers: new Map(),
   boards: [],
   currentBoardId: DEFAULT_BOARD_ID,
   pads: [],
@@ -638,6 +640,7 @@ function makePad(index) {
     duration: 0,
     playMode: "oneshot",
     resumeOffset: 0,
+    keepResumeOffsetOnEnd: false,
     holdPointerId: null,
     volume: 0.85,
     panValue: 0,
@@ -1108,8 +1111,8 @@ function setBulkColorValue(color = "") {
 
 function fillActionSelect(select, selectedValue = "none") {
   if (!select) return;
-  select.innerHTML = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
-  select.value = ["none", "play", "stop"].includes(selectedValue) ? selectedValue : "none";
+  select.innerHTML = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
+  select.value = ["none", "play", "duck", "stop"].includes(selectedValue) ? selectedValue : "none";
 }
 
 function fillBulkCrossfadeControls(pad) {
@@ -2323,7 +2326,10 @@ function setStageMode(enabled, requestFullscreen = false) {
 }
 
 function duckingActive() {
-  return duckAmount() > 0 && state.pads.some((pad) => pad.source && pad.duckTrigger);
+  return duckAmount() > 0 && (
+    state.pads.some((pad) => pad.source && pad.duckTrigger) ||
+    [...state.crossfadeDucks.values()].some((targets) => targets.size > 0)
+  );
 }
 
 function masterFadeEnabled(type = "out") {
@@ -2702,7 +2708,7 @@ function setPadNormalization(pad, enabled, gain = 1) {
 }
 
 function normalizeCrossfadeAction(mode, legacyTarget = "") {
-  if (["none", "play", "stop"].includes(mode)) return mode;
+  if (["none", "play", "duck", "stop"].includes(mode)) return mode;
   if (["all", "tag"].includes(mode)) return "stop";
   if (mode === "pad") return "play";
   return legacyTarget ? "play" : "none";
@@ -3106,7 +3112,7 @@ function syncAudioDialog(pad = state.audioPad) {
 
 function fillAudioCrossfadeControls(pad = state.audioPad) {
   if (!pad) return;
-  const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
+  const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
   if (els.audioStartStopMode) {
     els.audioStartStopMode.innerHTML = actionOptions;
     els.audioStartStopMode.value = pad.startStopMode;
@@ -3467,7 +3473,8 @@ function duckAmount() {
 
 function duckFactorForPad(pad) {
   const hasOtherDuckTrigger = state.pads.some((other) => other !== pad && other.source && other.duckTrigger);
-  return hasOtherDuckTrigger ? 1 - duckAmount() : 1;
+  const hasCrossfadeDuck = [...state.crossfadeDucks.values()].some((targets) => targets.has(pad));
+  return hasOtherDuckTrigger || hasCrossfadeDuck ? 1 - duckAmount() : 1;
 }
 
 function targetPadGain(pad) {
@@ -3501,6 +3508,26 @@ function applyDucking(exceptPad = null) {
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
   });
   updateAllPadAlerts();
+}
+
+function setCrossfadeDuck(sourceKey, targets, durationSeconds = 0) {
+  clearCrossfadeDuck(sourceKey, false);
+  const activeTargets = targets.filter((pad) => pad?.source);
+  if (!activeTargets.length) return;
+  state.crossfadeDucks.set(sourceKey, new Set(activeTargets));
+  if (durationSeconds > 0) {
+    const timer = window.setTimeout(() => clearCrossfadeDuck(sourceKey), durationSeconds * 1000);
+    state.crossfadeDuckTimers.set(sourceKey, timer);
+  }
+  applyDucking();
+}
+
+function clearCrossfadeDuck(sourceKey, update = true) {
+  const timer = state.crossfadeDuckTimers.get(sourceKey);
+  if (timer) window.clearTimeout(timer);
+  state.crossfadeDuckTimers.delete(sourceKey);
+  state.crossfadeDucks.delete(sourceKey);
+  if (update) applyDucking();
 }
 
 function padsWithTag(tag, exceptPad = null) {
@@ -3537,9 +3564,16 @@ function padsFromCrossfadeTarget(target, exceptPad = null) {
   return padsWithTag(value, exceptPad);
 }
 
-function executeCrossfadeAction(action, target, sourcePad) {
+function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   if (action === "none") return;
   const targets = padsFromCrossfadeTarget(target, sourcePad);
+  if (action === "duck") {
+    const duration = options.pulse
+      ? Math.max(0.5, fadeDurationForPad(sourcePad, "out") || fadeDurationForPad(sourcePad, "in") || 2)
+      : 0;
+    setCrossfadeDuck(options.pulse ? {} : sourcePad, targets, duration);
+    return;
+  }
   targets.forEach((targetPad) => {
     if (action === "play" && targetPad.buffer) {
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
@@ -3555,7 +3589,7 @@ function executeStartCrossfade(pad) {
 }
 
 function executeEndCrossfade(pad) {
-  executeCrossfadeAction(pad.endStartMode, pad.endStartTarget, pad);
+  executeCrossfadeAction(pad.endStartMode, pad.endStartTarget, pad, { pulse: true });
 }
 
 function reverbImpulse(preset) {
@@ -3674,6 +3708,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.reverbNodes = null;
   pad.monoNodes = null;
   pad.stopAt = 0;
+  clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing");
   updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
@@ -3745,6 +3780,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.meterData = new Uint8Array(analyser.fftSize);
   pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
+  pad.keepResumeOffsetOnEnd = false;
   pad.node.classList.add("is-playing");
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -3753,7 +3789,8 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   source.onended = () => {
     if (pad.source === source) {
-      pad.resumeOffset = 0;
+      if (!pad.keepResumeOffsetOnEnd) pad.resumeOffset = 0;
+      pad.keepResumeOffsetOnEnd = false;
       clearPlayingPad(pad, source, !pad.loop);
     }
   };
@@ -3778,8 +3815,10 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
     const elapsed = Math.max(0, (now - pad.startedAt) * pad.speedRate);
     const duration = playableDuration(pad);
     pad.resumeOffset = pad.loop ? elapsed % duration : Math.min(elapsed, duration);
+    pad.keepResumeOffsetOnEnd = true;
   } else {
     pad.resumeOffset = 0;
+    pad.keepResumeOffsetOnEnd = false;
   }
 
   if (fade && fadeTime > 0 && gain) {
