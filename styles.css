@@ -289,7 +289,7 @@ textarea *,
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) max-content;
   gap: 18px;
-  align-items: stretch;
+  align-items: start;
   width: min(1280px, 100%);
   margin: 0 auto 18px;
 }
@@ -414,17 +414,18 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .master-strip {
-  --master-stop-size: 44px;
+  --master-stop-size: 54px;
+  --master-stop-panel-height: 112px;
   display: grid;
   grid-template-columns: minmax(76px, 88px) 22px minmax(0, 1fr) 42px minmax(var(--stop-group-width, 118px), max-content);
-  grid-template-rows: auto minmax(42px, 1fr) auto auto;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     "title title title title stop"
     "master vu . . stop"
     "audio audio audio audio group"
     "badges badges badges badges group";
   gap: 10px;
-  align-items: stretch;
+  align-items: start;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -439,7 +440,7 @@ body.board-edit-mode .board-layout-controls {
   display: grid;
   grid-template-columns: minmax(120px, 1fr);
   gap: 8px;
-  align-items: center;
+  align-items: start;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -667,6 +668,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .master-option-badges {
   grid-area: badges;
+  align-self: start;
   flex-wrap: nowrap;
   justify-content: flex-start;
   overflow: hidden;
@@ -684,6 +686,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   align-content: start;
   justify-items: stretch;
   min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  height: var(--master-stop-panel-height);
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -754,6 +757,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .group-stop-control {
   min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  height: var(--master-stop-panel-height);
   display: grid;
   gap: 3px;
   align-content: start;
@@ -937,6 +941,10 @@ body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
   background: transparent;
 }
 
+body[data-skin="visual"] .pad.has-color .pad-trigger {
+  box-shadow: none;
+}
+
 body[data-skin="visual"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
@@ -966,35 +974,36 @@ body[data-skin="visual"] .pad.has-visual-image.is-editing .pad-trigger {
   height: 17px;
 }
 
-body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button {
+body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button,
+body[data-skin="visual"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-actions,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .controls,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-time,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-progress,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-vu,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-alerts {
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
   opacity: 0;
   pointer-events: none;
 }
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-title {
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   padding: 3px 6px;
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.48);
 }
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing),
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing) {
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
   cursor: pointer;
 }
 
@@ -1157,7 +1166,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .pad.is-looping .pad-alert-loop,
 .pad.is-duck-trigger .pad-alert-duck-source,
 .pad.is-ducked .pad-alert-ducked,
-.pad.has-audio-fade .pad-alert-fade,
+.pad.has-audio-fade-in .pad-alert-fade-in,
+.pad.has-audio-fade-out .pad-alert-fade-out,
 .pad.has-reverb .pad-alert-reverb,
 .pad.has-crossfade .pad-alert-crossfade {
   display: inline-flex;
@@ -1179,7 +1189,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   color: #c7cbd1;
 }
 
-.pad-alert-fade {
+.pad-alert-fade-in,
+.pad-alert-fade-out {
   color: #d9b5ff;
 }
 
@@ -1215,6 +1226,30 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   font-size: 0.62rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.option-badge.is-fade {
+  color: #d9b5ff;
+}
+
+.option-badge.is-duck {
+  color: #9cc8ff;
+}
+
+.option-badge.is-reverb {
+  color: #a8f3ff;
+}
+
+.option-badge.is-crossfade {
+  color: #ffc28a;
+}
+
+.option-badge.is-loop {
+  color: #ffe08a;
+}
+
+.option-badge.is-mono {
+  color: #c7cbd1;
 }
 
 .pad.is-playing .pad-trigger {
@@ -1810,12 +1845,12 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .live-button-group {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .pad-live-options {
   display: grid;
-  grid-template-columns: 40px 40px minmax(0, 1fr) 40px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   gap: 8px;
 }
 
@@ -1860,8 +1895,16 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad-live-options button {
-  grid-column: 4;
   width: 40px;
+}
+
+.pad-stop-button {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.pad-live-options [data-action="audio"] {
+  grid-column: 3;
   justify-self: end;
 }
 
@@ -1962,6 +2005,26 @@ body[data-skin="contrast"] .color-field {
   gap: 8px;
   color: var(--muted);
   font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.bulk-fieldset {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.42);
+}
+
+.bulk-fieldset label,
+.bulk-range-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
   text-transform: uppercase;
 }
 
@@ -2318,7 +2381,7 @@ body[data-skin="contrast"] .color-field {
   place-items: center;
   width: 100%;
   min-height: 0;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--image-pad-aspect, 16 / 9);
   margin-bottom: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2339,7 +2402,7 @@ body[data-skin="contrast"] .color-field {
 .image-sketch-canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--image-pad-aspect, 16 / 9);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #111319;
@@ -2685,6 +2748,7 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
+    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(64px, 76px) 28px minmax(0, 1fr) 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
       "title title title title stop"
@@ -2918,6 +2982,7 @@ body.stage-mode .pad-time {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
+    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(64px, 76px) 28px minmax(0, 1fr) 8px minmax(var(--stop-group-width, 78px), max-content);
     grid-template-areas:
       "title title title title stop"
@@ -3102,6 +3167,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
+    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(58px, 68px) 28px minmax(0, 1fr) 8px minmax(70px, 86px);
     grid-template-areas:
       "title title title title stop"
