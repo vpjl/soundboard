@@ -72,6 +72,7 @@ const state = {
   trimDrag: null,
   progressDrag: null,
   shortcuts: [],
+  shortcutDraft: null,
   shortcutsEnabled: true,
   audioPad: null,
   audioDraft: null,
@@ -118,6 +119,8 @@ const els = {
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   shortcutDialog: document.querySelector("#shortcutDialog"),
   closeShortcuts: document.querySelector("#closeShortcuts"),
+  applyShortcuts: document.querySelector("#applyShortcuts"),
+  cancelShortcuts: document.querySelector("#cancelShortcuts"),
   shortcutEnabled: document.querySelector("#shortcutEnabled"),
   shortcutRows: document.querySelector("#shortcutRows"),
   audioDialog: document.querySelector("#audioDialog"),
@@ -442,6 +445,28 @@ function saveShortcutsEnabledForCurrentBoard() {
   localStorage.setItem(boardShortcutsEnabledKey(state.currentBoardId), state.shortcutsEnabled ? "on" : "off");
 }
 
+function shortcutDraftFromState() {
+  return {
+    shortcuts: state.shortcuts.map((item) => ({ ...item })),
+    enabled: state.shortcutsEnabled,
+  };
+}
+
+function restoreShortcutDraft() {
+  if (!state.shortcutDraft) return;
+  state.shortcuts = state.shortcutDraft.shortcuts.map((item) => ({ ...item }));
+  state.shortcutsEnabled = state.shortcutDraft.enabled;
+  if (els.shortcutEnabled) els.shortcutEnabled.checked = state.shortcutsEnabled;
+  updateShortcutIndicators();
+  renderShortcutRows();
+}
+
+function saveShortcutDraft() {
+  saveShortcutsForCurrentBoard();
+  saveShortcutsEnabledForCurrentBoard();
+  state.shortcutDraft = null;
+}
+
 function padIndexForShortcutKey(key) {
   const shortcut = state.shortcuts.find((item) => item.key === key);
   return shortcut ? shortcut.padIndex : -1;
@@ -458,7 +483,6 @@ function setShortcut(rowIndex, key, padIndex) {
       if (index !== rowIndex && item.key === normalizedKey) item.key = "";
     });
   }
-  saveShortcutsForCurrentBoard();
   updateShortcutIndicators();
   renderShortcutRows();
 }
@@ -4290,11 +4314,11 @@ async function init() {
   bindImageSketch();
   els.shortcutEnabled?.addEventListener("change", () => {
     state.shortcutsEnabled = els.shortcutEnabled.checked;
-    saveShortcutsEnabledForCurrentBoard();
     updateShortcutIndicators();
   });
   els.keyboardShortcuts?.addEventListener("click", () => {
     renderShortcutRows();
+    state.shortcutDraft = shortcutDraftFromState();
     if (els.shortcutDialog?.showModal) {
       els.shortcutDialog.showModal();
     } else {
@@ -4302,8 +4326,21 @@ async function init() {
     }
   });
   els.closeShortcuts?.addEventListener("click", () => els.shortcutDialog?.close());
+  els.applyShortcuts?.addEventListener("click", () => {
+    saveShortcutDraft();
+    els.shortcutDialog?.close();
+  });
+  els.cancelShortcuts?.addEventListener("click", () => {
+    restoreShortcutDraft();
+    state.shortcutDraft = null;
+    els.shortcutDialog?.close();
+  });
   els.shortcutDialog?.addEventListener("click", (event) => {
-    if (event.target === els.shortcutDialog) els.shortcutDialog.close();
+    if (event.target === els.shortcutDialog) {
+      restoreShortcutDraft();
+      state.shortcutDraft = null;
+      els.shortcutDialog.close();
+    }
   });
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();

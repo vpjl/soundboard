@@ -1530,6 +1530,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad.is-editing .color-field {
   order: 90;
+  display: none;
 }
 
 .edit-button.is-active {
