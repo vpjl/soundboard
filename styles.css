@@ -1010,6 +1010,11 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   cursor: pointer;
 }
 
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  cursor: pointer;
+}
+
 .visual-preview {
   display: none;
   width: 44px;
@@ -1070,7 +1075,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   background: linear-gradient(145deg, #252a32, #1c1f27);
   color: var(--text);
   text-align: left;
-  cursor: pointer;
+  cursor: default;
   transition: background 140ms ease, transform 90ms ease;
 }
 
@@ -2694,8 +2699,8 @@ body.stage-mode .board-strip {
 }
 
 body.stage-mode .board-main {
-  grid-template-columns: 40px minmax(120px, 1fr);
-  align-items: end;
+  grid-template-columns: minmax(150px, 1fr);
+  align-items: start;
 }
 
 body.stage-mode .board-select {
@@ -2704,7 +2709,15 @@ body.stage-mode .board-select {
 
 body.stage-mode .board-action-grid {
   grid-column: 1;
-  grid-template-columns: 40px;
+  grid-template-columns: repeat(4, 40px);
+  grid-template-rows: repeat(2, 40px);
+  justify-content: start;
+}
+
+body.stage-mode .board-center-actions {
+  grid-column: 2 / 5;
+  grid-row: 1;
+  grid-template-columns: repeat(3, 40px);
   justify-content: start;
 }
 
@@ -2713,7 +2726,7 @@ body.stage-mode .board-skin-select {
 }
 
 body.stage-mode .board-filter-row {
-  grid-column: 2;
+  grid-column: 1;
   grid-template-columns: 1fr;
 }
 
@@ -2730,10 +2743,35 @@ body.stage-mode .board-skin-select select {
 }
 
 body.stage-mode.board-edit-mode .board-action-grid {
-  grid-template-columns: 40px;
+  grid-template-columns: repeat(4, 40px);
 }
 
-body.stage-mode .board-action-grid button:not(#stageMode) {
+body.stage-mode #saveVersion {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+body.stage-mode #restoreVersion {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+body.stage-mode #versionSelect {
+  grid-column: 3 / 5;
+  grid-row: 2;
+  height: 40px;
+}
+
+body.stage-mode .board-action-grid .board-transfer-button,
+body.stage-mode .board-action-grid .board-history-button {
+  display: grid;
+}
+
+body.stage-mode .board-action-grid #addPad,
+body.stage-mode .board-action-grid #addBoard,
+body.stage-mode .board-action-grid .keyboard-shortcuts-button,
+body.stage-mode .board-action-grid .board-delete-button,
+body.stage-mode .board-action-grid .pads-edit-button {
   display: none;
 }
 
