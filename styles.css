@@ -287,7 +287,7 @@ textarea *,
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) max-content;
+  grid-template-columns: minmax(220px, 1fr) max-content max-content;
   gap: 18px;
   align-items: start;
   width: min(1280px, 100%);
@@ -437,6 +437,13 @@ body.board-edit-mode .board-layout-controls {
   justify-self: end;
 }
 
+.board-area {
+  display: grid;
+  grid-template-columns: max-content minmax(260px, 360px);
+  gap: 8px;
+  align-items: start;
+}
+
 .board-strip {
   display: grid;
   grid-template-columns: minmax(120px, 1fr);
@@ -447,10 +454,6 @@ body.board-edit-mode .board-layout-controls {
   border-radius: 8px;
   background: rgba(24, 26, 32, 0.88);
   box-shadow: 0 12px 34px var(--shadow);
-}
-
-body.show-cables .board-strip {
-  grid-template-columns: minmax(118px, max-content) minmax(120px, 1fr);
 }
 
 .cable-legend-panel {
@@ -498,7 +501,7 @@ body.show-cables .cable-legend-panel {
 }
 
 @media (max-width: 700px) {
-  body.show-cables .board-strip {
+  .board-area {
     grid-template-columns: minmax(120px, 1fr);
   }
 
@@ -3112,6 +3115,8 @@ body.stage-mode .pad-alerts {
   }
 
   .board-strip,
+  .board-area,
+  body.stage-mode .board-area,
   body.stage-mode .board-strip {
     grid-column: 1;
   }
