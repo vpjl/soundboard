@@ -208,6 +208,9 @@ const els = {
   patchBayOverlay: document.querySelector("#patchBayOverlay"),
   patchBayEmpty: document.querySelector("#patchBayEmpty"),
   closePatchBay: document.querySelector("#closePatchBay"),
+  cancelEditDialog: document.querySelector("#cancelEditDialog"),
+  keepBoardEdit: document.querySelector("#keepBoardEdit"),
+  confirmCancelBoardEdit: document.querySelector("#confirmCancelBoardEdit"),
   bulkEditPads: document.querySelector("#bulkEditPads"),
   bulkEditDialog: document.querySelector("#bulkEditDialog"),
   closeBulkEdit: document.querySelector("#closeBulkEdit"),
@@ -607,6 +610,14 @@ async function cancelBoardEdit() {
   await applyBoardSnapshot(snapshot);
   state.boardEditSnapshot = null;
   setStatus("Modifications annulées");
+}
+
+function openCancelBoardEditDialog() {
+  if (els.cancelEditDialog?.showModal) {
+    els.cancelEditDialog.showModal();
+    return;
+  }
+  cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
 }
 
 function setPadDuration(pad, seconds) {
@@ -4761,8 +4772,14 @@ async function init() {
     }
     beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
   });
-  els.cancelBoardEdit?.addEventListener("click", () => {
+  els.cancelBoardEdit?.addEventListener("click", openCancelBoardEditDialog);
+  els.keepBoardEdit?.addEventListener("click", () => els.cancelEditDialog?.close());
+  els.confirmCancelBoardEdit?.addEventListener("click", () => {
+    els.cancelEditDialog?.close();
     cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
+  });
+  els.cancelEditDialog?.addEventListener("click", (event) => {
+    if (event.target === els.cancelEditDialog) els.cancelEditDialog.close();
   });
   els.patchBay?.addEventListener("click", openPatchBayDialog);
   els.closePatchBay?.addEventListener("click", () => els.patchBayDialog?.close());

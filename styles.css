@@ -448,6 +448,7 @@ body.board-edit-mode .board-layout-controls {
   align-items: start;
   grid-column: 1;
   grid-row: 2;
+  min-width: 0;
 }
 
 .board-strip {
@@ -460,6 +461,8 @@ body.board-edit-mode .board-layout-controls {
   border-radius: 8px;
   background: rgba(24, 26, 32, 0.88);
   box-shadow: 0 12px 34px var(--shadow);
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .cable-legend-panel {
@@ -590,8 +593,9 @@ body.board-edit-mode .board-action-grid .icon-button {
   height: 38px;
 }
 
-body.board-edit-mode .version-select {
+body.board-edit-mode #versionSelect {
   grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .version-select {
@@ -650,6 +654,14 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   display: grid;
   gap: 7px;
   width: 100%;
+}
+
+.board-filter-row .board-skin-select {
+  display: none;
+}
+
+body.board-edit-mode .board-filter-row .board-skin-select {
+  display: grid;
 }
 
 .board-select > span,
@@ -1518,11 +1530,11 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .duplicate-board-button,
 .board-notice-button,
 .bulk-edit-button,
+.board-action-grid .board-transfer-button,
+.board-action-grid .board-history-button,
 .board-action-grid .board-delete-button,
 .board-cancel-edit-button,
-.keyboard-shortcuts-button,
-.show-cables-button,
-.patch-bay-button {
+.keyboard-shortcuts-button {
   display: none;
 }
 
@@ -1533,10 +1545,10 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 }
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
-body.board-edit-mode .board-action-grid .show-cables-button,
-body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
+body.board-edit-mode .board-action-grid .board-transfer-button,
+body.board-edit-mode .board-action-grid .board-history-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
 body.board-edit-mode .board-action-grid .board-cancel-edit-button,
 body.board-edit-mode .bulk-edit-button,
@@ -1545,8 +1557,8 @@ body.board-edit-mode .board-action-grid #addBoard {
   display: grid;
 }
 
-body.board-edit-mode .board-action-grid .board-transfer-button,
-body.board-edit-mode .board-action-grid .board-history-button,
+body.board-edit-mode .board-action-grid .show-cables-button,
+body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .stage-button {
   display: none;
 }
@@ -2116,6 +2128,7 @@ body[data-skin="contrast"] .color-field {
 .shortcut-dialog,
 .bulk-edit-dialog,
 .patch-bay-dialog,
+.confirm-dialog,
 .audio-dialog,
 .image-dialog {
   width: min(680px, calc(100vw - 28px));
@@ -2131,6 +2144,7 @@ body[data-skin="contrast"] .color-field {
 .shortcut-dialog::backdrop,
 .bulk-edit-dialog::backdrop,
 .patch-bay-dialog::backdrop,
+.confirm-dialog::backdrop,
 .audio-dialog::backdrop,
 .image-dialog::backdrop {
   background: rgba(0, 0, 0, 0.62);
@@ -2140,6 +2154,7 @@ body[data-skin="contrast"] .color-field {
 .shortcut-panel,
 .bulk-edit-panel,
 .patch-bay-panel,
+.confirm-panel,
 .audio-panel,
 .image-panel {
   padding: 14px;
@@ -2151,6 +2166,21 @@ body[data-skin="contrast"] .color-field {
 
 .patch-bay-dialog {
   width: min(980px, calc(100vw - 28px));
+}
+
+.confirm-dialog {
+  width: min(440px, calc(100vw - 28px));
+}
+
+.confirm-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.confirm-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .patch-bay-panel {
@@ -2888,7 +2918,7 @@ body.stage-mode .app {
 }
 
 body.stage-mode .topbar {
-  grid-template-columns: auto minmax(150px, 250px) max-content;
+  grid-template-columns: auto minmax(150px, 250px) minmax(220px, 420px);
   gap: 8px;
   width: min(1440px, 100%);
   margin-bottom: 8px;
@@ -2993,6 +3023,7 @@ body.stage-mode .board-action-grid #addBoard,
 body.stage-mode .board-action-grid .board-transfer-button,
 body.stage-mode .board-action-grid .board-history-button,
 body.stage-mode .board-action-grid .keyboard-shortcuts-button,
+body.stage-mode .board-action-grid .show-cables-button,
 body.stage-mode .board-action-grid .patch-bay-button,
 body.stage-mode .board-action-grid .board-delete-button,
 body.stage-mode .board-action-grid .board-cancel-edit-button,
@@ -3002,12 +3033,42 @@ body.stage-mode .version-select {
 }
 
 body.stage-mode .master-strip {
-  grid-template-columns: minmax(76px, 88px) 22px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
+  --master-stop-size: 48px;
+  --master-stop-panel-height: 92px;
+  grid-template-columns: minmax(64px, 78px) 20px minmax(0, 1fr) minmax(66px, 78px);
   grid-template-areas:
     "title title title title"
     "master vu . stop"
     "master vu . group"
     "audio badges badges badges";
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+body.stage-mode .group-stop-control,
+body.stage-mode .stop-all-control {
+  min-width: 0;
+  width: 100%;
+  height: var(--master-stop-panel-height);
+  box-sizing: border-box;
+  padding: 3px;
+}
+
+body.stage-mode .group-stop-row {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 24px var(--master-stop-size);
+  width: 100%;
+}
+
+body.stage-mode .group-stop-row select {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 24px;
+  padding: 0 3px;
+  font-size: 0.62rem;
 }
 
 body.stage-mode .deck {
@@ -3077,6 +3138,14 @@ body.stage-mode .pad-alerts {
   .topbar,
   body.stage-mode .topbar {
     grid-template-columns: 1fr;
+  }
+
+  .board-area,
+  .master-strip,
+  body.stage-mode .board-area,
+  body.stage-mode .master-strip {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .pads {
@@ -3224,7 +3293,7 @@ body.stage-mode .pad-alerts {
 
   .topbar,
   body.stage-mode .topbar {
-    grid-template-columns: minmax(0, 1fr) minmax(0, max-content);
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 40%);
     gap: 6px;
     margin-bottom: 6px;
   }
@@ -3244,6 +3313,9 @@ body.stage-mode .pad-alerts {
   .master-strip,
   body.stage-mode .master-strip {
     grid-column: 2;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .brand {
