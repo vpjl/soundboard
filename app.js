@@ -200,6 +200,14 @@ const els = {
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
   cancelBoardEdit: document.querySelector("#cancelBoardEdit"),
+  patchBay: document.querySelector("#patchBay"),
+  patchBayDialog: document.querySelector("#patchBayDialog"),
+  patchBayCanvas: document.querySelector("#patchBayCanvas"),
+  patchBaySources: document.querySelector("#patchBaySources"),
+  patchBayTargets: document.querySelector("#patchBayTargets"),
+  patchBayOverlay: document.querySelector("#patchBayOverlay"),
+  patchBayEmpty: document.querySelector("#patchBayEmpty"),
+  closePatchBay: document.querySelector("#closePatchBay"),
   bulkEditPads: document.querySelector("#bulkEditPads"),
   bulkEditDialog: document.querySelector("#bulkEditDialog"),
   closeBulkEdit: document.querySelector("#closeBulkEdit"),
@@ -4030,6 +4038,151 @@ function cableLinksForBoard() {
   return links;
 }
 
+function crossfadeTargetLabel(value, exceptPad = null) {
+  const target = String(value || "").trim();
+  if (!target) return "Choisir";
+  if (target === "tag:*") return "Tous";
+  if (target.startsWith("tag:")) return `Tag: ${target.slice(4) || "-"}`;
+  if (target.startsWith("pad:")) {
+    const index = Number(target.slice(4));
+    const pad = Number.isInteger(index) ? state.pads[index] : null;
+    return pad && pad !== exceptPad ? pad.title : `Pad ${Number.isInteger(index) ? index + 1 : "-"}`;
+  }
+  const pad = padFromTarget(target, exceptPad);
+  return pad ? pad.title : target;
+}
+
+function cableActionLabel(action) {
+  if (action === "play") return "Lance";
+  if (action === "stop") return "Stoppe";
+  if (action === "duck") return "Duck";
+  return "Action";
+}
+
+function cablePhaseLabel(phase) {
+  return phase === "end" ? "Arrêt/fin" : "Lancement";
+}
+
+function patchBayRows() {
+  const rows = [];
+  state.pads.forEach((sourcePad) => {
+    [
+      { action: sourcePad.startStopMode, target: sourcePad.startStopTag, phase: "start" },
+      { action: sourcePad.endStartMode, target: sourcePad.endStartTarget, phase: "end" },
+    ].forEach((rule) => {
+      if (rule.action === "none") return;
+      if (!String(rule.target || "").trim()) return;
+      rows.push({
+        sourcePad,
+        action: rule.action,
+        phase: rule.phase,
+        target: rule.target,
+        targetLabel: crossfadeTargetLabel(rule.target, sourcePad),
+      });
+    });
+  });
+  return rows;
+}
+
+function patchBayNode(className, title, meta) {
+  const node = document.createElement("div");
+  node.className = className;
+  const titleEl = document.createElement("strong");
+  titleEl.textContent = title;
+  const metaEl = document.createElement("span");
+  metaEl.textContent = meta;
+  node.append(titleEl, metaEl);
+  return node;
+}
+
+function drawPatchBayOverlay() {
+  if (!els.patchBayCanvas || !els.patchBayOverlay) return;
+  const canvasRect = els.patchBayCanvas.getBoundingClientRect();
+  els.patchBayOverlay.replaceChildren();
+  els.patchBayOverlay.setAttribute("viewBox", `0 0 ${canvasRect.width} ${canvasRect.height}`);
+
+  const rows = [...els.patchBayCanvas.querySelectorAll("[data-patch-row]")];
+  rows.forEach((sourceNode) => {
+    const rowId = sourceNode.dataset.patchRow;
+    const targetNode = els.patchBayCanvas.querySelector(`[data-patch-target="${rowId}"]`);
+    if (!targetNode) return;
+    const sourceRect = sourceNode.getBoundingClientRect();
+    const targetRect = targetNode.getBoundingClientRect();
+    const x1 = sourceRect.right - canvasRect.left;
+    const y1 = sourceRect.top - canvasRect.top + sourceRect.height / 2;
+    const x2 = targetRect.left - canvasRect.left;
+    const y2 = targetRect.top - canvasRect.top + targetRect.height / 2;
+    const mid = (x1 + x2) / 2;
+    const color = sourceNode.dataset.actionColor || "#8db5ff";
+    const dashed = sourceNode.dataset.phase === "end" ? "10 8" : "";
+    const path = svgEl("path", {
+      d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${mid.toFixed(1)} ${y1.toFixed(1)}, ${mid.toFixed(1)} ${y2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+      fill: "none",
+      stroke: color,
+      "stroke-width": 5,
+      "stroke-linecap": "round",
+      "stroke-dasharray": dashed,
+      opacity: "0.94",
+    });
+    const plug = svgEl("circle", {
+      cx: x1,
+      cy: y1,
+      r: 5,
+      fill: "#101114",
+      stroke: color,
+      "stroke-width": 3,
+    });
+    const tip = svgEl("polygon", {
+      points: `${x2},${y2} ${x2 - 10},${y2 - 6} ${x2 - 10},${y2 + 6}`,
+      fill: color,
+    });
+    els.patchBayOverlay.append(path, plug, tip);
+  });
+}
+
+function renderPatchBay() {
+  if (!els.patchBaySources || !els.patchBayTargets || !els.patchBayEmpty) return;
+  const rows = patchBayRows();
+  els.patchBaySources.replaceChildren();
+  els.patchBayTargets.replaceChildren();
+  els.patchBayEmpty.hidden = rows.length > 0;
+  els.patchBayCanvas?.classList.toggle("is-empty", rows.length === 0);
+
+  rows.forEach((row, index) => {
+    const id = `patch-${index}`;
+    const color = cableColor(row.action);
+    const sourceNode = patchBayNode(
+      "patch-bay-node patch-source-node",
+      row.sourcePad.title,
+      `${cablePhaseLabel(row.phase)} · ${cableActionLabel(row.action)}`,
+    );
+    sourceNode.dataset.patchRow = id;
+    sourceNode.dataset.phase = row.phase;
+    sourceNode.dataset.actionColor = color;
+    sourceNode.style.setProperty("--patch-color", color);
+
+    const targetNode = patchBayNode(
+      "patch-bay-node patch-target-node",
+      row.targetLabel,
+      `${cableActionLabel(row.action)} depuis ${row.sourcePad.title}`,
+    );
+    targetNode.dataset.patchTarget = id;
+    targetNode.style.setProperty("--patch-color", color);
+
+    els.patchBaySources.append(sourceNode);
+    els.patchBayTargets.append(targetNode);
+  });
+  requestAnimationFrame(drawPatchBayOverlay);
+}
+
+function openPatchBayDialog() {
+  renderPatchBay();
+  if (els.patchBayDialog?.showModal) {
+    els.patchBayDialog.showModal();
+    requestAnimationFrame(drawPatchBayOverlay);
+  }
+}
+
 function svgEl(name, attributes = {}) {
   const element = document.createElementNS("http://www.w3.org/2000/svg", name);
   Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
@@ -4610,6 +4763,14 @@ async function init() {
   });
   els.cancelBoardEdit?.addEventListener("click", () => {
     cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
+  });
+  els.patchBay?.addEventListener("click", openPatchBayDialog);
+  els.closePatchBay?.addEventListener("click", () => els.patchBayDialog?.close());
+  els.patchBayDialog?.addEventListener("click", (event) => {
+    if (event.target === els.patchBayDialog) els.patchBayDialog.close();
+  });
+  window.addEventListener("resize", () => {
+    if (els.patchBayDialog?.open) drawPatchBayOverlay();
   });
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());

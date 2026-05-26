@@ -577,7 +577,7 @@ body.board-edit-mode .board-action-grid {
 }
 
 body.board-edit-mode .board-center-actions {
-  grid-template-columns: repeat(4, minmax(34px, 42px));
+  grid-template-columns: repeat(5, minmax(34px, 42px));
 }
 
 .board-action-grid > .icon-button,
@@ -1521,7 +1521,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-action-grid .board-delete-button,
 .board-cancel-edit-button,
 .keyboard-shortcuts-button,
-.show-cables-button {
+.show-cables-button,
+.patch-bay-button {
   display: none;
 }
 
@@ -1533,6 +1534,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
 body.board-edit-mode .board-action-grid .show-cables-button,
+body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
@@ -2113,6 +2115,7 @@ body[data-skin="contrast"] .color-field {
 .help-dialog,
 .shortcut-dialog,
 .bulk-edit-dialog,
+.patch-bay-dialog,
 .audio-dialog,
 .image-dialog {
   width: min(680px, calc(100vw - 28px));
@@ -2127,6 +2130,7 @@ body[data-skin="contrast"] .color-field {
 .help-dialog::backdrop,
 .shortcut-dialog::backdrop,
 .bulk-edit-dialog::backdrop,
+.patch-bay-dialog::backdrop,
 .audio-dialog::backdrop,
 .image-dialog::backdrop {
   background: rgba(0, 0, 0, 0.62);
@@ -2135,6 +2139,7 @@ body[data-skin="contrast"] .color-field {
 .help-panel,
 .shortcut-panel,
 .bulk-edit-panel,
+.patch-bay-panel,
 .audio-panel,
 .image-panel {
   padding: 14px;
@@ -2142,6 +2147,100 @@ body[data-skin="contrast"] .color-field {
 
 .bulk-edit-dialog {
   width: min(560px, calc(100vw - 28px));
+}
+
+.patch-bay-dialog {
+  width: min(980px, calc(100vw - 28px));
+}
+
+.patch-bay-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.patch-bay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.patch-bay-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.phase-swatch {
+  width: 30px;
+  height: 0;
+  border-top: 4px solid var(--text);
+  border-radius: 999px;
+}
+
+.phase-end {
+  border-top-style: dashed;
+}
+
+.patch-bay-canvas {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(170px, 1.35fr) minmax(130px, 1fr);
+  gap: 16px;
+  min-height: 220px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(10, 12, 16, 0.42);
+  overflow-x: auto;
+}
+
+.patch-bay-canvas.is-empty {
+  min-height: 90px;
+}
+
+.patch-bay-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  z-index: 1;
+}
+
+.patch-bay-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.patch-bay-node {
+  display: grid;
+  gap: 3px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--patch-color, var(--line)) 60%, var(--line));
+  border-radius: 8px;
+  background: rgba(18, 21, 27, 0.94);
+  box-shadow: inset 4px 0 0 var(--patch-color, var(--accent));
+}
+
+.patch-bay-node strong {
+  font-size: 0.84rem;
+  line-height: 1.15;
+}
+
+.patch-bay-node span,
+.patch-bay-empty {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.patch-bay-empty {
+  margin: 0;
 }
 
 .bulk-edit-panel .help-head p {
@@ -2894,6 +2993,7 @@ body.stage-mode .board-action-grid #addBoard,
 body.stage-mode .board-action-grid .board-transfer-button,
 body.stage-mode .board-action-grid .board-history-button,
 body.stage-mode .board-action-grid .keyboard-shortcuts-button,
+body.stage-mode .board-action-grid .patch-bay-button,
 body.stage-mode .board-action-grid .board-delete-button,
 body.stage-mode .board-action-grid .board-cancel-edit-button,
 body.stage-mode .board-action-grid .pads-edit-button,
@@ -3042,7 +3142,7 @@ body.stage-mode .pad-alerts {
   }
 
   body.board-edit-mode .board-center-actions {
-    grid-template-columns: repeat(4, 30px);
+    grid-template-columns: repeat(5, 30px);
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
@@ -3198,7 +3298,7 @@ body.stage-mode .pad-alerts {
   }
 
   body.board-edit-mode .board-center-actions {
-    grid-template-columns: repeat(4, 30px);
+    grid-template-columns: repeat(5, 30px);
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
