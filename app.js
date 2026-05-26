@@ -822,7 +822,14 @@ function makePad(index) {
   bindPadProgress(pad);
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
-  if (pad.duplicateButton) pad.duplicateButton.dataset.padIndex = String(index);
+  if (pad.duplicateButton) {
+    pad.duplicateButton.dataset.padIndex = String(index);
+    pad.duplicateButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      duplicatePadFromNode(node, pad);
+    });
+  }
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -1331,17 +1338,6 @@ async function persistPadOrder(originalPads, finalPads) {
       await dbDelete(padAudioKey(targetPad));
     }
   }
-}
-
-function bindPadBoardEvents() {
-  els.pads?.addEventListener("click", (event) => {
-    const duplicateButton = event.target.closest('[data-action="duplicate-pad"]');
-    if (!duplicateButton || !els.pads.contains(duplicateButton)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const sourceNode = duplicateButton.closest("[data-pad]");
-    duplicatePadFromNode(sourceNode);
-  });
 }
 
 function startPadDrag(pad, event) {
@@ -2100,7 +2096,7 @@ function syncPadIndexesFromDom() {
   });
 }
 
-async function duplicatePadFromNode(sourceNode) {
+async function duplicatePadFromNode(sourceNode, directPad = null) {
   if (!state.boardEditMode) return;
   const padNodes = [...els.pads.querySelectorAll("[data-pad]")];
   const sourceIndex = padNodes.indexOf(sourceNode);
@@ -2108,7 +2104,7 @@ async function duplicatePadFromNode(sourceNode) {
     setStatus("Pad à copier introuvable");
     return;
   }
-  const sourcePad = padFromNode(sourceNode);
+  const sourcePad = directPad?.node === sourceNode ? directPad : padFromNode(sourceNode);
   if (!sourcePad) {
     setStatus("Pad à copier introuvable");
     return;
@@ -2173,7 +2169,7 @@ async function duplicatePadFromNode(sourceNode) {
   saveBoards();
   await renderPads();
   setBoardPadEditing(true);
-  setStatus(`${title} duplique`);
+  setStatus(`${title} duplique depuis pad ${sourceIndex + 1}`);
 }
 
 async function deletePad(pad) {
@@ -4483,7 +4479,6 @@ async function init() {
     await ensureAudio();
     setMasterVolume(els.masterVolume.value);
   });
-  bindPadBoardEvents();
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
