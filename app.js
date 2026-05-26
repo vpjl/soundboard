@@ -1341,8 +1341,7 @@ function bindPadBoardEvents() {
     event.stopPropagation();
     const sourceNode = duplicateButton.closest("[data-pad]");
     const sourceIndex = [...els.pads.querySelectorAll("[data-pad]")].indexOf(sourceNode);
-    const sourcePad = state.pads[sourceIndex];
-    duplicatePad(sourcePad);
+    duplicatePadAt(sourceIndex);
   });
 }
 
@@ -2088,21 +2087,23 @@ function duplicateTitle(title) {
   return `${base} copie`;
 }
 
-async function duplicatePad(pad) {
+async function duplicatePadAt(sourceIndex) {
   if (!state.boardEditMode) return;
-  if (!pad || !state.pads.includes(pad)) {
+  if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= state.pads.length) {
     setStatus("Pad à copier introuvable");
     return;
   }
-  pad = state.pads.find((item) => item.node === pad.node && item.index === pad.index) || state.pads.find((item) => item.index === pad.index);
-  if (!pad) {
+  const sourcePad = state.pads[sourceIndex];
+  if (!sourcePad) {
     setStatus("Pad à copier introuvable");
     return;
   }
-  await savePadMeta(pad);
+  sourcePad.index = sourceIndex;
+  sourcePad.node.dataset.padIndex = String(sourceIndex);
+  await savePadMeta(sourcePad);
   const board = currentBoard();
   const boardId = state.currentBoardId;
-  const insertIndex = pad.index + 1;
+  const insertIndex = sourceIndex + 1;
   const snapshots = [];
 
   for (let index = insertIndex; index < board.padCount; index += 1) {
@@ -2128,12 +2129,11 @@ async function duplicatePad(pad) {
     }
   }
 
-  const sourceMeta = await dbGet(padMetaKey(pad));
-  const sourceAudio = await dbGet(padAudioKey(pad));
-  const sourceRef = Number.isInteger(Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex))
-    ? Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex)
-    : pad.index;
-  const title = duplicateTitle(sourceMeta?.title || sourceAudio?.title || pad.title);
+  const sourceMeta = await dbGet(padMetaKeyFor(boardId, sourceIndex));
+  const sourceAudio = await dbGet(padAudioKeyFor(boardId, sourceIndex));
+  const linkedRef = Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex);
+  const sourceRef = Number.isInteger(linkedRef) ? linkedRef : sourceIndex;
+  const title = duplicateTitle(sourceMeta?.title || sourceAudio?.title || sourcePad.title);
   const duplicateMeta = {
     ...(sourceMeta || {}),
     title,
