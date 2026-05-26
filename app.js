@@ -1340,8 +1340,7 @@ function bindPadBoardEvents() {
     event.preventDefault();
     event.stopPropagation();
     const sourceNode = duplicateButton.closest("[data-pad]");
-    const sourceIndex = [...els.pads.querySelectorAll("[data-pad]")].indexOf(sourceNode);
-    duplicatePadAt(sourceIndex);
+    duplicatePadFromNode(sourceNode);
   });
 }
 
@@ -2087,19 +2086,34 @@ function duplicateTitle(title) {
   return `${base} copie`;
 }
 
-async function duplicatePadAt(sourceIndex) {
+function padFromNode(node) {
+  return state.pads.find((pad) => pad.node === node) || null;
+}
+
+function syncPadIndexesFromDom() {
+  [...els.pads.querySelectorAll("[data-pad]")].forEach((node, index) => {
+    const pad = padFromNode(node);
+    if (!pad) return;
+    pad.index = index;
+    pad.node.dataset.padIndex = String(index);
+    if (pad.duplicateButton) pad.duplicateButton.dataset.padIndex = String(index);
+  });
+}
+
+async function duplicatePadFromNode(sourceNode) {
   if (!state.boardEditMode) return;
+  const padNodes = [...els.pads.querySelectorAll("[data-pad]")];
+  const sourceIndex = padNodes.indexOf(sourceNode);
   if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= state.pads.length) {
     setStatus("Pad à copier introuvable");
     return;
   }
-  const sourcePad = state.pads[sourceIndex];
+  const sourcePad = padFromNode(sourceNode);
   if (!sourcePad) {
     setStatus("Pad à copier introuvable");
     return;
   }
-  sourcePad.index = sourceIndex;
-  sourcePad.node.dataset.padIndex = String(sourceIndex);
+  syncPadIndexesFromDom();
   await savePadMeta(sourcePad);
   const board = currentBoard();
   const boardId = state.currentBoardId;
