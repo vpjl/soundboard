@@ -309,7 +309,8 @@ textarea *,
 }
 
 .stage-button.is-active,
-.pads-edit-button.is-active {
+.pads-edit-button.is-active,
+.show-cables-button.is-active {
   border-color: rgba(255, 206, 92, 0.82);
   background: rgba(255, 206, 92, 0.22);
   color: #fff0c2;
@@ -1439,6 +1440,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 .board-action-grid #addPad,
 .board-action-grid #addBoard,
+.duplicate-board-button,
 .bulk-edit-button,
 .board-action-grid .board-delete-button,
 .keyboard-shortcuts-button,
@@ -1454,6 +1456,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
 body.board-edit-mode .board-action-grid .show-cables-button,
+body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
 body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,

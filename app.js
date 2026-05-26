@@ -236,6 +236,7 @@ const els = {
   versionSelect: document.querySelector("#versionSelect"),
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
+  duplicateBoard: document.querySelector("#duplicateBoard"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
   exportBoardLite: document.querySelector("#exportBoardLite"),
@@ -569,6 +570,7 @@ function setBoardPadEditing(editing) {
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
   els.editPads?.setAttribute("aria-label", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
+  if (!state.boardEditMode) setCableOverlayVisible(false);
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
@@ -714,6 +716,7 @@ function makePad(index) {
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
+  pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
   pad.normalizeEl = node.querySelector("[data-normalize]");
   pad.normalizeValueEl = node.querySelector("[data-normalize-value]");
@@ -818,11 +821,11 @@ function makePad(index) {
   bindPadProgress(pad);
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
-  node.querySelector('[data-action="duplicate-pad"]')?.addEventListener("click", (event) => {
+  if (pad.duplicateButton) pad.duplicateButton.dataset.padIndex = String(index);
+  pad.duplicateButton?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const sourceNode = event.currentTarget?.closest("[data-pad]");
-    const sourceIndex = Number(sourceNode?.dataset.padIndex);
+    const sourceIndex = Number(event.currentTarget?.dataset.padIndex);
     const sourcePad = Number.isInteger(sourceIndex)
       ? state.pads.find((item) => item.index === sourceIndex)
       : null;
@@ -1469,6 +1472,42 @@ async function addBoard() {
   renderBoardOptions();
   await renderPads();
   setBoardEditing(true);
+}
+
+function duplicateBoardName(name) {
+  const base = `${String(name || "Projet").trim() || "Projet"} copie`;
+  const names = new Set(state.boards.map((board) => board.name));
+  if (!names.has(base)) return base;
+  let index = 2;
+  while (names.has(`${base} ${index}`)) index += 1;
+  return `${base} ${index}`;
+}
+
+async function duplicateCurrentBoard() {
+  if (!state.boardEditMode) return;
+  stopAll();
+  resetRecordingState();
+  const sourceBoard = currentBoard();
+  const newBoard = {
+    ...normalizeBoard(sourceBoard),
+    id: createId(),
+    name: duplicateBoardName(sourceBoard.name),
+  };
+  state.boards.push(newBoard);
+
+  for (let index = 0; index < sourceBoard.padCount; index += 1) {
+    const meta = await dbGet(padMetaKeyFor(sourceBoard.id, index));
+    const audio = await dbGet(padAudioKeyFor(sourceBoard.id, index));
+    if (meta) await dbSet(padMetaKeyFor(newBoard.id, index), meta);
+    if (audio) await dbSet(padAudioKeyFor(newBoard.id, index), audio);
+  }
+
+  state.currentBoardId = newBoard.id;
+  saveBoards();
+  renderBoardOptions();
+  await renderPads();
+  setBoardPadEditing(true);
+  setStatus(`${newBoard.name} dupliqué`);
 }
 
 function nextBoardName() {
@@ -3871,6 +3910,8 @@ function drawCableLegend(width) {
 
 function setCableOverlayVisible(visible) {
   document.body.classList.toggle("show-cables", Boolean(visible));
+  els.showCables?.classList.toggle("is-active", Boolean(visible));
+  els.showCables?.setAttribute("aria-pressed", String(Boolean(visible)));
   if (visible) drawCableOverlay();
 }
 
@@ -4321,10 +4362,6 @@ async function init() {
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
-  els.showCables?.addEventListener("pointerenter", () => setCableOverlayVisible(true));
-  els.showCables?.addEventListener("pointerleave", () => setCableOverlayVisible(false));
-  els.showCables?.addEventListener("focus", () => setCableOverlayVisible(true));
-  els.showCables?.addEventListener("blur", () => setCableOverlayVisible(false));
   els.showCables?.addEventListener("click", () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
@@ -4427,6 +4464,7 @@ async function init() {
     }
   });
   els.addBoard?.addEventListener("click", addBoard);
+  els.duplicateBoard?.addEventListener("click", duplicateCurrentBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
     exportCurrentBoard(true).catch(() => setStatus("Export impossible"));
