@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=91">
+    <link rel="stylesheet" href="styles.css?v=92">
   </head>
   <body>
     <div class="app">
@@ -238,6 +238,7 @@
                 <span class="pad-tags" data-tags-display></span>
               </span>
               <span class="pad-time" data-time>--:--</span>
+              <span class="pad-crossfade-flash" data-crossfade-flash aria-hidden="true"></span>
               <span class="pad-progress" data-progress aria-hidden="true">
                 <span class="pad-progress-fill" data-progress-fill></span>
               </span>
@@ -424,6 +425,12 @@
                   <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <circle cx="8.5" cy="9.5" r="1" fill="currentColor"/>
+                </svg>
+              </button>
+              <button type="button" data-action="duplicate-pad" aria-label="Dupliquer le pad">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
             </div>
@@ -1133,6 +1140,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=91"></script>
+    <script src="app.js?v=92"></script>
   </body>
 </html>

@@ -1377,6 +1377,43 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   color: var(--accent);
 }
 
+.pad-crossfade-flash {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.9);
+}
+
+.pad-crossfade-flash.is-crossfade-start {
+  background: #49d3a0;
+  box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.22);
+}
+
+.pad-crossfade-flash.is-crossfade-stop {
+  background: #ff5f56;
+  box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.22);
+}
+
+.pad-crossfade-flash.is-crossfade-flashing {
+  animation: crossfade-flash 0.32s linear 5;
+}
+
+@keyframes crossfade-flash {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
 .icon-button {
   display: grid;
   place-items: center;
@@ -1839,10 +1876,10 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad.is-editing .manage-group {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.pad.is-editing .manage-group button:not([data-action="visual-image"]):not([data-action="delete-pad"]) {
+.pad.is-editing .manage-group button:not([data-action="visual-image"]):not([data-action="duplicate-pad"]):not([data-action="delete-pad"]) {
   display: none;
 }
 
@@ -1850,8 +1887,12 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   order: 1;
 }
 
-.pad.is-editing .manage-group [data-action="delete-pad"] {
+.pad.is-editing .manage-group [data-action="duplicate-pad"] {
   order: 2;
+}
+
+.pad.is-editing .manage-group [data-action="delete-pad"] {
+  order: 3;
 }
 
 .pad.is-editing .pad-action-line {
@@ -2737,6 +2778,13 @@ body.stage-mode .board-skin-select select {
   height: 40px;
 }
 
+body.stage-mode .board-layout-controls {
+  display: grid !important;
+  grid-column: 1;
+  width: 100%;
+  grid-template-columns: minmax(72px, 92px) auto;
+}
+
 body.stage-mode.board-edit-mode .board-action-grid {
   grid-template-columns: 40px;
 }
@@ -2777,6 +2825,8 @@ body.stage-mode .pad {
 
 body.stage-mode .pad-actions {
   gap: 6px;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 body.stage-mode .pad-action-line {
@@ -2789,7 +2839,9 @@ body.stage-mode .pad-live-options {
 }
 
 body.stage-mode .live-button-group {
-  display: none;
+  display: grid;
+  gap: 5px;
+  padding: 5px;
 }
 
 body.stage-mode .controls {
@@ -2811,6 +2863,13 @@ body.stage-mode .pad-title {
 
 body.stage-mode .pad-time {
   font-size: clamp(0.95rem, 1.4vw, 1.25rem);
+}
+
+body.stage-mode .pad-time,
+body.stage-mode .pad-progress,
+body.stage-mode .pad-vu,
+body.stage-mode .pad-alerts {
+  opacity: 1 !important;
 }
 
 @media (max-width: 900px) {
@@ -3396,5 +3455,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .audio-normalize-field {
     flex-basis: 100%;
+  }
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  body.stage-mode .board-layout-controls {
+    display: grid !important;
+    grid-template-columns: minmax(72px, 92px) auto;
   }
 }

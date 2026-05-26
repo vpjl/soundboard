@@ -641,6 +641,7 @@ function makePad(index) {
     playMode: "oneshot",
     resumeOffset: 0,
     keepResumeOffsetOnEnd: false,
+    audioRefIndex: null,
     holdPointerId: null,
     volume: 0.85,
     panValue: 0,
@@ -694,6 +695,7 @@ function makePad(index) {
   pad.trimHandleStart = node.querySelector('[data-trim-handle="start"]');
   pad.trimHandleEnd = node.querySelector('[data-trim-handle="end"]');
   pad.timeEl = node.querySelector("[data-time]");
+  pad.crossfadeFlashEl = node.querySelector("[data-crossfade-flash]");
   pad.progressEl = node.querySelector("[data-progress]");
   pad.progressFillEl = node.querySelector("[data-progress-fill]");
   pad.vuEl = node.querySelector("[data-pad-vu]");
@@ -813,6 +815,7 @@ function makePad(index) {
   bindPadProgress(pad);
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
+  node.querySelector('[data-action="duplicate-pad"]')?.addEventListener("click", () => duplicatePad(pad));
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -1891,6 +1894,101 @@ async function addPad() {
   setStatus(`Pad ${board.padCount} ajoute`);
 }
 
+function shiftAudioRefIndex(record, insertIndex) {
+  if (!record || record.audioRefIndex == null) return record;
+  const refIndex = Number(record.audioRefIndex);
+  if (!Number.isInteger(refIndex)) return record;
+  return {
+    ...record,
+    audioRefIndex: refIndex >= insertIndex ? refIndex + 1 : refIndex,
+  };
+}
+
+function adjustAudioRefAfterDelete(record, deletedIndex, deletedAudio = null) {
+  if (!record || record.audioRefIndex == null) return record;
+  const refIndex = Number(record.audioRefIndex);
+  if (!Number.isInteger(refIndex)) return record;
+  if (refIndex > deletedIndex) {
+    return { ...record, audioRefIndex: refIndex - 1 };
+  }
+  if (refIndex === deletedIndex) {
+    return deletedAudio?.audio
+      ? { ...record, audio: record.audio || deletedAudio.audio, audioRefIndex: null }
+      : { ...record, audioRefIndex: null };
+  }
+  return record;
+}
+
+function duplicateTitle(title) {
+  const base = String(title || "Pad").trim() || "Pad";
+  return `${base} copie`;
+}
+
+async function duplicatePad(pad) {
+  if (!state.boardEditMode) return;
+  await savePadMeta(pad);
+  const board = currentBoard();
+  const boardId = state.currentBoardId;
+  const insertIndex = pad.index + 1;
+  const snapshots = [];
+
+  for (let index = insertIndex; index < board.padCount; index += 1) {
+    snapshots.push({
+      audio: await dbGet(padAudioKeyFor(boardId, index)),
+      meta: await dbGet(padMetaKeyFor(boardId, index)),
+    });
+  }
+
+  for (let offset = snapshots.length - 1; offset >= 0; offset -= 1) {
+    const fromIndex = insertIndex + offset;
+    const toIndex = fromIndex + 1;
+    const snapshot = snapshots[offset];
+    if (snapshot.meta) {
+      await dbSet(padMetaKeyFor(boardId, toIndex), shiftAudioRefIndex(snapshot.meta, insertIndex));
+    } else {
+      await dbDelete(padMetaKeyFor(boardId, toIndex));
+    }
+    if (snapshot.audio) {
+      await dbSet(padAudioKeyFor(boardId, toIndex), shiftAudioRefIndex(snapshot.audio, insertIndex));
+    } else {
+      await dbDelete(padAudioKeyFor(boardId, toIndex));
+    }
+  }
+
+  const sourceMeta = await dbGet(padMetaKey(pad));
+  const sourceAudio = await dbGet(padAudioKey(pad));
+  const sourceRef = Number.isInteger(Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex))
+    ? Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex)
+    : pad.index;
+  const title = duplicateTitle(sourceMeta?.title || sourceAudio?.title || pad.title);
+  const duplicateMeta = {
+    ...(sourceMeta || {}),
+    title,
+    audioRefIndex: sourceAudio || sourceMeta?.audioRefIndex != null ? sourceRef : null,
+  };
+  const duplicateAudio = sourceAudio
+    ? {
+      ...sourceAudio,
+      title,
+      audio: undefined,
+      audioRefIndex: sourceRef,
+    }
+    : null;
+
+  await dbSet(padMetaKeyFor(boardId, insertIndex), duplicateMeta);
+  if (duplicateAudio) {
+    await dbSet(padAudioKeyFor(boardId, insertIndex), duplicateAudio);
+  } else {
+    await dbDelete(padAudioKeyFor(boardId, insertIndex));
+  }
+
+  board.padCount += 1;
+  saveBoards();
+  await renderPads();
+  setBoardPadEditing(true);
+  setStatus(`${title} duplique`);
+}
+
 async function deletePad(pad) {
   if (!state.boardEditMode) return;
   const board = currentBoard();
@@ -1904,12 +2002,13 @@ async function deletePad(pad) {
   if (state.recordingPad === pad) resetRecordingState();
 
   const boardId = state.currentBoardId;
+  const deletedAudio = await dbGet(padAudioKeyFor(boardId, pad.index));
   const remainingPads = state.pads.filter((item) => item !== pad);
   const snapshots = [];
   for (const item of remainingPads) {
     snapshots.push({
-      audio: await dbGet(padAudioKeyFor(boardId, item.index)),
-      meta: await dbGet(padMetaKeyFor(boardId, item.index)),
+      audio: adjustAudioRefAfterDelete(await dbGet(padAudioKeyFor(boardId, item.index)), pad.index, deletedAudio),
+      meta: adjustAudioRefAfterDelete(await dbGet(padMetaKeyFor(boardId, item.index)), pad.index),
     });
   }
 
@@ -2023,6 +2122,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.audioName = name;
   pad.audioPath = path || name;
   pad.audioPathTrusted = Boolean(pathTrusted && path);
+  pad.audioRefIndex = null;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, cleanName(name));
@@ -2070,6 +2170,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
+    audioRefIndex: null,
   });
   await savePadMeta(pad);
   if (state.audioPad === pad) syncAudioDialog(pad);
@@ -2184,14 +2285,16 @@ async function restorePad(pad) {
     });
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     setPadMode(pad, meta.playMode || pad.playMode);
+    pad.audioRefIndex = Number.isInteger(Number(meta.audioRefIndex)) ? Number(meta.audioRefIndex) : null;
     pad.volumeEl.value = pad.volume;
     updatePadVolumeValue(pad);
     pad.panEl.value = pad.panValue;
     updatePadPanValue(pad);
   }
 
-  const saved = await dbGet(padAudioKey(pad));
-  if (!saved) {
+  const rawSaved = await dbGet(padAudioKey(pad));
+  const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+  if (!saved?.audio) {
     if (document.body.dataset.skin === "visual") revealGalleryPads(false);
     return;
   }
@@ -2239,6 +2342,7 @@ async function restorePad(pad) {
   });
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
+  pad.audioRefIndex = Number.isInteger(Number(meta?.audioRefIndex ?? saved.audioRefIndex)) ? Number(meta?.audioRefIndex ?? saved.audioRefIndex) : null;
   setPadDuration(pad, pad.buffer.duration);
   renderWaveform(pad);
   pad.volumeEl.value = pad.volume;
@@ -2247,6 +2351,23 @@ async function restorePad(pad) {
   updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
   if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+}
+
+async function resolvePadAudioRecord(pad, meta, saved) {
+  if (saved?.audio) return saved;
+  const refIndex = Number(saved?.audioRefIndex ?? meta?.audioRefIndex);
+  if (!Number.isInteger(refIndex) || refIndex < 0 || refIndex === pad.index) return saved;
+  const referenced = await dbGet(padAudioKeyFor(state.currentBoardId, refIndex));
+  if (!referenced?.audio) return saved;
+  return {
+    ...referenced,
+    ...(saved || {}),
+    audio: referenced.audio,
+    name: saved?.name || referenced.name,
+    path: saved?.path || referenced.path,
+    type: saved?.type || referenced.type,
+    audioRefIndex: refIndex,
+  };
 }
 
 async function savePadMeta(pad) {
@@ -2288,6 +2409,7 @@ async function savePadMeta(pad) {
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     playMode: pad.playMode,
+    audioRefIndex: Number.isInteger(Number(pad.audioRefIndex)) ? Number(pad.audioRefIndex) : null,
   };
   await dbSet(padMetaKey(pad), meta);
   const saved = await dbGet(padAudioKey(pad));
@@ -3564,6 +3686,17 @@ function padsFromCrossfadeTarget(target, exceptPad = null) {
   return padsWithTag(value, exceptPad);
 }
 
+function flashCrossfadeTarget(pad, stateName) {
+  if (!pad?.crossfadeFlashEl) return;
+  const el = pad.crossfadeFlashEl;
+  el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-flashing");
+  void el.offsetWidth;
+  el.classList.add(stateName === "start" ? "is-crossfade-start" : "is-crossfade-stop", "is-crossfade-flashing");
+  window.setTimeout(() => {
+    el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-flashing");
+  }, 1600);
+}
+
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   if (action === "none") return;
   const targets = padsFromCrossfadeTarget(target, sourcePad);
@@ -3576,10 +3709,12 @@ function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   }
   targets.forEach((targetPad) => {
     if (action === "play" && targetPad.buffer) {
+      flashCrossfadeTarget(targetPad, "start");
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
     }
     if (action === "stop" && targetPad.source) {
       stopPad(targetPad, true, false, { triggerEnd: false });
+      flashCrossfadeTarget(targetPad, "stop");
     }
   });
 }
