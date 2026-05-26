@@ -623,6 +623,7 @@ async function ensureAudio() {
 
 function makePad(index) {
   const node = els.template.content.firstElementChild.cloneNode(true);
+  node.dataset.padIndex = String(index);
   const pad = {
     index,
     node,
@@ -820,8 +821,11 @@ function makePad(index) {
   node.querySelector('[data-action="duplicate-pad"]')?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const sourceNode = event.currentTarget.closest("[data-pad]");
-    const sourcePad = state.pads.find((item) => item.node === sourceNode) || pad;
+    const sourceNode = event.currentTarget?.closest("[data-pad]");
+    const sourceIndex = Number(sourceNode?.dataset.padIndex);
+    const sourcePad = Number.isInteger(sourceIndex)
+      ? state.pads.find((item) => item.index === sourceIndex)
+      : null;
     duplicatePad(sourcePad);
   });
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
@@ -1936,6 +1940,15 @@ function duplicateTitle(title) {
 
 async function duplicatePad(pad) {
   if (!state.boardEditMode) return;
+  if (!pad || !state.pads.includes(pad)) {
+    setStatus("Pad à copier introuvable");
+    return;
+  }
+  pad = state.pads.find((item) => item.node === pad.node && item.index === pad.index) || state.pads.find((item) => item.index === pad.index);
+  if (!pad) {
+    setStatus("Pad à copier introuvable");
+    return;
+  }
   await savePadMeta(pad);
   const board = currentBoard();
   const boardId = state.currentBoardId;
@@ -3784,8 +3797,8 @@ function drawCableOverlay() {
     const x1 = sourceRect.left - deckRect.left + sourceRect.width / 2;
     const y1 = sourceRect.bottom - deckRect.top - 6;
     const x2 = targetRect.left - deckRect.left + targetRect.width / 2;
-    const y2 = targetRect.top - deckRect.top + 12;
-    const sag = Math.max(y1, y2) + 34 + (index % 4) * 12;
+    const y2 = targetRect.bottom - deckRect.top - 6;
+    const sag = Math.max(y1, y2) + 42 + (index % 4) * 12;
     const color = cableColor(link.action);
     const path = svgEl("path", {
       d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
@@ -3805,12 +3818,55 @@ function drawCableOverlay() {
       "stroke-width": 4,
     });
     const targetTip = svgEl("polygon", {
-      points: `${x2},${y2 + 3} ${x2 - 8},${y2 - 10} ${x2 + 8},${y2 - 10}`,
+      points: `${x2},${y2 - 3} ${x2 - 8},${y2 + 10} ${x2 + 8},${y2 + 10}`,
       fill: color,
       opacity: "0.96",
     });
     els.cableOverlay.append(path, sourcePlug, targetTip);
   });
+  drawCableLegend(deckRect.width);
+}
+
+function drawCableLegend(width) {
+  const legend = svgEl("g", { class: "cable-legend" });
+  const x = Math.max(10, width - 184);
+  const y = 10;
+  legend.append(svgEl("rect", {
+    x,
+    y,
+    width: 174,
+    height: 96,
+    rx: 10,
+    fill: "rgba(17, 19, 25, 0.92)",
+    stroke: "rgba(255, 255, 255, 0.18)",
+    "stroke-width": 1,
+  }));
+  [
+    ["#49d3a0", "", "Lance"],
+    ["#ff5f56", "", "Stoppe"],
+    ["#f6c451", "10 7", "Duck"],
+  ].forEach(([color, dash, label], index) => {
+    const yy = y + 28 + index * 24;
+    legend.append(svgEl("path", {
+      d: `M ${x + 16} ${yy} H ${x + 58}`,
+      fill: "none",
+      stroke: color,
+      "stroke-width": 6,
+      "stroke-linecap": "round",
+      "stroke-dasharray": dash,
+    }));
+    const text = svgEl("text", {
+      x: x + 72,
+      y: yy + 5,
+      fill: "#f3f4f0",
+      "font-size": 13,
+      "font-family": "Inter, Arial, sans-serif",
+      "font-weight": 700,
+    });
+    text.textContent = label;
+    legend.append(text);
+  });
+  els.cableOverlay.append(legend);
 }
 
 function setCableOverlayVisible(visible) {

@@ -3486,3 +3486,13 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr)) !important;
   }
 }
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.stage-mode .board-layout-controls {
+    display: none !important;
+  }
+
+  body.stage-mode .pads.has-pad-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

@@ -3,7 +3,7 @@
   <desc id="desc">Simulation d'un affichage temporaire des câbles crossfade directement au-dessus des pads du board.</desc>
   <rect width="1200" height="680" fill="#101114"/>
   <text x="54" y="58" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">Overlay temporaire du câblage crossfade</text>
-  <text x="54" y="90" fill="#9da3ad" font-family="Inter, Arial, sans-serif" font-size="15">Bouton “survol” visible en mode edit : les câbles pendent vers le bas, avec une extrémité en pointe vers le pad cible.</text>
+  <text x="54" y="90" fill="#9da3ad" font-family="Inter, Arial, sans-serif" font-size="15">Bouton “survol” visible en mode edit : les câbles partent et arrivent par le bas des pads, avec une extrémité en pointe vers le pad cible.</text>
 
   <g transform="translate(54 132)">
     <rect x="0" y="0" width="1092" height="460" rx="18" fill="#151820" stroke="#343b48"/>
@@ -23,20 +23,30 @@
       <text x="894" y="136" fill="#9da3ad" font-size="14">rev</text>
     </g>
 
-    <path d="M162 194 C162 286 434 286 434 70" fill="none" stroke="#49d3a0" stroke-width="9" stroke-linecap="round"/>
+    <path d="M162 194 C162 286 434 286 434 194" fill="none" stroke="#49d3a0" stroke-width="9" stroke-linecap="round"/>
     <circle cx="162" cy="194" r="10" fill="#101114" stroke="#49d3a0" stroke-width="5"/>
-    <polygon points="434,70 424,52 444,52" fill="#49d3a0"/>
+    <polygon points="434,188 424,204 444,204" fill="#49d3a0"/>
     <text x="246" y="274" fill="#49d3a0" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">lance</text>
 
-    <path d="M434 194 C434 336 706 336 706 70" fill="none" stroke="#ff5f56" stroke-width="9" stroke-linecap="round"/>
+    <path d="M434 194 C434 336 706 336 706 194" fill="none" stroke="#ff5f56" stroke-width="9" stroke-linecap="round"/>
     <circle cx="434" cy="194" r="10" fill="#101114" stroke="#ff5f56" stroke-width="5"/>
-    <polygon points="706,70 696,52 716,52" fill="#ff5f56"/>
+    <polygon points="706,188 696,204 716,204" fill="#ff5f56"/>
     <text x="548" y="324" fill="#ff5f56" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">stoppe</text>
 
-    <path d="M706 194 C706 384 954 384 954 70" fill="none" stroke="#f6c451" stroke-width="7" stroke-linecap="round" stroke-dasharray="15 11"/>
+    <path d="M706 194 C706 384 954 384 954 194" fill="none" stroke="#f6c451" stroke-width="7" stroke-linecap="round" stroke-dasharray="15 11"/>
     <circle cx="706" cy="194" r="9" fill="#101114" stroke="#f6c451" stroke-width="5"/>
-    <polygon points="954,70 944,52 964,52" fill="#f6c451"/>
+    <polygon points="954,188 944,204 964,204" fill="#f6c451"/>
     <text x="816" y="374" fill="#f6c451" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">duck</text>
+
+    <g transform="translate(840 338)">
+      <rect x="0" y="0" width="170" height="92" rx="10" fill="#111319" stroke="#3b4250"/>
+      <path d="M16 26h42" fill="none" stroke="#49d3a0" stroke-width="7" stroke-linecap="round"/>
+      <text x="72" y="31" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Lance</text>
+      <path d="M16 50h42" fill="none" stroke="#ff5f56" stroke-width="7" stroke-linecap="round"/>
+      <text x="72" y="55" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Stoppe</text>
+      <path d="M16 74h42" fill="none" stroke="#f6c451" stroke-width="7" stroke-linecap="round" stroke-dasharray="12 8"/>
+      <text x="72" y="79" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">Duck</text>
+    </g>
 
     <g transform="translate(52 356)">
       <rect x="0" y="0" width="208" height="50" rx="12" fill="#202631" stroke="#626b7a"/>
