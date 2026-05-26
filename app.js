@@ -396,10 +396,13 @@ function formatVersionLabel(savedAt) {
   });
 }
 
-function setPadTitle(pad, title) {
-  pad.title = title.trim() || `Pad ${pad.index + 1}`;
+function setPadTitle(pad, title, options = {}) {
+  const { syncInput = true, trimTitle = true } = options;
+  const rawTitle = String(title ?? "");
+  const displayTitle = trimTitle ? rawTitle.trim() : rawTitle;
+  pad.title = rawTitle.trim() ? displayTitle : `Pad ${pad.index + 1}`;
   pad.titleEl.textContent = pad.title;
-  pad.nameEl.value = pad.title;
+  if (syncInput) pad.nameEl.value = pad.title;
 }
 
 function padTargetValue(pad) {
@@ -846,7 +849,7 @@ function makePad(index) {
   });
 
   pad.nameEl.addEventListener("input", () => {
-    setPadTitle(pad, pad.nameEl.value);
+    setPadTitle(pad, pad.nameEl.value, { syncInput: false, trimTitle: false });
     refreshCrossfadeTargetOptions();
     renderShortcutRows();
     savePadMeta(pad);
@@ -882,6 +885,8 @@ function makePad(index) {
   });
   bindWaveformTrim(pad);
   pad.nameEl.addEventListener("blur", () => {
+    setPadTitle(pad, pad.nameEl.value);
+    savePadMeta(pad);
     if (!state.boardEditMode) setPadEditing(pad, false);
   });
   pad.nameEl.addEventListener("keydown", (event) => {
@@ -1867,11 +1872,15 @@ async function restoreSelectedBoardVersion() {
 async function exportCurrentBoard(includeAudio = true) {
   const board = currentBoard();
   const pads = [];
+  syncPadIndexesFromDom();
+  const shortcuts = state.shortcuts.length ? state.shortcuts : defaultShortcuts();
 
   for (let index = 0; index < board.padCount; index += 1) {
     const pad = state.pads[index] || makePad(index);
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
+    const resolvedAudio = includeAudio ? await resolvePadAudioRecord(pad, meta, saved) : null;
+    const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
       title: meta?.title || saved?.title || `Pad ${index + 1}`,
@@ -1909,12 +1918,13 @@ async function exportCurrentBoard(includeAudio = true) {
       trimStart: meta?.trimStart ?? saved?.trimStart ?? 0,
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
-      audio: includeAudio && saved?.audio ? {
-        name: saved.name || `Pad ${index + 1}`,
-        path: saved.path || meta?.audioPath || saved.name || `Pad ${index + 1}`,
-        pathTrusted: Boolean(saved.pathTrusted || meta?.audioPathTrusted),
-        type: saved.type || "audio/mpeg",
-        data: arrayBufferToBase64(saved.audio),
+      audioRefIndex: Number.isInteger(audioRef) ? audioRef : null,
+      audio: includeAudio && resolvedAudio?.audio ? {
+        name: resolvedAudio.name || saved?.name || `Pad ${index + 1}`,
+        path: resolvedAudio.path || saved?.path || meta?.audioPath || resolvedAudio.name || `Pad ${index + 1}`,
+        pathTrusted: Boolean(resolvedAudio.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
+        type: resolvedAudio.type || saved?.type || "audio/mpeg",
+        data: arrayBufferToBase64(resolvedAudio.audio),
       } : null,
     });
   }
@@ -1931,6 +1941,11 @@ async function exportCurrentBoard(includeAudio = true) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      shortcutsEnabled: state.shortcutsEnabled,
+      shortcuts: shortcuts.map((shortcut) => ({
+        key: normalizeShortcutKey(shortcut.key),
+        padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
+      })),
       pads,
     },
   };
@@ -2014,6 +2029,11 @@ async function importBoardFile(file) {
       trimStart: item.trimStart ?? 0,
       trimEnd: item.trimEnd ?? 0,
       playMode: item.playMode || "oneshot",
+      audioRefIndex: item.audio?.data
+        ? null
+        : Number.isInteger(Number(item.audioRefIndex))
+          ? Number(item.audioRefIndex)
+          : null,
     };
     await dbSet(padMetaKey(transientPad), meta);
     if (item.audio?.data) {
@@ -2032,6 +2052,24 @@ async function importBoardFile(file) {
       }
     }
   }
+
+  const importedShortcuts = Array.isArray(payload.board.shortcuts)
+    ? payload.board.shortcuts
+      .map((shortcut) => ({
+        key: normalizeShortcutKey(shortcut?.key),
+        padIndex: Number(shortcut?.padIndex),
+      }))
+      .filter((shortcut) => Number.isInteger(shortcut.padIndex) && shortcut.padIndex >= 0 && shortcut.padIndex < importedBoard.padCount)
+    : [];
+  state.shortcuts = importedShortcuts.length
+    ? importedShortcuts
+    : Array.from({ length: importedBoard.padCount }, (_, index) => ({
+      key: KEYS[index] || "",
+      padIndex: index,
+    }));
+  state.shortcutsEnabled = payload.board.shortcutsEnabled !== false;
+  saveShortcutsForCurrentBoard();
+  saveShortcutsEnabledForCurrentBoard();
 
   await renderPads();
   setStatus(audioFailures
