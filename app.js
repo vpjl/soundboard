@@ -4040,11 +4040,12 @@ function drawCableOverlay() {
   if (!els.cableOverlay || !els.pads) return;
   const deck = els.pads.closest(".deck");
   if (!deck) return;
+  deck.style.setProperty("--cable-extra-bottom", "0px");
   const deckRect = deck.getBoundingClientRect();
-  els.cableOverlay.setAttribute("viewBox", `0 0 ${deckRect.width} ${deckRect.height}`);
   els.cableOverlay.replaceChildren();
 
   const links = cableLinksForBoard().slice(0, 80);
+  let maxCableY = deckRect.height;
   links.forEach((link, index) => {
     const sourceRect = link.sourcePad.node.getBoundingClientRect();
     const targetRect = link.targetPad.node.getBoundingClientRect();
@@ -4055,6 +4056,7 @@ function drawCableOverlay() {
     const x2 = targetRect.left - deckRect.left + targetRect.width / 2;
     const y2 = targetRect.bottom - deckRect.top - 6;
     const sag = Math.max(y1, y2) + 42 + (index % 4) * 12;
+    maxCableY = Math.max(maxCableY, sag + 18, y1 + 18, y2 + 18);
     const color = cableColor(link.action);
     const path = svgEl("path", {
       d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
@@ -4080,6 +4082,9 @@ function drawCableOverlay() {
     });
     els.cableOverlay.append(path, sourcePlug, targetTip);
   });
+  const extraBottom = Math.max(0, Math.ceil(maxCableY - deckRect.height));
+  deck.style.setProperty("--cable-extra-bottom", `${extraBottom}px`);
+  els.cableOverlay.setAttribute("viewBox", `0 0 ${deckRect.width} ${Math.ceil(deckRect.height + extraBottom)}`);
 }
 
 function setCableOverlayVisible(visible) {
@@ -4087,6 +4092,7 @@ function setCableOverlayVisible(visible) {
   els.showCables?.classList.toggle("is-active", Boolean(visible));
   els.showCables?.setAttribute("aria-pressed", String(Boolean(visible)));
   if (visible) drawCableOverlay();
+  if (!visible) els.pads?.closest(".deck")?.style.removeProperty("--cable-extra-bottom");
 }
 
 function reverbImpulse(preset) {

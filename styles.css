@@ -287,7 +287,8 @@ textarea *,
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) max-content max-content;
+  grid-template-columns: minmax(260px, 1fr) max-content;
+  grid-template-rows: auto auto;
   gap: 18px;
   align-items: start;
   width: min(1280px, 100%);
@@ -299,6 +300,7 @@ textarea *,
   align-items: start;
   min-width: 0;
   gap: 14px;
+  grid-column: 1 / -1;
 }
 
 .brand-tools {
@@ -435,6 +437,8 @@ body.board-edit-mode .board-layout-controls {
   width: fit-content;
   max-width: 100%;
   justify-self: end;
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .board-area {
@@ -442,6 +446,8 @@ body.board-edit-mode .board-layout-controls {
   grid-template-columns: max-content minmax(260px, 360px);
   gap: 8px;
   align-items: start;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .board-strip {
@@ -903,9 +909,11 @@ button.is-pressed {
 }
 
 .deck {
+  --cable-extra-bottom: 0px;
   position: relative;
   width: min(1280px, 100%);
   margin: 0 auto;
+  padding-bottom: var(--cable-extra-bottom);
 }
 
 .pads {
@@ -928,7 +936,7 @@ body.stage-mode .pads.has-pad-layout {
   inset: 0;
   z-index: 20;
   width: 100%;
-  height: 100%;
+  height: calc(100% + var(--cable-extra-bottom));
   overflow: visible;
   pointer-events: none;
 }
@@ -2979,6 +2987,18 @@ body.stage-mode .pad-alerts {
 @media (max-width: 560px) {
   .app {
     padding-inline: 10px;
+  }
+
+  .topbar,
+  body.stage-mode .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .board-area,
+  .master-strip,
+  body.stage-mode .board-area,
+  body.stage-mode .master-strip {
+    grid-column: 1;
   }
 
   .master-strip,
