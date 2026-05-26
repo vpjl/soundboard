@@ -2110,6 +2110,10 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
     return;
   }
   syncPadIndexesFromDom();
+  const sourceAudioBeforeSave = await dbGet(padAudioKeyFor(state.currentBoardId, sourceIndex));
+  if (sourceAudioBeforeSave?.audio) {
+    sourcePad.audioRefIndex = null;
+  }
   await savePadMeta(sourcePad);
   const board = currentBoard();
   const boardId = state.currentBoardId;
@@ -2142,14 +2146,18 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
   const sourceMeta = await dbGet(padMetaKeyFor(boardId, sourceIndex));
   const sourceAudio = await dbGet(padAudioKeyFor(boardId, sourceIndex));
   const linkedRef = Number(sourceMeta?.audioRefIndex ?? sourceAudio?.audioRefIndex);
-  const sourceRef = Number.isInteger(linkedRef) ? linkedRef : sourceIndex;
+  const sourceRef = sourceAudio?.audio
+    ? sourceIndex
+    : Number.isInteger(linkedRef)
+      ? linkedRef
+      : null;
   const title = duplicateTitle(sourceMeta?.title || sourceAudio?.title || sourcePad.title);
   const duplicateMeta = {
     ...(sourceMeta || {}),
     title,
-    audioRefIndex: sourceAudio || sourceMeta?.audioRefIndex != null ? sourceRef : null,
+    audioRefIndex: sourceRef,
   };
-  const duplicateAudio = sourceAudio
+  const duplicateAudio = sourceRef != null && sourceAudio
     ? {
       ...sourceAudio,
       title,
@@ -2169,7 +2177,8 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
   saveBoards();
   await renderPads();
   setBoardPadEditing(true);
-  setStatus(`${title} duplique depuis pad ${sourceIndex + 1}`);
+  const audioLabel = sourceRef == null ? "sans audio" : `audio pad ${sourceRef + 1}`;
+  setStatus(`${title} duplique depuis pad ${sourceIndex + 1} · ${audioLabel}`);
 }
 
 async function deletePad(pad) {
@@ -2525,7 +2534,12 @@ async function restorePad(pad) {
   });
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
   setPadMode(pad, saved.playMode || pad.playMode);
-  pad.audioRefIndex = Number.isInteger(Number(meta?.audioRefIndex ?? saved.audioRefIndex)) ? Number(meta?.audioRefIndex ?? saved.audioRefIndex) : null;
+  const restoredRef = Number(meta?.audioRefIndex ?? saved.audioRefIndex);
+  pad.audioRefIndex = rawSaved?.audio
+    ? null
+    : Number.isInteger(restoredRef)
+      ? restoredRef
+      : null;
   setPadDuration(pad, pad.buffer.duration);
   renderWaveform(pad);
   pad.volumeEl.value = pad.volume;
