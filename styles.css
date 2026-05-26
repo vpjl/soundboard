@@ -835,6 +835,7 @@ button.is-pressed {
 }
 
 .deck {
+  position: relative;
   width: min(1280px, 100%);
   margin: 0 auto;
 }
@@ -850,7 +851,22 @@ button.is-pressed {
 }
 
 body.stage-mode .pads.has-pad-layout {
-  grid-auto-rows: minmax(92px, calc((100vh - 152px - (var(--pad-rows) - 1) * 10px) / var(--pad-rows)));
+  grid-auto-rows: auto;
+}
+
+.cable-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+body.show-cables .cable-overlay {
+  display: block;
 }
 
 .pad {
@@ -1400,7 +1416,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 }
 
 .pad-crossfade-flash.is-crossfade-flashing {
-  animation: crossfade-flash 0.32s linear 5;
+  animation: crossfade-flash 0.32s linear 10;
 }
 
 @keyframes crossfade-flash {
@@ -1425,7 +1441,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-action-grid #addBoard,
 .bulk-edit-button,
 .board-action-grid .board-delete-button,
-.keyboard-shortcuts-button {
+.keyboard-shortcuts-button,
+.show-cables-button {
   display: none;
 }
 
@@ -1436,6 +1453,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 }
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
+body.board-edit-mode .board-action-grid .show-cables-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
 body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
@@ -3462,5 +3480,9 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   body.stage-mode .board-layout-controls {
     display: grid !important;
     grid-template-columns: minmax(72px, 92px) auto;
+  }
+
+  body.stage-mode .pads.has-pad-layout {
+    grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr)) !important;
   }
 }

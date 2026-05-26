@@ -119,6 +119,8 @@ const els = {
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
+  showCables: document.querySelector("#showCables"),
+  cableOverlay: document.querySelector("#cableOverlay"),
   shortcutDialog: document.querySelector("#shortcutDialog"),
   closeShortcuts: document.querySelector("#closeShortcuts"),
   applyShortcuts: document.querySelector("#applyShortcuts"),
@@ -815,7 +817,13 @@ function makePad(index) {
   bindPadProgress(pad);
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
-  node.querySelector('[data-action="duplicate-pad"]')?.addEventListener("click", () => duplicatePad(pad));
+  node.querySelector('[data-action="duplicate-pad"]')?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceNode = event.currentTarget.closest("[data-pad]");
+    const sourcePad = state.pads.find((item) => item.node === sourceNode) || pad;
+    duplicatePad(sourcePad);
+  });
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -924,6 +932,8 @@ function makePad(index) {
 
   [pad.startStopModeEl, pad.startStopTagEl, pad.endStartModeEl, pad.endStartTargetEl].forEach((element) => {
     element.addEventListener("input", () => {
+      if (pad.startStopModeEl.value === "none") pad.startStopTagEl.value = "";
+      if (pad.endStartModeEl.value === "none") pad.endStartTargetEl.value = "";
       setPadCrossfade(pad, {
         startStopMode: pad.startStopModeEl.value,
         startStopTag: pad.startStopTagEl.value,
@@ -2570,6 +2580,7 @@ function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
   pad.node?.classList.toggle("has-fade-out", pad.fadeOutEnabled);
   updatePadAlerts(pad);
   if (state.boardEditMode) refreshBoardTagFilterOptions();
+  if (document.body.classList.contains("show-cables")) drawCableOverlay();
 }
 
 function setPadLoop(pad, loop) {
@@ -2849,9 +2860,9 @@ function normalizeCrossfadeTarget(value, legacyMode = "") {
 
 function setPadCrossfade(pad, rule = {}) {
   pad.startStopMode = normalizeCrossfadeAction(rule.startStopMode, rule.startStopTag);
-  pad.startStopTag = normalizeCrossfadeTarget(rule.startStopTag, rule.startStopMode);
+  pad.startStopTag = pad.startStopMode === "none" ? "" : normalizeCrossfadeTarget(rule.startStopTag, rule.startStopMode);
   pad.endStartMode = normalizeCrossfadeAction(rule.endStartMode, rule.endStartTarget);
-  pad.endStartTarget = normalizeCrossfadeTarget(rule.endStartTarget, rule.endStartMode);
+  pad.endStartTarget = pad.endStartMode === "none" ? "" : normalizeCrossfadeTarget(rule.endStartTarget, rule.endStartMode);
   if (pad.startStopModeEl) pad.startStopModeEl.value = pad.startStopMode;
   if (pad.startStopTagEl) pad.startStopTagEl.value = pad.startStopTag;
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
@@ -3694,7 +3705,7 @@ function flashCrossfadeTarget(pad, stateName) {
   el.classList.add(stateName === "start" ? "is-crossfade-start" : "is-crossfade-stop", "is-crossfade-flashing");
   window.setTimeout(() => {
     el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-flashing");
-  }, 1600);
+  }, 3300);
 }
 
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
@@ -3725,6 +3736,86 @@ function executeStartCrossfade(pad) {
 
 function executeEndCrossfade(pad) {
   executeCrossfadeAction(pad.endStartMode, pad.endStartTarget, pad, { pulse: true });
+}
+
+function cableColor(action) {
+  if (action === "play") return "#49d3a0";
+  if (action === "stop") return "#ff5f56";
+  if (action === "duck") return "#f6c451";
+  return "#8db5ff";
+}
+
+function cableLinksForBoard() {
+  const links = [];
+  state.pads.forEach((sourcePad) => {
+    [
+      { action: sourcePad.startStopMode, target: sourcePad.startStopTag, phase: "start" },
+      { action: sourcePad.endStartMode, target: sourcePad.endStartTarget, phase: "end" },
+    ].forEach((rule) => {
+      if (rule.action === "none") return;
+      padsFromCrossfadeTarget(rule.target, sourcePad).forEach((targetPad) => {
+        links.push({ sourcePad, targetPad, action: rule.action, phase: rule.phase });
+      });
+    });
+  });
+  return links;
+}
+
+function svgEl(name, attributes = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+
+function drawCableOverlay() {
+  if (!els.cableOverlay || !els.pads) return;
+  const deck = els.pads.closest(".deck");
+  if (!deck) return;
+  const deckRect = deck.getBoundingClientRect();
+  els.cableOverlay.setAttribute("viewBox", `0 0 ${deckRect.width} ${deckRect.height}`);
+  els.cableOverlay.replaceChildren();
+
+  const links = cableLinksForBoard().slice(0, 80);
+  links.forEach((link, index) => {
+    const sourceRect = link.sourcePad.node.getBoundingClientRect();
+    const targetRect = link.targetPad.node.getBoundingClientRect();
+    if (!sourceRect.width || !targetRect.width) return;
+
+    const x1 = sourceRect.left - deckRect.left + sourceRect.width / 2;
+    const y1 = sourceRect.bottom - deckRect.top - 6;
+    const x2 = targetRect.left - deckRect.left + targetRect.width / 2;
+    const y2 = targetRect.top - deckRect.top + 12;
+    const sag = Math.max(y1, y2) + 34 + (index % 4) * 12;
+    const color = cableColor(link.action);
+    const path = svgEl("path", {
+      d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+      fill: "none",
+      stroke: color,
+      "stroke-width": link.phase === "end" ? 5 : 7,
+      "stroke-linecap": "round",
+      "stroke-dasharray": link.phase === "end" ? "12 9" : "",
+      opacity: "0.92",
+    });
+    const sourcePlug = svgEl("circle", {
+      cx: x1,
+      cy: y1,
+      r: 7,
+      fill: "#101114",
+      stroke: color,
+      "stroke-width": 4,
+    });
+    const targetTip = svgEl("polygon", {
+      points: `${x2},${y2 + 3} ${x2 - 8},${y2 - 10} ${x2 + 8},${y2 - 10}`,
+      fill: color,
+      opacity: "0.96",
+    });
+    els.cableOverlay.append(path, sourcePlug, targetTip);
+  });
+}
+
+function setCableOverlayVisible(visible) {
+  document.body.classList.toggle("show-cables", Boolean(visible));
+  if (visible) drawCableOverlay();
 }
 
 function reverbImpulse(preset) {
@@ -4174,11 +4265,17 @@ async function init() {
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
+  els.showCables?.addEventListener("pointerenter", () => setCableOverlayVisible(true));
+  els.showCables?.addEventListener("pointerleave", () => setCableOverlayVisible(false));
+  els.showCables?.addEventListener("focus", () => setCableOverlayVisible(true));
+  els.showCables?.addEventListener("blur", () => setCableOverlayVisible(false));
+  els.showCables?.addEventListener("click", () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   });
   window.addEventListener("resize", () => {
     state.pads.forEach(renderWaveform);
+    if (document.body.classList.contains("show-cables")) drawCableOverlay();
   });
   els.duckPercent?.addEventListener("input", () => {
     const value = Math.round(duckAmount() * 100);
@@ -4464,6 +4561,8 @@ async function init() {
   [els.audioStartStopMode, els.audioStartStopTarget, els.audioEndStartMode, els.audioEndStartTarget].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
+      if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";
+      if (els.audioEndStartMode?.value === "none" && els.audioEndStartTarget) els.audioEndStartTarget.value = "";
       setPadCrossfade(state.audioPad, {
         startStopMode: els.audioStartStopMode?.value,
         startStopTag: els.audioStartStopTarget?.value,

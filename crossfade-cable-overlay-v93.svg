@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Overlay temporaire de câbles crossfade sur le board</title>
+  <desc id="desc">Simulation d'un affichage temporaire des câbles crossfade directement au-dessus des pads du board.</desc>
+  <rect width="1200" height="680" fill="#101114"/>
+  <text x="54" y="58" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">Overlay temporaire du câblage crossfade</text>
+  <text x="54" y="90" fill="#9da3ad" font-family="Inter, Arial, sans-serif" font-size="15">Bouton “survol” visible en mode edit : les câbles pendent vers le bas, avec une extrémité en pointe vers le pad cible.</text>
+
+  <g transform="translate(54 132)">
+    <rect x="0" y="0" width="1092" height="460" rx="18" fill="#151820" stroke="#343b48"/>
+
+    <g font-family="Inter, Arial, sans-serif">
+      <rect x="52" y="58" width="220" height="138" rx="12" fill="#242b35" stroke="#626b7a"/>
+      <text x="78" y="104" fill="#f3f4f0" font-size="24" font-weight="700">Intro</text>
+      <text x="78" y="136" fill="#9da3ad" font-size="14">f in • xf</text>
+      <rect x="324" y="58" width="220" height="138" rx="12" fill="#263227" stroke="#49d3a0"/>
+      <text x="350" y="104" fill="#f3f4f0" font-size="24" font-weight="700">Ambiance</text>
+      <text x="350" y="136" fill="#9da3ad" font-size="14">loop • duck</text>
+      <rect x="596" y="58" width="220" height="138" rx="12" fill="#332626" stroke="#ff5f56"/>
+      <text x="622" y="104" fill="#f3f4f0" font-size="24" font-weight="700">Voix</text>
+      <text x="622" y="136" fill="#9da3ad" font-size="14">xf</text>
+      <rect x="868" y="58" width="172" height="138" rx="12" fill="#252a32" stroke="#626b7a"/>
+      <text x="894" y="104" fill="#f3f4f0" font-size="24" font-weight="700">Effet</text>
+      <text x="894" y="136" fill="#9da3ad" font-size="14">rev</text>
+    </g>
+
+    <path d="M162 194 C162 286 434 286 434 70" fill="none" stroke="#49d3a0" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="162" cy="194" r="10" fill="#101114" stroke="#49d3a0" stroke-width="5"/>
+    <polygon points="434,70 424,52 444,52" fill="#49d3a0"/>
+    <text x="246" y="274" fill="#49d3a0" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">lance</text>
+
+    <path d="M434 194 C434 336 706 336 706 70" fill="none" stroke="#ff5f56" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="434" cy="194" r="10" fill="#101114" stroke="#ff5f56" stroke-width="5"/>
+    <polygon points="706,70 696,52 716,52" fill="#ff5f56"/>
+    <text x="548" y="324" fill="#ff5f56" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">stoppe</text>
+
+    <path d="M706 194 C706 384 954 384 954 70" fill="none" stroke="#f6c451" stroke-width="7" stroke-linecap="round" stroke-dasharray="15 11"/>
+    <circle cx="706" cy="194" r="9" fill="#101114" stroke="#f6c451" stroke-width="5"/>
+    <polygon points="954,70 944,52 964,52" fill="#f6c451"/>
+    <text x="816" y="374" fill="#f6c451" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">duck</text>
+
+    <g transform="translate(52 356)">
+      <rect x="0" y="0" width="208" height="50" rx="12" fill="#202631" stroke="#626b7a"/>
+      <path d="M28 17h3c4 0 4 8 10 8h4M28 33h3c4 0 4-8 10-8h4" fill="none" stroke="#f3f4f0" stroke-width="2" stroke-linecap="round"/>
+      <text x="64" y="31" fill="#f3f4f0" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">Survol câbles</text>
+    </g>
+  </g>
+</svg>

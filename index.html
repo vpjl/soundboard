@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=92">
+    <link rel="stylesheet" href="styles.css?v=93">
   </head>
   <body>
     <div class="app">
@@ -89,6 +89,12 @@
                   <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+              <button id="showCables" class="icon-button show-cables-button" type="button" aria-label="Afficher le câblage crossfade">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
               </div>
               <button id="editPads" class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" aria-pressed="false">
                 <svg class="edit-mode-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -163,7 +169,16 @@
             <div class="board-layout-controls" aria-label="Disposition des pads">
               <label>
                 <span>Colonnes</span>
-                <input id="padColumns" type="number" min="1" max="8" step="1" inputmode="numeric">
+                <select id="padColumns">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                </select>
               </label>
               <span class="layout-rows-display">Lignes <output id="padRows">3</output></span>
             </div>
@@ -216,6 +231,7 @@
       <main>
         <section class="deck" aria-label="Pads de sons">
           <div id="pads" class="pads"></div>
+          <svg id="cableOverlay" class="cable-overlay" aria-hidden="true"></svg>
         </section>
       </main>
     </div>
@@ -1140,6 +1156,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=92"></script>
+    <script src="app.js?v=93"></script>
   </body>
 </html>
