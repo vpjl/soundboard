@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=102">
+    <link rel="stylesheet" href="styles.css?v=103">
   </head>
   <body>
     <div class="app">
@@ -33,11 +33,16 @@
           </div>
           <div>
             <h1>Soundboard Live vl (c) 2026</h1>
-            <p id="audioStatus">Pret pour la scene · v102</p>
+            <p id="audioStatus">Pret pour la scene · v103</p>
           </div>
         </div>
 
         <div class="board-strip" aria-label="Boards">
+          <div id="cableLegend" class="cable-legend-panel" aria-hidden="true">
+            <span><i class="cable-swatch cable-play"></i>Lance</span>
+            <span><i class="cable-swatch cable-stop"></i>Stoppe</span>
+            <span><i class="cable-swatch cable-duck"></i>Duck</span>
+          </div>
           <div class="board-main">
             <label class="board-select">
               <span>Board</span>
@@ -114,6 +119,12 @@
                 </svg>
                 <svg class="live-mode-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="cancelBoardEdit" class="icon-button board-cancel-edit-button" type="button" aria-label="Annuler les modifications du board">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15 9l-6 6M9 9l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               <button id="saveVersion" class="icon-button board-history-button" type="button" aria-label="Sauvegarder une version locale du board courant">
@@ -668,6 +679,12 @@
                     <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Affiche les câbles crossfade du board.</dd>
+                <dt aria-label="Annuler les modifications">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 9l-6 6M9 9l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Annule les modifications du mode edit.</dd>
                 <dt aria-label="Modification groupée">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -1192,6 +1209,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=102"></script>
+    <script src="app.js?v=103"></script>
   </body>
 </html>

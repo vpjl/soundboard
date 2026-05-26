@@ -449,6 +449,65 @@ body.board-edit-mode .board-layout-controls {
   box-shadow: 0 12px 34px var(--shadow);
 }
 
+body.show-cables .board-strip {
+  grid-template-columns: minmax(118px, max-content) minmax(120px, 1fr);
+}
+
+.cable-legend-panel {
+  display: none;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.92);
+  color: #f3f4f0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.show-cables .cable-legend-panel {
+  display: grid;
+}
+
+.cable-legend-panel span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cable-swatch {
+  width: 34px;
+  height: 0;
+  border-top: 6px solid currentColor;
+  border-radius: 999px;
+}
+
+.cable-play {
+  color: #49d3a0;
+}
+
+.cable-stop {
+  color: #ff5f56;
+}
+
+.cable-duck {
+  color: #f6c451;
+  border-top-style: dashed;
+}
+
+@media (max-width: 700px) {
+  body.show-cables .board-strip {
+    grid-template-columns: minmax(120px, 1fr);
+  }
+
+  body.show-cables .cable-legend-panel {
+    grid-template-columns: repeat(3, max-content);
+    justify-content: start;
+  }
+}
+
 .board-main {
   display: grid;
   gap: 8px;
@@ -475,6 +534,11 @@ body.board-edit-mode .board-layout-controls {
 #editPads {
   grid-column: 4;
   grid-row: 1;
+}
+
+#cancelBoardEdit {
+  grid-column: 4;
+  grid-row: 2;
 }
 
 #saveVersion {
@@ -1444,6 +1508,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-notice-button,
 .bulk-edit-button,
 .board-action-grid .board-delete-button,
+.board-cancel-edit-button,
 .keyboard-shortcuts-button,
 .show-cables-button {
   display: none;
@@ -1460,6 +1525,7 @@ body.board-edit-mode .board-action-grid .show-cables-button,
 body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
+body.board-edit-mode .board-action-grid .board-cancel-edit-button,
 body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
 body.board-edit-mode .board-action-grid #addBoard {
@@ -2818,6 +2884,7 @@ body.stage-mode .board-action-grid .board-transfer-button,
 body.stage-mode .board-action-grid .board-history-button,
 body.stage-mode .board-action-grid .keyboard-shortcuts-button,
 body.stage-mode .board-action-grid .board-delete-button,
+body.stage-mode .board-action-grid .board-cancel-edit-button,
 body.stage-mode .board-action-grid .pads-edit-button,
 body.stage-mode .version-select {
   display: none;

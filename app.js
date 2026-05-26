@@ -87,6 +87,7 @@ const state = {
   sketchDrawing: false,
   stageMode: false,
   boardEditMode: false,
+  boardEditSnapshot: null,
 };
 
 const els = {
@@ -198,6 +199,7 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
+  cancelBoardEdit: document.querySelector("#cancelBoardEdit"),
   bulkEditPads: document.querySelector("#bulkEditPads"),
   bulkEditDialog: document.querySelector("#bulkEditDialog"),
   closeBulkEdit: document.querySelector("#closeBulkEdit"),
@@ -570,6 +572,7 @@ function setPadEditing(pad, editing) {
 
 function setBoardPadEditing(editing) {
   state.boardEditMode = Boolean(editing) && !state.stageMode;
+  if (!state.boardEditMode) state.boardEditSnapshot = null;
   document.body.classList.toggle("board-edit-mode", state.boardEditMode);
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
@@ -579,6 +582,23 @@ function setBoardPadEditing(editing) {
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
   setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
+}
+
+async function beginBoardEdit() {
+  if (state.stageMode) return;
+  state.boardEditSnapshot = await createBoardSnapshot(currentBoard());
+  setBoardPadEditing(true);
+}
+
+async function cancelBoardEdit() {
+  const snapshot = state.boardEditSnapshot;
+  if (!snapshot) {
+    setBoardPadEditing(false);
+    return;
+  }
+  await applyBoardSnapshot(snapshot);
+  state.boardEditSnapshot = null;
+  setStatus("Modifications annulées");
 }
 
 function setPadDuration(pad, seconds) {
@@ -1796,9 +1816,58 @@ async function createBoardSnapshot(board) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      shortcutsEnabled: state.shortcutsEnabled,
+      shortcuts: (state.shortcuts.length ? state.shortcuts : defaultShortcuts()).map((shortcut) => ({
+        key: normalizeShortcutKey(shortcut.key),
+        padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
+      })),
     },
     pads,
   };
+}
+
+async function applyBoardSnapshot(snapshot) {
+  const board = currentBoard();
+  stopAll();
+  resetRecordingState();
+  const previousPadCount = board.padCount;
+  board.name = snapshot.board?.name || board.name;
+  board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
+  board.masterVolume = clamp01(snapshot.board?.masterVolume);
+  board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
+  board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
+  board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
+
+  const maxPadCount = Math.max(previousPadCount, board.padCount);
+  for (let index = 0; index < maxPadCount; index += 1) {
+    await dbDelete(padMetaKeyFor(board.id, index));
+    await dbDelete(padAudioKeyFor(board.id, index));
+  }
+
+  for (const item of snapshot.pads || []) {
+    const index = Number(item.index);
+    if (!Number.isInteger(index) || index < 0 || index >= board.padCount) continue;
+    if (item.meta) await dbSet(padMetaKeyFor(board.id, index), item.meta);
+    if (item.audio) await dbSet(padAudioKeyFor(board.id, index), item.audio);
+  }
+
+  const snapshotShortcuts = Array.isArray(snapshot.board?.shortcuts) ? snapshot.board.shortcuts : [];
+  state.shortcuts = snapshotShortcuts.length
+    ? snapshotShortcuts.map((shortcut) => ({
+      key: normalizeShortcutKey(shortcut.key),
+      padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
+    }))
+    : Array.from({ length: board.padCount }, (_, index) => ({
+      key: KEYS[index] || "",
+      padIndex: index,
+    }));
+  state.shortcutsEnabled = snapshot.board?.shortcutsEnabled !== false;
+  saveShortcutsForCurrentBoard();
+  saveShortcutsEnabledForCurrentBoard();
+
+  saveBoards();
+  renderBoardOptions();
+  await renderPads();
 }
 
 async function saveBoardVersion() {
@@ -1838,32 +1907,7 @@ async function restoreSelectedBoardVersion() {
   const label = formatVersionLabel(snapshot.savedAt);
   if (!window.confirm(`Restaurer "${board.name}" depuis ${label} ?`)) return;
 
-  stopAll();
-  resetRecordingState();
-  const previousPadCount = board.padCount;
-  board.name = snapshot.board?.name || board.name;
-  board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
-  board.masterVolume = clamp01(snapshot.board?.masterVolume);
-  board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
-  board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
-  board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
-
-  const maxPadCount = Math.max(previousPadCount, board.padCount);
-  for (let index = 0; index < maxPadCount; index += 1) {
-    await dbDelete(padMetaKeyFor(board.id, index));
-    await dbDelete(padAudioKeyFor(board.id, index));
-  }
-
-  for (const item of snapshot.pads || []) {
-    const index = Number(item.index);
-    if (!Number.isInteger(index) || index < 0 || index >= board.padCount) continue;
-    if (item.meta) await dbSet(padMetaKeyFor(board.id, index), item.meta);
-    if (item.audio) await dbSet(padAudioKeyFor(board.id, index), item.audio);
-  }
-
-  saveBoards();
-  renderBoardOptions();
-  await renderPads();
+  await applyBoardSnapshot(snapshot);
   setBoardPadEditing(true);
   await refreshVersionOptions(snapshot.id);
   setStatus(`Version restauree: ${board.name}`);
@@ -4036,49 +4080,6 @@ function drawCableOverlay() {
     });
     els.cableOverlay.append(path, sourcePlug, targetTip);
   });
-  drawCableLegend(deckRect.width);
-}
-
-function drawCableLegend(width) {
-  const legend = svgEl("g", { class: "cable-legend" });
-  const x = Math.max(10, width - 184);
-  const y = 10;
-  legend.append(svgEl("rect", {
-    x,
-    y,
-    width: 174,
-    height: 96,
-    rx: 10,
-    fill: "rgba(17, 19, 25, 0.92)",
-    stroke: "rgba(255, 255, 255, 0.18)",
-    "stroke-width": 1,
-  }));
-  [
-    ["#49d3a0", "", "Lance"],
-    ["#ff5f56", "", "Stoppe"],
-    ["#f6c451", "10 7", "Duck"],
-  ].forEach(([color, dash, label], index) => {
-    const yy = y + 28 + index * 24;
-    legend.append(svgEl("path", {
-      d: `M ${x + 16} ${yy} H ${x + 58}`,
-      fill: "none",
-      stroke: color,
-      "stroke-width": 6,
-      "stroke-linecap": "round",
-      "stroke-dasharray": dash,
-    }));
-    const text = svgEl("text", {
-      x: x + 72,
-      y: yy + 5,
-      fill: "#f3f4f0",
-      "font-size": 13,
-      "font-family": "Inter, Arial, sans-serif",
-      "font-weight": 700,
-    });
-    text.textContent = label;
-    legend.append(text);
-  });
-  els.cableOverlay.append(legend);
 }
 
 function setCableOverlayVisible(visible) {
@@ -4595,7 +4596,14 @@ async function init() {
     setStageMode(!state.stageMode, true);
   });
   els.editPads?.addEventListener("click", () => {
-    setBoardPadEditing(!state.boardEditMode);
+    if (state.boardEditMode) {
+      setBoardPadEditing(false);
+      return;
+    }
+    beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
+  });
+  els.cancelBoardEdit?.addEventListener("click", () => {
+    cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
   });
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
