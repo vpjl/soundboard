@@ -237,6 +237,7 @@ const els = {
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
   duplicateBoard: document.querySelector("#duplicateBoard"),
+  boardNotice: document.querySelector("#boardNotice"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
   exportBoardLite: document.querySelector("#exportBoardLite"),
@@ -822,15 +823,6 @@ function makePad(index) {
   node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
   if (pad.duplicateButton) pad.duplicateButton.dataset.padIndex = String(index);
-  pad.duplicateButton?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const sourceIndex = Number(event.currentTarget?.dataset.padIndex);
-    const sourcePad = Number.isInteger(sourceIndex)
-      ? state.pads.find((item) => item.index === sourceIndex)
-      : null;
-    duplicatePad(sourcePad);
-  });
   node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -886,6 +878,7 @@ function makePad(index) {
     if (!state.boardEditMode) setPadEditing(pad, false);
   });
   pad.nameEl.addEventListener("keydown", (event) => {
+    event.stopPropagation();
     if (event.key === "Enter") {
       event.preventDefault();
       pad.nameEl.blur();
@@ -1340,6 +1333,19 @@ async function persistPadOrder(originalPads, finalPads) {
   }
 }
 
+function bindPadBoardEvents() {
+  els.pads?.addEventListener("click", (event) => {
+    const duplicateButton = event.target.closest('[data-action="duplicate-pad"]');
+    if (!duplicateButton || !els.pads.contains(duplicateButton)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceNode = duplicateButton.closest("[data-pad]");
+    const sourceIndex = [...els.pads.querySelectorAll("[data-pad]")].indexOf(sourceNode);
+    const sourcePad = state.pads[sourceIndex];
+    duplicatePad(sourcePad);
+  });
+}
+
 function startPadDrag(pad, event) {
   if (!pad.node.classList.contains("is-editing") || state.drag) return;
   event.preventDefault();
@@ -1384,6 +1390,7 @@ function startPadDrag(pad, event) {
     try {
       await persistPadOrder(drag.originalPads, state.pads.slice());
       await renderPads();
+      setBoardPadEditing(true);
       setStatus("Pads réordonnés");
     } catch {
       state.pads = drag.originalPads;
@@ -1483,6 +1490,15 @@ function duplicateBoardName(name) {
   return `${base} ${index}`;
 }
 
+function fileSafeName(value) {
+  return String(value || "soundboard")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "soundboard";
+}
+
 async function duplicateCurrentBoard() {
   if (!state.boardEditMode) return;
   stopAll();
@@ -1508,6 +1524,101 @@ async function duplicateCurrentBoard() {
   await renderPads();
   setBoardPadEditing(true);
   setStatus(`${newBoard.name} dupliqué`);
+}
+
+function boardNoticeRows() {
+  return state.pads.map((pad) => {
+    const options = [];
+    if (pad.loop) options.push("Loop");
+    if (pad.duckTrigger) options.push("Ducking");
+    if (pad.mono) options.push("Mono");
+    if (pad.fadeMode !== "none" && (fadeDurationForPad(pad, "in") > 0 || fadeDurationForPad(pad, "out") > 0)) options.push("Fades");
+    if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") options.push(`Reverb ${pad.reverbPreset}`);
+    if (pad.startStopMode !== "none" || pad.endStartMode !== "none") options.push("Crossfade");
+    return {
+      title: pad.title || `Pad ${pad.index + 1}`,
+      tags: pad.tags || "-",
+      audio: pad.audioName || "-",
+      mode: pad.playMode,
+      volume: `${Math.round((Number(pad.volume) || 0) * 100)}%`,
+      pan: pad.panValueEl?.textContent || "0",
+      options: options.join(", ") || "-",
+    };
+  });
+}
+
+function boardNoticeHtml() {
+  const board = currentBoard();
+  const rows = boardNoticeRows();
+  const date = new Date().toLocaleString("fr-FR");
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Notice ${escapeHtml(board.name)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111; line-height: 1.35; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    table { border-collapse: collapse; width: 100%; font-size: 11px; }
+    th, td { border: 1px solid #999; padding: 6px; vertical-align: top; }
+    th { background: #eee; text-align: left; }
+    .meta { color: #555; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Notice du board : ${escapeHtml(board.name)}</h1>
+  <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live vl (c) 2026.</p>
+  <h2>Résumé</h2>
+  <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""}. Volume master : ${Math.round((board.masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)} %. Disposition : ${board.layoutMode === "custom" ? `${board.padColumns} colonne(s)` : "automatique"}.</p>
+  <h2>Pads</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Nom</th><th>Audio</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Options</th></tr>
+    </thead>
+    <tbody>
+      ${rows.map((row, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.options)}</td></tr>`).join("")}
+    </tbody>
+  </table>
+</body>
+</html>`;
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportBoardNotice() {
+  const board = currentBoard();
+  const html = boardNoticeHtml();
+  const baseName = `notice-${fileSafeName(board.name)}`;
+  downloadBlob(html, `${baseName}.doc`, "application/msword;charset=utf-8");
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 250);
+    setStatus("Notice DOC téléchargée, PDF via impression");
+  } else {
+    setStatus("Notice DOC téléchargée, autoriser les pop-ups pour le PDF");
+  }
 }
 
 function nextBoardName() {
@@ -4358,6 +4469,7 @@ async function init() {
     await ensureAudio();
     setMasterVolume(els.masterVolume.value);
   });
+  bindPadBoardEvents();
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
@@ -4465,6 +4577,7 @@ async function init() {
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.duplicateBoard?.addEventListener("click", duplicateCurrentBoard);
+  els.boardNotice?.addEventListener("click", exportBoardNotice);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
     exportCurrentBoard(true).catch(() => setStatus("Export impossible"));
