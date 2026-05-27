@@ -13,6 +13,7 @@ const MASTER_FADE_IN_ENABLED_STORAGE = "soundboard-live-fade-in-enabled";
 const MASTER_FADE_OUT_ENABLED_STORAGE = "soundboard-live-fade-out-enabled";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
+const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
@@ -57,6 +58,9 @@ const state = {
   masterWet: null,
   masterConvolver: null,
   masterAnalyser: null,
+  masterEqLow: null,
+  masterEqMid: null,
+  masterEqHigh: null,
   masterMeterData: null,
   crossfadeDucks: new Map(),
   crossfadeDuckTimers: new Map(),
@@ -107,6 +111,12 @@ const els = {
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
+  masterEqLow: document.querySelector("#masterEqLow"),
+  masterEqMid: document.querySelector("#masterEqMid"),
+  masterEqHigh: document.querySelector("#masterEqHigh"),
+  masterEqLowValue: document.querySelector("#masterEqLowValue"),
+  masterEqMidValue: document.querySelector("#masterEqMidValue"),
+  masterEqHighValue: document.querySelector("#masterEqHighValue"),
   masterFadeInEnabled: document.querySelector("#masterFadeInEnabled"),
   masterFadeOutEnabled: document.querySelector("#masterFadeOutEnabled"),
   masterDuckEnabled: document.querySelector("#masterDuckEnabled"),
@@ -153,7 +163,9 @@ const els = {
   audioNormalizeValue: document.querySelector("#audioNormalizeValue"),
   audioMono: document.querySelector("#audioMono"),
   audioLoop: document.querySelector("#audioLoop"),
+  audioReverse: document.querySelector("#audioReverse"),
   audioDuck: document.querySelector("#audioDuck"),
+  audioDuckValue: document.querySelector("#audioDuckValue"),
   audioFadeNone: document.querySelector("#audioFadeNone"),
   audioFadeGlobal: document.querySelector("#audioFadeGlobal"),
   audioFadePad: document.querySelector("#audioFadePad"),
@@ -172,6 +184,12 @@ const els = {
   audioReverbGlobal: document.querySelector("#audioReverbGlobal"),
   audioReverbPad: document.querySelector("#audioReverbPad"),
   audioPadReverbFields: document.querySelector("#audioPadReverbFields"),
+  audioEqLow: document.querySelector("#audioEqLow"),
+  audioEqMid: document.querySelector("#audioEqMid"),
+  audioEqHigh: document.querySelector("#audioEqHigh"),
+  audioEqLowValue: document.querySelector("#audioEqLowValue"),
+  audioEqMidValue: document.querySelector("#audioEqMidValue"),
+  audioEqHighValue: document.querySelector("#audioEqHighValue"),
   audioStartStopMode: document.querySelector("#audioStartStopMode"),
   audioStartStopTarget: document.querySelector("#audioStartStopTarget"),
   audioEndStartMode: document.querySelector("#audioEndStartMode"),
@@ -638,6 +656,19 @@ function bestRecordingType() {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
+function clampEqGain(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(12, Math.max(-12, number)) : 0;
+}
+
+function configureEqFilter(filter, type, frequency, gain, q = 1) {
+  if (!filter) return;
+  filter.type = type;
+  filter.frequency.value = frequency;
+  if ("Q" in filter) filter.Q.value = q;
+  filter.gain.value = clampEqGain(gain);
+}
+
 function prepareAudio() {
   if (!state.audioContext) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -648,6 +679,9 @@ function prepareAudio() {
     state.masterWet = state.audioContext.createGain();
     state.masterConvolver = state.audioContext.createConvolver();
     state.masterAnalyser = state.audioContext.createAnalyser();
+    state.masterEqLow = state.audioContext.createBiquadFilter();
+    state.masterEqMid = state.audioContext.createBiquadFilter();
+    state.masterEqHigh = state.audioContext.createBiquadFilter();
     state.masterAnalyser.fftSize = 256;
     state.masterMeterData = new Uint8Array(state.masterAnalyser.fftSize);
     state.masterGain.gain.value = clamp01(els.masterVolume.value);
@@ -655,8 +689,13 @@ function prepareAudio() {
     state.masterGain.connect(state.masterDry).connect(state.masterAnalyser);
     state.masterGain.connect(state.masterConvolver).connect(state.masterWet).connect(state.masterAnalyser);
     state.masterBypassGain.connect(state.masterAnalyser);
-    state.masterAnalyser.connect(state.audioContext.destination);
+    state.masterAnalyser
+      .connect(state.masterEqLow)
+      .connect(state.masterEqMid)
+      .connect(state.masterEqHigh)
+      .connect(state.audioContext.destination);
     applyMasterReverb();
+    applyMasterEq();
   }
 }
 
@@ -696,6 +735,8 @@ function makePad(index) {
     panValue: 0,
     loop: false,
     duckTrigger: false,
+    reverse: false,
+    muted: false,
     tags: "",
     color: "",
     fadeSeconds: "",
@@ -710,6 +751,9 @@ function makePad(index) {
     reverbPreset: "none",
     reverbWet: 0.5,
     reverbMode: "global",
+    eqLow: 0,
+    eqMid: 0,
+    eqHigh: 0,
     mono: false,
     normalizeEnabled: true,
     normalizedGain: 1,
@@ -789,7 +833,11 @@ function makePad(index) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqLow: pad.eqLow,
+    eqMid: pad.eqMid,
+    eqHigh: pad.eqHigh,
     mono: pad.mono,
+    reverse: pad.reverse,
   });
   setPadVisualImage(pad, pad.visualImage, pad.visualImageHidden, {
     visualPositionX: pad.visualPositionX,
@@ -1176,8 +1224,8 @@ function setBulkColorValue(color = "") {
 
 function fillActionSelect(select, selectedValue = "none") {
   if (!select) return;
-  select.innerHTML = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
-  select.value = ["none", "play", "duck", "stop"].includes(selectedValue) ? selectedValue : "none";
+  select.innerHTML = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="mute">Mute/demute pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
+  select.value = ["none", "play", "duck", "mute", "stop"].includes(selectedValue) ? selectedValue : "none";
 }
 
 function fillBulkCrossfadeControls(pad) {
@@ -1617,7 +1665,9 @@ function padAudioNotice(pad) {
   if (pad.normalizeEnabled) items.push(`normalisation ${pad.normalizedGain.toFixed(2)}x`);
   if (pad.mono && pad.buffer?.numberOfChannels !== 1) items.push("mono");
   if (pad.loop) items.push("loop");
-  if (pad.duckTrigger) items.push("ducking");
+  if (pad.reverse) items.push("reverse");
+  if (pad.muted) items.push("mute");
+  if (pad.duckTrigger) items.push(`ducking ${duckPercentValue()}%`);
   const fade = fadeNotice(pad);
   if (fade) items.push(fade);
   if ((Number(pad.pitchSemitones) || 0) !== 0 || Math.round(Number(pad.pitchFine) || 0) !== 0) {
@@ -1629,6 +1679,12 @@ function padAudioNotice(pad) {
   } else if (pad.reverbMode === "pad" && pad.reverbPreset !== "none" && pad.reverbWet > 0) {
     items.push(`reverb ${pad.reverbPreset} ${Math.round(pad.reverbWet * 100)}%`);
   }
+  const eq = [
+    ["basses", pad.eqLow],
+    ["médiums", pad.eqMid],
+    ["aigus", pad.eqHigh],
+  ].filter(([, value]) => clampEqGain(value) !== 0);
+  if (eq.length) items.push(`EQ ${eq.map(([label, value]) => `${label} ${clampEqGain(value) > 0 ? "+" : ""}${clampEqGain(value)}dB`).join(" / ")}`);
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("crossfade");
   return items.join(" ; ") || "-";
 }
@@ -1644,8 +1700,15 @@ function boardAudioNotice() {
   const items = [`Volume master ${Math.round((currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)}%`];
   if (masterFadeEnabled("in") && Number(els.fadeInSeconds?.value) > 0) items.push(`Fade in ${Number(els.fadeInSeconds.value)}s`);
   if (masterFadeEnabled("out") && Number(els.fadeSeconds?.value) > 0) items.push(`Fade out ${Number(els.fadeSeconds.value)}s`);
-  if (masterDuckEnabled() && duckAmount() > 0) items.push(`Ducking ${duckAmount()}%`);
+  if (masterDuckEnabled() && duckAmount() > 0) items.push(`Ducking ${duckPercentValue()}%`);
   if (reverb.preset !== "none" && reverb.wet > 0) items.push(`Reverb ${reverb.preset} ${Math.round(reverb.wet * 100)}%`);
+  const eq = masterEqSettings();
+  const eqItems = [
+    ["basses", eq.low],
+    ["médiums", eq.mid],
+    ["aigus", eq.high],
+  ].filter(([, value]) => value !== 0);
+  if (eqItems.length) items.push(`EQ ${eqItems.map(([label, value]) => `${label} ${value > 0 ? "+" : ""}${value}dB`).join(" / ")}`);
   return items.join(" ; ");
 }
 
@@ -2047,6 +2110,7 @@ async function exportCurrentBoard(includeAudio = true) {
       panValue: meta?.panValue ?? saved?.panValue ?? 0,
       loop: Boolean(meta?.loop ?? saved?.loop),
       duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
+      reverse: Boolean(meta?.reverse ?? saved?.reverse),
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
       fadeSeconds: meta?.fadeSeconds ?? saved?.fadeSeconds ?? "",
@@ -2061,6 +2125,9 @@ async function exportCurrentBoard(includeAudio = true) {
       reverbPreset: meta?.reverbPreset ?? saved?.reverbPreset ?? "none",
       reverbWet: meta?.reverbWet ?? saved?.reverbWet ?? 0.5,
       reverbMode: meta?.reverbMode ?? saved?.reverbMode ?? "global",
+      eqLow: meta?.eqLow ?? saved?.eqLow ?? 0,
+      eqMid: meta?.eqMid ?? saved?.eqMid ?? 0,
+      eqHigh: meta?.eqHigh ?? saved?.eqHigh ?? 0,
       mono: Boolean(meta?.mono ?? saved?.mono),
       normalizeEnabled: meta?.normalizeEnabled ?? saved?.normalizeEnabled ?? true,
       normalizedGain: meta?.normalizedGain ?? saved?.normalizedGain ?? 1,
@@ -2158,6 +2225,7 @@ async function importBoardFile(file) {
       panValue: item.panValue ?? 0,
       loop: Boolean(item.loop),
       duckTrigger: Boolean(item.duckTrigger),
+      reverse: Boolean(item.reverse),
       tags: item.tags || "",
       color: item.color || "",
       fadeSeconds: item.fadeSeconds ?? "",
@@ -2172,6 +2240,9 @@ async function importBoardFile(file) {
       reverbPreset: item.reverbPreset || "none",
       reverbWet: item.reverbWet ?? 0.5,
       reverbMode: item.reverbMode || "global",
+      eqLow: item.eqLow ?? 0,
+      eqMid: item.eqMid ?? 0,
+      eqHigh: item.eqHigh ?? 0,
       mono: Boolean(item.mono),
       normalizeEnabled: item.normalizeEnabled ?? true,
       normalizedGain: item.normalizedGain ?? 1,
@@ -2529,6 +2600,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    reverse: pad.reverse,
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
@@ -2543,6 +2615,9 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqLow: pad.eqLow,
+    eqMid: pad.eqMid,
+    eqHigh: pad.eqHigh,
     mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
@@ -2714,7 +2789,11 @@ async function restorePad(pad) {
     reverbPreset: meta?.reverbPreset ?? saved.reverbPreset,
     reverbWet: meta?.reverbWet ?? saved.reverbWet,
     reverbMode: meta?.reverbMode ?? saved.reverbMode ?? "global",
+    eqLow: meta?.eqLow ?? saved.eqLow,
+    eqMid: meta?.eqMid ?? saved.eqMid,
+    eqHigh: meta?.eqHigh ?? saved.eqHigh,
     mono: meta?.mono ?? saved.mono,
+    reverse: meta?.reverse ?? saved.reverse,
   });
   setPadNormalization(pad, meta?.normalizeEnabled ?? saved.normalizeEnabled ?? true, meta?.normalizedGain ?? saved.normalizedGain ?? 1);
   setPadVisualImage(pad, meta?.visualImage ?? saved.visualImage ?? "", Boolean(meta?.visualImageHidden ?? saved.visualImageHidden), {
@@ -2771,6 +2850,7 @@ async function savePadMeta(pad) {
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    reverse: pad.reverse,
     tags: pad.tags,
     color: pad.color,
     fadeSeconds: pad.fadeSeconds,
@@ -2785,6 +2865,9 @@ async function savePadMeta(pad) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqLow: pad.eqLow,
+    eqMid: pad.eqMid,
+    eqHigh: pad.eqHigh,
     mono: pad.mono,
     normalizeEnabled: pad.normalizeEnabled,
     normalizedGain: pad.normalizedGain,
@@ -2870,7 +2953,10 @@ function badgeClassFor(label) {
   const text = String(label || "").toLowerCase();
   if (text.includes("fade") || text === "f in" || text === "f out") return "is-fade";
   if (text.includes("duck")) return "is-duck";
+  if (text.includes("mute")) return "is-stop";
+  if (text.includes("revrs")) return "is-crossfade";
   if (text.includes("rev")) return "is-reverb";
+  if (text.includes("eq")) return "is-reverb";
   if (text.includes("xf") || text.includes("cross")) return "is-crossfade";
   if (text.includes("loop")) return "is-loop";
   if (text.includes("mono")) return "is-mono";
@@ -2887,10 +2973,13 @@ function padOptionBadges(pad) {
   const items = [];
   if (pad.loop) items.push("Loop");
   if (pad.duckTrigger) items.push("Duck");
+  if (pad.reverse) items.push("Revrs");
+  if (pad.muted) items.push("Mute");
   if (pad.mono) items.push("Mono");
   if (fadeDurationForPad(pad, "in") > 0) items.push("Fade in");
   if (fadeDurationForPad(pad, "out") > 0) items.push("Fade out");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
+  if ([pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xf");
   return items;
 }
@@ -2904,6 +2993,8 @@ function updateMasterOptionBadges() {
   if (masterDuckEnabled() && duckAmount() > 0) items.push("Ducking");
   const reverb = masterReverbSettings();
   if (reverb.preset !== "none" && reverb.wet > 0) items.push("rev");
+  const eq = masterEqSettings();
+  if ([eq.low, eq.mid, eq.high].some((value) => value !== 0)) items.push("EQ");
   if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
 }
 
@@ -2927,6 +3018,7 @@ function updatePadAlerts(pad) {
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger);
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
+  pad.node.classList.toggle("is-muted", Boolean(pad.muted));
   pad.node.classList.toggle("has-audio-fade-in", hasFadeIn);
   pad.node.classList.toggle("has-audio-fade-out", hasFadeOut);
   pad.node.classList.toggle("has-reverb", pad.reverbMode === "pad" && pad.reverbPreset !== "none");
@@ -3167,7 +3259,11 @@ function setPadAudioSettings(pad, settings = {}) {
   const nextPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : (pad.reverbPreset || "hall");
   pad.reverbPreset = pad.reverbMode === "pad" && nextPreset === "none" ? "hall" : nextPreset;
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
+  pad.eqLow = clampEqGain(settings.eqLow ?? pad.eqLow);
+  pad.eqMid = clampEqGain(settings.eqMid ?? pad.eqMid);
+  pad.eqHigh = clampEqGain(settings.eqHigh ?? pad.eqHigh);
   pad.mono = Boolean(settings.mono ?? pad.mono);
+  pad.reverse = Boolean(settings.reverse ?? pad.reverse);
   updatePadAlerts(pad);
   if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
@@ -3225,7 +3321,7 @@ function setPadNormalization(pad, enabled, gain = 1) {
 }
 
 function normalizeCrossfadeAction(mode, legacyTarget = "") {
-  if (["none", "play", "duck", "stop"].includes(mode)) return mode;
+  if (["none", "play", "duck", "mute", "stop"].includes(mode)) return mode;
   if (["all", "tag"].includes(mode)) return "stop";
   if (mode === "pad") return "play";
   return legacyTarget ? "play" : "none";
@@ -3599,11 +3695,17 @@ function syncAudioDialog(pad = state.audioPad) {
     els.audioLoop.classList.toggle("is-active", pad.loop);
     els.audioLoop.setAttribute("aria-pressed", String(pad.loop));
   }
+  if (els.audioReverse) {
+    els.audioReverse.checked = pad.reverse;
+    els.audioReverse.classList.toggle("is-active", pad.reverse);
+    els.audioReverse.setAttribute("aria-pressed", String(pad.reverse));
+  }
   if (els.audioDuck) {
     els.audioDuck.checked = pad.duckTrigger;
     els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
     els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
   }
+  if (els.audioDuckValue) els.audioDuckValue.textContent = `${duckPercentValue()}%`;
   if (els.audioFadeNone) els.audioFadeNone.checked = pad.fadeMode === "none";
   if (els.audioFadeGlobal) els.audioFadeGlobal.checked = pad.fadeMode !== "none" && pad.fadeMode !== "pad";
   if (els.audioFadePad) els.audioFadePad.checked = pad.fadeMode === "pad";
@@ -3627,6 +3729,10 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset === "none" ? "hall" : pad.reverbPreset;
   if (els.audioReverbWet) els.audioReverbWet.value = String(pad.reverbWet);
   if (els.audioReverbValue) els.audioReverbValue.textContent = `${Math.round(pad.reverbWet * 100)}%`;
+  if (els.audioEqLow) els.audioEqLow.value = String(pad.eqLow);
+  if (els.audioEqMid) els.audioEqMid.value = String(pad.eqMid);
+  if (els.audioEqHigh) els.audioEqHigh.value = String(pad.eqHigh);
+  updateAudioEqValues(pad);
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   renderAudioDialogWaveform(pad);
@@ -3634,7 +3740,7 @@ function syncAudioDialog(pad = state.audioPad) {
 
 function fillAudioCrossfadeControls(pad = state.audioPad) {
   if (!pad) return;
-  const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
+  const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="mute">Mute/demute pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
   if (els.audioStartStopMode) {
     els.audioStartStopMode.innerHTML = actionOptions;
     els.audioStartStopMode.value = pad.startStopMode;
@@ -3666,6 +3772,7 @@ function audioDraftFromPad(pad) {
     mono: pad.mono,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    reverse: pad.reverse,
     fadeMode: pad.fadeMode,
     fadeInSeconds: pad.fadeInSeconds,
     fadeOutSeconds: pad.fadeOutSeconds,
@@ -3674,6 +3781,9 @@ function audioDraftFromPad(pad) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqLow: pad.eqLow,
+    eqMid: pad.eqMid,
+    eqHigh: pad.eqHigh,
     startStopMode: pad.startStopMode,
     startStopTag: pad.startStopTag,
     endStartMode: pad.endStartMode,
@@ -3719,7 +3829,11 @@ function resetAudioDialogSettings() {
     reverbPreset: "none",
     reverbWet: 0.5,
     reverbMode: "global",
+    eqLow: 0,
+    eqMid: 0,
+    eqHigh: 0,
     mono: false,
+    reverse: false,
   });
   setPadNormalization(pad, true, pad.normalizedGain);
   setPadLoop(pad, false);
@@ -3743,6 +3857,9 @@ function resetMasterAudioSettings() {
   if (els.duckPercent) els.duckPercent.value = "60";
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
+  if (els.masterEqLow) els.masterEqLow.value = "0";
+  if (els.masterEqMid) els.masterEqMid.value = "0";
+  if (els.masterEqHigh) els.masterEqHigh.value = "0";
   localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "off");
@@ -3750,8 +3867,10 @@ function resetMasterAudioSettings() {
   localStorage.setItem(FADE_OUT_STORAGE, "2");
   localStorage.setItem(DUCKING_STORAGE, "60");
   saveMasterReverbSettings();
+  saveMasterEqSettings();
   updateMasterReverbValue();
   applyMasterReverb();
+  applyMasterEq();
   applyDucking();
   updateMasterOptionBadges();
   setStatus("Audio master réinitialisé");
@@ -3767,6 +3886,9 @@ function masterAudioDraftFromControls() {
     duckPercent: els.duckPercent?.value ?? "60",
     reverbPreset: els.masterReverbPreset?.value || "none",
     reverbWet: els.masterReverbWet?.value ?? "0.5",
+    eqLow: els.masterEqLow?.value ?? "0",
+    eqMid: els.masterEqMid?.value ?? "0",
+    eqHigh: els.masterEqHigh?.value ?? "0",
   };
 }
 
@@ -3778,8 +3900,10 @@ function persistMasterAudioControls() {
   localStorage.setItem(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
   localStorage.setItem(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
   saveMasterReverbSettings();
+  saveMasterEqSettings();
   updateMasterReverbValue();
   applyMasterReverb();
+  applyMasterEq();
   applyDucking();
   updateMasterOptionBadges();
   updateAllPadAlerts();
@@ -3796,6 +3920,9 @@ function restoreMasterAudioDraft() {
   if (els.duckPercent) els.duckPercent.value = draft.duckPercent;
   if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
+  if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
+  if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
+  if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
   persistMasterAudioControls();
 }
 
@@ -3990,7 +4117,11 @@ function bindPadProgress(pad) {
 
 function duckAmount() {
   if (!masterDuckEnabled()) return 0;
-  return Math.min(100, Math.max(0, Number(els.duckPercent?.value) || 0)) / 100;
+  return duckPercentValue() / 100;
+}
+
+function duckPercentValue() {
+  return Math.min(100, Math.max(0, Math.round(Number(els.duckPercent?.value) || 0)));
 }
 
 function duckFactorForPad(pad) {
@@ -4000,6 +4131,7 @@ function duckFactorForPad(pad) {
 }
 
 function targetPadGain(pad) {
+  if (pad.muted) return 0.0001;
   return pad.volume * (pad.normalizeEnabled ? pad.normalizedGain : 1) * duckFactorForPad(pad);
 }
 
@@ -4089,12 +4221,31 @@ function padsFromCrossfadeTarget(target, exceptPad = null) {
 function flashCrossfadeTarget(pad, stateName) {
   if (!pad?.crossfadeFlashEl) return;
   const el = pad.crossfadeFlashEl;
-  el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-flashing");
+  el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-demute", "is-crossfade-flashing");
   void el.offsetWidth;
-  el.classList.add(stateName === "start" ? "is-crossfade-start" : "is-crossfade-stop", "is-crossfade-flashing");
+  const className = stateName === "start"
+    ? "is-crossfade-start"
+    : stateName === "demute"
+      ? "is-crossfade-demute"
+      : "is-crossfade-stop";
+  el.classList.add(className, "is-crossfade-flashing");
   window.setTimeout(() => {
-    el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-flashing");
+    el.classList.remove("is-crossfade-start", "is-crossfade-stop", "is-crossfade-demute", "is-crossfade-flashing");
+    if (pad.muted) el.classList.add("is-crossfade-muted");
   }, 3300);
+}
+
+function setPadMuted(pad, muted, pulse = true) {
+  if (!pad) return;
+  pad.muted = Boolean(muted);
+  if (pad.gain && state.audioContext) {
+    const now = state.audioContext.currentTime;
+    pad.gain.gain.cancelScheduledValues(now);
+    pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
+  }
+  pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
+  if (pulse) flashCrossfadeTarget(pad, pad.muted ? "stop" : "demute");
+  updatePadAlerts(pad);
 }
 
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
@@ -4111,6 +4262,9 @@ function executeCrossfadeAction(action, target, sourcePad, options = {}) {
     if (action === "play" && targetPad.buffer) {
       flashCrossfadeTarget(targetPad, "start");
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
+    }
+    if (action === "mute") {
+      setPadMuted(targetPad, !targetPad.muted, true);
     }
     if (action === "stop" && targetPad.source) {
       stopPad(targetPad, true, false, { triggerEnd: false });
@@ -4131,6 +4285,7 @@ function cableColor(action) {
   if (action === "play") return "#49d3a0";
   if (action === "stop") return "#ff5f56";
   if (action === "duck") return "#f6c451";
+  if (action === "mute") return "#8b7cff";
   return "#8db5ff";
 }
 
@@ -4168,6 +4323,7 @@ function cableActionLabel(action) {
   if (action === "play") return "Lance";
   if (action === "stop") return "Stoppe";
   if (action === "duck") return "Duck";
+  if (action === "mute") return "Mute/demute";
   return "Action";
 }
 
@@ -4441,6 +4597,59 @@ function applyMasterReverb() {
   updateMasterReverbValue();
 }
 
+function masterEqSettings() {
+  return {
+    low: clampEqGain(els.masterEqLow?.value),
+    mid: clampEqGain(els.masterEqMid?.value),
+    high: clampEqGain(els.masterEqHigh?.value),
+  };
+}
+
+function saveMasterEqSettings() {
+  localStorage.setItem(MASTER_EQ_STORAGE, JSON.stringify(masterEqSettings()));
+}
+
+function loadMasterEqSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(MASTER_EQ_STORAGE)) || {};
+  } catch {
+    saved = {};
+  }
+  if (els.masterEqLow) els.masterEqLow.value = String(clampEqGain(saved.low));
+  if (els.masterEqMid) els.masterEqMid.value = String(clampEqGain(saved.mid));
+  if (els.masterEqHigh) els.masterEqHigh.value = String(clampEqGain(saved.high));
+  updateMasterEqValues();
+}
+
+function updateEqOutput(output, value) {
+  if (!output) return;
+  const gain = clampEqGain(value);
+  output.textContent = `${gain > 0 ? "+" : ""}${gain} dB`;
+}
+
+function updateMasterEqValues() {
+  updateEqOutput(els.masterEqLowValue, els.masterEqLow?.value);
+  updateEqOutput(els.masterEqMidValue, els.masterEqMid?.value);
+  updateEqOutput(els.masterEqHighValue, els.masterEqHigh?.value);
+  updateMasterOptionBadges();
+}
+
+function updateAudioEqValues(pad = state.audioPad) {
+  updateEqOutput(els.audioEqLowValue, pad?.eqLow ?? els.audioEqLow?.value);
+  updateEqOutput(els.audioEqMidValue, pad?.eqMid ?? els.audioEqMid?.value);
+  updateEqOutput(els.audioEqHighValue, pad?.eqHigh ?? els.audioEqHigh?.value);
+}
+
+function applyMasterEq() {
+  updateMasterEqValues();
+  if (!state.audioContext || !state.masterEqLow || !state.masterEqMid || !state.masterEqHigh) return;
+  const eq = masterEqSettings();
+  configureEqFilter(state.masterEqLow, "lowshelf", 160, eq.low);
+  configureEqFilter(state.masterEqMid, "peaking", 1000, eq.mid, 1);
+  configureEqFilter(state.masterEqHigh, "highshelf", 6000, eq.high);
+}
+
 function padHasPadReverb(pad) {
   return pad.reverbMode === "pad" && pad.reverbPreset !== "none" && pad.reverbWet > 0;
 }
@@ -4486,6 +4695,21 @@ function connectSourceToGain(pad, source, gain) {
   pad.monoNodes = { splitter, merger, left, right };
 }
 
+function connectPadEq(pad, input, output) {
+  if (!state.audioContext) {
+    input.connect(output);
+    return;
+  }
+  const low = state.audioContext.createBiquadFilter();
+  const mid = state.audioContext.createBiquadFilter();
+  const high = state.audioContext.createBiquadFilter();
+  configureEqFilter(low, "lowshelf", 160, pad.eqLow);
+  configureEqFilter(mid, "peaking", 1000, pad.eqMid, 1);
+  configureEqFilter(high, "highshelf", 6000, pad.eqHigh);
+  input.connect(low).connect(mid).connect(high).connect(output);
+  pad.eqNodes = { low, mid, high };
+}
+
 function clearPlayingPad(pad, source, triggerEnd = false) {
   if (source && pad.source !== source) return;
   pad.source = null;
@@ -4495,6 +4719,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.meterData = null;
   pad.reverbNodes = null;
   pad.monoNodes = null;
+  pad.eqNodes = null;
   pad.stopAt = 0;
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing");
@@ -4504,6 +4729,23 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   applyDucking();
   updateAllPadAlerts();
   if (triggerEnd) executeEndCrossfade(pad);
+}
+
+function reversedBufferForPad(pad) {
+  if (!pad?.buffer || !state.audioContext) return pad?.buffer || null;
+  if (pad.reversedBufferSource === pad.buffer && pad.reversedBuffer) return pad.reversedBuffer;
+  const source = pad.buffer;
+  const reversed = state.audioContext.createBuffer(source.numberOfChannels, source.length, source.sampleRate);
+  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
+    const input = source.getChannelData(channel);
+    const output = reversed.getChannelData(channel);
+    for (let index = 0; index < input.length; index += 1) {
+      output[index] = input[input.length - 1 - index];
+    }
+  }
+  pad.reversedBuffer = reversed;
+  pad.reversedBufferSource = source;
+  return reversed;
 }
 
 async function playPad(pad, fade = false, offset = 0, options = {}) {
@@ -4519,7 +4761,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const segmentEnd = trimEnd(pad);
   const segmentDuration = playableDuration(pad);
   const segmentOffset = segmentDuration ? Math.min(Math.max(0, offset), Math.max(0, segmentDuration - 0.01)) : 0;
-  const startOffset = segmentStart + segmentOffset;
+  const playbackBuffer = pad.reverse ? reversedBufferForPad(pad) : pad.buffer;
+  const reverseSegmentStart = Math.max(0, pad.buffer.duration - segmentEnd);
+  const reverseSegmentEnd = Math.min(pad.buffer.duration, pad.buffer.duration - segmentStart);
+  const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
 
   const ctx = state.audioContext;
   const source = ctx.createBufferSource();
@@ -4538,16 +4783,16 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const targetGain = targetPadGain(pad);
 
   analyser.fftSize = 256;
-  source.buffer = pad.buffer;
+  source.buffer = playbackBuffer;
   source.loop = pad.loop;
-  source.loopStart = segmentStart;
-  source.loopEnd = segmentEnd;
+  source.loopStart = pad.reverse ? reverseSegmentStart : segmentStart;
+  source.loopEnd = pad.reverse ? reverseSegmentEnd : segmentEnd;
   source.playbackRate.setValueAtTime(1, now);
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
   gain.gain.setValueAtTime(effectiveFadeInTime > 0 ? 0 : targetGain, now);
   pan.pan.setValueAtTime(pad.panValue, now);
   connectSourceToGain(pad, source, gain);
-  gain.connect(pan);
+  connectPadEq(pad, gain, pan);
   connectPadOutput(pad, pan, analyser);
 
   if (effectiveFadeInTime > 0) {
@@ -4808,6 +5053,7 @@ async function init() {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
   loadMasterReverbSettings();
+  loadMasterEqSettings();
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
@@ -4836,16 +5082,18 @@ async function init() {
     if (document.body.classList.contains("show-cables")) drawCableOverlay();
   });
   els.duckPercent?.addEventListener("input", () => {
-    const value = Math.round(duckAmount() * 100);
+    const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
+    if (els.audioDuckValue) els.audioDuckValue.textContent = `${value}%`;
     applyDucking();
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.duckPercent?.addEventListener("change", () => {
-    const value = Math.round(duckAmount() * 100);
+    const value = duckPercentValue();
     els.duckPercent.value = value;
     localStorage.setItem(DUCKING_STORAGE, String(value));
+    if (els.audioDuckValue) els.audioDuckValue.textContent = `${value}%`;
     applyDucking();
     updateMasterOptionBadges();
     updateAllPadAlerts();
@@ -5038,6 +5286,12 @@ async function init() {
       applyMasterReverb();
     });
   });
+  [els.masterEqLow, els.masterEqMid, els.masterEqHigh].forEach((element) => {
+    element?.addEventListener("input", () => {
+      saveMasterEqSettings();
+      applyMasterEq();
+    });
+  });
   els.audioDialog?.addEventListener("click", (event) => {
     if (event.target === els.audioDialog) {
       restoreAudioDraft();
@@ -5086,6 +5340,13 @@ async function init() {
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
+  els.audioReverse?.addEventListener("change", () => {
+    if (!state.audioPad) return;
+    setPadAudioSettings(state.audioPad, { reverse: els.audioReverse.checked });
+    if (state.audioPad.source) refreshPlayingPadOutput(state.audioPad);
+    syncAudioDialog(state.audioPad);
+    savePadMeta(state.audioPad);
+  });
   els.audioDuck?.addEventListener("click", () => {
     if (!state.audioPad) return;
     setPadDuckTrigger(state.audioPad, !state.audioPad.duckTrigger);
@@ -5123,7 +5384,7 @@ async function init() {
       savePadMeta(state.audioPad);
     });
   });
-  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet].forEach((element) => {
+  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
@@ -5135,11 +5396,14 @@ async function init() {
         reverbMode: els.audioReverbNone?.checked ? "none" : (els.audioReverbPad?.checked ? "pad" : "global"),
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
+        eqLow: els.audioEqLow?.value,
+        eqMid: els.audioEqMid?.value,
+        eqHigh: els.audioEqHigh?.value,
       });
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
         state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
-        if (element === els.audioReverbPreset || element === els.audioReverbWet) {
+        if ([els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh].includes(element)) {
           refreshPlayingPadOutput(state.audioPad);
         }
       }

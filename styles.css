@@ -469,7 +469,7 @@ body.board-edit-mode .board-layout-controls {
 .board-help-button {
   position: absolute;
   right: 12px;
-  bottom: 12px;
+  bottom: 48px;
   width: 34px;
   height: 34px;
   z-index: 2;
@@ -1365,6 +1365,10 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   color: #a8f3ff;
 }
 
+.option-badge.is-stop {
+  color: #ffb4ae;
+}
+
 .option-badge.is-crossfade {
   color: #ffc28a;
 }
@@ -1511,9 +1515,21 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.22);
 }
 
+.pad-crossfade-flash.is-crossfade-demute {
+  background: #49d3a0;
+  box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.22);
+}
+
 .pad-crossfade-flash.is-crossfade-stop {
   background: #ff5f56;
   box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.22);
+}
+
+.pad-crossfade-flash.is-crossfade-muted {
+  opacity: 1;
+  background: #ff5f56;
+  box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.22);
+  transform: scale(1);
 }
 
 .pad-crossfade-flash.is-crossfade-flashing {
@@ -2405,6 +2421,10 @@ body[data-skin="contrast"] .color-field {
   min-width: 0;
 }
 
+.master-audio-panel .audio-head > div:first-child {
+  grid-column: 1;
+}
+
 .audio-head h2,
 .audio-head p {
   margin: 0;
@@ -2537,7 +2557,7 @@ body[data-skin="contrast"] .color-field {
 
 .master-audio-control {
   display: grid !important;
-  grid-template-columns: 18px minmax(78px, 1fr) 22px minmax(58px, 74px) !important;
+  grid-template-columns: 18px minmax(78px, 1fr) 22px minmax(58px, 74px) max-content !important;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -2676,6 +2696,24 @@ body[data-skin="contrast"] .color-field {
   justify-content: start;
   min-width: 0;
   flex: 0 0 auto;
+}
+
+.audio-toggle-block output,
+.master-audio-control .field-unit {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.audio-check-field:has(output) {
+  grid-template-columns: auto minmax(0, max-content) auto max-content;
+}
+
+.audio-eq-section label {
+  grid-template-columns: minmax(64px, 0.5fr) minmax(120px, 1fr) max-content;
+  align-items: center;
 }
 
 .audio-toggle-block.audio-normalize-field {
