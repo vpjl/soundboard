@@ -452,11 +452,12 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .board-strip {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(120px, 1fr);
   gap: 8px;
   align-items: start;
-  padding: 12px;
+  padding: 12px 12px 48px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(24, 26, 32, 0.88);
@@ -465,8 +466,19 @@ body.board-edit-mode .board-layout-controls {
   box-sizing: border-box;
 }
 
+.board-help-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 34px;
+  height: 34px;
+  z-index: 2;
+}
+
 .cable-legend-panel {
   display: none;
+  position: fixed;
+  z-index: 35;
   align-content: start;
   gap: 8px;
   padding: 10px;
@@ -492,7 +504,7 @@ body.show-cables .cable-legend-panel {
 .cable-swatch {
   width: 34px;
   height: 0;
-  border-top: 6px solid currentColor;
+  border-top: 3px solid currentColor;
   border-radius: 999px;
 }
 
@@ -668,6 +680,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .master-title {
   color: var(--accent-2);
   font-size: 0.78rem;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -2165,7 +2178,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .patch-bay-dialog {
-  width: min(980px, calc(100vw - 28px));
+  width: min(1080px, calc(100vw - 28px));
 }
 
 .confirm-dialog {
@@ -2204,21 +2217,10 @@ body[data-skin="contrast"] .color-field {
   gap: 7px;
 }
 
-.phase-swatch {
-  width: 30px;
-  height: 0;
-  border-top: 4px solid var(--text);
-  border-radius: 999px;
-}
-
-.phase-end {
-  border-top-style: dashed;
-}
-
 .patch-bay-canvas {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(170px, 1.35fr) minmax(130px, 1fr);
+  grid-template-columns: minmax(150px, 210px) minmax(260px, 1fr) minmax(150px, 210px);
   gap: 16px;
   min-height: 220px;
   padding: 12px;
@@ -2239,6 +2241,10 @@ body[data-skin="contrast"] .color-field {
   z-index: 1;
 }
 
+#patchBayTargets {
+  justify-items: end;
+}
+
 .patch-bay-overlay {
   position: absolute;
   inset: 0;
@@ -2250,12 +2256,17 @@ body[data-skin="contrast"] .color-field {
 .patch-bay-node {
   display: grid;
   gap: 3px;
+  width: min(190px, 100%);
   min-height: 46px;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--patch-color, var(--line)) 60%, var(--line));
   border-radius: 8px;
   background: rgba(18, 21, 27, 0.94);
   box-shadow: inset 4px 0 0 var(--patch-color, var(--accent));
+}
+
+.patch-target-node {
+  justify-self: end;
 }
 
 .patch-bay-node strong {
@@ -2675,6 +2686,14 @@ body[data-skin="contrast"] .color-field {
   grid-template-columns: auto auto;
 }
 
+.audio-toggle-block.is-disabled {
+  opacity: 0.55;
+}
+
+.audio-toggle-block.is-disabled input {
+  cursor: not-allowed;
+}
+
 .audio-normalize-field input,
 .audio-toggle-row input {
   width: 24px;
@@ -2780,6 +2799,12 @@ body[data-skin="contrast"] .color-field {
 .help-head h2 {
   margin: 0;
   font-size: 1.1rem;
+}
+
+.dialog-close-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
 }
 
 .help-sections {

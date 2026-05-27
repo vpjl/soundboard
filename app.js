@@ -122,6 +122,7 @@ const els = {
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   showCables: document.querySelector("#showCables"),
   cableOverlay: document.querySelector("#cableOverlay"),
+  cableLegend: document.querySelector("#cableLegend"),
   shortcutDialog: document.querySelector("#shortcutDialog"),
   closeShortcuts: document.querySelector("#closeShortcuts"),
   applyShortcuts: document.querySelector("#applyShortcuts"),
@@ -1310,7 +1311,8 @@ function updateBoardLayout() {
 function renderBoardOptions() {
   if (!els.boardSelect) return;
   els.boardSelect.innerHTML = "";
-  state.boards.forEach((board) => {
+  const sortedBoards = [...state.boards].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { sensitivity: "base" }));
+  sortedBoards.forEach((board) => {
     const option = document.createElement("option");
     option.value = board.id;
     option.textContent = board.name;
@@ -1566,28 +1568,90 @@ async function duplicateCurrentBoard() {
 
 function boardNoticeRows() {
   return state.pads.map((pad) => {
-    const options = [];
-    if (pad.loop) options.push("Loop");
-    if (pad.duckTrigger) options.push("Ducking");
-    if (pad.mono) options.push("Mono");
-    if (pad.fadeMode !== "none" && (fadeDurationForPad(pad, "in") > 0 || fadeDurationForPad(pad, "out") > 0)) options.push("Fades");
-    if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") options.push(`Reverb ${pad.reverbPreset}`);
-    if (pad.startStopMode !== "none" || pad.endStartMode !== "none") options.push("Crossfade");
     return {
       title: pad.title || `Pad ${pad.index + 1}`,
       tags: pad.tags || "-",
       audio: pad.audioName || "-",
+      duration: padDurationNotice(pad),
       mode: pad.playMode,
       volume: `${Math.round((Number(pad.volume) || 0) * 100)}%`,
       pan: pad.panValueEl?.textContent || "0",
-      options: options.join(", ") || "-",
+      audioSettings: padAudioNotice(pad),
+      shortcut: shortcutNoticeForPad(pad),
     };
   });
+}
+
+function secondsNotice(seconds) {
+  return Number.isFinite(seconds) && seconds > 0 ? formatTime(seconds) : "-";
+}
+
+function padDurationNotice(pad) {
+  if (!pad?.buffer) return "-";
+  const real = secondsNotice(pad.buffer.duration);
+  const trimmed = secondsNotice(playableDuration(pad));
+  return real === trimmed ? real : `${real} (${trimmed})`;
+}
+
+function fadeNotice(pad) {
+  if (pad.fadeMode === "none") return "fade aucun";
+  const inSeconds = fadeDurationForPad(pad, "in");
+  const outSeconds = fadeDurationForPad(pad, "out");
+  const scope = pad.fadeMode === "pad" ? "pad" : "global";
+  return `fade ${scope} in ${inSeconds}s / out ${outSeconds}s`;
+}
+
+function padAudioNotice(pad) {
+  const items = [];
+  items.push(`type ${audioFileType(pad)}`);
+  if (pad.buffer) {
+    items.push(pad.buffer.numberOfChannels === 1 ? "source mono" : "source stéréo");
+    items.push(formatSampleRate(pad.buffer.sampleRate));
+  }
+  items.push(`normalisation ${pad.normalizeEnabled ? `${pad.normalizedGain.toFixed(2)}x` : "off"}`);
+  if (pad.mono || pad.buffer?.numberOfChannels === 1) items.push("mono");
+  if (pad.loop) items.push("loop");
+  if (pad.duckTrigger) items.push("ducking");
+  items.push(fadeNotice(pad));
+  items.push(`pitch ${pad.pitchSemitones >= 0 ? "+" : ""}${pad.pitchSemitones} demi-tons ${pad.pitchFine >= 0 ? "+" : ""}${Math.round(pad.pitchFine)} cents`);
+  if (pad.reverbMode === "none") items.push("reverb aucune");
+  else if (pad.reverbMode === "global") items.push("reverb globale");
+  else items.push(`reverb ${pad.reverbPreset} ${Math.round(pad.reverbWet * 100)}%`);
+  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("crossfade");
+  return items.join(" ; ");
+}
+
+function shortcutNoticeForPad(pad) {
+  if (!state.shortcutsEnabled) return "";
+  const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
+  return shortcut?.key || "";
+}
+
+function boardAudioNotice() {
+  const reverb = masterReverbSettings();
+  return [
+    `Volume master ${Math.round((currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)}%`,
+    `Fade in ${masterFadeEnabled("in") ? `${Number(els.fadeInSeconds?.value) || 0}s` : "off"}`,
+    `Fade out ${masterFadeEnabled("out") ? `${Number(els.fadeSeconds?.value) || 0}s` : "off"}`,
+    `Ducking ${masterDuckEnabled() ? `${duckAmount()}%` : "off"}`,
+    `Reverb ${reverb.preset === "none" ? "aucune" : `${reverb.preset} ${Math.round(reverb.wet * 100)}%`}`,
+  ].join(" ; ");
+}
+
+function boardNoticeCrossfadeRows() {
+  return patchBayRows().map((row) => ({
+    source: row.sourcePad.title,
+    phase: cablePhaseLabel(row.phase),
+    action: cableActionLabel(row.action),
+    target: row.targetLabel,
+  }));
 }
 
 function boardNoticeHtml() {
   const board = currentBoard();
   const rows = boardNoticeRows();
+  const crossfadeRows = boardNoticeCrossfadeRows();
+  const showShortcuts = state.shortcutsEnabled && rows.some((row) => row.shortcut);
   const date = new Date().toLocaleString("fr-FR");
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -1602,6 +1666,7 @@ function boardNoticeHtml() {
   <meta charset="utf-8">
   <title>Notice ${escapeHtml(board.name)}</title>
   <style>
+    @page { size: A4 landscape; margin: 12mm; }
     body { font-family: Arial, sans-serif; color: #111; line-height: 1.35; }
     h1 { font-size: 24px; margin-bottom: 4px; }
     h2 { font-size: 17px; margin-top: 22px; }
@@ -1615,14 +1680,26 @@ function boardNoticeHtml() {
   <h1>Notice du board : ${escapeHtml(board.name)}</h1>
   <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live vl (c) 2026.</p>
   <h2>Résumé</h2>
-  <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""}. Volume master : ${Math.round((board.masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)} %. Disposition : ${board.layoutMode === "custom" ? `${board.padColumns} colonne(s)` : "automatique"}.</p>
+  <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""}.</p>
+  <h2>Audio du board</h2>
+  <p>${escapeHtml(boardAudioNotice())}</p>
+  <h2>Crossfade</h2>
+  ${crossfadeRows.length ? `
+  <table>
+    <thead>
+      <tr><th>Source</th><th>Moment</th><th>Action</th><th>Cible</th></tr>
+    </thead>
+    <tbody>
+      ${crossfadeRows.map((row) => `<tr><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.phase)}</td><td>${escapeHtml(row.action)}</td><td>${escapeHtml(row.target)}</td></tr>`).join("")}
+    </tbody>
+  </table>` : "<p>Aucun crossfade configuré.</p>"}
   <h2>Pads</h2>
   <table>
     <thead>
-      <tr><th>#</th><th>Nom</th><th>Audio</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Options</th></tr>
+      <tr><th>#</th>${showShortcuts ? "<th>Raccourci</th>" : ""}<th>Nom</th><th>Audio</th><th>Durée</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Paramètres audio du pad</th></tr>
     </thead>
     <tbody>
-      ${rows.map((row, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.options)}</td></tr>`).join("")}
+      ${rows.map((row, index) => `<tr><td>${index + 1}</td>${showShortcuts ? `<td>${escapeHtml(row.shortcut || "-")}</td>` : ""}<td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.duration)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.audioSettings)}</td></tr>`).join("")}
     </tbody>
   </table>
 </body>
@@ -1670,8 +1747,7 @@ function renameCurrentBoard(name) {
   const board = currentBoard();
   board.name = name || "Projet";
   saveBoards();
-  const option = els.boardSelect ? [...els.boardSelect.options].find((item) => item.value === board.id) : null;
-  if (option) option.textContent = board.name;
+  renderBoardOptions();
 }
 
 function arrayBufferToBase64(buffer) {
@@ -3492,7 +3568,12 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
-  if (els.audioMono) els.audioMono.checked = pad.mono;
+  if (els.audioMono) {
+    const sourceIsMono = pad.buffer?.numberOfChannels === 1;
+    els.audioMono.checked = sourceIsMono || pad.mono;
+    els.audioMono.disabled = sourceIsMono;
+    els.audioMono.closest("label")?.classList.toggle("is-disabled", sourceIsMono);
+  }
   if (els.audioLoop) {
     els.audioLoop.checked = pad.loop;
     els.audioLoop.classList.toggle("is-active", pad.loop);
@@ -4226,7 +4307,7 @@ function drawCableOverlay() {
       d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${sag.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
       fill: "none",
       stroke: color,
-      "stroke-width": link.phase === "end" ? 5 : 7,
+      "stroke-width": link.phase === "end" ? 2.5 : 3.5,
       "stroke-linecap": "round",
       "stroke-dasharray": link.phase === "end" ? "12 9" : "",
       opacity: "0.92",
@@ -4234,13 +4315,13 @@ function drawCableOverlay() {
     const sourcePlug = svgEl("circle", {
       cx: x1,
       cy: y1,
-      r: 7,
+      r: 4,
       fill: "#101114",
       stroke: color,
-      "stroke-width": 4,
+      "stroke-width": 2,
     });
     const targetTip = svgEl("polygon", {
-      points: `${x2},${y2 - 3} ${x2 - 8},${y2 + 10} ${x2 + 8},${y2 + 10}`,
+      points: `${x2},${y2 - 2} ${x2 - 5},${y2 + 7} ${x2 + 5},${y2 + 7}`,
       fill: color,
       opacity: "0.96",
     });
@@ -4249,6 +4330,20 @@ function drawCableOverlay() {
   const extraBottom = Math.max(0, Math.ceil(maxCableY - deckRect.height));
   deck.style.setProperty("--cable-extra-bottom", `${extraBottom}px`);
   els.cableOverlay.setAttribute("viewBox", `0 0 ${deckRect.width} ${Math.ceil(deckRect.height + extraBottom)}`);
+  positionCableLegend();
+}
+
+function positionCableLegend() {
+  if (!els.cableLegend || !document.body.classList.contains("show-cables")) return;
+  const firstPad = state.pads.find((pad) => pad.node?.isConnected)?.node;
+  const master = document.querySelector(".master-strip");
+  const anchorRect = (firstPad || els.pads || document.body).getBoundingClientRect();
+  const masterRect = (master || document.querySelector(".topbar") || document.body).getBoundingClientRect();
+  const legendRect = els.cableLegend.getBoundingClientRect();
+  const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - legendRect.width - 8));
+  const top = Math.max(8, masterRect.bottom - legendRect.height);
+  els.cableLegend.style.left = `${left}px`;
+  els.cableLegend.style.top = `${top}px`;
 }
 
 function setCableOverlayVisible(visible) {
@@ -4256,7 +4351,13 @@ function setCableOverlayVisible(visible) {
   els.showCables?.classList.toggle("is-active", Boolean(visible));
   els.showCables?.setAttribute("aria-pressed", String(Boolean(visible)));
   if (visible) drawCableOverlay();
-  if (!visible) els.pads?.closest(".deck")?.style.removeProperty("--cable-extra-bottom");
+  if (!visible) {
+    els.pads?.closest(".deck")?.style.removeProperty("--cable-extra-bottom");
+    if (els.cableLegend) {
+      els.cableLegend.style.left = "";
+      els.cableLegend.style.top = "";
+    }
+  }
 }
 
 function reverbImpulse(preset) {
@@ -4788,6 +4889,10 @@ async function init() {
   });
   window.addEventListener("resize", () => {
     if (els.patchBayDialog?.open) drawPatchBayOverlay();
+    if (document.body.classList.contains("show-cables")) {
+      drawCableOverlay();
+      positionCableLegend();
+    }
   });
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
@@ -4945,6 +5050,10 @@ async function init() {
   });
   els.audioMono?.addEventListener("change", () => {
     if (!state.audioPad) return;
+    if (state.audioPad.buffer?.numberOfChannels === 1) {
+      syncAudioDialog(state.audioPad);
+      return;
+    }
     setPadAudioSettings(state.audioPad, { mono: els.audioMono.checked });
     refreshPlayingPadOutput(state.audioPad);
     syncAudioDialog(state.audioPad);

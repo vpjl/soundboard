@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=107">
+    <link rel="stylesheet" href="styles.css?v=108">
   </head>
   <body>
     <div class="app">
@@ -24,16 +24,10 @@
                 <path d="M14 24v12M24 17v25M34 24v12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
               </svg>
             </div>
-            <button id="helpButton" class="icon-button help-button" type="button" aria-label="Aide">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
           </div>
           <div>
             <h1>Soundboard Live vl (c) 2026</h1>
-            <p id="audioStatus">Pret pour la scene · v107</p>
+            <p id="audioStatus">Pret pour la scene · v108</p>
           </div>
         </div>
 
@@ -44,6 +38,12 @@
             <span><i class="cable-swatch cable-duck"></i>Duck</span>
           </div>
         <div class="board-strip" aria-label="Boards">
+          <button id="helpButton" class="icon-button help-button board-help-button" type="button" aria-label="Aide">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
           <div class="board-main">
             <label class="board-select">
               <span>Board</span>
@@ -1231,13 +1231,16 @@
       <div class="patch-bay-panel">
         <div class="help-head">
           <h2 id="patchBayTitle">Patch bay crossfade</h2>
+          <button id="closePatchBay" class="icon-button dialog-close-button" type="button" aria-label="Fermer">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
         <div class="patch-bay-legend" aria-label="Légende patch bay">
           <span><i class="cable-swatch cable-play"></i>Lance</span>
           <span><i class="cable-swatch cable-stop"></i>Stoppe</span>
           <span><i class="cable-swatch cable-duck"></i>Duck</span>
-          <span><i class="phase-swatch phase-start"></i>Lancement</span>
-          <span><i class="phase-swatch phase-end"></i>Arrêt/fin</span>
         </div>
         <div id="patchBayCanvas" class="patch-bay-canvas">
           <div id="patchBaySources" class="patch-bay-column" aria-label="Sources"></div>
@@ -1245,9 +1248,6 @@
           <div id="patchBayTargets" class="patch-bay-column" aria-label="Cibles"></div>
         </div>
         <p id="patchBayEmpty" class="patch-bay-empty" hidden>Aucun câble crossfade configuré.</p>
-        <div class="dialog-actions">
-          <button id="closePatchBay" class="small-button" type="button">Fermer</button>
-        </div>
       </div>
     </dialog>
 
@@ -1264,6 +1264,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=107"></script>
+    <script src="app.js?v=108"></script>
   </body>
 </html>
