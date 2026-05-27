@@ -1573,7 +1573,7 @@ function boardNoticeRows() {
       tags: pad.tags || "-",
       audio: pad.audioName || "-",
       duration: padDurationNotice(pad),
-      mode: pad.playMode,
+      source: padSourceNotice(pad),
       volume: `${Math.round((Number(pad.volume) || 0) * 100)}%`,
       pan: pad.panValueEl?.textContent || "0",
       audioSettings: padAudioNotice(pad),
@@ -1593,6 +1593,11 @@ function padDurationNotice(pad) {
   return real === trimmed ? real : `${real} (${trimmed})`;
 }
 
+function padSourceNotice(pad) {
+  if (!pad?.buffer) return "-";
+  return pad.buffer.numberOfChannels === 1 ? "mono" : "stéréo";
+}
+
 function fadeNotice(pad) {
   if (pad.fadeMode === "none") return "";
   const inSeconds = fadeDurationForPad(pad, "in");
@@ -1608,13 +1613,9 @@ function fadeNotice(pad) {
 function padAudioNotice(pad) {
   const items = [];
   if (!pad.buffer && !pad.audioName) return "-";
-  if (pad.audioName || pad.buffer) items.push(`type ${audioFileType(pad)}`);
-  if (pad.buffer) {
-    items.push(pad.buffer.numberOfChannels === 1 ? "source mono" : "source stéréo");
-    items.push(formatSampleRate(pad.buffer.sampleRate));
-  }
+  if (pad.buffer?.sampleRate) items.push(formatSampleRate(pad.buffer.sampleRate));
   if (pad.normalizeEnabled) items.push(`normalisation ${pad.normalizedGain.toFixed(2)}x`);
-  if (pad.mono || pad.buffer?.numberOfChannels === 1) items.push("mono");
+  if (pad.mono && pad.buffer?.numberOfChannels !== 1) items.push("mono");
   if (pad.loop) items.push("loop");
   if (pad.duckTrigger) items.push("ducking");
   const fade = fadeNotice(pad);
@@ -1705,10 +1706,10 @@ function boardNoticeHtml() {
   <h2>Pads</h2>
   <table>
     <thead>
-      <tr><th>#</th>${showShortcuts ? "<th>Raccourci</th>" : ""}<th>Nom</th><th>Audio</th><th>Durée</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Paramètres audio du pad</th></tr>
+      <tr><th>#</th>${showShortcuts ? "<th>Raccourci</th>" : ""}<th>Nom</th><th>Audio</th><th>Durée</th><th>Source</th><th>Tags</th><th>Volume</th><th>Pan</th><th>Paramètres audio du pad</th></tr>
     </thead>
     <tbody>
-      ${rows.map((row, index) => `<tr><td>${index + 1}</td>${showShortcuts ? `<td>${escapeHtml(row.shortcut || "-")}</td>` : ""}<td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.duration)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.audioSettings)}</td></tr>`).join("")}
+      ${rows.map((row, index) => `<tr><td>${index + 1}</td>${showShortcuts ? `<td>${escapeHtml(row.shortcut || "-")}</td>` : ""}<td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.duration)}</td><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.audioSettings)}</td></tr>`).join("")}
     </tbody>
   </table>
   <h2>Crossfade</h2>
