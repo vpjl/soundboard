@@ -1594,31 +1594,42 @@ function padDurationNotice(pad) {
 }
 
 function fadeNotice(pad) {
-  if (pad.fadeMode === "none") return "fade aucun";
+  if (pad.fadeMode === "none") return "";
   const inSeconds = fadeDurationForPad(pad, "in");
   const outSeconds = fadeDurationForPad(pad, "out");
+  if (inSeconds <= 0 && outSeconds <= 0) return "";
   const scope = pad.fadeMode === "pad" ? "pad" : "global";
-  return `fade ${scope} in ${inSeconds}s / out ${outSeconds}s`;
+  const parts = [];
+  if (inSeconds > 0) parts.push(`in ${inSeconds}s`);
+  if (outSeconds > 0) parts.push(`out ${outSeconds}s`);
+  return `fade ${scope} ${parts.join(" / ")}`;
 }
 
 function padAudioNotice(pad) {
   const items = [];
-  items.push(`type ${audioFileType(pad)}`);
+  if (!pad.buffer && !pad.audioName) return "-";
+  if (pad.audioName || pad.buffer) items.push(`type ${audioFileType(pad)}`);
   if (pad.buffer) {
     items.push(pad.buffer.numberOfChannels === 1 ? "source mono" : "source stéréo");
     items.push(formatSampleRate(pad.buffer.sampleRate));
   }
-  items.push(`normalisation ${pad.normalizeEnabled ? `${pad.normalizedGain.toFixed(2)}x` : "off"}`);
+  if (pad.normalizeEnabled) items.push(`normalisation ${pad.normalizedGain.toFixed(2)}x`);
   if (pad.mono || pad.buffer?.numberOfChannels === 1) items.push("mono");
   if (pad.loop) items.push("loop");
   if (pad.duckTrigger) items.push("ducking");
-  items.push(fadeNotice(pad));
-  items.push(`pitch ${pad.pitchSemitones >= 0 ? "+" : ""}${pad.pitchSemitones} demi-tons ${pad.pitchFine >= 0 ? "+" : ""}${Math.round(pad.pitchFine)} cents`);
-  if (pad.reverbMode === "none") items.push("reverb aucune");
-  else if (pad.reverbMode === "global") items.push("reverb globale");
-  else items.push(`reverb ${pad.reverbPreset} ${Math.round(pad.reverbWet * 100)}%`);
+  const fade = fadeNotice(pad);
+  if (fade) items.push(fade);
+  if ((Number(pad.pitchSemitones) || 0) !== 0 || Math.round(Number(pad.pitchFine) || 0) !== 0) {
+    items.push(`pitch ${pad.pitchSemitones >= 0 ? "+" : ""}${pad.pitchSemitones} demi-tons ${pad.pitchFine >= 0 ? "+" : ""}${Math.round(pad.pitchFine)} cents`);
+  }
+  const masterReverb = masterReverbSettings();
+  if (pad.reverbMode === "global" && masterReverb.preset !== "none" && masterReverb.wet > 0) {
+    items.push("reverb globale");
+  } else if (pad.reverbMode === "pad" && pad.reverbPreset !== "none" && pad.reverbWet > 0) {
+    items.push(`reverb ${pad.reverbPreset} ${Math.round(pad.reverbWet * 100)}%`);
+  }
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("crossfade");
-  return items.join(" ; ");
+  return items.join(" ; ") || "-";
 }
 
 function shortcutNoticeForPad(pad) {
@@ -1629,13 +1640,22 @@ function shortcutNoticeForPad(pad) {
 
 function boardAudioNotice() {
   const reverb = masterReverbSettings();
-  return [
-    `Volume master ${Math.round((currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)}%`,
-    `Fade in ${masterFadeEnabled("in") ? `${Number(els.fadeInSeconds?.value) || 0}s` : "off"}`,
-    `Fade out ${masterFadeEnabled("out") ? `${Number(els.fadeSeconds?.value) || 0}s` : "off"}`,
-    `Ducking ${masterDuckEnabled() ? `${duckAmount()}%` : "off"}`,
-    `Reverb ${reverb.preset === "none" ? "aucune" : `${reverb.preset} ${Math.round(reverb.wet * 100)}%`}`,
-  ].join(" ; ");
+  const items = [`Volume master ${Math.round((currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)}%`];
+  if (masterFadeEnabled("in") && Number(els.fadeInSeconds?.value) > 0) items.push(`Fade in ${Number(els.fadeInSeconds.value)}s`);
+  if (masterFadeEnabled("out") && Number(els.fadeSeconds?.value) > 0) items.push(`Fade out ${Number(els.fadeSeconds.value)}s`);
+  if (masterDuckEnabled() && duckAmount() > 0) items.push(`Ducking ${duckAmount()}%`);
+  if (reverb.preset !== "none" && reverb.wet > 0) items.push(`Reverb ${reverb.preset} ${Math.round(reverb.wet * 100)}%`);
+  return items.join(" ; ");
+}
+
+function boardSoundCount() {
+  const keys = new Set();
+  state.pads.forEach((pad) => {
+    if (!pad.buffer && !pad.audioName) return;
+    const refIndex = Number(pad.audioRefIndex);
+    keys.add(`slot:${Number.isInteger(refIndex) ? refIndex : pad.index}`);
+  });
+  return keys.size;
 }
 
 function boardNoticeCrossfadeRows() {
@@ -1652,6 +1672,7 @@ function boardNoticeHtml() {
   const rows = boardNoticeRows();
   const crossfadeRows = boardNoticeCrossfadeRows();
   const showShortcuts = state.shortcutsEnabled && rows.some((row) => row.shortcut);
+  const soundCount = boardSoundCount();
   const date = new Date().toLocaleString("fr-FR");
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -1679,10 +1700,17 @@ function boardNoticeHtml() {
 <body>
   <h1>Notice du board : ${escapeHtml(board.name)}</h1>
   <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live vl (c) 2026.</p>
-  <h2>Résumé</h2>
-  <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""}.</p>
-  <h2>Audio du board</h2>
-  <p>${escapeHtml(boardAudioNotice())}</p>
+  <h2>Board</h2>
+  <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""} et ${soundCount} son${soundCount > 1 ? "s" : ""} différent${soundCount > 1 ? "s" : ""}. ${escapeHtml(boardAudioNotice())}.</p>
+  <h2>Pads</h2>
+  <table>
+    <thead>
+      <tr><th>#</th>${showShortcuts ? "<th>Raccourci</th>" : ""}<th>Nom</th><th>Audio</th><th>Durée</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Paramètres audio du pad</th></tr>
+    </thead>
+    <tbody>
+      ${rows.map((row, index) => `<tr><td>${index + 1}</td>${showShortcuts ? `<td>${escapeHtml(row.shortcut || "-")}</td>` : ""}<td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.duration)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.audioSettings)}</td></tr>`).join("")}
+    </tbody>
+  </table>
   <h2>Crossfade</h2>
   ${crossfadeRows.length ? `
   <table>
@@ -1693,15 +1721,6 @@ function boardNoticeHtml() {
       ${crossfadeRows.map((row) => `<tr><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.phase)}</td><td>${escapeHtml(row.action)}</td><td>${escapeHtml(row.target)}</td></tr>`).join("")}
     </tbody>
   </table>` : "<p>Aucun crossfade configuré.</p>"}
-  <h2>Pads</h2>
-  <table>
-    <thead>
-      <tr><th>#</th>${showShortcuts ? "<th>Raccourci</th>" : ""}<th>Nom</th><th>Audio</th><th>Durée</th><th>Tags</th><th>Mode</th><th>Volume</th><th>Pan</th><th>Paramètres audio du pad</th></tr>
-    </thead>
-    <tbody>
-      ${rows.map((row, index) => `<tr><td>${index + 1}</td>${showShortcuts ? `<td>${escapeHtml(row.shortcut || "-")}</td>` : ""}<td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.audio)}</td><td>${escapeHtml(row.duration)}</td><td>${escapeHtml(row.tags)}</td><td>${escapeHtml(row.mode)}</td><td>${escapeHtml(row.volume)}</td><td>${escapeHtml(row.pan)}</td><td>${escapeHtml(row.audioSettings)}</td></tr>`).join("")}
-    </tbody>
-  </table>
 </body>
 </html>`;
 }
