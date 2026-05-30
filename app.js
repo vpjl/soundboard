@@ -164,12 +164,18 @@ const els = {
   audioMono: document.querySelector("#audioMono"),
   audioLoop: document.querySelector("#audioLoop"),
   audioReverse: document.querySelector("#audioReverse"),
-  audioDuck: document.querySelector("#audioDuck"),
-  audioDuckValue: document.querySelector("#audioDuckValue"),
+  audioDuckNone: document.querySelector("#audioDuckNone"),
+  audioDuckGlobal: document.querySelector("#audioDuckGlobal"),
+  audioDuckPad: document.querySelector("#audioDuckPad"),
+  audioDuckPercent: document.querySelector("#audioDuckPercent"),
+  audioDuckGlobalHint: document.querySelector("#audioDuckGlobalHint"),
+  audioPadDuckField: document.querySelector("#audioPadDuckField"),
   audioFadeNone: document.querySelector("#audioFadeNone"),
   audioFadeGlobal: document.querySelector("#audioFadeGlobal"),
   audioFadePad: document.querySelector("#audioFadePad"),
   audioPadFadeFields: document.querySelector("#audioPadFadeFields"),
+  audioFadeInLabel: document.querySelector("#audioFadeInLabel"),
+  audioFadeOutLabel: document.querySelector("#audioFadeOutLabel"),
   audioFadeIn: document.querySelector("#audioFadeIn"),
   audioFadeOut: document.querySelector("#audioFadeOut"),
   audioPitchSemitones: document.querySelector("#audioPitchSemitones"),
@@ -184,6 +190,10 @@ const els = {
   audioReverbGlobal: document.querySelector("#audioReverbGlobal"),
   audioReverbPad: document.querySelector("#audioReverbPad"),
   audioPadReverbFields: document.querySelector("#audioPadReverbFields"),
+  audioEqNone: document.querySelector("#audioEqNone"),
+  audioEqGlobal: document.querySelector("#audioEqGlobal"),
+  audioEqPad: document.querySelector("#audioEqPad"),
+  audioPadEqFields: document.querySelector("#audioPadEqFields"),
   audioEqLow: document.querySelector("#audioEqLow"),
   audioEqMid: document.querySelector("#audioEqMid"),
   audioEqHigh: document.querySelector("#audioEqHigh"),
@@ -438,7 +448,7 @@ function setPadTitle(pad, title, options = {}) {
 }
 
 function padTargetValue(pad) {
-  return `pad:${pad.index}`;
+  return `pad:${pad.uid || pad.index}`;
 }
 
 function defaultShortcuts() {
@@ -715,6 +725,7 @@ function makePad(index) {
   node.dataset.padIndex = String(index);
   const pad = {
     index,
+    uid: createId(),
     node,
     key: keyForIndex(index),
     title: `Pad ${index + 1}`,
@@ -735,10 +746,15 @@ function makePad(index) {
     keepResumeOffsetOnEnd: false,
     audioRefIndex: null,
     holdPointerId: null,
+    holdPressTimer: null,
+    holdTriggered: false,
+    suppressNextStartClick: false,
     volume: 0.85,
     panValue: 0,
     loop: false,
     duckTrigger: false,
+    duckMode: "none",
+    duckPercent: 60,
     reverse: false,
     muted: false,
     tags: "",
@@ -755,6 +771,7 @@ function makePad(index) {
     reverbPreset: "none",
     reverbWet: 0.5,
     reverbMode: "global",
+    eqMode: "global",
     eqLow: 0,
     eqMid: 0,
     eqHigh: 0,
@@ -807,6 +824,7 @@ function makePad(index) {
   pad.panValueEl = node.querySelector("[data-pan-value]");
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
+  pad.muteEl = node.querySelector('[data-action="mute"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
@@ -837,6 +855,7 @@ function makePad(index) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqMode: pad.eqMode,
     eqLow: pad.eqLow,
     eqMid: pad.eqMid,
     eqHigh: pad.eqHigh,
@@ -1015,9 +1034,13 @@ function makePad(index) {
   });
 
   pad.duckEl.addEventListener("click", () => {
-    setPadDuckTrigger(pad, !pad.duckTrigger);
+    setPadDuckMode(pad, pad.duckTrigger ? "none" : "global", pad.duckPercent);
     applyDucking();
     savePadMeta(pad);
+  });
+
+  pad.muteEl?.addEventListener("click", () => {
+    setPadMuted(pad, !pad.muted);
   });
 
   pad.colorButtons.forEach((button) => {
@@ -1050,42 +1073,50 @@ function makePad(index) {
 
   pad.modeButtons.forEach((button) => {
     const mode = button.dataset.mode;
+    if (mode === "oneshot") {
+      button.addEventListener("pointerdown", (event) => {
+        if (event.button != null && event.button !== 0) return;
+        pad.holdTriggered = false;
+        pad.holdPointerId = event.pointerId;
+        button.setPointerCapture?.(event.pointerId);
+        window.clearTimeout(pad.holdPressTimer);
+        pad.holdPressTimer = window.setTimeout(() => {
+          pad.holdTriggered = true;
+          setPadMode(pad, "hold");
+          savePadMeta(pad);
+          playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
+        }, PRESS_MS * 2);
+      });
+      const endStartPress = (event) => {
+        if (pad.holdPointerId !== event.pointerId) return;
+        window.clearTimeout(pad.holdPressTimer);
+        pad.holdPressTimer = null;
+        pad.holdPointerId = null;
+        if (pad.holdTriggered) {
+          event.preventDefault();
+          pad.holdTriggered = false;
+          pad.suppressNextStartClick = true;
+          stopPad(pad, fadeDurationForPad(pad, "out") > 0);
+        }
+      };
+      button.addEventListener("pointerup", endStartPress);
+      button.addEventListener("pointercancel", endStartPress);
+      button.addEventListener("pointerleave", (event) => {
+        if (pad.holdPointerId === event.pointerId) endStartPress(event);
+      });
+    }
     button.addEventListener("click", (event) => {
-      if (mode === "hold") return;
       event.preventDefault();
+      if (mode === "oneshot" && pad.suppressNextStartClick) {
+        pad.suppressNextStartClick = false;
+        return;
+      }
       setPadMode(pad, mode);
       savePadMeta(pad);
       if (mode === "oneshot") {
         playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
       } else if (mode === "toggle") {
         togglePad(pad);
-      }
-    });
-    if (mode === "hold") {
-      button.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        setPadMode(pad, "hold");
-        savePadMeta(pad);
-        button.setPointerCapture?.(event.pointerId);
-        pad.holdPointerId = event.pointerId;
-        playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
-      });
-      const endHold = (event) => {
-        if (pad.holdPointerId !== event.pointerId) return;
-        event.preventDefault();
-        pad.holdPointerId = null;
-        stopPad(pad, fadeDurationForPad(pad, "out") > 0);
-      };
-      button.addEventListener("pointerup", endHold);
-      button.addEventListener("pointercancel", endHold);
-    }
-  });
-
-  pad.modeButtons.forEach((button) => {
-    button.addEventListener("pointerleave", () => {
-      if (button.dataset.mode === "hold" && pad.holdPointerId != null) {
-        pad.holdPointerId = null;
-        stopPad(pad, fadeDurationForPad(pad, "out") > 0);
       }
     });
   });
@@ -1672,7 +1703,7 @@ function padAudioNotice(pad) {
   if (pad.loop) items.push("loop");
   if (pad.reverse) items.push("reverse");
   if (pad.muted) items.push("mute");
-  if (pad.duckTrigger) items.push(`ducking ${duckPercentValue()}%`);
+  if (pad.duckTrigger && pad.duckMode === "pad") items.push(`ducking ${pad.duckPercent}%`);
   const fade = fadeNotice(pad);
   if (fade) items.push(fade);
   if ((Number(pad.pitchSemitones) || 0) !== 0 || Math.round(Number(pad.pitchFine) || 0) !== 0) {
@@ -2114,11 +2145,14 @@ async function exportCurrentBoard(includeAudio = true) {
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
+      uid: meta?.uid || saved?.uid || pad.uid || createId(),
       title: meta?.title || saved?.title || `Pad ${index + 1}`,
       volume: meta?.volume ?? saved?.volume ?? 0.85,
       panValue: meta?.panValue ?? saved?.panValue ?? 0,
       loop: Boolean(meta?.loop ?? saved?.loop),
       duckTrigger: Boolean(meta?.duckTrigger ?? saved?.duckTrigger),
+      duckMode: meta?.duckMode ?? saved?.duckMode ?? ((meta?.duckTrigger ?? saved?.duckTrigger) ? "global" : "none"),
+      duckPercent: meta?.duckPercent ?? saved?.duckPercent ?? duckPercentValue(),
       reverse: Boolean(meta?.reverse ?? saved?.reverse),
       tags: meta?.tags ?? saved?.tags ?? "",
       color: meta?.color ?? saved?.color ?? "",
@@ -2134,6 +2168,7 @@ async function exportCurrentBoard(includeAudio = true) {
       reverbPreset: meta?.reverbPreset ?? saved?.reverbPreset ?? "none",
       reverbWet: meta?.reverbWet ?? saved?.reverbWet ?? 0.5,
       reverbMode: meta?.reverbMode ?? saved?.reverbMode ?? "global",
+      eqMode: meta?.eqMode ?? saved?.eqMode ?? "global",
       eqLow: meta?.eqLow ?? saved?.eqLow ?? 0,
       eqMid: meta?.eqMid ?? saved?.eqMid ?? 0,
       eqHigh: meta?.eqHigh ?? saved?.eqHigh ?? 0,
@@ -2244,11 +2279,14 @@ async function importBoardFile(file) {
     const item = pads.find((padItem) => Number(padItem?.index) === index) || {};
     const transientPad = { index };
     const meta = {
+      uid: item.uid || createId(),
       title: item.title || `Pad ${index + 1}`,
       volume: item.volume ?? 0.85,
       panValue: item.panValue ?? 0,
       loop: Boolean(item.loop),
       duckTrigger: Boolean(item.duckTrigger),
+      duckMode: item.duckMode || (item.duckTrigger ? "global" : "none"),
+      duckPercent: item.duckPercent ?? duckPercentValue(),
       reverse: Boolean(item.reverse),
       tags: item.tags || "",
       color: item.color || "",
@@ -2264,6 +2302,7 @@ async function importBoardFile(file) {
       reverbPreset: item.reverbPreset || "none",
       reverbWet: item.reverbWet ?? 0.5,
       reverbMode: item.reverbMode || "global",
+      eqMode: item.eqMode || "global",
       eqLow: item.eqLow ?? 0,
       eqMid: item.eqMid ?? 0,
       eqHigh: item.eqHigh ?? 0,
@@ -2336,6 +2375,9 @@ async function addPad() {
   board.padCount += 1;
   saveBoards();
   const pad = makePad(board.padCount - 1);
+  await dbDelete(padMetaKey(pad));
+  await dbDelete(padAudioKey(pad));
+  await savePadMeta(pad);
   state.pads.push(pad);
   els.pads.append(pad.node);
   bindButtonFeedback(pad.node);
@@ -2367,6 +2409,24 @@ function adjustAudioRefAfterDelete(record, deletedIndex, deletedAudio = null) {
       : { ...record, audioRefIndex: null };
   }
   return record;
+}
+
+function resetDeletedPadCrossfadeRefs(record, deletedPad) {
+  if (!record || !deletedPad) return record;
+  const deletedTargets = new Set([
+    padTargetValue(deletedPad),
+    `pad:${deletedPad.index}`,
+  ]);
+  const next = { ...record };
+  if (deletedTargets.has(String(next.startStopTag || ""))) {
+    next.startStopMode = "none";
+    next.startStopTag = "";
+  }
+  if (deletedTargets.has(String(next.endStartTarget || ""))) {
+    next.endStartMode = "none";
+    next.endStartTarget = "";
+  }
+  return next;
 }
 
 function duplicateTitle(title) {
@@ -2446,6 +2506,7 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
   const title = duplicateTitle(sourceMeta?.title || sourceAudio?.title || sourcePad.title);
   const duplicateMeta = {
     ...(sourceMeta || {}),
+    uid: createId(),
     title,
     audioRefIndex: sourceRef,
   };
@@ -2490,9 +2551,11 @@ async function deletePad(pad) {
   const remainingPads = state.pads.filter((item) => item !== pad);
   const snapshots = [];
   for (const item of remainingPads) {
+    const audioRecord = adjustAudioRefAfterDelete(await dbGet(padAudioKeyFor(boardId, item.index)), pad.index, deletedAudio);
+    const metaRecord = adjustAudioRefAfterDelete(await dbGet(padMetaKeyFor(boardId, item.index)), pad.index);
     snapshots.push({
-      audio: adjustAudioRefAfterDelete(await dbGet(padAudioKeyFor(boardId, item.index)), pad.index, deletedAudio),
-      meta: adjustAudioRefAfterDelete(await dbGet(padMetaKeyFor(boardId, item.index)), pad.index),
+      audio: resetDeletedPadCrossfadeRefs(audioRecord, pad),
+      meta: resetDeletedPadCrossfadeRefs(metaRecord, pad),
     });
   }
 
@@ -2614,6 +2677,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   renderWaveform(pad);
   pad.node.classList.remove("is-empty");
   await dbSet(padAudioKey(pad), {
+    uid: pad.uid,
     name,
     path: pad.audioPath,
     pathTrusted: pad.audioPathTrusted,
@@ -2624,6 +2688,8 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    duckMode: pad.duckMode,
+    duckPercent: pad.duckPercent,
     reverse: pad.reverse,
     tags: pad.tags,
     color: pad.color,
@@ -2639,6 +2705,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqMode: pad.eqMode,
     eqLow: pad.eqLow,
     eqMid: pad.eqMid,
     eqHigh: pad.eqHigh,
@@ -2753,11 +2820,12 @@ function resetRecordingState() {
 async function restorePad(pad) {
   const meta = await dbGet(padMetaKey(pad));
   if (meta) {
+    pad.uid = meta.uid || pad.uid;
     setPadTitle(pad, meta.title || pad.title);
     pad.volume = meta.volume ?? pad.volume;
     pad.panValue = meta.panValue ?? pad.panValue;
     setPadLoop(pad, Boolean(meta.loop));
-    setPadDuckTrigger(pad, Boolean(meta.duckTrigger));
+    setPadDuckMode(pad, meta.duckMode ?? (meta.duckTrigger ? "global" : "none"), meta.duckPercent ?? duckPercentValue());
     setPadTags(pad, meta.tags || "");
     setPadColor(pad, meta.color || "");
     setPadFade(pad, meta.fadeSeconds ?? "");
@@ -2783,12 +2851,14 @@ async function restorePad(pad) {
   const rawSaved = await dbGet(padAudioKey(pad));
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   if (!saved?.audio) {
+    if (!meta?.uid) await savePadMeta(pad);
     if (document.body.dataset.skin === "visual") revealGalleryPads(false);
     return;
   }
 
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  pad.uid = meta?.uid || saved.uid || pad.uid;
   pad.audioName = saved.name || "";
   pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
   pad.audioPathTrusted = Boolean(meta?.audioPathTrusted || saved.pathTrusted);
@@ -2797,7 +2867,7 @@ async function restorePad(pad) {
   pad.volume = saved.volume ?? pad.volume;
   pad.panValue = saved.panValue ?? pad.panValue;
   setPadLoop(pad, Boolean(saved.loop));
-  setPadDuckTrigger(pad, Boolean(saved.duckTrigger));
+  setPadDuckMode(pad, meta?.duckMode ?? saved.duckMode ?? ((meta?.duckTrigger ?? saved.duckTrigger) ? "global" : "none"), meta?.duckPercent ?? saved.duckPercent ?? duckPercentValue());
   setPadTags(pad, meta?.tags ?? saved.tags ?? "");
   setPadColor(pad, meta?.color ?? saved.color ?? "");
   setPadFade(pad, meta?.fadeSeconds ?? saved.fadeSeconds ?? "");
@@ -2813,6 +2883,7 @@ async function restorePad(pad) {
     reverbPreset: meta?.reverbPreset ?? saved.reverbPreset,
     reverbWet: meta?.reverbWet ?? saved.reverbWet,
     reverbMode: meta?.reverbMode ?? saved.reverbMode ?? "global",
+    eqMode: meta?.eqMode ?? saved.eqMode ?? "global",
     eqLow: meta?.eqLow ?? saved.eqLow,
     eqMid: meta?.eqMid ?? saved.eqMid,
     eqHigh: meta?.eqHigh ?? saved.eqHigh,
@@ -2847,6 +2918,7 @@ async function restorePad(pad) {
   pad.panEl.value = pad.panValue;
   updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
+  if (!meta?.uid && !saved.uid) await savePadMeta(pad);
   if (document.body.dataset.skin === "visual") revealGalleryPads(false);
 }
 
@@ -2868,12 +2940,16 @@ async function resolvePadAudioRecord(pad, meta, saved) {
 }
 
 async function savePadMeta(pad) {
+  if (!pad.uid) pad.uid = createId();
   const meta = {
+    uid: pad.uid || createId(),
     title: pad.title,
     volume: pad.volume,
     panValue: pad.panValue,
     loop: pad.loop,
     duckTrigger: pad.duckTrigger,
+    duckMode: pad.duckMode,
+    duckPercent: pad.duckPercent,
     reverse: pad.reverse,
     tags: pad.tags,
     color: pad.color,
@@ -2889,6 +2965,7 @@ async function savePadMeta(pad) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqMode: pad.eqMode,
     eqLow: pad.eqLow,
     eqMid: pad.eqMid,
     eqHigh: pad.eqHigh,
@@ -2957,8 +3034,8 @@ function setStageMode(enabled, requestFullscreen = false) {
 }
 
 function duckingActive() {
-  return duckAmount() > 0 && (
-    state.pads.some((pad) => pad.source && pad.duckTrigger) ||
+  return (
+    state.pads.some((pad) => pad.source && duckAmountForSource(pad) > 0) ||
     [...state.crossfadeDucks.values()].some((targets) => targets.size > 0)
   );
 }
@@ -3004,14 +3081,14 @@ function badgeMarkup(items) {
 function padOptionBadges(pad) {
   const items = [];
   if (pad.loop) items.push("Loop");
-  if (pad.duckTrigger) items.push("Duck");
+  if (pad.duckTrigger && pad.duckMode === "pad") items.push("Duck");
   if (pad.reverse) items.push("Revrs");
   if (pad.muted) items.push("Mute");
   if (pad.mono) items.push("Mono");
   if (fadeDurationForPad(pad, "in") > 0) items.push("Fade in");
   if (fadeDurationForPad(pad, "out") > 0) items.push("Fade out");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
-  if ([pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
+  if (pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xf");
   return items;
 }
@@ -3040,14 +3117,14 @@ function updatePadAlerts(pad) {
   const duration = playableDuration(pad);
   const endingThreshold = Math.min(ENDING_ALERT_SECONDS, Math.max(1, duration * 0.2));
   const isEnding = Boolean(pad.source && !pad.loop && remaining <= endingThreshold);
-  const isDuckSource = Boolean(pad.source && pad.duckTrigger && duckAmount() > 0);
+  const isDuckSource = Boolean(pad.source && duckAmountForSource(pad) > 0 && pad.duckMode !== "global");
   const isDucked = Boolean(pad.source && duckingActive() && !pad.duckTrigger);
   const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
   const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
 
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
-  pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger);
+  pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode !== "global");
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
   pad.node.classList.toggle("is-muted", Boolean(pad.muted));
@@ -3071,7 +3148,9 @@ function setPadMode(pad, mode) {
 
 function updatePadModeButtons(pad) {
   pad.modeButtons?.forEach((button) => {
-    button.classList.toggle("is-active", Boolean(pad.source && button.dataset.mode === pad.playMode));
+    const buttonMode = button.dataset.mode;
+    const active = buttonMode === pad.playMode || (buttonMode === "oneshot" && pad.playMode === "hold");
+    button.classList.toggle("is-active", Boolean(pad.source && active));
   });
 }
 
@@ -3105,6 +3184,13 @@ function setPadDuckTrigger(pad, duckTrigger) {
   pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
   updatePadAlerts(pad);
   if (state.boardEditMode) refreshBoardTagFilterOptions();
+}
+
+function setPadDuckMode(pad, mode = "global", percent = pad?.duckPercent ?? 60) {
+  if (!pad) return;
+  pad.duckMode = ["none", "global", "pad"].includes(mode) ? mode : "global";
+  pad.duckPercent = Math.min(100, Math.max(0, Math.round(Number(percent) || 0)));
+  setPadDuckTrigger(pad, pad.duckMode !== "none");
 }
 
 function setPadTags(pad, tags) {
@@ -3291,9 +3377,11 @@ function setPadAudioSettings(pad, settings = {}) {
   const nextPreset = Object.prototype.hasOwnProperty.call(REVERB_PRESETS, settings.reverbPreset) ? settings.reverbPreset : (pad.reverbPreset || "hall");
   pad.reverbPreset = pad.reverbMode === "pad" && nextPreset === "none" ? "hall" : nextPreset;
   pad.reverbWet = Math.min(1, Math.max(0, Number(settings.reverbWet ?? pad.reverbWet ?? 0.5)));
+  pad.eqMode = ["none", "global", "pad"].includes(settings.eqMode) ? settings.eqMode : (pad.eqMode || "global");
   pad.eqLow = clampEqGain(settings.eqLow ?? pad.eqLow);
   pad.eqMid = clampEqGain(settings.eqMid ?? pad.eqMid);
   pad.eqHigh = clampEqGain(settings.eqHigh ?? pad.eqHigh);
+  setPadDuckMode(pad, settings.duckMode ?? pad.duckMode ?? "global", settings.duckPercent ?? pad.duckPercent ?? duckPercentValue());
   pad.mono = Boolean(settings.mono ?? pad.mono);
   pad.reverse = Boolean(settings.reverse ?? pad.reverse);
   updatePadAlerts(pad);
@@ -3361,7 +3449,11 @@ function normalizeCrossfadeAction(mode, legacyTarget = "") {
 
 function normalizeCrossfadeTarget(value, legacyMode = "") {
   const target = String(value || "").trim();
-  if (!target || target.includes(":")) return target;
+  if (!target) return target;
+  if (target.startsWith("pad:")) {
+    return target;
+  }
+  if (target.includes(":")) return target;
   if (legacyMode === "tag") return `tag:${target.toLowerCase()}`;
   if (legacyMode === "pad") {
     const targetPad = padFromTarget(target);
@@ -3732,12 +3824,14 @@ function syncAudioDialog(pad = state.audioPad) {
     els.audioReverse.classList.toggle("is-active", pad.reverse);
     els.audioReverse.setAttribute("aria-pressed", String(pad.reverse));
   }
-  if (els.audioDuck) {
-    els.audioDuck.checked = pad.duckTrigger;
-    els.audioDuck.classList.toggle("is-active", pad.duckTrigger);
-    els.audioDuck.setAttribute("aria-pressed", String(pad.duckTrigger));
-  }
-  if (els.audioDuckValue) els.audioDuckValue.textContent = `${duckPercentValue()}%`;
+  if (els.audioDuckNone) els.audioDuckNone.checked = pad.duckMode === "none";
+  if (els.audioDuckGlobal) els.audioDuckGlobal.checked = pad.duckMode !== "none" && pad.duckMode !== "pad";
+  if (els.audioDuckPad) els.audioDuckPad.checked = pad.duckMode === "pad";
+  if (els.audioDuckPercent) els.audioDuckPercent.value = String(pad.duckPercent ?? duckPercentValue());
+  if (els.audioPadDuckField) els.audioPadDuckField.hidden = pad.duckMode !== "pad";
+  if (els.audioDuckGlobalHint) els.audioDuckGlobalHint.textContent = `(${duckPercentValue()}%)`;
+  if (els.audioFadeInLabel) els.audioFadeInLabel.textContent = `Fade in (${Math.max(0, Number(els.fadeInSeconds?.value) || 0)}s global)`;
+  if (els.audioFadeOutLabel) els.audioFadeOutLabel.textContent = `Fade out (${Math.max(0, Number(els.fadeSeconds?.value) || 0)}s global)`;
   if (els.audioFadeNone) els.audioFadeNone.checked = pad.fadeMode === "none";
   if (els.audioFadeGlobal) els.audioFadeGlobal.checked = pad.fadeMode !== "none" && pad.fadeMode !== "pad";
   if (els.audioFadePad) els.audioFadePad.checked = pad.fadeMode === "pad";
@@ -3761,6 +3855,10 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioReverbPreset) els.audioReverbPreset.value = pad.reverbPreset === "none" ? "hall" : pad.reverbPreset;
   if (els.audioReverbWet) els.audioReverbWet.value = String(pad.reverbWet);
   if (els.audioReverbValue) els.audioReverbValue.textContent = `${Math.round(pad.reverbWet * 100)}%`;
+  if (els.audioEqNone) els.audioEqNone.checked = pad.eqMode === "none";
+  if (els.audioEqGlobal) els.audioEqGlobal.checked = pad.eqMode !== "none" && pad.eqMode !== "pad";
+  if (els.audioEqPad) els.audioEqPad.checked = pad.eqMode === "pad";
+  if (els.audioPadEqFields) els.audioPadEqFields.hidden = pad.eqMode !== "pad";
   if (els.audioEqLow) els.audioEqLow.value = String(pad.eqLow);
   if (els.audioEqMid) els.audioEqMid.value = String(pad.eqMid);
   if (els.audioEqHigh) els.audioEqHigh.value = String(pad.eqHigh);
@@ -3781,8 +3879,8 @@ function fillAudioCrossfadeControls(pad = state.audioPad) {
     els.audioEndStartMode.innerHTML = actionOptions;
     els.audioEndStartMode.value = pad.endStartMode;
   }
-  fillCrossfadeTargetSelect(els.audioStartStopTarget, pad.startStopTag);
-  fillCrossfadeTargetSelect(els.audioEndStartTarget, pad.endStartTarget);
+  fillCrossfadeTargetSelect(els.audioStartStopTarget, pad.startStopMode === "none" ? "" : pad.startStopTag);
+  fillCrossfadeTargetSelect(els.audioEndStartTarget, pad.endStartMode === "none" ? "" : pad.endStartTarget);
 }
 
 function openAudioDialog(pad) {
@@ -3813,6 +3911,7 @@ function audioDraftFromPad(pad) {
     reverbPreset: pad.reverbPreset,
     reverbWet: pad.reverbWet,
     reverbMode: pad.reverbMode,
+    eqMode: pad.eqMode,
     eqLow: pad.eqLow,
     eqMid: pad.eqMid,
     eqHigh: pad.eqHigh,
@@ -3832,7 +3931,7 @@ function restoreAudioDraft() {
   setPadNormalization(pad, draft.normalizeEnabled, draft.normalizedGain);
   setPadLoop(pad, draft.loop);
   if (pad.source) pad.source.loop = pad.loop;
-  setPadDuckTrigger(pad, draft.duckTrigger);
+  setPadDuckMode(pad, draft.duckMode ?? (draft.duckTrigger ? "global" : "none"), draft.duckPercent ?? duckPercentValue());
   setPadAudioSettings(pad, draft);
   setPadCrossfade(pad, draft);
   setPadTrim(pad, draft.trimStart, draft.trimEnd);
@@ -3861,6 +3960,9 @@ function resetAudioDialogSettings() {
     reverbPreset: "none",
     reverbWet: 0.5,
     reverbMode: "global",
+    duckMode: "global",
+    duckPercent: duckPercentValue(),
+    eqMode: "global",
     eqLow: 0,
     eqMid: 0,
     eqHigh: 0,
@@ -3869,7 +3971,6 @@ function resetAudioDialogSettings() {
   });
   setPadNormalization(pad, true, pad.normalizedGain);
   setPadLoop(pad, false);
-  setPadDuckTrigger(pad, false);
   setPadCrossfade(pad, {
     startStopMode: "none",
     startStopTag: "",
@@ -4156,10 +4257,22 @@ function duckPercentValue() {
   return Math.min(100, Math.max(0, Math.round(Number(els.duckPercent?.value) || 0)));
 }
 
+function duckAmountForSource(pad) {
+  if (!pad?.duckTrigger || pad.duckMode === "none") return 0;
+  if (pad.duckMode === "pad") {
+    return Math.min(100, Math.max(0, Number(pad.duckPercent) || 0)) / 100;
+  }
+  return duckAmount();
+}
+
 function duckFactorForPad(pad) {
-  const hasOtherDuckTrigger = state.pads.some((other) => other !== pad && other.source && other.duckTrigger);
+  const sourceDuckAmount = state.pads.reduce((max, other) => {
+    if (other === pad || !other.source) return max;
+    return Math.max(max, duckAmountForSource(other));
+  }, 0);
   const hasCrossfadeDuck = [...state.crossfadeDucks.values()].some((targets) => targets.has(pad));
-  return hasOtherDuckTrigger || hasCrossfadeDuck ? 1 - duckAmount() : 1;
+  const amount = hasCrossfadeDuck ? Math.max(sourceDuckAmount, duckAmount()) : sourceDuckAmount;
+  return Math.max(0, 1 - amount);
 }
 
 function targetPadGain(pad) {
@@ -4225,6 +4338,14 @@ function padsWithTag(tag, exceptPad = null) {
 function padFromTarget(target, exceptPad = null) {
   const value = String(target || "").trim();
   if (!value) return null;
+  if (value.startsWith("pad:")) {
+    const raw = value.slice(4);
+    const byUid = state.pads.find((pad) => pad !== exceptPad && pad.uid === raw);
+    if (byUid) return byUid;
+    const index = Number(raw);
+    const legacyPad = Number.isInteger(index) ? state.pads[index] : null;
+    return legacyPad && legacyPad !== exceptPad ? legacyPad : null;
+  }
   const number = Number(value.replace(/^pad\s*/i, ""));
   if (Number.isInteger(number) && number >= 1 && number <= state.pads.length) {
     const pad = state.pads[number - 1];
@@ -4237,8 +4358,9 @@ function padsFromCrossfadeTarget(target, exceptPad = null) {
   const value = String(target || "").trim();
   if (!value) return [];
   if (value.startsWith("pad:")) {
-    const index = Number(value.slice(4));
-    const targetPad = Number.isInteger(index) ? state.pads[index] : null;
+    const raw = value.slice(4);
+    const index = Number(raw);
+    const targetPad = state.pads.find((pad) => pad.uid === raw) || (Number.isInteger(index) ? state.pads[index] : null);
     return targetPad && targetPad !== exceptPad ? [targetPad] : [];
   }
   if (value.startsWith("tag:")) {
@@ -4276,6 +4398,8 @@ function setPadMuted(pad, muted, pulse = true) {
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
   }
   pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
+  pad.muteEl?.classList.toggle("is-active", pad.muted);
+  pad.muteEl?.setAttribute("aria-pressed", String(pad.muted));
   if (pulse) flashCrossfadeTarget(pad, pad.muted ? "stop" : "demute");
   updatePadAlerts(pad);
 }
@@ -4343,8 +4467,9 @@ function crossfadeTargetLabel(value, exceptPad = null) {
   if (target === "tag:*") return "Tous";
   if (target.startsWith("tag:")) return `Tag: ${target.slice(4) || "-"}`;
   if (target.startsWith("pad:")) {
-    const index = Number(target.slice(4));
-    const pad = Number.isInteger(index) ? state.pads[index] : null;
+    const raw = target.slice(4);
+    const index = Number(raw);
+    const pad = state.pads.find((item) => item.uid === raw) || (Number.isInteger(index) ? state.pads[index] : null);
     return pad && pad !== exceptPad ? pad.title : `Pad ${Number.isInteger(index) ? index + 1 : "-"}`;
   }
   const pad = padFromTarget(target, exceptPad);
@@ -4676,10 +4801,9 @@ function updateAudioEqValues(pad = state.audioPad) {
 function applyMasterEq() {
   updateMasterEqValues();
   if (!state.audioContext || !state.masterEqLow || !state.masterEqMid || !state.masterEqHigh) return;
-  const eq = masterEqSettings();
-  configureEqFilter(state.masterEqLow, "lowshelf", 160, eq.low);
-  configureEqFilter(state.masterEqMid, "peaking", 1000, eq.mid, 1);
-  configureEqFilter(state.masterEqHigh, "highshelf", 6000, eq.high);
+  configureEqFilter(state.masterEqLow, "lowshelf", 160, 0);
+  configureEqFilter(state.masterEqMid, "peaking", 1000, 0, 1);
+  configureEqFilter(state.masterEqHigh, "highshelf", 6000, 0);
 }
 
 function padHasPadReverb(pad) {
@@ -4732,12 +4856,17 @@ function connectPadEq(pad, input, output) {
     input.connect(output);
     return;
   }
+  const eq = pad.eqMode === "pad"
+    ? { low: pad.eqLow, mid: pad.eqMid, high: pad.eqHigh }
+    : pad.eqMode === "global"
+      ? masterEqSettings()
+      : { low: 0, mid: 0, high: 0 };
   const low = state.audioContext.createBiquadFilter();
   const mid = state.audioContext.createBiquadFilter();
   const high = state.audioContext.createBiquadFilter();
-  configureEqFilter(low, "lowshelf", 160, pad.eqLow);
-  configureEqFilter(mid, "peaking", 1000, pad.eqMid, 1);
-  configureEqFilter(high, "highshelf", 6000, pad.eqHigh);
+  configureEqFilter(low, "lowshelf", 160, eq.low);
+  configureEqFilter(mid, "peaking", 1000, eq.mid, 1);
+  configureEqFilter(high, "highshelf", 6000, eq.high);
   input.connect(low).connect(mid).connect(high).connect(output);
   pad.eqNodes = { low, mid, high };
 }
@@ -5117,7 +5246,7 @@ async function init() {
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
-    if (els.audioDuckValue) els.audioDuckValue.textContent = `${value}%`;
+    if (els.audioDuckGlobalHint) els.audioDuckGlobalHint.textContent = `(${value}%)`;
     applyDucking();
     updateMasterOptionBadges();
     updateAllPadAlerts();
@@ -5126,7 +5255,7 @@ async function init() {
     const value = duckPercentValue();
     els.duckPercent.value = value;
     localStorage.setItem(DUCKING_STORAGE, String(value));
-    if (els.audioDuckValue) els.audioDuckValue.textContent = `${value}%`;
+    if (els.audioDuckGlobalHint) els.audioDuckGlobalHint.textContent = `(${value}%)`;
     applyDucking();
     updateMasterOptionBadges();
     updateAllPadAlerts();
@@ -5323,6 +5452,7 @@ async function init() {
     element?.addEventListener("input", () => {
       saveMasterEqSettings();
       applyMasterEq();
+      state.pads.forEach(refreshPlayingPadOutput);
     });
   });
   els.audioDialog?.addEventListener("click", (event) => {
@@ -5380,12 +5510,15 @@ async function init() {
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
-  els.audioDuck?.addEventListener("click", () => {
-    if (!state.audioPad) return;
-    setPadDuckTrigger(state.audioPad, !state.audioPad.duckTrigger);
-    applyDucking();
-    syncAudioDialog(state.audioPad);
-    savePadMeta(state.audioPad);
+  [els.audioDuckNone, els.audioDuckGlobal, els.audioDuckPad].forEach((element) => {
+    element?.addEventListener("change", () => {
+      if (!state.audioPad) return;
+      const nextMode = els.audioDuckNone?.checked ? "none" : (els.audioDuckPad?.checked ? "pad" : "global");
+      setPadDuckMode(state.audioPad, nextMode, state.audioPad.duckPercent || duckPercentValue());
+      applyDucking();
+      syncAudioDialog(state.audioPad);
+      savePadMeta(state.audioPad);
+    });
   });
   [els.audioFadeNone, els.audioFadeGlobal, els.audioFadePad].forEach((element) => {
     element?.addEventListener("change", () => {
@@ -5417,7 +5550,18 @@ async function init() {
       savePadMeta(state.audioPad);
     });
   });
-  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh].forEach((element) => {
+  [els.audioEqNone, els.audioEqGlobal, els.audioEqPad].forEach((element) => {
+    element?.addEventListener("change", () => {
+      if (!state.audioPad) return;
+      setPadAudioSettings(state.audioPad, {
+        eqMode: els.audioEqNone?.checked ? "none" : (els.audioEqPad?.checked ? "pad" : "global"),
+      });
+      refreshPlayingPadOutput(state.audioPad);
+      syncAudioDialog(state.audioPad);
+      savePadMeta(state.audioPad);
+    });
+  });
+  [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh, els.audioDuckPercent].forEach((element) => {
     element?.addEventListener("input", () => {
       if (!state.audioPad) return;
       setPadAudioSettings(state.audioPad, {
@@ -5429,10 +5573,14 @@ async function init() {
         reverbMode: els.audioReverbNone?.checked ? "none" : (els.audioReverbPad?.checked ? "pad" : "global"),
         reverbPreset: els.audioReverbPreset?.value,
         reverbWet: els.audioReverbWet?.value,
+        duckMode: els.audioDuckNone?.checked ? "none" : (els.audioDuckPad?.checked ? "pad" : "global"),
+        duckPercent: els.audioDuckPercent?.value,
+        eqMode: els.audioEqNone?.checked ? "none" : (els.audioEqPad?.checked ? "pad" : "global"),
         eqLow: els.audioEqLow?.value,
         eqMid: els.audioEqMid?.value,
         eqHigh: els.audioEqHigh?.value,
       });
+      applyDucking();
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
         state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
