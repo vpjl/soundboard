@@ -2113,18 +2113,24 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad-stop-button {
 }
 
-.pad-stop-button {
-  border-color: rgba(255, 95, 86, 0.55);
-  background: rgba(255, 95, 86, 0.13);
-  color: #ffd8d5;
+.pad-live-row .pad-stop-button {
+  border-color: var(--danger);
+  background: rgba(255, 95, 86, 0.24);
+  color: #fff0ee;
 }
 
-.pad-mute-button {
+.pad-live-row .pad-mute-button {
   border-color: rgba(255, 95, 86, 0.44);
-  color: #ff5f56;
+  color: var(--muted);
 }
 
-.pad-mute-button.is-active {
+.pad-live-row .pad-mute-button svg,
+.pad-live-row .pad-mute-button circle {
+  color: var(--danger);
+  fill: var(--danger);
+}
+
+.pad-live-row .pad-mute-button.is-active {
   background: rgba(255, 95, 86, 0.24);
   color: #fff0ee;
 }
