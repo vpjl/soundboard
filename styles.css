@@ -452,12 +452,11 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .board-strip {
-  position: relative;
   display: grid;
   grid-template-columns: minmax(120px, 1fr);
   gap: 8px;
   align-items: start;
-  padding: 12px 12px 48px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(24, 26, 32, 0.88);
@@ -467,12 +466,10 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .board-help-button {
-  position: absolute;
-  right: 12px;
-  bottom: 48px;
   width: 34px;
   height: 34px;
-  z-index: 2;
+  align-self: end;
+  justify-self: end;
 }
 
 .cable-legend-panel {
@@ -558,26 +555,7 @@ body.show-cables .cable-legend-panel {
 #editPads {
   grid-column: 4;
   grid-row: 1;
-}
-
-#cancelBoardEdit {
-  grid-column: 4;
-  grid-row: 2;
-}
-
-#saveVersion {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-#restoreVersion {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-#versionSelect {
-  grid-column: 3 / 5;
-  grid-row: 2;
+  align-self: start;
 }
 
 body.board-edit-mode .board-action-grid {
@@ -593,6 +571,7 @@ body.board-edit-mode .board-action-grid {
 
 body.board-edit-mode .board-center-actions {
   grid-template-columns: repeat(5, minmax(34px, 42px));
+  grid-auto-rows: 38px;
 }
 
 .board-action-grid > .icon-button,
@@ -605,11 +584,6 @@ body.board-edit-mode .board-action-grid .icon-button {
   height: 38px;
 }
 
-body.board-edit-mode #versionSelect {
-  grid-column: 1 / -1;
-  grid-row: 3;
-}
-
 .version-select {
   width: 100%;
   height: 38px;
@@ -619,6 +593,17 @@ body.board-edit-mode #versionSelect {
   padding: 0 8px;
   background: #111319;
   color: var(--text);
+}
+
+.board-version-row {
+  display: none;
+  grid-template-columns: 42px 42px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+body.board-edit-mode .board-version-row {
+  display: grid;
 }
 
 .board-select,
@@ -638,13 +623,13 @@ body.board-edit-mode #versionSelect {
 
 .board-filter-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(104px, 0.65fr);
+  grid-template-columns: minmax(104px, 1fr) 34px;
   gap: 8px;
   align-items: end;
 }
 
 body.board-edit-mode .board-filter-row {
-  grid-template-columns: minmax(0, 1fr) 42px minmax(104px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr) 42px minmax(104px, 0.75fr) 34px;
 }
 
 body.board-edit-mode .board-filter-row .bulk-edit-button {
@@ -659,6 +644,10 @@ body.board-edit-mode .board-filter-row .board-tag-filter {
 
 body.board-edit-mode .board-filter-row .board-skin-select {
   order: 1;
+}
+
+.board-filter-row .board-help-button {
+  order: 4;
 }
 
 .board-filter-row .skin-select,
@@ -1560,7 +1549,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-notice-button,
 .bulk-edit-button,
 .board-action-grid .board-transfer-button,
-.board-action-grid .board-history-button,
+.board-version-row,
+.board-version-row .board-history-button,
 .board-action-grid .board-delete-button,
 .board-cancel-edit-button,
 .keyboard-shortcuts-button {
@@ -1577,9 +1567,10 @@ body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
 body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-transfer-button,
-body.board-edit-mode .board-action-grid .board-history-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
 body.board-edit-mode .board-action-grid .board-cancel-edit-button,
+body.board-edit-mode .board-version-row,
+body.board-edit-mode .board-version-row .board-history-button,
 body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
 body.board-edit-mode .board-action-grid #addBoard {
@@ -3084,7 +3075,7 @@ body.stage-mode.board-edit-mode .board-action-grid {
 body.stage-mode .board-action-grid #addPad,
 body.stage-mode .board-action-grid #addBoard,
 body.stage-mode .board-action-grid .board-transfer-button,
-body.stage-mode .board-action-grid .board-history-button,
+body.stage-mode .board-version-row,
 body.stage-mode .board-action-grid .keyboard-shortcuts-button,
 body.stage-mode .board-action-grid .show-cables-button,
 body.stage-mode .board-action-grid .patch-bay-button,
@@ -3275,6 +3266,7 @@ body.stage-mode .pad-alerts {
 
   body.board-edit-mode .board-center-actions {
     grid-template-columns: repeat(5, 30px);
+    grid-auto-rows: 30px;
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
@@ -3283,7 +3275,6 @@ body.stage-mode .pad-alerts {
   }
 
   body.board-edit-mode .version-select {
-    grid-column: 1 / -1;
     height: 30px;
     padding: 0 5px;
     font-size: 0.66rem;
@@ -3434,6 +3425,7 @@ body.stage-mode .pad-alerts {
 
   body.board-edit-mode .board-center-actions {
     grid-template-columns: repeat(5, 30px);
+    grid-auto-rows: 30px;
   }
 
   body.board-edit-mode .board-action-grid .icon-button {
@@ -3442,7 +3434,6 @@ body.stage-mode .pad-alerts {
   }
 
   body.board-edit-mode .version-select {
-    grid-column: 1 / -1;
     height: 30px;
     padding: 0 5px;
     font-size: 0.66rem;

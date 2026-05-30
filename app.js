@@ -607,7 +607,11 @@ function setBoardPadEditing(editing) {
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
   els.editPads?.setAttribute("aria-label", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
-  if (!state.boardEditMode) setCableOverlayVisible(false);
+  els.editPads?.setAttribute("title", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
+  if (!state.boardEditMode) {
+    setCableOverlayVisible(false);
+    if (els.boardTagFilter) els.boardTagFilter.value = "";
+  }
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
@@ -1086,6 +1090,7 @@ function makePad(index) {
     });
   });
 
+  syncHoverLabels(node);
   return pad;
 }
 
@@ -1976,6 +1981,8 @@ async function tryShareBoardFile(file, boardName) {
 }
 
 async function createBoardSnapshot(board) {
+  syncPadIndexesFromDom();
+  await persistCurrentPadsForExport();
   const pads = [];
   for (let index = 0; index < board.padCount; index += 1) {
     pads.push({
@@ -2095,10 +2102,12 @@ async function exportCurrentBoard(includeAudio = true) {
   const board = currentBoard();
   const pads = [];
   syncPadIndexesFromDom();
+  await persistCurrentPadsForExport();
+  const orderedPads = orderedPadsForCurrentBoard();
   const shortcuts = state.shortcuts.length ? state.shortcuts : defaultShortcuts();
 
   for (let index = 0; index < board.padCount; index += 1) {
-    const pad = state.pads[index] || makePad(index);
+    const pad = orderedPads.find((item) => item.index === index) || state.pads.find((item) => item.index === index) || makePad(index);
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const resolvedAudio = includeAudio ? await resolvePadAudioRecord(pad, meta, saved) : null;
@@ -2179,6 +2188,21 @@ async function exportCurrentBoard(includeAudio = true) {
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
   const suffix = includeAudio ? "soundboard" : "soundboard-settings";
   await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${timestampForFile()}.${suffix}.json`, board.name);
+}
+
+function orderedPadsForCurrentBoard() {
+  syncPadIndexesFromDom();
+  return [...els.pads.querySelectorAll("[data-pad]")]
+    .map((node) => padFromNode(node))
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+}
+
+async function persistCurrentPadsForExport() {
+  const pads = orderedPadsForCurrentBoard();
+  for (const pad of pads) {
+    await savePadMeta(pad);
+  }
 }
 
 async function importBoardFile(file) {
@@ -2900,6 +2924,14 @@ async function savePadMeta(pad) {
 
 function setStatus(text) {
   els.status.textContent = text;
+}
+
+function syncHoverLabels(root = document) {
+  root.querySelectorAll("button[aria-label], [role='button'][aria-label]").forEach((button) => {
+    if (!button.getAttribute("title")) {
+      button.setAttribute("title", button.getAttribute("aria-label"));
+    }
+  });
 }
 
 function setStageMode(enabled, requestFullscreen = false) {
@@ -5064,6 +5096,7 @@ async function init() {
   await repairAccidentalPadTitles();
   setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
   updateMasterOptionBadges();
+  syncHoverLabels();
 
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
