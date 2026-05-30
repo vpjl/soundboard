@@ -80,6 +80,7 @@ const state = {
   shortcuts: [],
   shortcutDraft: null,
   shortcutsEnabled: true,
+  lastStartedPad: null,
   audioPad: null,
   audioDraft: null,
   masterAudioDraft: null,
@@ -521,6 +522,18 @@ function saveShortcutDraft() {
 function padIndexForShortcutKey(key) {
   const shortcut = state.shortcuts.find((item) => item.key === key);
   return shortcut ? shortcut.padIndex : -1;
+}
+
+function stopLastStartedPadFromKeyboard() {
+  const pad = state.lastStartedPad?.source
+    ? state.lastStartedPad
+    : state.pads.find((item) => item.source);
+  if (!pad) {
+    setStatus("Aucun pad à arrêter");
+    return false;
+  }
+  stopPad(pad, fadeDurationForPad(pad, "out") > 0);
+  return true;
 }
 
 function setShortcut(rowIndex, key, padIndex) {
@@ -4971,6 +4984,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.gain = gain;
   pad.pan = pan;
   pad.analyser = analyser;
+  state.lastStartedPad = pad;
   pad.meterData = new Uint8Array(analyser.fftSize);
   pad.startedAt = now - segmentOffset;
   pad.stopAt = 0;
@@ -5169,6 +5183,12 @@ function bindKeyboard() {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     const target = event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) return;
+
+    if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      stopLastStartedPadFromKeyboard();
+      return;
+    }
 
     const key = event.key.toUpperCase();
     const index = padIndexForShortcutKey(key);
