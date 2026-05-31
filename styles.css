@@ -2834,6 +2834,14 @@ body[data-skin="contrast"] .color-field {
   touch-action: none;
 }
 
+.image-tools .icon-button.is-active {
+  background: color-mix(in srgb, var(--accent) 24%, var(--control));
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+  color: var(--text);
+}
+
+.image-dialog.is-color-mode .image-preview,
+.image-dialog.is-color-mode .image-sketch-canvas,
 .image-dialog.is-image-mode .image-sketch-canvas,
 .image-dialog.is-sketch-mode .image-preview {
   display: none;
@@ -2843,6 +2851,11 @@ body[data-skin="contrast"] .color-field {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.image-dialog.is-color-mode .image-crop-controls,
+.image-dialog.is-sketch-mode .image-crop-controls {
+  display: none;
 }
 
 .image-crop-controls label {

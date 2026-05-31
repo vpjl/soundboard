@@ -88,6 +88,7 @@ const state = {
   reverbBuffers: {},
   imagePad: null,
   imageDraft: null,
+  imageDialogMode: "color",
   bulkEditPads: [],
   sketchDrawing: false,
   stageMode: false,
@@ -918,6 +919,7 @@ function makePad(index) {
     const file = pad.imageInput.files?.[0];
     if (!file) return;
     const image = await fileToDataUrl(file);
+    state.imageDialogMode = "image";
     setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
@@ -927,6 +929,7 @@ function makePad(index) {
     const file = pad.cameraInput.files?.[0];
     if (!file) return;
     const image = await fileToDataUrl(file);
+    state.imageDialogMode = "image";
     setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
@@ -3479,6 +3482,11 @@ function syncImageColorButtons(pad = state.imagePad) {
   });
 }
 
+function setImageDialogMode(mode) {
+  state.imageDialogMode = ["color", "image", "sketch"].includes(mode) ? mode : "color";
+  syncImageDialog(state.imagePad);
+}
+
 function setPadNormalization(pad, enabled, gain = 1) {
   const number = Number(gain);
   pad.normalizedGain = Number.isFinite(number)
@@ -4116,8 +4124,15 @@ function syncImageDialog(pad = state.imagePad) {
   } else if (livePadRect?.width && livePadRect?.height) {
     els.imageDialog?.style.setProperty("--image-pad-aspect", `${livePadRect.width} / ${livePadRect.height}`);
   }
-  els.imageDialog?.classList.toggle("is-image-mode", Boolean(pad.visualImage && pad.visualKind !== "sketch"));
-  els.imageDialog?.classList.toggle("is-sketch-mode", Boolean(pad.visualImage && pad.visualKind === "sketch"));
+  const mode = state.imageDialogMode || "color";
+  els.imageDialog?.classList.toggle("is-color-mode", mode === "color");
+  els.imageDialog?.classList.toggle("is-image-mode", mode === "image");
+  els.imageDialog?.classList.toggle("is-sketch-mode", mode === "sketch");
+  els.imageColorToggle?.classList.toggle("is-active", mode === "color");
+  els.imageLibrary?.classList.toggle("is-active", mode === "image");
+  els.imageCamera?.classList.toggle("is-active", mode === "image");
+  els.imageSketch?.classList.toggle("is-active", mode === "sketch");
+  if (els.imageColorFrame) els.imageColorFrame.hidden = mode !== "color";
   if (els.imagePosX) els.imagePosX.value = String(pad.visualPositionX);
   if (els.imagePosY) els.imagePosY.value = String(pad.visualPositionY);
   if (els.imageZoom) els.imageZoom.value = String(pad.visualZoom);
@@ -4133,7 +4148,7 @@ function syncImageDialog(pad = state.imagePad) {
 function openImageDialog(pad) {
   state.imagePad = pad;
   state.imageDraft = imageDraftFromPad(pad);
-  if (els.imageColorFrame) els.imageColorFrame.hidden = true;
+  state.imageDialogMode = "color";
   syncImageDialog(pad);
   if (els.imageDialog?.showModal) {
     els.imageDialog.showModal();
@@ -4214,6 +4229,7 @@ function bindImageSketch() {
   canvas.addEventListener("pointerup", finish);
   canvas.addEventListener("pointercancel", finish);
   els.imageSketch?.addEventListener("click", () => {
+    setImageDialogMode("sketch");
     ctx.fillStyle = "#111319";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const pad = state.imagePad;
@@ -5701,21 +5717,26 @@ async function init() {
     }
   });
   els.imageColorToggle?.addEventListener("click", () => {
-    if (!els.imageColorFrame) return;
-    els.imageColorFrame.hidden = !els.imageColorFrame.hidden;
+    setImageDialogMode("color");
   });
   els.imageColorButtons?.forEach((button) => {
     button.addEventListener("click", () => {
       const pad = state.imagePad;
       if (!pad) return;
       setPadColor(pad, button.dataset.imageColor || "");
-      if (!button.dataset.imageColor) setPadVisualImage(pad, "", false);
+      if (!button.dataset.imageColor || !pad.visualImage) setPadVisualImage(pad, "", false);
       syncImageDialog(pad);
       savePadMeta(pad);
     });
   });
-  els.imageLibrary?.addEventListener("click", () => state.imagePad?.imageInput?.click());
-  els.imageCamera?.addEventListener("click", () => state.imagePad?.cameraInput?.click());
+  els.imageLibrary?.addEventListener("click", () => {
+    setImageDialogMode("image");
+    state.imagePad?.imageInput?.click();
+  });
+  els.imageCamera?.addEventListener("click", () => {
+    setImageDialogMode("image");
+    state.imagePad?.cameraInput?.click();
+  });
   els.imageRemove?.addEventListener("click", () => {
     const pad = state.imagePad;
     if (!pad) return;
