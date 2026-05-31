@@ -2437,7 +2437,7 @@ body[data-skin="contrast"] .color-field {
 
 .cue-row {
   display: grid;
-  grid-template-columns: 30px minmax(110px, 0.9fr) minmax(150px, 1fr) 86px 38px;
+  grid-template-columns: 30px minmax(110px, 0.9fr) minmax(140px, 1fr) 76px minmax(126px, 0.9fr) minmax(140px, 1fr) 38px;
   gap: 8px;
   align-items: center;
 }
@@ -3874,6 +3874,19 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .cue-row select[aria-label="Cible cue"] {
     grid-column: 2 / 4;
+  }
+
+  .cue-row select[aria-label="Condition cue"] {
+    grid-column: 2 / 3;
+  }
+
+  .cue-row select[aria-label="Cible condition"] {
+    grid-column: 3 / 5;
+  }
+
+  .cue-remove-button {
+    grid-column: 4;
+    grid-row: 1;
   }
 
   .board-layout-controls {

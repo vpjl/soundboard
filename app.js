@@ -50,6 +50,7 @@ const REVERB_PRESETS = {
   cathedral: { duration: 3.6, decay: 3.2 },
 };
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
+const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
 
 const state = {
   audioContext: null,
@@ -97,6 +98,7 @@ const state = {
   boardEditSnapshot: null,
   cueDraft: null,
   cueWaitTimer: null,
+  cueRunning: false,
 };
 
 const els = {
@@ -447,12 +449,18 @@ function normalizeCueAction(action) {
   return CUE_ACTIONS.includes(action) ? action : "playPad";
 }
 
+function normalizeCueCondition(condition) {
+  return CUE_CONDITIONS.includes(condition) ? condition : "manual";
+}
+
 function normalizeCueStep(step = {}) {
   return {
     id: step.id || createId(),
     action: normalizeCueAction(step.action),
     target: String(step.target || ""),
     waitSeconds: Math.max(0, Math.round(Number(step.waitSeconds) || 0)),
+    condition: normalizeCueCondition(step.condition),
+    conditionTarget: String(step.conditionTarget || ""),
   };
 }
 
@@ -1287,14 +1295,30 @@ function cueActionLabel(action) {
   }[normalizeCueAction(action)] || "Cue";
 }
 
+function cueConditionLabel(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.condition === "manual") return "";
+  if (normalized.condition === "padEnd") {
+    const pad = padFromTarget(normalized.conditionTarget);
+    return `si fin pad · ${pad?.title || "choisir"}`;
+  }
+  const tag = normalized.conditionTarget.replace(/^tag:/, "") || "choisir";
+  return `si fin tag · ${tag}`;
+}
+
 function cueStepLabel(step) {
   const normalized = normalizeCueStep(step);
-  if (normalized.action === "wait") return `Attendre ${normalized.waitSeconds || 1}s`;
+  const condition = cueConditionLabel(normalized);
+  if (normalized.action === "wait") {
+    const label = `Attendre ${normalized.waitSeconds || 1}s`;
+    return condition ? `${label} · ${condition}` : label;
+  }
   const targets = padsFromCueTarget(normalized);
   const targetLabel = normalized.action.endsWith("Tag")
     ? normalized.target.replace(/^tag:/, "") || "tag"
     : (targets[0]?.title || "pad");
-  return `${cueActionLabel(normalized.action)} · ${targetLabel}`;
+  const label = `${cueActionLabel(normalized.action)} · ${targetLabel}`;
+  return condition ? `${label} · ${condition}` : label;
 }
 
 function cueIndexForBoard(board = currentBoard()) {
@@ -1373,6 +1397,47 @@ function fillCueTargetSelect(select, action, selectedValue = "") {
   select.value = [...select.options].some((option) => option.value === selectedValue) ? selectedValue : "";
 }
 
+function fillCueConditionTargetSelect(select, condition, selectedValue = "") {
+  if (!select) return;
+  const mode = normalizeCueCondition(condition);
+  select.innerHTML = "";
+  if (mode === "manual") {
+    select.disabled = true;
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Manuel";
+    select.append(option);
+    return;
+  }
+  select.disabled = false;
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "Choisir";
+  select.append(empty);
+  if (mode === "padEnd") {
+    const padGroup = document.createElement("optgroup");
+    padGroup.label = "Pads";
+    state.pads.forEach((pad) => {
+      const option = document.createElement("option");
+      option.value = padTargetValue(pad);
+      option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
+      padGroup.append(option);
+    });
+    select.append(padGroup);
+  } else {
+    const tagGroup = document.createElement("optgroup");
+    tagGroup.label = "Tags";
+    boardTags().forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = `tag:${tag}`;
+      option.textContent = tag;
+      tagGroup.append(option);
+    });
+    select.append(tagGroup);
+  }
+  select.value = [...select.options].some((option) => option.value === selectedValue) ? selectedValue : "";
+}
+
 function cueDraft() {
   if (!state.cueDraft) state.cueDraft = normalizeCues(currentBoard()?.cues);
   return state.cueDraft;
@@ -1426,6 +1491,24 @@ function renderCueRows() {
     wait.setAttribute("aria-label", "Secondes");
     wait.disabled = action.value !== "wait";
 
+    const condition = document.createElement("select");
+    condition.setAttribute("aria-label", "Condition cue");
+    [
+      ["manual", "Manuel"],
+      ["padEnd", "Quand pad finit"],
+      ["tagEnd", "Quand tag finit"],
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      condition.append(option);
+    });
+    condition.value = normalizeCueCondition(step.condition);
+
+    const conditionTarget = document.createElement("select");
+    conditionTarget.setAttribute("aria-label", "Cible condition");
+    fillCueConditionTargetSelect(conditionTarget, condition.value, step.conditionTarget);
+
     const remove = document.createElement("button");
     remove.className = "icon-button cue-remove-button";
     remove.type = "button";
@@ -1438,8 +1521,16 @@ function renderCueRows() {
       fillCueTargetSelect(target, step.action, step.target);
       wait.disabled = step.action !== "wait";
     });
+    condition.addEventListener("change", () => {
+      step.condition = normalizeCueCondition(condition.value);
+      if (step.condition === "manual") step.conditionTarget = "";
+      fillCueConditionTargetSelect(conditionTarget, step.condition, step.conditionTarget);
+    });
     target.addEventListener("change", () => {
       step.target = target.value;
+    });
+    conditionTarget.addEventListener("change", () => {
+      step.conditionTarget = conditionTarget.value;
     });
     wait.addEventListener("input", () => {
       step.waitSeconds = Math.max(0, Math.round(Number(wait.value) || 0));
@@ -1449,7 +1540,7 @@ function renderCueRows() {
       renderCueRows();
     });
 
-    row.append(number, action, target, wait, remove);
+    row.append(number, action, target, wait, condition, conditionTarget, remove);
     els.cueRows.append(row);
   });
 }
@@ -1467,7 +1558,11 @@ function openCueDialog() {
 function saveCueDraft() {
   const board = currentBoard();
   if (!board) return;
-  board.cues = normalizeCues(state.cueDraft).filter((step) => step.action === "wait" || step.target);
+  board.cues = normalizeCues(state.cueDraft).filter((step) => {
+    const hasActionTarget = step.action === "wait" || step.target;
+    const hasConditionTarget = step.condition === "manual" || step.conditionTarget;
+    return hasActionTarget && hasConditionTarget;
+  });
   board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(board.cueIndex) || 0));
   if (board.cueIndex < 0) board.cueIndex = 0;
   state.cueDraft = null;
@@ -1480,6 +1575,30 @@ function padsFromCueTarget(step) {
   if (!target) return [];
   if (target.startsWith("tag:")) return padsWithTag(target.slice(4));
   return padsFromCrossfadeTarget(target);
+}
+
+function cueConditionMet(step, endedPad = null) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.condition === "manual") return false;
+  if (!normalized.conditionTarget) return false;
+  if (normalized.condition === "padEnd") {
+    const targetPad = padFromTarget(normalized.conditionTarget);
+    return Boolean(targetPad && targetPad === endedPad && !targetPad.source);
+  }
+  if (normalized.condition === "tagEnd") {
+    const tag = normalized.conditionTarget.replace(/^tag:/, "");
+    const pads = padsWithTag(tag);
+    return Boolean(pads.length && (!endedPad || padTagList(endedPad).includes(tag)) && pads.every((pad) => !pad.source));
+  }
+  return false;
+}
+
+function checkCueConditions(endedPad = null) {
+  const board = currentBoard();
+  if (!board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
+  const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
+  if (!cueConditionMet(step, endedPad)) return;
+  runNextCue({ automatic: true }).catch(() => setStatus("Cue condition impossible"));
 }
 
 async function executeCueStep(step) {
@@ -1510,7 +1629,7 @@ async function executeCueStep(step) {
   }
 }
 
-async function runNextCue() {
+async function runNextCue(options = {}) {
   const board = currentBoard();
   if (!board?.cues?.length) {
     setStatus("Aucune cue");
@@ -1518,12 +1637,19 @@ async function runNextCue() {
     return;
   }
   clearCueWaitTimer();
+  if (state.cueRunning) return;
+  state.cueRunning = true;
   const index = cueIndexForBoard(board);
   const step = normalizeCueStep(board.cues[index]);
-  await executeCueStep(step);
-  board.cueIndex = board.cues.length ? (index + 1) % board.cues.length : 0;
-  saveBoards();
-  syncCueControls();
+  try {
+    if (options.automatic) setStatus("Cue condition");
+    await executeCueStep(step);
+    board.cueIndex = board.cues.length ? (index + 1) % board.cues.length : 0;
+    saveBoards();
+    syncCueControls();
+  } finally {
+    state.cueRunning = false;
+  }
 }
 
 function padsForBoardTagSelection() {
@@ -5260,7 +5386,10 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   updatePadTime(pad);
   applyDucking();
   updateAllPadAlerts();
-  if (triggerEnd) executeEndCrossfade(pad);
+  if (triggerEnd) {
+    executeEndCrossfade(pad);
+    checkCueConditions(pad);
+  }
 }
 
 function reversedBufferForPad(pad) {
