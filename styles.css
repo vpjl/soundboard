@@ -2114,9 +2114,9 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad-live-row .pad-stop-button {
-  border-color: var(--danger);
-  background: rgba(255, 95, 86, 0.24);
-  color: #fff0ee;
+  border-color: rgba(255, 95, 86, 0.55);
+  background: rgba(255, 95, 86, 0.13);
+  color: #ffd8d5;
 }
 
 .pad-live-row .pad-mute-button {

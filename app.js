@@ -536,6 +536,11 @@ function stopLastStartedPadFromKeyboard() {
   return true;
 }
 
+function stopEvent(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
 function setShortcut(rowIndex, key, padIndex) {
   const normalizedKey = normalizeShortcutKey(key);
   state.shortcuts[rowIndex] = {
@@ -947,7 +952,10 @@ function makePad(index) {
     pad.holdPointerId = null;
   });
   bindPadProgress(pad);
-  node.querySelector('[data-action="stop"]').addEventListener("click", () => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
+  node.querySelector('[data-action="stop"]').addEventListener("click", (event) => {
+    stopEvent(event);
+    stopPad(pad, fadeDurationForPad(pad, "out") > 0);
+  });
   node.querySelector('[data-action="delete-pad"]').addEventListener("click", () => deletePad(pad));
   if (pad.duplicateButton) {
     pad.duplicateButton.dataset.padIndex = String(index);
@@ -957,7 +965,10 @@ function makePad(index) {
       duplicatePadFromNode(node, pad);
     });
   }
-  node.querySelector('[data-action="audio"]').addEventListener("click", () => openAudioDialog(pad));
+  node.querySelector('[data-action="audio"]').addEventListener("click", (event) => {
+    stopEvent(event);
+    openAudioDialog(pad);
+  });
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -1052,7 +1063,8 @@ function makePad(index) {
     savePadMeta(pad);
   });
 
-  pad.muteEl?.addEventListener("click", () => {
+  pad.muteEl?.addEventListener("click", (event) => {
+    stopEvent(event);
     setPadMuted(pad, !pad.muted);
   });
 
@@ -1089,6 +1101,7 @@ function makePad(index) {
     if (mode === "oneshot") {
       button.addEventListener("pointerdown", (event) => {
         if (event.button != null && event.button !== 0) return;
+        event.stopPropagation();
         pad.holdTriggered = false;
         pad.holdPointerId = event.pointerId;
         button.setPointerCapture?.(event.pointerId);
@@ -1119,7 +1132,7 @@ function makePad(index) {
       });
     }
     button.addEventListener("click", (event) => {
-      event.preventDefault();
+      stopEvent(event);
       if (mode === "oneshot" && pad.suppressNextStartClick) {
         pad.suppressNextStartClick = false;
         return;
@@ -1910,6 +1923,27 @@ function fileToDataUrl(file) {
   });
 }
 
+async function fileToText(file) {
+  if (typeof file?.text === "function") {
+    try {
+      return await file.text();
+    } catch {
+      // Older embedded browsers sometimes expose file.text() but fail at runtime.
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+function parseBoardJson(text) {
+  const cleanText = String(text || "").replace(/^\uFEFF/, "").trim();
+  return JSON.parse(cleanText);
+}
+
 function safeFileName(name) {
   return name
     .normalize("NFD")
@@ -2256,7 +2290,7 @@ async function persistCurrentPadsForExport() {
 async function importBoardFile(file) {
   let payload;
   try {
-    payload = JSON.parse(await file.text());
+    payload = parseBoardJson(await fileToText(file));
   } catch {
     setStatus("Fichier board illisible");
     return;
@@ -4417,6 +4451,15 @@ function setPadMuted(pad, muted, pulse = true) {
   updatePadAlerts(pad);
 }
 
+function clearPadMuteState(pad) {
+  if (!pad?.muted) return;
+  pad.muted = false;
+  pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
+  pad.muteEl?.classList.remove("is-active");
+  pad.muteEl?.setAttribute("aria-pressed", "false");
+  updatePadAlerts(pad);
+}
+
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   if (action === "none") return;
   const targets = padsFromCrossfadeTarget(target, sourcePad);
@@ -5012,7 +5055,11 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 }
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
-  if (!pad.source || !state.audioContext) return;
+  const wasMuted = Boolean(pad?.muted);
+  if (!pad.source || !state.audioContext) {
+    clearPadMuteState(pad);
+    return;
+  }
   if (pad.stopAt) return;
 
   const source = pad.source;
@@ -5029,7 +5076,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
     pad.keepResumeOffsetOnEnd = false;
   }
 
-  if (fade && fadeTime > 0 && gain) {
+  if (!wasMuted && fade && fadeTime > 0 && gain) {
     if (typeof gain.gain.cancelAndHoldAtTime === "function") {
       gain.gain.cancelAndHoldAtTime(now);
     } else {
@@ -5050,10 +5097,12 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
       source.stop(now);
     } catch {
       clearPlayingPad(pad, source, options.triggerEnd ?? true);
+      clearPadMuteState(pad);
       return;
     }
     pad.stopAt = now;
     clearPlayingPad(pad, source, options.triggerEnd ?? true);
+    clearPadMuteState(pad);
     setStatus(`${pad.title} stop`);
   }
 }
@@ -5153,7 +5202,7 @@ function bindPerformanceTouchGuards() {
 
 function togglePad(pad) {
   if (pad.source) {
-    stopPad(pad, fadeDurationForPad(pad, "out") > 0, pad.playMode === "toggle");
+    stopPad(pad, false, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
     playPad(pad, fadeDurationForPad(pad, "in") > 0, offset);
