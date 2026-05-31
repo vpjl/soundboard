@@ -301,7 +301,9 @@ const els = {
   cueNext: document.querySelector("#cueNext"),
   cueStatus: document.querySelector("#cueStatus"),
   cueDialog: document.querySelector("#cueDialog"),
+  closeCues: document.querySelector("#closeCues"),
   cueRows: document.querySelector("#cueRows"),
+  cueTimeline: document.querySelector("#cueTimeline"),
   addCueStep: document.querySelector("#addCueStep"),
   resetCuePosition: document.querySelector("#resetCuePosition"),
   applyCues: document.querySelector("#applyCues"),
@@ -1321,6 +1323,37 @@ function cueStepLabel(step) {
   return condition ? `${label} · ${condition}` : label;
 }
 
+function cueTargetLabel(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.action === "wait") return `${normalized.waitSeconds || 1}s`;
+  if (normalized.action.endsWith("Tag")) return normalized.target.replace(/^tag:/, "") || "tag";
+  return padsFromCueTarget(normalized)[0]?.title || "pad";
+}
+
+function cueFadeLabel(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.action === "playPad") {
+    const pad = padsFromCueTarget(normalized)[0];
+    const seconds = pad ? fadeDurationForPad(pad, "in") : 0;
+    return seconds > 0 ? `fade in ${seconds}s` : "";
+  }
+  if (normalized.action === "stopPad") {
+    const pad = padsFromCueTarget(normalized)[0];
+    const seconds = pad ? fadeDurationForPad(pad, "out") : 0;
+    return seconds > 0 ? `fade out ${seconds}s` : "";
+  }
+  if (normalized.action === "playTag") return "fade in selon pads";
+  if (normalized.action === "stopTag") return "fade out selon pads";
+  return "";
+}
+
+function cueDurationUnits(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.action === "wait") return Math.max(1, normalized.waitSeconds || 1);
+  const fade = cueFadeLabel(normalized).match(/(\d+(?:\.\d+)?)s/);
+  return fade ? Math.max(1, Number(fade[1])) : 1;
+}
+
 function cueIndexForBoard(board = currentBoard()) {
   const total = board?.cues?.length || 0;
   if (!total) return 0;
@@ -1349,6 +1382,7 @@ function syncCueControls() {
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
       : "Aucune cue";
   }
+  renderCueTimeline(cues);
 }
 
 function fillCueTargetSelect(select, action, selectedValue = "") {
@@ -1520,20 +1554,25 @@ function renderCueRows() {
       if (step.action === "wait") step.target = "";
       fillCueTargetSelect(target, step.action, step.target);
       wait.disabled = step.action !== "wait";
+      renderCueTimeline(draft);
     });
     condition.addEventListener("change", () => {
       step.condition = normalizeCueCondition(condition.value);
       if (step.condition === "manual") step.conditionTarget = "";
       fillCueConditionTargetSelect(conditionTarget, step.condition, step.conditionTarget);
+      renderCueTimeline(draft);
     });
     target.addEventListener("change", () => {
       step.target = target.value;
+      renderCueTimeline(draft);
     });
     conditionTarget.addEventListener("change", () => {
       step.conditionTarget = conditionTarget.value;
+      renderCueTimeline(draft);
     });
     wait.addEventListener("input", () => {
       step.waitSeconds = Math.max(0, Math.round(Number(wait.value) || 0));
+      renderCueTimeline(draft);
     });
     remove.addEventListener("click", () => {
       draft.splice(index, 1);
@@ -1542,6 +1581,53 @@ function renderCueRows() {
 
     row.append(number, action, target, wait, condition, conditionTarget, remove);
     els.cueRows.append(row);
+  });
+  renderCueTimeline(draft);
+}
+
+function renderCueTimeline(cues = cueDraft()) {
+  if (!els.cueTimeline) return;
+  const normalizedCues = normalizeCues(cues);
+  els.cueTimeline.innerHTML = "";
+  els.cueTimeline.classList.toggle("is-empty", !normalizedCues.length);
+  if (!normalizedCues.length) {
+    const empty = document.createElement("p");
+    empty.className = "cue-timeline-empty";
+    empty.textContent = "Aucune étape cue.";
+    els.cueTimeline.append(empty);
+    return;
+  }
+
+  normalizedCues.forEach((step, index) => {
+    const block = document.createElement("div");
+    const actionGroup = step.action === "wait" ? "wait" : (step.action.startsWith("play") ? "play" : "stop");
+    block.className = `cue-block cue-block-${actionGroup}`;
+    if (currentBoard()?.cueIndex === index) block.classList.add("is-current");
+    block.style.setProperty("--cue-units", String(cueDurationUnits(step)));
+
+    const number = document.createElement("span");
+    number.className = "cue-block-number";
+    number.textContent = String(index + 1);
+
+    const title = document.createElement("strong");
+    title.textContent = cueActionLabel(step.action);
+
+    const target = document.createElement("span");
+    target.textContent = cueTargetLabel(step);
+
+    const fade = document.createElement("small");
+    fade.textContent = cueFadeLabel(step) || (step.action === "wait" ? "pause" : "cut direct");
+
+    block.append(number, title, target, fade);
+
+    const condition = cueConditionLabel(step);
+    if (condition) {
+      const conditionEl = document.createElement("em");
+      conditionEl.textContent = condition;
+      block.append(conditionEl);
+    }
+
+    els.cueTimeline.append(block);
   });
 }
 
@@ -2212,10 +2298,21 @@ function boardNoticeCrossfadeRows() {
   }));
 }
 
+function boardNoticeCueRows() {
+  return normalizeCues(currentBoard()?.cues).map((step, index) => ({
+    index: index + 1,
+    action: cueActionLabel(step.action),
+    target: cueTargetLabel(step),
+    condition: cueConditionLabel(step) || "Manuel",
+    fade: cueFadeLabel(step) || (step.action === "wait" ? "Pause" : "-"),
+  }));
+}
+
 function boardNoticeHtml() {
   const board = currentBoard();
   const rows = boardNoticeRows();
   const crossfadeRows = boardNoticeCrossfadeRows();
+  const cueRows = boardNoticeCueRows();
   const showShortcuts = state.shortcutsEnabled && rows.some((row) => row.shortcut);
   const soundCount = boardSoundCount();
   const date = new Date().toLocaleString("fr-FR");
@@ -2266,6 +2363,16 @@ function boardNoticeHtml() {
       ${crossfadeRows.map((row) => `<tr><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.phase)}</td><td>${escapeHtml(row.action)}</td><td>${escapeHtml(row.target)}</td></tr>`).join("")}
     </tbody>
   </table>` : "<p>Aucun crossfade configuré.</p>"}
+  <h2>Cues</h2>
+  ${cueRows.length ? `
+  <table>
+    <thead>
+      <tr><th>#</th><th>Action</th><th>Cible</th><th>Condition</th><th>Fade / pause</th></tr>
+    </thead>
+    <tbody>
+      ${cueRows.map((row) => `<tr><td>${row.index}</td><td>${escapeHtml(row.action)}</td><td>${escapeHtml(row.target)}</td><td>${escapeHtml(row.condition)}</td><td>${escapeHtml(row.fade)}</td></tr>`).join("")}
+    </tbody>
+  </table>` : "<p>Aucune cue configurée.</p>"}
 </body>
 </html>`;
 }
@@ -5860,6 +5967,10 @@ async function init() {
     setStatus("Cues enregistrées");
   });
   els.cancelCues?.addEventListener("click", () => {
+    state.cueDraft = null;
+    els.cueDialog?.close();
+  });
+  els.closeCues?.addEventListener("click", () => {
     state.cueDraft = null;
     els.cueDialog?.close();
   });
