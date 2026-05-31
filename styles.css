@@ -362,14 +362,14 @@ h1 {
 }
 
 .board-layout-controls {
-  display: none;
+  display: grid;
   grid-template-columns: minmax(64px, 82px) auto;
   gap: 6px;
   align-items: center;
 }
 
 body.board-edit-mode .board-layout-controls {
-  display: grid;
+  display: none;
 }
 
 .board-layout-controls label {
@@ -397,6 +397,16 @@ body.board-edit-mode .board-layout-controls {
 
 .board-layout-controls input:disabled {
   opacity: 0.56;
+}
+
+.board-edit-actions {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.board-edit-mode .board-edit-actions {
+  display: grid;
 }
 
 .skin-select span {
@@ -628,7 +638,7 @@ body.board-edit-mode .board-version-row {
 
 .board-filter-row {
   display: grid;
-  grid-template-columns: minmax(104px, 1fr) 34px;
+  grid-template-columns: minmax(104px, 0.8fr) minmax(104px, 1fr) 34px;
   gap: 8px;
   align-items: end;
 }
@@ -660,10 +670,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   display: grid;
   gap: 7px;
   width: 100%;
-}
-
-.board-filter-row .board-skin-select {
-  display: none;
 }
 
 body.board-edit-mode .board-filter-row .board-skin-select {
@@ -1009,7 +1015,7 @@ body.show-cables .cable-overlay {
 }
 
 .pad.has-color {
-  border-color: var(--pad-color);
+  border-color: var(--line);
 }
 
 .pad.has-color .pad-trigger {
@@ -1573,7 +1579,6 @@ body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-transfer-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
-body.board-edit-mode .board-action-grid .board-cancel-edit-button,
 body.board-edit-mode .board-version-row,
 body.board-edit-mode .board-version-row .board-history-button,
 body.board-edit-mode .bulk-edit-button,
@@ -1585,6 +1590,11 @@ body.board-edit-mode .board-action-grid #addBoard {
 body.board-edit-mode .board-action-grid .show-cables-button,
 body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .stage-button {
+  display: none;
+}
+
+body.board-edit-mode .board-action-grid .pads-edit-button,
+body.board-edit-mode .board-action-grid .board-cancel-edit-button {
   display: none;
 }
 

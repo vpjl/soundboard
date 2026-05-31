@@ -230,6 +230,8 @@ const els = {
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
   cancelBoardEdit: document.querySelector("#cancelBoardEdit"),
+  saveBoardEdit: document.querySelector("#saveBoardEdit"),
+  discardBoardEdit: document.querySelector("#discardBoardEdit"),
   patchBay: document.querySelector("#patchBay"),
   patchBayDialog: document.querySelector("#patchBayDialog"),
   patchBayCanvas: document.querySelector("#patchBayCanvas"),
@@ -5373,6 +5375,11 @@ async function init() {
     beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
   });
   els.cancelBoardEdit?.addEventListener("click", openCancelBoardEditDialog);
+  els.saveBoardEdit?.addEventListener("click", () => {
+    setBoardPadEditing(false);
+    setStatus("Modifications enregistrées");
+  });
+  els.discardBoardEdit?.addEventListener("click", openCancelBoardEditDialog);
   els.keepBoardEdit?.addEventListener("click", () => els.cancelEditDialog?.close());
   els.confirmCancelBoardEdit?.addEventListener("click", () => {
     els.cancelEditDialog?.close();
