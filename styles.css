@@ -1115,11 +1115,53 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   pointer-events: none;
 }
 
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+  min-height: clamp(150px, 18vw, 260px);
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+  height: 100%;
+  min-height: inherit;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
+  display: none;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: auto;
+  text-align: center;
+}
+
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  padding: 3px 6px;
-  border-radius: 5px;
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  padding: 22px 14px;
+  border-radius: 7px;
   background: rgba(0, 0, 0, 0.48);
+  font-size: 1.35rem;
+  line-height: 1.12;
+  -webkit-line-clamp: 5;
 }
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing),
@@ -1129,6 +1171,13 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  grid-template-columns: 1fr;
+  align-items: center;
+  justify-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  padding: 34px 12px 18px;
   cursor: pointer;
 }
 
@@ -3896,4 +3945,45 @@ body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.
 body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
+  display: none !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  grid-template-columns: 1fr !important;
+  align-items: center !important;
+  justify-items: stretch !important;
+  width: 100%;
+  height: 100%;
+  min-height: clamp(150px, 18vw, 260px) !important;
+  padding: 34px 12px 18px !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+  justify-self: stretch;
+  min-height: 100%;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  justify-self: stretch;
+  max-width: 100%;
+  min-height: 100%;
+  height: 100%;
+  font-size: 1.35rem !important;
+  -webkit-line-clamp: 5;
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+  body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+    font-size: 1.18rem !important;
+  }
 }
