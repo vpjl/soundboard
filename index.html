@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=121">
+    <link rel="stylesheet" href="styles.css?v=122">
   </head>
   <body>
     <div class="app">
@@ -27,7 +27,7 @@
           </div>
           <div>
             <h1>Soundboard Live vl (c) 2026</h1>
-            <p id="audioStatus">Pret pour la scene · v121</p>
+            <p id="audioStatus">Pret pour la scene · v122</p>
           </div>
         </div>
 
@@ -200,6 +200,16 @@
                   <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+            </div>
+            <div class="cue-live-row" aria-label="Cues">
+              <button id="cueEditor" class="icon-button cue-editor-button" type="button" aria-label="Éditer les cues">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button id="cueNext" class="small-button cue-next-button" type="button">Suivant</button>
+              <span id="cueStatus" class="cue-status">Aucune cue</span>
             </div>
             <div class="board-layout-controls" aria-label="Disposition des pads">
               <label>
@@ -628,6 +638,12 @@
                     <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
+                <dt aria-label="Cues">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Édite et lance les étapes de cues avec le bouton Suivant.</dd>
                 <dt aria-label="Mode edit des pads">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1295,6 +1311,26 @@
       </div>
     </dialog>
 
+    <dialog id="cueDialog" class="cue-dialog" aria-labelledby="cueTitle">
+      <div class="cue-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="cueTitle">Cues</h2>
+            <p>Chaque appui sur Suivant exécute l’étape courante.</p>
+          </div>
+        </div>
+        <div id="cueRows" class="cue-rows"></div>
+        <div class="cue-toolbar">
+          <button id="addCueStep" class="small-button" type="button">Ajouter une étape</button>
+          <button id="resetCuePosition" class="small-button" type="button">Revenir au début</button>
+        </div>
+        <div class="dialog-actions">
+          <button id="applyCues" class="small-button" type="button">Enregistrer</button>
+          <button id="cancelCues" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="patchBayDialog" class="patch-bay-dialog" aria-labelledby="patchBayTitle">
       <div class="patch-bay-panel">
         <div class="help-head">
@@ -1333,6 +1369,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=121"></script>
+    <script src="app.js?v=122"></script>
   </body>
 </html>

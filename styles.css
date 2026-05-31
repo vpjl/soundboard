@@ -672,6 +672,33 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   width: 100%;
 }
 
+.cue-live-row {
+  display: grid;
+  grid-template-columns: 42px max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.cue-editor-button {
+  width: 42px;
+  height: 42px;
+}
+
+.cue-next-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.cue-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 body.board-edit-mode .board-filter-row .board-skin-select {
   display: grid;
 }
@@ -2379,6 +2406,77 @@ body[data-skin="contrast"] .color-field {
   font-size: 0.82rem;
 }
 
+.cue-dialog {
+  width: min(760px, calc(100vw - 24px));
+}
+
+.cue-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.cue-panel .help-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cue-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.cue-empty {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.cue-row {
+  display: grid;
+  grid-template-columns: 30px minmax(110px, 0.9fr) minmax(150px, 1fr) 86px 38px;
+  gap: 8px;
+  align-items: center;
+}
+
+.cue-row-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.cue-row select,
+.cue-row input {
+  width: 100%;
+  height: 38px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 8px;
+  background: #111319;
+  color: var(--text);
+}
+
+.cue-remove-button {
+  width: 38px;
+  height: 38px;
+}
+
+.cue-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .bulk-edit-grid {
   display: grid;
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
@@ -3755,6 +3853,29 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
+  .cue-live-row {
+    grid-template-columns: 34px max-content minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .cue-editor-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .cue-next-button {
+    min-height: 34px;
+    padding: 0 8px;
+  }
+
+  .cue-row {
+    grid-template-columns: 26px minmax(0, 1fr) 58px 34px;
+  }
+
+  .cue-row select[aria-label="Cible cue"] {
+    grid-column: 2 / 4;
+  }
+
   .board-layout-controls {
     display: none !important;
   }

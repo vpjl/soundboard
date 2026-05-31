@@ -49,6 +49,7 @@ const REVERB_PRESETS = {
   plate: { duration: 1.2, decay: 1.1 },
   cathedral: { duration: 3.6, decay: 3.2 },
 };
+const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 
 const state = {
   audioContext: null,
@@ -94,6 +95,8 @@ const state = {
   stageMode: false,
   boardEditMode: false,
   boardEditSnapshot: null,
+  cueDraft: null,
+  cueWaitTimer: null,
 };
 
 const els = {
@@ -292,6 +295,15 @@ const els = {
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
+  cueEditor: document.querySelector("#cueEditor"),
+  cueNext: document.querySelector("#cueNext"),
+  cueStatus: document.querySelector("#cueStatus"),
+  cueDialog: document.querySelector("#cueDialog"),
+  cueRows: document.querySelector("#cueRows"),
+  addCueStep: document.querySelector("#addCueStep"),
+  resetCuePosition: document.querySelector("#resetCuePosition"),
+  applyCues: document.querySelector("#applyCues"),
+  cancelCues: document.querySelector("#cancelCues"),
 };
 
 function openDb() {
@@ -429,6 +441,23 @@ function layoutForBoard(board) {
     columns,
     rows: Math.max(1, Math.ceil((Number(board?.padCount) || DEFAULT_PAD_COUNT) / columns)),
   };
+}
+
+function normalizeCueAction(action) {
+  return CUE_ACTIONS.includes(action) ? action : "playPad";
+}
+
+function normalizeCueStep(step = {}) {
+  return {
+    id: step.id || createId(),
+    action: normalizeCueAction(step.action),
+    target: String(step.target || ""),
+    waitSeconds: Math.max(0, Math.round(Number(step.waitSeconds) || 0)),
+  };
+}
+
+function normalizeCues(cues) {
+  return Array.isArray(cues) ? cues.map(normalizeCueStep) : [];
 }
 
 function formatVersionLabel(savedAt) {
@@ -992,6 +1021,7 @@ function makePad(index) {
     setPadTitle(pad, pad.nameEl.value, { syncInput: false, trimTitle: false });
     refreshCrossfadeTargetOptions();
     renderShortcutRows();
+    syncCueControls();
     savePadMeta(pad);
   });
   pad.tagsEl.addEventListener("input", () => {
@@ -999,6 +1029,7 @@ function makePad(index) {
     refreshStopGroupOptions();
     refreshBoardTagFilterOptions();
     refreshCrossfadeTargetOptions();
+    syncCueControls();
     savePadMeta(pad);
   });
   pad.fadeEl.addEventListener("input", () => {
@@ -1166,6 +1197,8 @@ function normalizeBoard(board, fallbackName = "Projet") {
     layoutMode: mode,
     padColumns: mode === "custom" ? normalizeLayoutNumber(board?.padColumns, 4) : 0,
     padRows: mode === "custom" ? normalizeLayoutNumber(board?.padRows, 3) : 0,
+    cues: normalizeCues(board?.cues),
+    cueIndex: Math.max(0, Number(board?.cueIndex) || 0),
   };
 }
 
@@ -1242,6 +1275,255 @@ function applyBoardTagFilter() {
     pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !matches));
   });
   if (value) setStatus(`Pads sélectionnés`);
+}
+
+function cueActionLabel(action) {
+  return {
+    playPad: "Lance pad",
+    stopPad: "Stoppe pad",
+    playTag: "Lance tag",
+    stopTag: "Stoppe tag",
+    wait: "Attente",
+  }[normalizeCueAction(action)] || "Cue";
+}
+
+function cueStepLabel(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.action === "wait") return `Attendre ${normalized.waitSeconds || 1}s`;
+  const targets = padsFromCueTarget(normalized);
+  const targetLabel = normalized.action.endsWith("Tag")
+    ? normalized.target.replace(/^tag:/, "") || "tag"
+    : (targets[0]?.title || "pad");
+  return `${cueActionLabel(normalized.action)} · ${targetLabel}`;
+}
+
+function cueIndexForBoard(board = currentBoard()) {
+  const total = board?.cues?.length || 0;
+  if (!total) return 0;
+  return Math.min(total - 1, Math.max(0, Number(board?.cueIndex) || 0));
+}
+
+function clearCueWaitTimer() {
+  if (state.cueWaitTimer) {
+    window.clearTimeout(state.cueWaitTimer);
+    state.cueWaitTimer = null;
+  }
+  if (els.cueNext) els.cueNext.disabled = false;
+}
+
+function syncCueControls() {
+  const board = currentBoard();
+  const cues = normalizeCues(board?.cues);
+  if (board) {
+    board.cues = cues;
+    board.cueIndex = cueIndexForBoard(board);
+  }
+  const hasCues = cues.length > 0;
+  if (els.cueNext) els.cueNext.disabled = !hasCues || Boolean(state.cueWaitTimer);
+  if (els.cueStatus) {
+    els.cueStatus.textContent = hasCues
+      ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
+      : "Aucune cue";
+  }
+}
+
+function fillCueTargetSelect(select, action, selectedValue = "") {
+  if (!select) return;
+  const mode = normalizeCueAction(action);
+  select.innerHTML = "";
+  if (mode === "wait") {
+    select.disabled = true;
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Attente";
+    select.append(option);
+    return;
+  }
+  select.disabled = false;
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "Choisir";
+  select.append(empty);
+
+  if (mode.endsWith("Pad")) {
+    const padGroup = document.createElement("optgroup");
+    padGroup.label = "Pads";
+    state.pads.forEach((pad) => {
+      const option = document.createElement("option");
+      option.value = padTargetValue(pad);
+      option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
+      padGroup.append(option);
+    });
+    select.append(padGroup);
+  } else {
+    const tags = boardTags();
+    if (tags.length) {
+      const tagGroup = document.createElement("optgroup");
+      tagGroup.label = "Tags";
+      tags.forEach((tag) => {
+        const option = document.createElement("option");
+        option.value = `tag:${tag}`;
+        option.textContent = tag;
+        tagGroup.append(option);
+      });
+      select.append(tagGroup);
+    }
+  }
+
+  select.value = [...select.options].some((option) => option.value === selectedValue) ? selectedValue : "";
+}
+
+function cueDraft() {
+  if (!state.cueDraft) state.cueDraft = normalizeCues(currentBoard()?.cues);
+  return state.cueDraft;
+}
+
+function renderCueRows() {
+  const draft = cueDraft();
+  if (!els.cueRows) return;
+  els.cueRows.innerHTML = "";
+  if (!draft.length) {
+    const empty = document.createElement("p");
+    empty.className = "cue-empty";
+    empty.textContent = "Aucune étape. Ajouter une étape pour créer la séquence.";
+    els.cueRows.append(empty);
+    return;
+  }
+  draft.forEach((step, index) => {
+    const row = document.createElement("div");
+    row.className = "cue-row";
+
+    const number = document.createElement("span");
+    number.className = "cue-row-number";
+    number.textContent = String(index + 1);
+
+    const action = document.createElement("select");
+    action.setAttribute("aria-label", "Action cue");
+    [
+      ["playPad", "Lance pad"],
+      ["stopPad", "Stoppe pad"],
+      ["playTag", "Lance tag"],
+      ["stopTag", "Stoppe tag"],
+      ["wait", "Attendre"],
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      action.append(option);
+    });
+    action.value = normalizeCueAction(step.action);
+
+    const target = document.createElement("select");
+    target.setAttribute("aria-label", "Cible cue");
+    fillCueTargetSelect(target, action.value, step.target);
+
+    const wait = document.createElement("input");
+    wait.type = "number";
+    wait.min = "0";
+    wait.max = "600";
+    wait.step = "1";
+    wait.value = String(step.waitSeconds || 2);
+    wait.setAttribute("aria-label", "Secondes");
+    wait.disabled = action.value !== "wait";
+
+    const remove = document.createElement("button");
+    remove.className = "icon-button cue-remove-button";
+    remove.type = "button";
+    remove.setAttribute("aria-label", "Supprimer cette cue");
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    action.addEventListener("change", () => {
+      step.action = normalizeCueAction(action.value);
+      if (step.action === "wait") step.target = "";
+      fillCueTargetSelect(target, step.action, step.target);
+      wait.disabled = step.action !== "wait";
+    });
+    target.addEventListener("change", () => {
+      step.target = target.value;
+    });
+    wait.addEventListener("input", () => {
+      step.waitSeconds = Math.max(0, Math.round(Number(wait.value) || 0));
+    });
+    remove.addEventListener("click", () => {
+      draft.splice(index, 1);
+      renderCueRows();
+    });
+
+    row.append(number, action, target, wait, remove);
+    els.cueRows.append(row);
+  });
+}
+
+function openCueDialog() {
+  state.cueDraft = normalizeCues(currentBoard()?.cues);
+  renderCueRows();
+  if (els.cueDialog?.showModal) {
+    els.cueDialog.showModal();
+  } else {
+    setStatus("Cues");
+  }
+}
+
+function saveCueDraft() {
+  const board = currentBoard();
+  if (!board) return;
+  board.cues = normalizeCues(state.cueDraft).filter((step) => step.action === "wait" || step.target);
+  board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(board.cueIndex) || 0));
+  if (board.cueIndex < 0) board.cueIndex = 0;
+  state.cueDraft = null;
+  saveBoards();
+  syncCueControls();
+}
+
+function padsFromCueTarget(step) {
+  const target = String(step?.target || "").trim();
+  if (!target) return [];
+  if (target.startsWith("tag:")) return padsWithTag(target.slice(4));
+  return padsFromCrossfadeTarget(target);
+}
+
+async function executeCueStep(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.action === "wait") {
+    const seconds = Math.max(1, normalized.waitSeconds || 1);
+    setStatus(`Cue attente ${seconds}s`);
+    if (els.cueNext) els.cueNext.disabled = true;
+    return new Promise((resolve) => {
+      state.cueWaitTimer = window.setTimeout(() => {
+        state.cueWaitTimer = null;
+        resolve();
+      }, seconds * 1000);
+    });
+  }
+
+  const pads = padsFromCueTarget(normalized);
+  if (!pads.length) {
+    setStatus("Cue sans cible");
+    return;
+  }
+  if (normalized.action.startsWith("play")) {
+    await Promise.all(pads.map((pad) => playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => null)));
+    setStatus(`${pads.length} cue${pads.length > 1 ? "s" : ""} lancée${pads.length > 1 ? "s" : ""}`);
+  } else {
+    pads.forEach((pad) => stopPad(pad, fadeDurationForPad(pad, "out") > 0));
+    setStatus(`${pads.length} cue${pads.length > 1 ? "s" : ""} stoppée${pads.length > 1 ? "s" : ""}`);
+  }
+}
+
+async function runNextCue() {
+  const board = currentBoard();
+  if (!board?.cues?.length) {
+    setStatus("Aucune cue");
+    syncCueControls();
+    return;
+  }
+  clearCueWaitTimer();
+  const index = cueIndexForBoard(board);
+  const step = normalizeCueStep(board.cues[index]);
+  await executeCueStep(step);
+  board.cueIndex = board.cues.length ? (index + 1) % board.cues.length : 0;
+  saveBoards();
+  syncCueControls();
 }
 
 function padsForBoardTagSelection() {
@@ -1439,6 +1721,7 @@ function renderBoardOptions() {
   renderBoardLayoutControls();
   applyPadLayout();
   refreshVersionOptions();
+  syncCueControls();
 }
 
 function setBoardEditing(editing, focusName = true) {
@@ -1594,6 +1877,7 @@ async function renderPads() {
         refreshBoardTagFilterOptions();
         refreshCrossfadeTargetOptions();
         renderShortcutRows();
+        syncCueControls();
       })
       .catch(() => {
         pad.node.classList.add("is-empty");
@@ -1605,10 +1889,12 @@ async function renderPads() {
   loadShortcutsForCurrentBoard();
   renderShortcutRows();
   updateShortcutIndicators();
+  syncCueControls();
   setStatus(`${board.name} charge`);
 }
 
 async function switchBoard(boardId) {
+  clearCueWaitTimer();
   setBoardPadEditing(false);
   state.currentBoardId = boardId;
   saveBoards();
@@ -1627,6 +1913,8 @@ async function addBoard() {
     layoutMode: "auto",
     padColumns: 0,
     padRows: 0,
+    cues: [],
+    cueIndex: 0,
   };
   state.boards.push(board);
   state.currentBoardId = board.id;
@@ -2084,6 +2372,8 @@ async function createBoardSnapshot(board) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      cues: normalizeCues(board.cues),
+      cueIndex: cueIndexForBoard(board),
       shortcutsEnabled: state.shortcutsEnabled,
       shortcuts: (state.shortcuts.length ? state.shortcuts : defaultShortcuts()).map((shortcut) => ({
         key: normalizeShortcutKey(shortcut.key),
@@ -2105,6 +2395,9 @@ async function applyBoardSnapshot(snapshot) {
   board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
   board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
   board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
+  board.cues = normalizeCues(snapshot.board?.cues);
+  board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(snapshot.board?.cueIndex) || 0));
+  if (board.cueIndex < 0) board.cueIndex = 0;
 
   const maxPadCount = Math.max(previousPadCount, board.padCount);
   for (let index = 0; index < maxPadCount; index += 1) {
@@ -2263,6 +2556,8 @@ async function exportCurrentBoard(includeAudio = true) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      cues: normalizeCues(board.cues),
+      cueIndex: cueIndexForBoard(board),
       shortcutsEnabled: state.shortcutsEnabled,
       shortcuts: shortcuts.map((shortcut) => ({
         key: normalizeShortcutKey(shortcut.key),
@@ -2319,6 +2614,8 @@ async function importBoardFile(file) {
     layoutMode: payload.board.layoutMode,
     padColumns: payload.board.padColumns,
     padRows: payload.board.padRows,
+    cues: payload.board.cues,
+    cueIndex: payload.board.cueIndex,
   });
   setBoardPadEditing(false);
   state.boards.push(importedBoard);
@@ -5408,6 +5705,40 @@ async function init() {
   els.closePatchBay?.addEventListener("click", () => els.patchBayDialog?.close());
   els.patchBayDialog?.addEventListener("click", (event) => {
     if (event.target === els.patchBayDialog) els.patchBayDialog.close();
+  });
+  els.cueEditor?.addEventListener("click", openCueDialog);
+  els.cueNext?.addEventListener("click", () => {
+    runNextCue().catch(() => {
+      clearCueWaitTimer();
+      setStatus("Cue impossible");
+    });
+  });
+  els.addCueStep?.addEventListener("click", () => {
+    cueDraft().push(normalizeCueStep({ action: "playPad", target: state.pads[0] ? padTargetValue(state.pads[0]) : "" }));
+    renderCueRows();
+  });
+  els.resetCuePosition?.addEventListener("click", () => {
+    const board = currentBoard();
+    if (!board) return;
+    board.cueIndex = 0;
+    saveBoards();
+    syncCueControls();
+    setStatus("Cues au début");
+  });
+  els.applyCues?.addEventListener("click", () => {
+    saveCueDraft();
+    els.cueDialog?.close();
+    setStatus("Cues enregistrées");
+  });
+  els.cancelCues?.addEventListener("click", () => {
+    state.cueDraft = null;
+    els.cueDialog?.close();
+  });
+  els.cueDialog?.addEventListener("click", (event) => {
+    if (event.target === els.cueDialog) {
+      state.cueDraft = null;
+      els.cueDialog.close();
+    }
   });
   window.addEventListener("resize", () => {
     if (els.patchBayDialog?.open) drawPatchBayOverlay();
