@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=137">
+    <link rel="stylesheet" href="styles.css?v=138">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v137</p>
+            <p id="audioStatus">Pret pour la scene · v138</p>
           </div>
         </div>
 
@@ -554,6 +554,12 @@
                   <path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+              <button type="button" data-action="transfer-pad" aria-label="Copier ou déplacer vers un autre board">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 7h6l2 2h10v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M8 14h8m0 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -883,6 +889,12 @@
                     <path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Duplique le pad courant.</dd>
+                <dt aria-label="Transférer le pad">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 7h6l2 2h10v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M8 14h8m0 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Copie ou déplace ce pad vers un autre board.</dd>
                 <dt aria-label="Déplacer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
@@ -1377,6 +1389,27 @@
       </div>
     </dialog>
 
+    <dialog id="padTransferDialog" class="confirm-dialog" aria-labelledby="padTransferTitle">
+      <div class="confirm-panel pad-transfer-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="padTransferTitle">Transférer le pad</h2>
+            <p id="padTransferName">Pad</p>
+          </div>
+        </div>
+        <label class="transfer-board-field">
+          <span>Board cible</span>
+          <select id="padTransferBoard"></select>
+        </label>
+        <p class="dialog-note">Copier garde le pad dans ce board. Déplacer le retire du board actuel après copie.</p>
+        <div class="dialog-actions">
+          <button id="copyPadToBoard" class="small-button" type="button">Copier</button>
+          <button id="movePadToBoard" class="small-button" type="button">Déplacer</button>
+          <button id="cancelPadTransfer" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="cueDialog" class="cue-dialog" aria-labelledby="cueTitle">
       <div class="cue-panel">
         <div class="help-head">
@@ -1452,6 +1485,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=137"></script>
+    <script src="app.js?v=138"></script>
   </body>
 </html>

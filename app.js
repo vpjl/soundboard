@@ -108,6 +108,7 @@ const state = {
   cuePreviewAudio: null,
   cuePreviewPad: null,
   cuePreviewUrl: "",
+  transferPad: null,
 };
 
 const els = {
@@ -292,6 +293,12 @@ const els = {
   bulkStartStopTarget: document.querySelector("#bulkStartStopTarget"),
   bulkEndStartMode: document.querySelector("#bulkEndStartMode"),
   bulkEndStartTarget: document.querySelector("#bulkEndStartTarget"),
+  padTransferDialog: document.querySelector("#padTransferDialog"),
+  padTransferName: document.querySelector("#padTransferName"),
+  padTransferBoard: document.querySelector("#padTransferBoard"),
+  copyPadToBoard: document.querySelector("#copyPadToBoard"),
+  movePadToBoard: document.querySelector("#movePadToBoard"),
+  cancelPadTransfer: document.querySelector("#cancelPadTransfer"),
   saveVersion: document.querySelector("#saveVersion"),
   restoreVersion: document.querySelector("#restoreVersion"),
   renameVersion: document.querySelector("#renameVersion"),
@@ -923,6 +930,7 @@ function makePad(index) {
   pad.cueButton?.setAttribute("aria-pressed", "false");
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
+  pad.transferButton = node.querySelector('[data-action="transfer-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
   pad.normalizeEl = node.querySelector("[data-normalize]");
   pad.normalizeValueEl = node.querySelector("[data-normalize-value]");
@@ -1048,6 +1056,11 @@ function makePad(index) {
       duplicatePadFromNode(node, pad);
     });
   }
+  pad.transferButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openPadTransferDialog(pad);
+  });
   node.querySelector('[data-action="audio"]').addEventListener("click", (event) => {
     stopEvent(event);
     openAudioDialog(pad);
@@ -3301,6 +3314,114 @@ function syncPadIndexesFromDom() {
   });
 }
 
+function copyableBoardsForCurrentBoard() {
+  return state.boards
+    .filter((board) => board.id !== state.currentBoardId)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { sensitivity: "base" }));
+}
+
+function openPadTransferDialog(pad) {
+  if (!state.boardEditMode) return;
+  const targets = copyableBoardsForCurrentBoard();
+  if (!targets.length) {
+    setStatus("Créer un autre board pour transférer un pad");
+    return;
+  }
+  state.transferPad = pad;
+  if (els.padTransferName) els.padTransferName.textContent = pad.title || `Pad ${pad.index + 1}`;
+  if (els.padTransferBoard) {
+    els.padTransferBoard.innerHTML = "";
+    targets.forEach((board) => {
+      const option = document.createElement("option");
+      option.value = board.id;
+      option.textContent = board.name;
+      els.padTransferBoard.append(option);
+    });
+  }
+  if (els.padTransferDialog?.showModal) els.padTransferDialog.showModal();
+}
+
+function resetPadSpecificCrossfadeTargets(record) {
+  if (!record) return record;
+  const next = { ...record, audioRefIndex: null };
+  if (String(next.startStopTag || "").startsWith("pad:")) {
+    next.startStopMode = "none";
+    next.startStopTag = "";
+  }
+  if (String(next.endStartTarget || "").startsWith("pad:")) {
+    next.endStartMode = "none";
+    next.endStartTarget = "";
+  }
+  return next;
+}
+
+async function copyPadToBoard(pad, targetBoardId) {
+  const sourceBoardId = state.currentBoardId;
+  const targetBoard = state.boards.find((board) => board.id === targetBoardId);
+  if (!pad || !targetBoard || targetBoard.id === sourceBoardId) return null;
+
+  syncPadIndexesFromDom();
+  await savePadMeta(pad);
+  const sourceMeta = await dbGet(padMetaKeyFor(sourceBoardId, pad.index));
+  const sourceAudio = await dbGet(padAudioKeyFor(sourceBoardId, pad.index));
+  const resolvedAudio = await resolvePadAudioRecord(pad, sourceMeta, sourceAudio);
+  const targetIndex = targetBoard.padCount;
+  const title = sourceMeta?.title || sourceAudio?.title || pad.title || `Pad ${pad.index + 1}`;
+  const uid = createId();
+  const targetMeta = resetPadSpecificCrossfadeTargets({
+    ...(sourceMeta || {}),
+    uid,
+    title,
+  });
+  const targetAudio = resolvedAudio?.audio
+    ? resetPadSpecificCrossfadeTargets({
+      ...resolvedAudio,
+      uid,
+      title,
+      audioRefIndex: null,
+    })
+    : null;
+
+  await dbSet(padMetaKeyFor(targetBoard.id, targetIndex), targetMeta);
+  if (targetAudio) {
+    await dbSet(padAudioKeyFor(targetBoard.id, targetIndex), targetAudio);
+  } else {
+    await dbDelete(padAudioKeyFor(targetBoard.id, targetIndex));
+  }
+  targetBoard.padCount += 1;
+  saveBoards();
+  return { targetBoard, targetIndex, title };
+}
+
+async function transferPadToBoard(move = false) {
+  const pad = state.transferPad;
+  const targetBoardId = els.padTransferBoard?.value;
+  if (!pad || !targetBoardId) {
+    setStatus("Pad à transférer introuvable");
+    return;
+  }
+  const sourceBoard = currentBoard();
+  if (move && sourceBoard.padCount <= 1) {
+    setStatus("Dernier pad non déplaçable");
+    return;
+  }
+  const copied = await copyPadToBoard(pad, targetBoardId);
+  if (!copied) {
+    setStatus("Transfert impossible");
+    return;
+  }
+  if (move) {
+    await removePadFromCurrentBoard(pad, { confirm: false, render: true, status: false });
+    setStatus(`${copied.title} déplacé vers ${copied.targetBoard.name}`);
+  } else {
+    renderBoardOptions();
+    if (state.boardEditMode) setBoardPadEditing(true);
+    setStatus(`${copied.title} copié vers ${copied.targetBoard.name}`);
+  }
+  state.transferPad = null;
+  els.padTransferDialog?.close();
+}
+
 async function duplicatePadFromNode(sourceNode, directPad = null) {
   if (!state.boardEditMode) return;
   const padNodes = [...els.pads.querySelectorAll("[data-pad]")];
@@ -3388,13 +3509,20 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
 }
 
 async function deletePad(pad) {
+  await removePadFromCurrentBoard(pad, { confirm: true, render: true, status: true });
+}
+
+async function removePadFromCurrentBoard(pad, options = {}) {
   if (!state.boardEditMode) return;
+  const shouldConfirm = options.confirm !== false;
+  const shouldRender = options.render !== false;
+  const shouldStatus = options.status !== false;
   const board = currentBoard();
   if (board.padCount <= 1) {
     setStatus("Dernier pad non supprimable");
-    return;
+    return false;
   }
-  if (!window.confirm(`Supprimer le pad "${pad.title}" ?`)) return;
+  if (shouldConfirm && !window.confirm(`Supprimer le pad "${pad.title}" ?`)) return false;
 
   stopAll();
   if (state.recordingPad === pad) resetRecordingState();
@@ -3431,9 +3559,12 @@ async function deletePad(pad) {
   await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
   board.padCount = remainingPads.length;
   saveBoards();
-  await renderPads();
-  setBoardPadEditing(true);
-  setStatus(`${pad.title} supprime`);
+  if (shouldRender) {
+    await renderPads();
+    setBoardPadEditing(true);
+  }
+  if (shouldStatus) setStatus(`${pad.title} supprime`);
+  return true;
 }
 
 function isDefaultPadTitle(title) {
@@ -6413,6 +6544,22 @@ async function init() {
   });
   els.applyBulkEdit?.addEventListener("click", () => {
     applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
+  });
+  els.copyPadToBoard?.addEventListener("click", () => {
+    transferPadToBoard(false).catch(() => setStatus("Copie impossible"));
+  });
+  els.movePadToBoard?.addEventListener("click", () => {
+    transferPadToBoard(true).catch(() => setStatus("Déplacement impossible"));
+  });
+  els.cancelPadTransfer?.addEventListener("click", () => {
+    state.transferPad = null;
+    els.padTransferDialog?.close();
+  });
+  els.padTransferDialog?.addEventListener("click", (event) => {
+    if (event.target === els.padTransferDialog) {
+      state.transferPad = null;
+      els.padTransferDialog.close();
+    }
   });
   els.saveVersion?.addEventListener("click", () => {
     saveBoardVersion().catch(() => setStatus("Sauvegarde impossible"));

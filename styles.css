@@ -2240,10 +2240,10 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad.is-editing .manage-group {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.pad.is-editing .manage-group button:not([data-action="visual-image"]):not([data-action="duplicate-pad"]):not([data-action="delete-pad"]) {
+.pad.is-editing .manage-group button:not([data-action="visual-image"]):not([data-action="duplicate-pad"]):not([data-action="transfer-pad"]):not([data-action="delete-pad"]) {
   display: none;
 }
 
@@ -2255,12 +2255,48 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   order: 2;
 }
 
-.pad.is-editing .manage-group [data-action="delete-pad"] {
+.pad.is-editing .manage-group [data-action="transfer-pad"] {
   order: 3;
+}
+
+.pad.is-editing .manage-group [data-action="delete-pad"] {
+  order: 4;
 }
 
 .pad.is-editing .pad-action-line {
   grid-template-columns: 1fr;
+}
+
+.pad-transfer-panel {
+  gap: 14px;
+}
+
+.transfer-board-field {
+  display: grid;
+  gap: 7px;
+}
+
+.transfer-board-field span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.transfer-board-field select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(17, 19, 25, 0.86);
+  color: var(--text);
+}
+
+.dialog-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .control-group {
