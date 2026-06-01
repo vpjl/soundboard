@@ -727,8 +727,8 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .live-tools {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px 10px;
   align-items: center;
   grid-column: 1;
   grid-row: 2;
@@ -743,6 +743,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 }
 
 .live-tools-title {
+  grid-column: 1 / -1;
   margin: 0;
   color: var(--accent-2);
   font-size: 0.78rem;
@@ -789,8 +790,10 @@ body.board-edit-mode .live-tools {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.18;
+  max-height: calc(1.18em * 2);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 body.board-edit-mode .board-filter-row .board-skin-select {
@@ -4291,6 +4294,10 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     gap: 8px;
   }
 
+  .cue-status {
+    grid-column: 1 / -1;
+  }
+
   .cue-editor-button,
   .cue-run-button,
   .cue-window-button,
@@ -4681,6 +4688,10 @@ body.stage-mode .secondary-live-group {
     gap: 9px !important;
   }
 
+  body.stage-mode .cue-status {
+    grid-column: 1 / -1;
+  }
+
   body.stage-mode .cue-live-row .icon-button {
     width: 60px !important;
     height: 60px !important;
@@ -4744,6 +4755,10 @@ body.stage-mode .secondary-live-group {
   body.stage-mode .cue-live-row {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     width: 100% !important;
+  }
+
+  body.stage-mode .cue-status {
+    grid-column: 1 / -1;
   }
 
   body.stage-mode .cue-live-row .icon-button {
