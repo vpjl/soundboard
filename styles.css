@@ -1330,7 +1330,7 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 }
 
 .pad.is-empty {
-  border-style: dashed;
+  border-style: solid;
 }
 
 .pad.is-tag-match {

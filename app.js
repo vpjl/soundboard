@@ -2552,6 +2552,7 @@ function exportBoardNotice() {
   const board = currentBoard();
   const html = boardNoticeHtml();
   const baseName = `notice-${fileSafeName(board.name)}`;
+  setBoardPadEditing(false);
   downloadBlob(html, `${baseName}.doc`, "application/msword;charset=utf-8");
   const printWindow = window.open("", "_blank");
   if (printWindow) {
@@ -2981,13 +2982,13 @@ async function restoreSelectedBoardVersion() {
     return;
   }
 
-  const label = formatVersionLabel(snapshot.savedAt);
-  if (!window.confirm(`Restaurer "${board.name}" depuis ${label} ?`)) return;
+  const selectedLabel = els.versionSelect?.selectedOptions?.[0]?.textContent || versionOptionLabel(snapshot, history.indexOf(snapshot));
+  if (!window.confirm(`Restaurer "${board.name}" depuis ${selectedLabel} ?`)) return;
 
   await applyBoardSnapshot(snapshot);
   setBoardPadEditing(true);
   await refreshVersionOptions(snapshot.id);
-  setStatus(`Version restauree: ${board.name}`);
+  setStatus(`Version restauree: ${selectedLabel}`);
 }
 
 async function exportCurrentBoard(includeAudio = true) {
@@ -6474,7 +6475,7 @@ async function init() {
   els.cancelBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.saveBoardEdit?.addEventListener("click", () => {
     setBoardPadEditing(false);
-    setStatus("Modifications enregistrées");
+    setStatus("Mode live");
   });
   els.discardBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.keepBoardEdit?.addEventListener("click", () => els.cancelEditDialog?.close());
@@ -6616,16 +6617,22 @@ async function init() {
   els.boardNotice?.addEventListener("click", exportBoardNotice);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
-    exportCurrentBoard(true).catch(() => setStatus("Export impossible"));
+    exportCurrentBoard(true)
+      .then(() => setBoardPadEditing(false))
+      .catch(() => setStatus("Export impossible"));
   });
   els.exportBoardLite?.addEventListener("click", () => {
-    exportCurrentBoard(false).catch(() => setStatus("Export sans audio impossible"));
+    exportCurrentBoard(false)
+      .then(() => setBoardPadEditing(false))
+      .catch(() => setStatus("Export sans audio impossible"));
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
   els.importBoardFile?.addEventListener("change", () => {
     const file = els.importBoardFile.files?.[0];
     if (file) {
-      importBoardFile(file).catch(() => setStatus("Import impossible"));
+      importBoardFile(file)
+        .then(() => setBoardPadEditing(false))
+        .catch(() => setStatus("Import impossible"));
       els.importBoardFile.value = "";
     }
   });
