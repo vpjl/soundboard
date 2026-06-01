@@ -2779,12 +2779,31 @@ body[data-skin="contrast"] .color-field {
   color: var(--text);
 }
 
+.cue-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cue-field-title {
+  display: none;
+  color: var(--accent-2);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .cue-wait-field {
   display: grid;
   grid-template-columns: minmax(52px, 1fr) max-content;
   gap: 6px;
   align-items: center;
   padding-right: 8px;
+}
+
+.cue-wait-field .cue-field-title {
+  grid-column: 1 / -1;
 }
 
 .cue-wait-field input {
@@ -4331,12 +4350,15 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .cue-dialog {
-    width: min(100vw - 14px, 720px);
+    width: min(100vw - 10px, 720px);
+    max-height: calc(100vh - 10px);
   }
 
   .cue-panel {
-    gap: 10px;
-    padding: 10px;
+    gap: 9px;
+    padding: 9px;
+    max-height: calc(100vh - 20px);
+    overflow: auto;
   }
 
   .cue-panel .help-head {
@@ -4355,8 +4377,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .cue-timeline-wrap {
-    min-height: 126px;
-    padding: 8px;
+    min-height: 112px;
+    padding: 7px;
   }
 
   .cue-timeline {
@@ -4364,14 +4386,14 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .cue-block {
-    width: 132px;
-    min-height: 106px;
+    width: 120px;
+    min-height: 98px;
     gap: 4px;
-    padding: 8px;
+    padding: 7px;
   }
 
   .cue-block-wait {
-    width: 96px;
+    width: 88px;
   }
 
   .cue-block::after {
@@ -4399,8 +4421,9 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .cue-rows {
-    gap: 10px;
-    max-height: min(48vh, 420px);
+    gap: 9px;
+    max-height: none;
+    overflow: visible;
   }
 
   .cue-row {
@@ -4411,9 +4434,9 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
       ". wait wait"
       ". condition condition"
       ". conditionTarget conditionTarget";
-    gap: 7px;
+    gap: 8px;
     align-items: center;
-    padding: 8px;
+    padding: 9px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: rgba(10, 12, 16, 0.42);
@@ -4423,23 +4446,37 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-area: num;
   }
 
-  .cue-row select[aria-label="Action cue"] {
+  .cue-field-title {
+    display: block;
+  }
+
+  .cue-row select,
+  .cue-row input,
+  .cue-wait-field {
+    height: 36px;
+    font-size: 0.78rem;
+  }
+
+  .cue-action-field {
     grid-area: action;
   }
 
-  .cue-row select[aria-label="Cible cue"] {
+  .cue-target-field {
     grid-area: target;
   }
 
-  .cue-row .cue-wait-field {
+  .cue-wait-field {
     grid-area: wait;
+    grid-template-columns: minmax(52px, 1fr) max-content;
+    height: auto;
+    padding: 6px 8px 7px;
   }
 
-  .cue-row select[aria-label="Condition cue"] {
+  .cue-condition-field {
     grid-area: condition;
   }
 
-  .cue-row select[aria-label="Cible condition"] {
+  .cue-condition-target-field {
     grid-area: conditionTarget;
   }
 

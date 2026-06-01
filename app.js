@@ -1554,6 +1554,16 @@ function renderCueRows() {
     number.className = "cue-row-number";
     number.textContent = String(index + 1);
 
+    const cueField = (label, element, className) => {
+      const field = document.createElement("label");
+      field.className = `cue-field ${className}`;
+      const title = document.createElement("span");
+      title.className = "cue-field-title";
+      title.textContent = label;
+      field.append(title, element);
+      return field;
+    };
+
     const action = document.createElement("select");
     action.setAttribute("aria-label", "Action cue");
     [
@@ -1569,10 +1579,12 @@ function renderCueRows() {
       action.append(option);
     });
     action.value = normalizeCueAction(step.action);
+    const actionField = cueField("Action", action, "cue-action-field");
 
     const target = document.createElement("select");
     target.setAttribute("aria-label", "Cible cue");
     fillCueTargetSelect(target, action.value, step.target);
+    const targetField = cueField("Cible", target, "cue-target-field");
 
     const wait = document.createElement("input");
     wait.type = "number";
@@ -1583,10 +1595,13 @@ function renderCueRows() {
     wait.setAttribute("aria-label", "Secondes");
     wait.disabled = action.value !== "wait";
     const waitField = document.createElement("label");
-    waitField.className = "cue-wait-field";
+    waitField.className = "cue-field cue-wait-field";
+    const waitTitle = document.createElement("span");
+    waitTitle.className = "cue-field-title";
+    waitTitle.textContent = "Durée";
     const waitUnit = document.createElement("span");
     waitUnit.textContent = "secondes";
-    waitField.append(wait, waitUnit);
+    waitField.append(waitTitle, wait, waitUnit);
 
     const condition = document.createElement("select");
     condition.setAttribute("aria-label", "Condition cue");
@@ -1601,10 +1616,12 @@ function renderCueRows() {
       condition.append(option);
     });
     condition.value = normalizeCueCondition(step.condition);
+    const conditionField = cueField("Condition", condition, "cue-condition-field");
 
     const conditionTarget = document.createElement("select");
     conditionTarget.setAttribute("aria-label", "Cible condition");
     fillCueConditionTargetSelect(conditionTarget, condition.value, step.conditionTarget);
+    const conditionTargetField = cueField("Cible condition", conditionTarget, "cue-condition-target-field");
 
     const remove = document.createElement("button");
     remove.className = "icon-button cue-remove-button";
@@ -1614,7 +1631,7 @@ function renderCueRows() {
 
     const syncCueRowFields = () => {
       const isWait = normalizeCueAction(action.value) === "wait";
-      target.hidden = isWait;
+      targetField.hidden = isWait;
       target.disabled = isWait;
       waitField.hidden = !isWait;
       wait.disabled = !isWait;
@@ -1679,7 +1696,7 @@ function renderCueRows() {
       renderCueRows();
     });
 
-    row.append(number, action, target, waitField, condition, conditionTarget, remove);
+    row.append(number, actionField, targetField, waitField, conditionField, conditionTargetField, remove);
     els.cueRows.append(row);
   });
   renderCueTimeline(draft);
@@ -2809,6 +2826,64 @@ function versionOptionLabel(snapshot, index) {
   return `${index + 1}. ${label}`;
 }
 
+function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
+  if (!snapshot) return null;
+  return {
+    id: snapshot.id || createId(),
+    label: snapshot.label || "",
+    savedAt: snapshot.savedAt || new Date().toISOString(),
+    board: {
+      ...(snapshot.board || {}),
+      cues: normalizeCues(snapshot.board?.cues),
+    },
+    pads: Array.isArray(snapshot.pads)
+      ? snapshot.pads.map((item) => {
+        const savedAudio = item?.audio;
+        const audio = includeAudio && savedAudio?.audio
+          ? {
+            ...savedAudio,
+            audio: arrayBufferToBase64(savedAudio.audio),
+          }
+          : null;
+        return {
+          index: Number(item?.index) || 0,
+          meta: item?.meta || null,
+          audio,
+        };
+      })
+      : [],
+  };
+}
+
+function deserializeBoardSnapshotFromExport(snapshot) {
+  if (!snapshot) return null;
+  return {
+    id: snapshot.id || createId(),
+    label: snapshot.label || "",
+    savedAt: snapshot.savedAt || new Date().toISOString(),
+    board: {
+      ...(snapshot.board || {}),
+      cues: normalizeCues(snapshot.board?.cues),
+    },
+    pads: Array.isArray(snapshot.pads)
+      ? snapshot.pads.map((item) => {
+        let audio = null;
+        if (item?.audio?.audio) {
+          audio = {
+            ...item.audio,
+            audio: base64ToArrayBuffer(item.audio.audio),
+          };
+        }
+        return {
+          index: Number(item?.index) || 0,
+          meta: item?.meta || null,
+          audio,
+        };
+      })
+      : [],
+  };
+}
+
 async function refreshVersionOptions(selectedId = "") {
   if (!els.versionSelect || !state.db) return;
   const board = currentBoard();
@@ -2867,6 +2942,7 @@ async function exportCurrentBoard(includeAudio = true) {
   await persistCurrentPadsForExport();
   const orderedPads = orderedPadsForCurrentBoard();
   const shortcuts = state.shortcuts.length ? state.shortcuts : defaultShortcuts();
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
 
   for (let index = 0; index < board.padCount; index += 1) {
     const pad = orderedPads.find((item) => item.index === index) || state.pads.find((item) => item.index === index) || makePad(index);
@@ -2950,6 +3026,10 @@ async function exportCurrentBoard(includeAudio = true) {
         key: normalizeShortcutKey(shortcut.key),
         padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
       })),
+      versions: history
+        .slice(0, HISTORY_LIMIT)
+        .map((snapshot) => serializeBoardSnapshotForExport(snapshot, includeAudio))
+        .filter(Boolean),
       pads,
     },
   };
@@ -3100,6 +3180,14 @@ async function importBoardFile(file) {
   state.shortcutsEnabled = payload.board.shortcutsEnabled !== false;
   saveShortcutsForCurrentBoard();
   saveShortcutsEnabledForCurrentBoard();
+
+  const importedVersions = (Array.isArray(payload.board.versions) ? payload.board.versions : payload.versions || [])
+    .map(deserializeBoardSnapshotFromExport)
+    .filter(Boolean)
+    .slice(0, HISTORY_LIMIT);
+  if (importedVersions.length) {
+    await dbSet(boardHistoryKey(importedBoard.id), importedVersions);
+  }
 
   await renderPads();
   setStatus(audioFailures
