@@ -320,6 +320,7 @@ const els = {
   resetCuePosition: document.querySelector("#resetCuePosition"),
   applyCues: document.querySelector("#applyCues"),
   cancelCues: document.querySelector("#cancelCues"),
+  closeCueDialog: document.querySelector("#closeCueDialog"),
 };
 
 function openDb() {
@@ -6350,6 +6351,10 @@ async function init() {
     setStatus("Cues enregistrées");
   });
   els.cancelCues?.addEventListener("click", () => {
+    state.cueDraft = null;
+    els.cueDialog?.close();
+  });
+  els.closeCueDialog?.addEventListener("click", () => {
     state.cueDraft = null;
     els.cueDialog?.close();
   });
