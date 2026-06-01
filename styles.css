@@ -703,7 +703,12 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   grid-template-columns: max-content minmax(0, 1fr) max-content;
   gap: 10px;
   align-items: center;
-  margin: 0 0 10px;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -943,7 +948,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .group-stop-control {
   min-width: calc(var(--stop-group-width, 8ch) + 54px);
-  height: var(--master-stop-panel-height);
+  min-height: var(--master-stop-panel-height);
   display: grid;
   gap: 3px;
   align-content: start;
@@ -3448,7 +3453,7 @@ body.stage-mode .app {
 }
 
 body.stage-mode .topbar {
-  grid-template-columns: auto minmax(150px, 250px) minmax(220px, 420px);
+  grid-template-columns: minmax(0, 1fr) max-content;
   gap: 8px;
   width: min(1440px, 100%);
   margin-bottom: 8px;
@@ -3537,6 +3542,30 @@ body.stage-mode .board-skin-select select {
   height: 40px;
 }
 
+body.stage-mode .live-tools {
+  gap: 12px;
+}
+
+body.stage-mode .live-tools .icon-button {
+  width: 84px;
+  height: 84px;
+  min-width: 84px;
+  min-height: 84px;
+}
+
+body.stage-mode .cue-live-row {
+  grid-template-columns: 84px 84px 84px minmax(0, 1fr);
+}
+
+body.stage-mode .xfade-live-row {
+  grid-template-columns: repeat(3, 84px);
+}
+
+body.stage-mode .live-tools .icon-button svg {
+  width: 42px;
+  height: 42px;
+}
+
 body.stage-mode .board-layout-controls {
   display: grid !important;
   grid-column: 2;
@@ -3563,26 +3592,32 @@ body.stage-mode .version-select {
 }
 
 body.stage-mode .master-strip {
-  --master-stop-size: 48px;
-  --master-stop-panel-height: 92px;
-  grid-template-columns: minmax(64px, 78px) 20px minmax(0, 1fr) minmax(66px, 78px);
+  --master-stop-size: clamp(96px, 10.5vw, 140px);
+  --master-stop-panel-height: calc(var(--master-stop-size) + 34px);
+  grid-column: 2;
+  grid-template-columns: minmax(64px, 78px) 20px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
   grid-template-areas:
     "title title title title"
     "master vu . stop"
     "master vu . group"
     "audio badges badges badges";
-  width: 100%;
+  width: fit-content;
   min-width: 0;
-  justify-self: stretch;
+  justify-self: end;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
+}
+
+body.stage-mode .live-tools {
+  grid-column: 1;
 }
 
 body.stage-mode .group-stop-control,
 body.stage-mode .stop-all-control {
   min-width: 0;
   width: 100%;
-  height: var(--master-stop-panel-height);
+  min-height: var(--master-stop-panel-height);
+  height: auto;
   box-sizing: border-box;
   padding: 3px;
 }
