@@ -563,7 +563,7 @@ body.show-cables .cable-legend-panel {
 
 .board-action-grid {
   display: grid;
-  grid-template-columns: 42px 42px max-content minmax(0, 1fr) 42px;
+  grid-template-columns: 42px max-content minmax(0, 1fr) 42px;
   gap: 8px;
   align-items: center;
 }
@@ -574,8 +574,13 @@ body.show-cables .cable-legend-panel {
 }
 
 #stageLock {
+  display: none;
   grid-column: 2;
   grid-row: 1;
+}
+
+body.stage-mode #stageLock {
+  display: grid;
 }
 
 .stage-lock-button .lock-closed-icon,
@@ -588,12 +593,12 @@ body.show-cables .cable-legend-panel {
 }
 
 .board-center-actions {
-  grid-column: 4;
+  grid-column: 3;
   grid-row: 1;
 }
 
 #editPads {
-  grid-column: 5;
+  grid-column: 4;
   grid-row: 1;
   align-self: start;
 }
@@ -608,7 +613,7 @@ body.board-edit-mode .board-action-grid {
 }
 
 .board-action-grid .board-layout-controls {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
 }
 
@@ -2243,7 +2248,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad-live-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px 40px 40px;
+  grid-template-columns: minmax(0, 1fr) 40px 40px;
   gap: 8px;
   align-items: stretch;
 }
@@ -2316,11 +2321,6 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad-live-row .pad-mute-button {
   border-color: rgba(255, 95, 86, 0.44);
   color: var(--muted);
-}
-
-.pad-live-row .pad-cue-button {
-  border-color: rgba(120, 180, 255, 0.45);
-  color: #cfe5ff;
 }
 
 .pad-live-row .pad-mute-button svg,
@@ -4602,8 +4602,9 @@ body.stage-mode .live-button-group {
   }
 
   body.stage-mode .master-strip {
-    --master-stop-size: clamp(72px, 16vw, 104px) !important;
+    --master-stop-size: clamp(60px, 10vw, 88px) !important;
     --master-stop-panel-height: calc(var(--master-stop-size) + 34px) !important;
+    grid-template-columns: minmax(54px, 68px) 24px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
     grid-column: 2 !important;
     grid-row: 2 !important;
     align-self: end !important;
@@ -4645,7 +4646,61 @@ body.stage-mode .live-button-group {
     grid-template-columns: minmax(0, 1fr) 34px 34px !important;
   }
 
-  body:not(.board-edit-mode) .board-action-grid {
-    grid-template-columns: 34px 34px max-content minmax(0, 1fr) 34px !important;
+  body:not(.stage-mode):not(.board-edit-mode) .board-action-grid {
+    grid-template-columns: 34px max-content minmax(0, 1fr) 34px !important;
+  }
+
+  body.stage-mode:not(.board-edit-mode) .board-action-grid {
+    grid-template-columns: 34px 34px max-content !important;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.stage-mode .topbar {
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+  }
+
+  body.stage-mode .board-area {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+
+  body.stage-mode .master-strip {
+    --master-stop-size: 62px !important;
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+
+  body.stage-mode .live-tools {
+    grid-column: 1 !important;
+    grid-row: 4 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-self: stretch !important;
+  }
+
+  body.stage-mode .cue-live-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  body.stage-mode .cue-live-row .icon-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+
+  body.stage-mode .xfade-live-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  body.stage-mode .xfade-live-row .icon-button,
+  body.stage-mode #openCueDialog {
+    width: 100% !important;
+    min-width: 0 !important;
   }
 }

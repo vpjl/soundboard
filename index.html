@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=129">
+    <link rel="stylesheet" href="styles.css?v=130">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v129</p>
+            <p id="audioStatus">Pret pour la scene · v130</p>
           </div>
         </div>
 
@@ -489,12 +489,6 @@
                 <circle cx="12" cy="12" r="6" fill="currentColor"/>
               </svg>
             </button>
-            <button class="pad-cue-button" type="button" data-action="cue-preview" aria-label="Pré-écoute Cue">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
             <button class="pad-audio-button" type="button" data-action="audio" aria-label="Réglages audio">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -692,20 +686,6 @@
                     <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Modifie le nombre de colonnes du board.</dd>
-                <dt aria-label="Afficher le câblage crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Affiche les câbles crossfade du board.</dd>
-                <dt aria-label="Patch bay crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
                 <dt aria-label="Mode edit des pads">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -840,17 +820,11 @@
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Ouvre les réglages audio du pad.</dd>
-                <dt aria-label="Pré-écoute Cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Pré-écoute le pad sur une sortie séparée si le navigateur le permet.</dd>
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Fenêtre cues">
-              <h3>Fenêtre cues</h3>
+            <section class="help-section" aria-label="Cues crossfade">
+              <h3>Cues/Crossfade</h3>
               <dl class="help-grid">
                 <dt aria-label="Cues">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -881,6 +855,20 @@
                     <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Ajoute une étape à la ligne de temps.</dd>
+                <dt aria-label="Afficher le câblage crossfade">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Affiche les câbles crossfade du board.</dd>
+                <dt aria-label="Patch bay crossfade">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
               </dl>
             </section>
 
@@ -968,6 +956,12 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête le test audio.</dd>
+                <dt aria-label="Pré-écoute Cue">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Pré-écoute le pad sur une sortie séparée si le navigateur le permet.</dd>
                 <dt aria-label="Reset audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1034,6 +1028,12 @@
             <button id="audioTestStop" class="icon-button" type="button" aria-label="Stop test">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Pré-écoute Cue">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
             <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
@@ -1484,6 +1484,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=129"></script>
+    <script src="app.js?v=130"></script>
   </body>
 </html>
