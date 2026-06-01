@@ -2889,6 +2889,7 @@ async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
           index: Number(item?.index) || 0,
           meta: item?.meta || null,
           audio,
+          hasAudio: Boolean(savedAudio?.audio || savedAudio?.audioRefIndex != null || item?.hasAudio),
         };
       }))
       : [],
@@ -2918,10 +2919,24 @@ function deserializeBoardSnapshotFromExport(snapshot) {
           index: Number(item?.index) || 0,
           meta: item?.meta || null,
           audio,
+          hasAudio: Boolean(item?.hasAudio || audio),
         };
       })
       : [],
   };
+}
+
+async function hydrateImportedVersionAudio(versions, boardId) {
+  for (const snapshot of versions) {
+    for (const item of snapshot.pads || []) {
+      if (item.audio) continue;
+      if (item.hasAudio === false) continue;
+      const index = Number(item.index);
+      if (!Number.isInteger(index) || index < 0) continue;
+      const currentAudio = await dbGet(padAudioKeyFor(boardId, index));
+      if (currentAudio?.audio) item.audio = currentAudio;
+    }
+  }
 }
 
 async function refreshVersionOptions(selectedId = "") {
@@ -3226,11 +3241,13 @@ async function importBoardFile(file) {
     .map(deserializeBoardSnapshotFromExport)
     .filter(Boolean)
     .slice(0, HISTORY_LIMIT);
+  await hydrateImportedVersionAudio(importedVersions, importedBoard.id);
   if (importedVersions.length) {
     await dbSet(boardHistoryKey(importedBoard.id), importedVersions);
   }
 
   await renderPads();
+  await refreshVersionOptions(importedVersions[0]?.id || "");
   setStatus(audioFailures
     ? `${importedBoard.name} importe (${audioFailures} audio ignore${audioFailures > 1 ? "s" : ""})`
     : `${importedBoard.name} importe`);
@@ -6567,8 +6584,15 @@ async function init() {
   els.restoreVersion?.addEventListener("click", () => {
     restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible"));
   });
-  els.renameVersion?.addEventListener("click", () => {
-    renameSelectedBoardVersion().catch(() => setStatus("Renommage impossible"));
+  els.renameVersion?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const wasEditing = state.boardEditMode;
+    renameSelectedBoardVersion()
+      .then(() => {
+        if (!wasEditing && state.boardEditMode) setBoardPadEditing(false);
+      })
+      .catch(() => setStatus("Renommage impossible"));
   });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
