@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=130">
+    <link rel="stylesheet" href="styles.css?v=131">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v130</p>
+            <p id="audioStatus">Pret pour la scene · v131</p>
           </div>
         </div>
 
@@ -467,35 +467,43 @@
 
         <div class="pad-actions">
           <div class="pad-live-row">
-          <div class="control-group live-button-group" aria-label="Contrôles live">
-            <button type="button" data-mode="oneshot" aria-label="Relance le son depuis le début">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-              </svg>
-            </button>
-            <button type="button" data-mode="toggle" aria-label="Stoppe puis reprend au même endroit">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z" fill="currentColor"/>
-              </svg>
-            </button>
-            <button class="danger-button pad-stop-button" type="button" data-action="stop" aria-label="Stop">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-              </svg>
-            </button>
-          </div>
-            <button class="pad-mute-button" type="button" data-action="mute" aria-label="Mute/demute">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="6" fill="currentColor"/>
-              </svg>
-            </button>
-            <button class="pad-audio-button" type="button" data-action="audio" aria-label="Réglages audio">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
-            </button>
+            <div class="control-group live-button-group" aria-label="Contrôles live">
+              <button type="button" data-mode="oneshot" aria-label="Relance le son depuis le début">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+                </svg>
+              </button>
+              <button type="button" data-mode="toggle" aria-label="Stoppe puis reprend au même endroit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z" fill="currentColor"/>
+                </svg>
+              </button>
+              <button class="danger-button pad-stop-button" type="button" data-action="stop" aria-label="Stop">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+            <div class="control-group secondary-live-group" aria-label="Contrôles live secondaires">
+              <button class="pad-cue-button" type="button" data-action="cue-preview" aria-label="Pré-écoute Cue">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button class="pad-audio-button" type="button" data-action="audio" aria-label="Réglages audio">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+              <button class="pad-mute-button" type="button" data-action="mute" aria-label="Mute/demute">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="6" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div class="pad-action-line">
@@ -820,6 +828,12 @@
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Ouvre les réglages audio du pad.</dd>
+                <dt aria-label="Pré-écoute Cue">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Pré-écoute le pad sur une sortie séparée si le navigateur le permet.</dd>
               </dl>
             </section>
 
@@ -956,12 +970,6 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête le test audio.</dd>
-                <dt aria-label="Pré-écoute Cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Pré-écoute le pad sur une sortie séparée si le navigateur le permet.</dd>
                 <dt aria-label="Reset audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1028,12 +1036,6 @@
             <button id="audioTestStop" class="icon-button" type="button" aria-label="Stop test">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-              </svg>
-            </button>
-            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Pré-écoute Cue">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
             <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
@@ -1484,6 +1486,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=130"></script>
+    <script src="app.js?v=131"></script>
   </body>
 </html>

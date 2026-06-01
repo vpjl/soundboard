@@ -163,7 +163,6 @@ const els = {
   audioFilePath: document.querySelector("#audioFilePath"),
   audioTestPlay: document.querySelector("#audioTestPlay"),
   audioTestStop: document.querySelector("#audioTestStop"),
-  audioCuePreview: document.querySelector("#audioCuePreview"),
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
   audioReset: document.querySelector("#audioReset"),
@@ -917,6 +916,7 @@ function makePad(index) {
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.muteEl = node.querySelector('[data-action="mute"]');
+  pad.cueButton = node.querySelector('[data-action="cue-preview"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
@@ -1047,6 +1047,10 @@ function makePad(index) {
   node.querySelector('[data-action="audio"]').addEventListener("click", (event) => {
     stopEvent(event);
     openAudioDialog(pad);
+  });
+  pad.cueButton?.addEventListener("click", (event) => {
+    stopEvent(event);
+    previewPadCue(pad).catch(() => setStatus("Pré-écoute impossible"));
   });
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -6377,9 +6381,6 @@ async function init() {
   });
   els.audioTestStop?.addEventListener("click", () => {
     if (state.audioPad) stopPad(state.audioPad, false);
-  });
-  els.audioCuePreview?.addEventListener("click", () => {
-    if (state.audioPad) previewPadCue(state.audioPad).catch(() => setStatus("Pré-écoute impossible"));
   });
   els.audioRecord?.addEventListener("click", () => {
     if (state.audioPad) toggleRecording(state.audioPad);

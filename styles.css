@@ -2248,12 +2248,13 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad-live-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px 40px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   align-items: stretch;
 }
 
-.live-button-group {
+.live-button-group,
+.secondary-live-group {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -2304,9 +2305,9 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   height: 18px;
 }
 
-.pad-live-row > button,
+.pad-live-row button,
 .pad-live-options button {
-  width: 40px;
+  width: 100%;
 }
 
 .pad-stop-button {
@@ -2316,6 +2317,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border-color: rgba(255, 95, 86, 0.55);
   background: rgba(255, 95, 86, 0.13);
   color: #ffd8d5;
+}
+
+.pad-live-row .pad-cue-button {
+  border-color: rgba(120, 180, 255, 0.45);
+  color: #cfe5ff;
 }
 
 .pad-live-row .pad-mute-button {
@@ -3376,16 +3382,17 @@ body[data-skin="contrast"] .color-field {
 }
 
 .help-section[aria-label="Audio master"],
-.help-section[aria-label="Audio pad"] {
+.help-section[aria-label="Cues crossfade"] {
   order: 2;
 }
 
 .help-section[aria-label="Board live"],
-.help-section[aria-label="Pad edit"] {
+.help-section[aria-label="Audio pad"] {
   order: 3;
 }
 
-.help-section[aria-label="Board edit"] {
+.help-section[aria-label="Board edit"],
+.help-section[aria-label="Pad edit"] {
   order: 4;
 }
 
@@ -3505,7 +3512,6 @@ body.stage-mode .mark svg {
   height: 27px;
 }
 
-body.stage-mode h1,
 body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
 body.stage-mode .board-name,
@@ -3514,13 +3520,13 @@ body.stage-mode .name-field {
   display: none;
 }
 
-body.stage-mode .brand p {
-  margin: 0;
-  font-size: 0.8rem;
+body.stage-mode h1 {
+  font-size: 1.02rem;
 }
 
-body.stage-mode .brand .brand-credit {
-  display: none;
+body.stage-mode .brand p {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
 }
 
 body.stage-mode .brand-tools {
@@ -3706,18 +3712,15 @@ body.stage-mode .pad-action-line {
 }
 
 body.stage-mode .pad-live-row {
-  grid-template-columns: minmax(0, 1fr) minmax(42px, 0.16fr) minmax(42px, 0.16fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 5px;
 }
 
-body.stage-mode .live-button-group {
+body.stage-mode .live-button-group,
+body.stage-mode .secondary-live-group {
   display: grid;
   gap: 5px;
   padding: 5px;
-}
-
-body.stage-mode .pad-audio-button {
-  display: none !important;
 }
 
 body.stage-mode .controls {
@@ -4576,15 +4579,12 @@ body.stage-mode .master-audio-button {
   display: none !important;
 }
 
-body.stage-mode .pad-audio-button {
-  display: none !important;
-}
-
 body.stage-mode .pad-live-row {
-  grid-template-columns: minmax(0, 1fr) minmax(34px, 0.16fr) minmax(34px, 0.16fr) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
-body.stage-mode .live-button-group {
+body.stage-mode .live-button-group,
+body.stage-mode .secondary-live-group {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
@@ -4597,12 +4597,19 @@ body.stage-mode .live-button-group {
   body.stage-mode .board-area,
   body.stage-mode .live-tools {
     grid-column: 1 !important;
-    grid-row: 2 !important;
     align-self: end !important;
   }
 
+  body.stage-mode .board-area {
+    grid-row: 2 !important;
+  }
+
+  body.stage-mode .live-tools {
+    grid-row: 3 !important;
+  }
+
   body.stage-mode .master-strip {
-    --master-stop-size: clamp(60px, 10vw, 88px) !important;
+    --master-stop-size: clamp(52px, 8vw, 72px) !important;
     --master-stop-panel-height: calc(var(--master-stop-size) + 34px) !important;
     grid-template-columns: minmax(54px, 68px) 24px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
     grid-column: 2 !important;
@@ -4643,7 +4650,7 @@ body.stage-mode .live-button-group {
   }
 
   body.stage-mode .pad-live-row {
-    grid-template-columns: minmax(0, 1fr) 34px 34px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   body:not(.stage-mode):not(.board-edit-mode) .board-action-grid {
