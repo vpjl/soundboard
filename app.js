@@ -1430,7 +1430,7 @@ function syncCueControls() {
   const cueActionDisabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
   if (els.cueRun) els.cueRun.disabled = cueActionDisabled;
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
-  if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues;
+  if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
   if (els.cueStatus) {
     els.cueStatus.textContent = !cuesEnabled
       ? "Cues désactivées"

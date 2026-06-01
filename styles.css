@@ -657,14 +657,14 @@ body.board-edit-mode .board-action-grid .icon-button {
 }
 
 .board-version-row {
-  display: none;
+  display: grid;
   grid-template-columns: 42px 42px 42px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }
 
 body.board-edit-mode .board-version-row {
-  display: grid;
+  display: none;
 }
 
 .board-select,
@@ -1660,6 +1660,20 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
   touch-action: manipulation;
 }
 
+button:disabled,
+select:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  filter: grayscale(0.45);
+}
+
+.icon-button:disabled {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
 .pad-time {
   align-self: start;
   color: var(--muted);
@@ -1733,8 +1747,6 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .board-notice-button,
 .bulk-edit-button,
 .board-action-grid .board-transfer-button,
-.board-version-row,
-.board-version-row .board-history-button,
 .board-action-grid .board-delete-button,
 .board-cancel-edit-button,
 .keyboard-shortcuts-button {
@@ -1752,8 +1764,6 @@ body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-transfer-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
-body.board-edit-mode .board-version-row,
-body.board-edit-mode .board-version-row .board-history-button,
 body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
 body.board-edit-mode .board-action-grid #addBoard {
@@ -4320,25 +4330,123 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     gap: 5px;
   }
 
+  .cue-dialog {
+    width: min(100vw - 14px, 720px);
+  }
+
+  .cue-panel {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .cue-panel .help-head {
+    align-items: start;
+    gap: 8px;
+  }
+
+  .cue-legend {
+    gap: 6px 10px;
+    font-size: 0.7rem;
+  }
+
+  .cue-swatch {
+    width: 24px;
+    border-top-width: 4px;
+  }
+
+  .cue-timeline-wrap {
+    min-height: 126px;
+    padding: 8px;
+  }
+
+  .cue-timeline {
+    gap: 8px;
+  }
+
+  .cue-block {
+    width: 132px;
+    min-height: 106px;
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .cue-block-wait {
+    width: 96px;
+  }
+
+  .cue-block::after {
+    right: -9px;
+    width: 9px;
+  }
+
+  .cue-block-number {
+    width: 22px;
+    height: 22px;
+    font-size: 0.68rem;
+  }
+
+  .cue-block strong {
+    font-size: 0.8rem;
+  }
+
+  .cue-block span {
+    font-size: 0.74rem;
+  }
+
+  .cue-block small,
+  .cue-block em {
+    font-size: 0.64rem;
+  }
+
+  .cue-rows {
+    gap: 10px;
+    max-height: min(48vh, 420px);
+  }
+
   .cue-row {
-    grid-template-columns: 26px minmax(0, 1fr) minmax(110px, 1fr) minmax(112px, 0.8fr) 34px;
+    grid-template-columns: 28px minmax(0, 1fr) 36px;
+    grid-template-areas:
+      "num action remove"
+      ". target target"
+      ". wait wait"
+      ". condition condition"
+      ". conditionTarget conditionTarget";
+    gap: 7px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(10, 12, 16, 0.42);
+  }
+
+  .cue-row-number {
+    grid-area: num;
+  }
+
+  .cue-row select[aria-label="Action cue"] {
+    grid-area: action;
   }
 
   .cue-row select[aria-label="Cible cue"] {
-    grid-column: 3 / 5;
+    grid-area: target;
+  }
+
+  .cue-row .cue-wait-field {
+    grid-area: wait;
   }
 
   .cue-row select[aria-label="Condition cue"] {
-    grid-column: 2 / 3;
+    grid-area: condition;
   }
 
   .cue-row select[aria-label="Cible condition"] {
-    grid-column: 3 / 5;
+    grid-area: conditionTarget;
   }
 
   .cue-remove-button {
-    grid-column: 4;
-    grid-row: 1;
+    grid-area: remove;
+    width: 36px;
+    height: 36px;
   }
 
   .board-action-grid .board-layout-controls {
