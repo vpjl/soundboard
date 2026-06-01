@@ -728,10 +728,12 @@ body.board-edit-mode .live-tools {
   gap: 8px;
 }
 
-.cue-editor-button,
-.cue-window-button {
+.cue-live-row .icon-button,
+.xfade-live-row .icon-button {
   width: 42px;
   height: 42px;
+  min-width: 42px;
+  min-height: 42px;
 }
 
 .cue-next-button {
@@ -4132,9 +4134,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .cue-editor-button,
-  .cue-window-button {
+  .cue-window-button,
+  .xfade-live-row .icon-button {
     width: 34px;
     height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
   .cue-next-button,

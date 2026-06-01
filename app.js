@@ -307,7 +307,6 @@ const els = {
   cueNext: document.querySelector("#cueNext"),
   cueStatus: document.querySelector("#cueStatus"),
   cueDialog: document.querySelector("#cueDialog"),
-  closeCues: document.querySelector("#closeCues"),
   cueRows: document.querySelector("#cueRows"),
   cueTimeline: document.querySelector("#cueTimeline"),
   addCueStep: document.querySelector("#addCueStep"),
@@ -6072,10 +6071,6 @@ async function init() {
     setStatus("Cues enregistrées");
   });
   els.cancelCues?.addEventListener("click", () => {
-    state.cueDraft = null;
-    els.cueDialog?.close();
-  });
-  els.closeCues?.addEventListener("click", () => {
     state.cueDraft = null;
     els.cueDialog?.close();
   });
