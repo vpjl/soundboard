@@ -24,6 +24,10 @@ const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
 const HISTORY_LIMIT = 4;
 const PAD_COLORS = {
+  white: "#f7f7f2",
+  lightGrey: "#c7ccd4",
+  darkGrey: "#343842",
+  black: "#07080b",
   green: "#49d3a0",
   yellow: "#ffce5c",
   red: "#ff5f56",
@@ -97,6 +101,7 @@ const state = {
   boardEditMode: false,
   boardEditSnapshot: null,
   cueDraft: null,
+  cueDragIndex: -1,
   cueWaitTimer: null,
   cueRunning: false,
 };
@@ -298,6 +303,7 @@ const els = {
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
   cueEditor: document.querySelector("#cueEditor"),
+  openCueDialog: document.querySelector("#openCueDialog"),
   cueNext: document.querySelector("#cueNext"),
   cueStatus: document.querySelector("#cueStatus"),
   cueDialog: document.querySelector("#cueDialog"),
@@ -705,7 +711,28 @@ async function cancelBoardEdit() {
   setStatus("Modifications annulées");
 }
 
-function openCancelBoardEditDialog() {
+function comparableBoardSnapshot(snapshot) {
+  return JSON.stringify({
+    board: snapshot?.board || null,
+    pads: (snapshot?.pads || []).map((item) => ({
+      index: item.index,
+      meta: item.meta || null,
+      audio: item.audio || null,
+    })),
+  });
+}
+
+async function boardEditHasChanges() {
+  if (!state.boardEditSnapshot) return false;
+  const current = await createBoardSnapshot(currentBoard());
+  return comparableBoardSnapshot(current) !== comparableBoardSnapshot(state.boardEditSnapshot);
+}
+
+async function openCancelBoardEditDialog() {
+  if (!(await boardEditHasChanges())) {
+    setBoardPadEditing(false);
+    return;
+  }
   if (els.cancelEditDialog?.showModal) {
     els.cancelEditDialog.showModal();
     return;
@@ -979,7 +1006,10 @@ function makePad(index) {
   node.addEventListener("click", (event) => {
     if (document.body.dataset.skin !== "visual" || pad.node.classList.contains("is-editing")) return;
     if (!pad.visualImage && !pad.color) return;
-    if (event.target.closest("button, input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
+    if (pad.visualImageHidden) return;
+    if (event.target.closest("input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
+    const clickedButton = event.target.closest("button");
+    if (clickedButton && clickedButton !== trigger) return;
     event.preventDefault();
     togglePad(pad);
   });
@@ -1207,6 +1237,7 @@ function normalizeBoard(board, fallbackName = "Projet") {
     layoutMode: mode,
     padColumns: mode === "custom" ? normalizeLayoutNumber(board?.padColumns, 4) : 0,
     padRows: mode === "custom" ? normalizeLayoutNumber(board?.padRows, 3) : 0,
+    cuesEnabled: board?.cuesEnabled !== false,
     cues: normalizeCues(board?.cues),
     cueIndex: Math.max(0, Number(board?.cueIndex) || 0),
   };
@@ -1326,6 +1357,7 @@ function cueStepLabel(step) {
 function cueTargetLabel(step) {
   const normalized = normalizeCueStep(step);
   if (normalized.action === "wait") return `${normalized.waitSeconds || 1}s`;
+  if (!normalized.target) return "Choisir";
   if (normalized.action.endsWith("Tag")) return normalized.target.replace(/^tag:/, "") || "tag";
   return padsFromCueTarget(normalized)[0]?.title || "pad";
 }
@@ -1374,11 +1406,19 @@ function syncCueControls() {
   if (board) {
     board.cues = cues;
     board.cueIndex = cueIndexForBoard(board);
+    if (board.cuesEnabled == null) board.cuesEnabled = true;
   }
   const hasCues = cues.length > 0;
-  if (els.cueNext) els.cueNext.disabled = !hasCues || Boolean(state.cueWaitTimer);
+  const cuesEnabled = board?.cuesEnabled !== false;
+  els.cueEditor?.classList.toggle("is-active", cuesEnabled);
+  els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
+  els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
+  if (els.cueNext) els.cueNext.disabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
+  if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues;
   if (els.cueStatus) {
-    els.cueStatus.textContent = hasCues
+    els.cueStatus.textContent = !cuesEnabled
+      ? "Cues désactivées"
+      : hasCues
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
       : "Aucune cue";
   }
@@ -1491,6 +1531,8 @@ function renderCueRows() {
   draft.forEach((step, index) => {
     const row = document.createElement("div");
     row.className = "cue-row";
+    row.draggable = true;
+    row.dataset.cueIndex = String(index);
 
     const number = document.createElement("span");
     number.className = "cue-row-number";
@@ -1549,11 +1591,20 @@ function renderCueRows() {
     remove.setAttribute("aria-label", "Supprimer cette cue");
     remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+    const syncCueRowFields = () => {
+      const isWait = normalizeCueAction(action.value) === "wait";
+      target.hidden = isWait;
+      target.disabled = isWait;
+      wait.hidden = !isWait;
+      wait.disabled = !isWait;
+    };
+    syncCueRowFields();
+
     action.addEventListener("change", () => {
       step.action = normalizeCueAction(action.value);
       if (step.action === "wait") step.target = "";
       fillCueTargetSelect(target, step.action, step.target);
-      wait.disabled = step.action !== "wait";
+      syncCueRowFields();
       renderCueTimeline(draft);
     });
     condition.addEventListener("change", () => {
@@ -1576,6 +1627,34 @@ function renderCueRows() {
     });
     remove.addEventListener("click", () => {
       draft.splice(index, 1);
+      renderCueRows();
+    });
+    row.addEventListener("dragstart", (event) => {
+      state.cueDragIndex = index;
+      row.classList.add("is-dragging");
+      event.dataTransfer?.setData("text/plain", String(index));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    });
+    row.addEventListener("dragend", () => {
+      state.cueDragIndex = -1;
+      row.classList.remove("is-dragging");
+      els.cueRows?.querySelectorAll(".cue-row").forEach((item) => item.classList.remove("is-drop-target"));
+    });
+    row.addEventListener("dragover", (event) => {
+      if (state.cueDragIndex < 0 || state.cueDragIndex === index) return;
+      event.preventDefault();
+      row.classList.add("is-drop-target");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+    row.addEventListener("dragleave", () => row.classList.remove("is-drop-target"));
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      row.classList.remove("is-drop-target");
+      const fromIndex = state.cueDragIndex;
+      state.cueDragIndex = -1;
+      if (fromIndex < 0 || fromIndex === index || !draft[fromIndex]) return;
+      const [moved] = draft.splice(fromIndex, 1);
+      draft.splice(index, 0, moved);
       renderCueRows();
     });
 
@@ -1681,7 +1760,7 @@ function cueConditionMet(step, endedPad = null) {
 
 function checkCueConditions(endedPad = null) {
   const board = currentBoard();
-  if (!board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
+  if (board?.cuesEnabled === false || !board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
   const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
   if (!cueConditionMet(step, endedPad)) return;
   runNextCue({ automatic: true }).catch(() => setStatus("Cue condition impossible"));
@@ -1717,6 +1796,11 @@ async function executeCueStep(step) {
 
 async function runNextCue(options = {}) {
   const board = currentBoard();
+  if (board?.cuesEnabled === false) {
+    setStatus("Cues désactivées");
+    syncCueControls();
+    return;
+  }
   if (!board?.cues?.length) {
     setStatus("Aucune cue");
     syncCueControls();
@@ -2125,6 +2209,7 @@ async function addBoard() {
     layoutMode: "auto",
     padColumns: 0,
     padRows: 0,
+    cuesEnabled: true,
     cues: [],
     cueIndex: 0,
   };
@@ -2605,6 +2690,7 @@ async function createBoardSnapshot(board) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      cuesEnabled: board.cuesEnabled !== false,
       cues: normalizeCues(board.cues),
       cueIndex: cueIndexForBoard(board),
       shortcutsEnabled: state.shortcutsEnabled,
@@ -2628,6 +2714,7 @@ async function applyBoardSnapshot(snapshot) {
   board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
   board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
   board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
+  board.cuesEnabled = snapshot.board?.cuesEnabled !== false;
   board.cues = normalizeCues(snapshot.board?.cues);
   board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(snapshot.board?.cueIndex) || 0));
   if (board.cueIndex < 0) board.cueIndex = 0;
@@ -2789,6 +2876,7 @@ async function exportCurrentBoard(includeAudio = true) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      cuesEnabled: board.cuesEnabled !== false,
       cues: normalizeCues(board.cues),
       cueIndex: cueIndexForBoard(board),
       shortcutsEnabled: state.shortcutsEnabled,
@@ -2847,6 +2935,7 @@ async function importBoardFile(file) {
     layoutMode: payload.board.layoutMode,
     padColumns: payload.board.padColumns,
     padRows: payload.board.padRows,
+    cuesEnabled: payload.board.cuesEnabled !== false,
     cues: payload.board.cues,
     cueIndex: payload.board.cueIndex,
   });
@@ -5923,12 +6012,12 @@ async function init() {
     }
     beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
   });
-  els.cancelBoardEdit?.addEventListener("click", openCancelBoardEditDialog);
+  els.cancelBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.saveBoardEdit?.addEventListener("click", () => {
     setBoardPadEditing(false);
     setStatus("Modifications enregistrées");
   });
-  els.discardBoardEdit?.addEventListener("click", openCancelBoardEditDialog);
+  els.discardBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.keepBoardEdit?.addEventListener("click", () => els.cancelEditDialog?.close());
   els.confirmCancelBoardEdit?.addEventListener("click", () => {
     els.cancelEditDialog?.close();
@@ -5942,7 +6031,15 @@ async function init() {
   els.patchBayDialog?.addEventListener("click", (event) => {
     if (event.target === els.patchBayDialog) els.patchBayDialog.close();
   });
-  els.cueEditor?.addEventListener("click", openCueDialog);
+  els.cueEditor?.addEventListener("click", () => {
+    const board = currentBoard();
+    if (!board) return;
+    board.cuesEnabled = board.cuesEnabled === false;
+    saveBoards();
+    syncCueControls();
+    setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
+  });
+  els.openCueDialog?.addEventListener("click", openCueDialog);
   els.cueNext?.addEventListener("click", () => {
     runNextCue().catch(() => {
       clearCueWaitTimer();
@@ -5950,7 +6047,7 @@ async function init() {
     });
   });
   els.addCueStep?.addEventListener("click", () => {
-    cueDraft().push(normalizeCueStep({ action: "playPad", target: state.pads[0] ? padTargetValue(state.pads[0]) : "" }));
+    cueDraft().push(normalizeCueStep({ action: "playPad", target: "" }));
     renderCueRows();
   });
   els.resetCuePosition?.addEventListener("click", () => {
