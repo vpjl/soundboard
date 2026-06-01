@@ -6934,21 +6934,29 @@ async function init() {
       setStatus("Raccourcis clavier");
     }
   });
-  els.closeShortcuts?.addEventListener("click", () => els.shortcutDialog?.close());
+  els.closeShortcuts?.addEventListener("click", () => {
+    restoreShortcutDraft();
+    state.shortcutDraft = null;
+    els.shortcutDialog?.close();
+    setBoardPadEditing(false);
+  });
   els.applyShortcuts?.addEventListener("click", () => {
     saveShortcutDraft();
     els.shortcutDialog?.close();
+    setBoardPadEditing(false);
   });
   els.cancelShortcuts?.addEventListener("click", () => {
     restoreShortcutDraft();
     state.shortcutDraft = null;
     els.shortcutDialog?.close();
+    setBoardPadEditing(false);
   });
   els.shortcutDialog?.addEventListener("click", (event) => {
     if (event.target === els.shortcutDialog) {
       restoreShortcutDraft();
       state.shortcutDraft = null;
       els.shortcutDialog.close();
+      setBoardPadEditing(false);
     }
   });
   bindButtonFeedback(document.querySelector(".topbar"));
