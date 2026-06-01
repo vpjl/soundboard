@@ -11,7 +11,7 @@
     <title>Soundboard Live vl (c) 2026</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=125">
+    <link rel="stylesheet" href="styles.css?v=126">
   </head>
   <body>
     <div class="app">
@@ -27,7 +27,7 @@
           </div>
           <div>
             <h1>Soundboard Live vl (c) 2026</h1>
-            <p id="audioStatus">Pret pour la scene · v125</p>
+            <p id="audioStatus">Pret pour la scene · v126</p>
           </div>
         </div>
 
@@ -256,6 +256,7 @@
 
       <main>
         <section class="live-tools" aria-label="Cues et crossfade live">
+          <h2 class="live-tools-title">Cues/Crossfade</h2>
           <div class="cue-live-row" aria-label="Cues">
             <button id="cueEditor" class="icon-button cue-editor-button" type="button" aria-label="Activer les cues" aria-pressed="true">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -263,17 +264,27 @@
                 <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
+            <button id="cueNext" class="icon-button cue-next-button" type="button" aria-label="Cue suivante">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
+                <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="resetCuePosition" class="icon-button cue-reset-button" type="button" aria-label="Revenir au début des cues">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <span id="cueStatus" class="cue-status">Aucune cue</span>
+          </div>
+          <div class="xfade-live-row" aria-label="Crossfade live">
             <button id="openCueDialog" class="icon-button cue-window-button" type="button" aria-label="Ouvrir la fenêtre cues">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button id="cueNext" class="small-button cue-next-button" type="button">Suivant</button>
-            <button id="resetCuePosition" class="small-button cue-reset-button" type="button">Début</button>
-            <span id="cueStatus" class="cue-status">Aucune cue</span>
-          </div>
-          <div class="xfade-live-row" aria-label="Crossfade live">
             <button id="showCables" class="icon-button show-cables-button" type="button" aria-label="Afficher le câblage crossfade">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1358,7 +1369,11 @@
         </div>
         <div id="cueRows" class="cue-rows"></div>
         <div class="cue-toolbar">
-          <button id="addCueStep" class="small-button" type="button">Ajouter une étape</button>
+          <button id="addCueStep" class="icon-button" type="button" aria-label="Ajouter une étape">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
         <div class="dialog-actions">
           <button id="applyCues" class="small-button" type="button">Enregistrer</button>
@@ -1405,6 +1420,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=125"></script>
+    <script src="app.js?v=126"></script>
   </body>
 </html>

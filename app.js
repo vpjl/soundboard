@@ -1413,6 +1413,7 @@ function syncCueControls() {
   els.cueEditor?.classList.toggle("is-active", cuesEnabled);
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
+  els.cueEditor?.setAttribute("title", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   if (els.cueNext) els.cueNext.disabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues;
   if (els.cueStatus) {
@@ -1566,6 +1567,11 @@ function renderCueRows() {
     wait.value = String(step.waitSeconds || 2);
     wait.setAttribute("aria-label", "Secondes");
     wait.disabled = action.value !== "wait";
+    const waitField = document.createElement("label");
+    waitField.className = "cue-wait-field";
+    const waitUnit = document.createElement("span");
+    waitUnit.textContent = "secondes";
+    waitField.append(wait, waitUnit);
 
     const condition = document.createElement("select");
     condition.setAttribute("aria-label", "Condition cue");
@@ -1595,7 +1601,7 @@ function renderCueRows() {
       const isWait = normalizeCueAction(action.value) === "wait";
       target.hidden = isWait;
       target.disabled = isWait;
-      wait.hidden = !isWait;
+      waitField.hidden = !isWait;
       wait.disabled = !isWait;
     };
     syncCueRowFields();
@@ -1658,7 +1664,7 @@ function renderCueRows() {
       renderCueRows();
     });
 
-    row.append(number, action, target, wait, condition, conditionTarget, remove);
+    row.append(number, action, target, waitField, condition, conditionTarget, remove);
     els.cueRows.append(row);
   });
   renderCueTimeline(draft);
@@ -1701,7 +1707,9 @@ function renderCueTimeline(cues = cueDraft()) {
 
     const condition = cueConditionLabel(step);
     if (condition) {
+      block.classList.add("has-condition");
       const conditionEl = document.createElement("em");
+      conditionEl.className = "cue-block-condition";
       conditionEl.textContent = condition;
       block.append(conditionEl);
     }
