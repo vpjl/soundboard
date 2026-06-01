@@ -605,12 +605,16 @@ body.stage-mode #stageLock {
 }
 
 body.board-edit-mode #editPads {
-  grid-column: 3;
+  grid-area: close;
 }
 
 body.board-edit-mode .board-action-grid {
-  gap: 5px;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  gap: 7px;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-areas:
+    "layout close"
+    "actions actions";
+  align-items: start;
 }
 
 .board-action-grid .board-layout-controls {
@@ -619,7 +623,9 @@ body.board-edit-mode .board-action-grid {
 }
 
 body.board-edit-mode .board-action-grid .board-layout-controls {
-  display: none;
+  display: grid;
+  grid-area: layout;
+  justify-self: start;
 }
 
 .board-center-actions {
@@ -630,7 +636,8 @@ body.board-edit-mode .board-action-grid .board-layout-controls {
 }
 
 body.board-edit-mode .board-center-actions {
-  grid-column: 2;
+  grid-area: actions;
+  justify-self: center;
   grid-template-columns: repeat(5, minmax(34px, 42px));
   grid-auto-rows: 38px;
 }
@@ -1788,6 +1795,10 @@ body.board-edit-mode .board-action-grid .stage-lock-button {
 body.board-edit-mode .board-action-grid .pads-edit-button,
 body.board-edit-mode .board-action-grid .board-cancel-edit-button {
   display: none;
+}
+
+body.board-edit-mode .board-action-grid .pads-edit-button {
+  display: grid;
 }
 
 .pads-edit-button .live-mode-icon {
@@ -4991,5 +5002,43 @@ body.stage-mode .secondary-live-group {
   body.stage-mode #openCueDialog {
     width: 34px !important;
     min-width: 34px !important;
+  }
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  body.board-edit-mode .board-action-grid {
+    grid-template-columns: minmax(0, 1fr) 34px !important;
+    grid-template-areas:
+      "layout close"
+      "actions actions" !important;
+    gap: 7px !important;
+    align-items: start !important;
+  }
+
+  body.board-edit-mode .board-action-grid .board-layout-controls {
+    display: grid !important;
+    grid-area: layout !important;
+    justify-self: start !important;
+    width: max-content;
+  }
+
+  body.board-edit-mode .board-action-grid #editPads {
+    display: grid !important;
+    grid-area: close !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  body.board-edit-mode .board-center-actions {
+    grid-area: actions !important;
+    justify-self: center !important;
+    grid-template-columns: repeat(5, minmax(30px, 34px)) !important;
+    grid-auto-rows: 34px !important;
+    gap: 5px !important;
+  }
+
+  body.board-edit-mode .board-center-actions .icon-button {
+    width: 100% !important;
+    height: 34px !important;
   }
 }
