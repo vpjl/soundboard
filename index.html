@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=131">
+    <link rel="stylesheet" href="styles.css?v=132">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v131</p>
+            <p id="audioStatus">Pret pour la scene · v132</p>
           </div>
         </div>
 
@@ -276,6 +276,11 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="cueRun" class="icon-button cue-run-button" type="button" aria-label="Lancer le cue courant">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
               </svg>
             </button>
             <button id="cueNext" class="icon-button cue-next-button" type="button" aria-label="Cue suivante">
@@ -851,7 +856,12 @@
                     <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
                     <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Lance l’étape cue suivante.</dd>
+                </dt><dd>Affiche le cue suivant sans le lancer.</dd>
+                <dt aria-label="Lancer le cue courant">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Lance le cue courant.</dd>
                 <dt aria-label="Revenir au début des cues">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1486,6 +1496,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=131"></script>
+    <script src="app.js?v=132"></script>
   </body>
 </html>

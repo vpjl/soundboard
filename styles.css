@@ -313,6 +313,7 @@ textarea *,
 .stage-button.is-active,
 .pads-edit-button.is-active,
 .cue-editor-button.is-active,
+.cue-run-button.is-active,
 .show-cables-button.is-active {
   border-color: rgba(255, 206, 92, 0.82);
   background: rgba(255, 206, 92, 0.22);
@@ -719,7 +720,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .cue-live-row {
   display: grid;
-  grid-template-columns: 42px 42px 42px minmax(0, 1fr);
+  grid-template-columns: repeat(4, 42px) minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -765,6 +766,11 @@ body.board-edit-mode .live-tools {
   height: 42px;
   min-width: 42px;
   min-height: 42px;
+}
+
+.cue-run-button {
+  width: 42px;
+  height: 42px;
 }
 
 .cue-next-button {
@@ -2324,6 +2330,13 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   color: #cfe5ff;
 }
 
+.pad-live-row .pad-cue-button.is-active,
+.pad.is-cue-previewing .pad-cue-button {
+  border-color: rgba(130, 207, 255, 0.9);
+  background: rgba(130, 207, 255, 0.22);
+  color: #ffffff;
+}
+
 .pad-live-row .pad-mute-button {
   border-color: rgba(255, 95, 86, 0.44);
   color: var(--muted);
@@ -3596,7 +3609,7 @@ body.stage-mode .cue-live-row .icon-button {
 }
 
 body.stage-mode .cue-live-row {
-  grid-template-columns: 84px 84px 84px minmax(0, 1fr);
+  grid-template-columns: repeat(4, 84px) minmax(0, 1fr);
 }
 
 body.stage-mode .xfade-live-row {
@@ -3760,10 +3773,19 @@ body.stage-mode .pad-alerts {
     grid-template-columns: minmax(0, 1fr) max-content;
   }
 
-  .board-area,
+  .board-area {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .live-tools {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
   .master-strip {
     grid-column: 1;
-    grid-row: auto;
+    grid-row: 4;
   }
 
   body.stage-mode .board-area,
@@ -3797,6 +3819,19 @@ body.stage-mode .pad-alerts {
   .board-area,
   .master-strip {
     grid-column: 1;
+  }
+
+  .board-area {
+    grid-row: 2;
+  }
+
+  .live-tools {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .master-strip {
+    grid-row: 4;
   }
 
   body.stage-mode .board-area,
@@ -3950,9 +3985,21 @@ body.stage-mode .pad-alerts {
     grid-column: 1;
   }
 
+  .board-area,
+  body.stage-mode .board-area {
+    grid-row: 2;
+  }
+
+  .live-tools,
+  body.stage-mode .live-tools {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
   .master-strip,
   body.stage-mode .master-strip {
     grid-column: 2;
+    grid-row: 2 / 4;
     min-width: 0;
     width: 100%;
     justify-self: stretch;
@@ -4235,14 +4282,17 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .live-tools {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+    grid-column: 1;
+    grid-row: 3;
   }
 
   .cue-live-row {
-    grid-template-columns: 34px 34px 34px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(4, 34px) minmax(0, 1fr);
+    gap: 8px;
   }
 
   .cue-editor-button,
+  .cue-run-button,
   .cue-window-button,
   .xfade-live-row .icon-button {
     width: 34px;
@@ -4257,6 +4307,10 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     height: 34px;
     min-height: 34px;
     padding: 0 8px;
+  }
+
+  .xfade-live-row {
+    gap: 5px;
   }
 
   .cue-row {
@@ -4296,10 +4350,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .pad-shortcut {
-    display: none !important;
-  }
-
-  body.stage-mode .pad-audio-button {
     display: none !important;
   }
 
@@ -4627,18 +4677,20 @@ body.stage-mode .secondary-live-group {
   }
 
   body.stage-mode .cue-live-row {
-    grid-template-columns: 68px 68px 68px minmax(0, 1fr) !important;
+    grid-template-columns: repeat(4, 60px) minmax(0, 1fr) !important;
+    gap: 9px !important;
   }
 
   body.stage-mode .cue-live-row .icon-button {
-    width: 68px !important;
-    height: 68px !important;
-    min-width: 68px !important;
-    min-height: 68px !important;
+    width: 60px !important;
+    height: 60px !important;
+    min-width: 60px !important;
+    min-height: 60px !important;
   }
 
   body.stage-mode .xfade-live-row {
     grid-template-columns: repeat(3, 34px) !important;
+    gap: 5px !important;
   }
 
   body.stage-mode .xfade-live-row .icon-button,
@@ -4676,21 +4728,21 @@ body.stage-mode .secondary-live-group {
   body.stage-mode .master-strip {
     --master-stop-size: 62px !important;
     grid-column: 1 !important;
-    grid-row: 3 !important;
+    grid-row: 4 !important;
     width: 100% !important;
     justify-self: stretch !important;
   }
 
   body.stage-mode .live-tools {
     grid-column: 1 !important;
-    grid-row: 4 !important;
+    grid-row: 3 !important;
     width: 100% !important;
     max-width: 100% !important;
     justify-self: stretch !important;
   }
 
   body.stage-mode .cue-live-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     width: 100% !important;
   }
 

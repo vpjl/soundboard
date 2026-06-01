@@ -106,6 +106,7 @@ const state = {
   cueWaitTimer: null,
   cueRunning: false,
   cuePreviewAudio: null,
+  cuePreviewPad: null,
   cuePreviewUrl: "",
 };
 
@@ -309,6 +310,7 @@ const els = {
   padRows: document.querySelector("#padRows"),
   cueEditor: document.querySelector("#cueEditor"),
   openCueDialog: document.querySelector("#openCueDialog"),
+  cueRun: document.querySelector("#cueRun"),
   cueNext: document.querySelector("#cueNext"),
   cueStatus: document.querySelector("#cueStatus"),
   cueDialog: document.querySelector("#cueDialog"),
@@ -917,6 +919,7 @@ function makePad(index) {
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.muteEl = node.querySelector('[data-action="mute"]');
   pad.cueButton = node.querySelector('[data-action="cue-preview"]');
+  pad.cueButton?.setAttribute("aria-pressed", "false");
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
@@ -1407,6 +1410,7 @@ function clearCueWaitTimer() {
     state.cueWaitTimer = null;
   }
   if (els.cueNext) els.cueNext.disabled = false;
+  if (els.cueRun) els.cueRun.disabled = false;
 }
 
 function syncCueControls() {
@@ -1423,7 +1427,9 @@ function syncCueControls() {
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   els.cueEditor?.setAttribute("title", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
-  if (els.cueNext) els.cueNext.disabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
+  const cueActionDisabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
+  if (els.cueRun) els.cueRun.disabled = cueActionDisabled;
+  if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues;
   if (els.cueStatus) {
     els.cueStatus.textContent = !cuesEnabled
@@ -1780,7 +1786,7 @@ function checkCueConditions(endedPad = null) {
   if (board?.cuesEnabled === false || !board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
   const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
   if (!cueConditionMet(step, endedPad)) return;
-  runNextCue({ automatic: true }).catch(() => setStatus("Cue condition impossible"));
+  runCurrentCue({ automatic: true }).catch(() => setStatus("Cue condition impossible"));
 }
 
 async function executeCueStep(step) {
@@ -1811,7 +1817,25 @@ async function executeCueStep(step) {
   }
 }
 
-async function runNextCue(options = {}) {
+function advanceCuePosition() {
+  const board = currentBoard();
+  if (board?.cuesEnabled === false) {
+    setStatus("Cues désactivées");
+    syncCueControls();
+    return;
+  }
+  if (!board?.cues?.length) {
+    setStatus("Aucune cue");
+    syncCueControls();
+    return;
+  }
+  clearCueWaitTimer();
+  board.cueIndex = (cueIndexForBoard(board) + 1) % board.cues.length;
+  saveBoards();
+  syncCueControls();
+}
+
+async function runCurrentCue(options = {}) {
   const board = currentBoard();
   if (board?.cuesEnabled === false) {
     setStatus("Cues désactivées");
@@ -1831,7 +1855,9 @@ async function runNextCue(options = {}) {
   try {
     if (options.automatic) setStatus("Cue condition");
     await executeCueStep(step);
-    board.cueIndex = board.cues.length ? (index + 1) % board.cues.length : 0;
+    if (options.advance !== false) {
+      board.cueIndex = board.cues.length ? (index + 1) % board.cues.length : 0;
+    }
     saveBoards();
     syncCueControls();
   } finally {
@@ -3661,6 +3687,12 @@ function stopCuePreview() {
     state.cuePreviewAudio.removeAttribute("src");
     state.cuePreviewAudio = null;
   }
+  if (state.cuePreviewPad) {
+    state.cuePreviewPad.node?.classList.remove("is-cue-previewing");
+    state.cuePreviewPad.cueButton?.classList.remove("is-active");
+    state.cuePreviewPad.cueButton?.setAttribute("aria-pressed", "false");
+    state.cuePreviewPad = null;
+  }
   if (state.cuePreviewUrl) {
     URL.revokeObjectURL(state.cuePreviewUrl);
     state.cuePreviewUrl = "";
@@ -3668,6 +3700,11 @@ function stopCuePreview() {
 }
 
 async function previewPadCue(pad) {
+  if (state.cuePreviewAudio && state.cuePreviewPad === pad) {
+    stopCuePreview();
+    setStatus(`Cue arrêtée: ${pad.title}`);
+    return;
+  }
   if (!pad?.buffer) {
     setStatus(`Pré-écoute impossible: son manquant sur ${pad?.title || "pad"}`);
     return;
@@ -3698,7 +3735,11 @@ async function previewPadCue(pad) {
     await audio.setSinkId(output.deviceId);
     audio.addEventListener("ended", stopCuePreview, { once: true });
     state.cuePreviewAudio = audio;
+    state.cuePreviewPad = pad;
     state.cuePreviewUrl = url;
+    pad.node?.classList.add("is-cue-previewing");
+    pad.cueButton?.classList.add("is-active");
+    pad.cueButton?.setAttribute("aria-pressed", "true");
     await audio.play();
     setStatus(`Cue: ${pad.title}`);
   } catch (error) {
@@ -6194,11 +6235,14 @@ async function init() {
     setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
   });
   els.openCueDialog?.addEventListener("click", openCueDialog);
-  els.cueNext?.addEventListener("click", () => {
-    runNextCue().catch(() => {
+  els.cueRun?.addEventListener("click", () => {
+    runCurrentCue().catch(() => {
       clearCueWaitTimer();
       setStatus("Cue impossible");
     });
+  });
+  els.cueNext?.addEventListener("click", () => {
+    advanceCuePosition();
   });
   els.addCueStep?.addEventListener("click", () => {
     cueDraft().push(normalizeCueStep({ action: "playPad", target: "" }));
