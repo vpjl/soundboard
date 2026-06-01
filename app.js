@@ -17,6 +17,7 @@ const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const SKIN_STORAGE = "soundboard-live-skin";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
+const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
 const DEFAULT_BOARD_ID = "default";
@@ -104,6 +105,8 @@ const state = {
   cueDragIndex: -1,
   cueWaitTimer: null,
   cueRunning: false,
+  cuePreviewAudio: null,
+  cuePreviewUrl: "",
 };
 
 const els = {
@@ -139,6 +142,7 @@ const els = {
   stopGroup: document.querySelector("#stopGroup"),
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
   stageMode: document.querySelector("#stageMode"),
+  stageLock: document.querySelector("#stageLock"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
@@ -289,6 +293,7 @@ const els = {
   bulkEndStartTarget: document.querySelector("#bulkEndStartTarget"),
   saveVersion: document.querySelector("#saveVersion"),
   restoreVersion: document.querySelector("#restoreVersion"),
+  renameVersion: document.querySelector("#renameVersion"),
   versionSelect: document.querySelector("#versionSelect"),
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
@@ -911,6 +916,7 @@ function makePad(index) {
   pad.loopEl = node.querySelector('[data-action="loop"]');
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.muteEl = node.querySelector('[data-action="mute"]');
+  pad.cueButton = node.querySelector('[data-action="cue-preview"]');
   pad.dragHandle = node.querySelector('[data-action="drag"]');
   pad.duplicateButton = node.querySelector('[data-action="duplicate-pad"]');
   pad.colorButtons = [...node.querySelectorAll("[data-color]")];
@@ -1041,6 +1047,10 @@ function makePad(index) {
   node.querySelector('[data-action="audio"]').addEventListener("click", (event) => {
     stopEvent(event);
     openAudioDialog(pad);
+  });
+  pad.cueButton?.addEventListener("click", (event) => {
+    stopEvent(event);
+    previewPadCue(pad).catch(() => setStatus("Pré-écoute impossible"));
   });
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -2433,7 +2443,7 @@ function boardNoticeHtml() {
 </head>
 <body>
   <h1>Notice du board : ${escapeHtml(board.name)}</h1>
-  <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live vl (c) 2026.</p>
+  <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live · vincent lainé (c) 2026.</p>
   <h2>Board</h2>
   <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""} et ${soundCount} son${soundCount > 1 ? "s" : ""} différent${soundCount > 1 ? "s" : ""}. ${escapeHtml(boardAudioNotice())}.</p>
   <h2>Pads</h2>
@@ -2768,6 +2778,11 @@ async function saveBoardVersion() {
   setStatus(`Version sauvegardee: ${board.name}`);
 }
 
+function versionOptionLabel(snapshot, index) {
+  const label = String(snapshot?.label || "").trim() || formatVersionLabel(snapshot?.savedAt);
+  return `${index + 1}. ${label}`;
+}
+
 async function refreshVersionOptions(selectedId = "") {
   if (!els.versionSelect || !state.db) return;
   const board = currentBoard();
@@ -2776,10 +2791,28 @@ async function refreshVersionOptions(selectedId = "") {
   history.slice(0, HISTORY_LIMIT).forEach((snapshot, index) => {
     const option = document.createElement("option");
     option.value = snapshot.id;
-    option.textContent = `${index + 1}. ${formatVersionLabel(snapshot.savedAt)}`;
+    option.textContent = versionOptionLabel(snapshot, index);
     els.versionSelect.append(option);
   });
   els.versionSelect.value = history.some((snapshot) => snapshot.id === selectedId) ? selectedId : "";
+}
+
+async function renameSelectedBoardVersion() {
+  const board = currentBoard();
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const selectedId = els.versionSelect?.value;
+  const snapshot = history.find((item) => item.id === selectedId);
+  if (!snapshot) {
+    setStatus("Choisir une version");
+    return;
+  }
+  const currentLabel = String(snapshot.label || formatVersionLabel(snapshot.savedAt));
+  const nextLabel = window.prompt("Nom de la version", currentLabel);
+  if (nextLabel == null) return;
+  snapshot.label = nextLabel.trim() || formatVersionLabel(snapshot.savedAt);
+  await dbSet(boardHistoryKey(board.id), history);
+  await refreshVersionOptions(snapshot.id);
+  setStatus(`Version renommee: ${snapshot.label}`);
 }
 
 async function restoreSelectedBoardVersion() {
@@ -3354,6 +3387,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   setPadDuration(pad, buffer.duration);
   renderWaveform(pad);
   pad.node.classList.remove("is-empty");
+  pad.node.classList.remove("is-missing-audio");
   await dbSet(padAudioKey(pad), {
     uid: pad.uid,
     name,
@@ -3529,6 +3563,9 @@ async function restorePad(pad) {
   const rawSaved = await dbGet(padAudioKey(pad));
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   if (!saved?.audio) {
+    const missingAudio = Boolean(meta?.audioPath || rawSaved?.name || rawSaved?.path);
+    pad.node.classList.toggle("is-missing-audio", missingAudio);
+    if (missingAudio) setStatus(`Son manquant: ${pad.title}`);
     if (!meta?.uid) await savePadMeta(pad);
     if (document.body.dataset.skin === "visual") revealGalleryPads(false);
     return;
@@ -3596,6 +3633,7 @@ async function restorePad(pad) {
   pad.panEl.value = pad.panValue;
   updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
+  pad.node.classList.remove("is-missing-audio");
   if (!meta?.uid && !saved.uid) await savePadMeta(pad);
   if (document.body.dataset.skin === "visual") revealGalleryPads(false);
 }
@@ -3615,6 +3653,58 @@ async function resolvePadAudioRecord(pad, meta, saved) {
     type: saved?.type || referenced.type,
     audioRefIndex: refIndex,
   };
+}
+
+function stopCuePreview() {
+  if (state.cuePreviewAudio) {
+    state.cuePreviewAudio.pause();
+    state.cuePreviewAudio.removeAttribute("src");
+    state.cuePreviewAudio = null;
+  }
+  if (state.cuePreviewUrl) {
+    URL.revokeObjectURL(state.cuePreviewUrl);
+    state.cuePreviewUrl = "";
+  }
+}
+
+async function previewPadCue(pad) {
+  if (!pad?.buffer) {
+    setStatus(`Pré-écoute impossible: son manquant sur ${pad?.title || "pad"}`);
+    return;
+  }
+  const audioPrototype = window.HTMLMediaElement?.prototype;
+  if (!audioPrototype || typeof audioPrototype.setSinkId !== "function") {
+    setStatus("Pré-écoute casque indisponible dans ce navigateur");
+    return;
+  }
+  if (!navigator.mediaDevices?.selectAudioOutput) {
+    setStatus("Choix de sortie audio indisponible dans ce navigateur");
+    return;
+  }
+
+  const saved = await resolvePadAudioRecord(pad, await dbGet(padMetaKey(pad)), await dbGet(padAudioKey(pad)));
+  if (!saved?.audio) {
+    pad.node.classList.add("is-missing-audio");
+    setStatus(`Son manquant: ${pad.title}`);
+    return;
+  }
+
+  try {
+    const output = await navigator.mediaDevices.selectAudioOutput();
+    stopCuePreview();
+    const blob = new Blob([saved.audio.slice(0)], { type: saved.type || "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    await audio.setSinkId(output.deviceId);
+    audio.addEventListener("ended", stopCuePreview, { once: true });
+    state.cuePreviewAudio = audio;
+    state.cuePreviewUrl = url;
+    await audio.play();
+    setStatus(`Cue: ${pad.title}`);
+  } catch (error) {
+    stopCuePreview();
+    setStatus(error?.name === "NotAllowedError" ? "Pré-écoute annulée" : "Pré-écoute impossible");
+  }
 }
 
 async function savePadMeta(pad) {
@@ -3681,6 +3771,47 @@ function setStatus(text) {
   els.status.textContent = text;
 }
 
+function stageLockSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STAGE_LOCK_STORAGE) || "{}");
+    return {
+      enabled: Boolean(saved.enabled && saved.password),
+      password: String(saved.password || ""),
+    };
+  } catch {
+    return { enabled: false, password: "" };
+  }
+}
+
+function updateStageLockUi() {
+  const lock = stageLockSettings();
+  els.stageLock?.classList.toggle("is-active", lock.enabled);
+  els.stageLock?.setAttribute("aria-pressed", String(lock.enabled));
+  els.stageLock?.setAttribute("aria-label", lock.enabled ? "Déverrouiller le mode scène" : "Verrouiller le mode scène");
+  els.stageLock?.setAttribute("title", lock.enabled ? "Déverrouiller le mode scène" : "Verrouiller le mode scène");
+}
+
+function toggleStageLock() {
+  const lock = stageLockSettings();
+  if (!lock.enabled) {
+    const password = window.prompt("Mot de passe pour verrouiller le mode scène");
+    if (!password) return;
+    localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: true, password }));
+    updateStageLockUi();
+    setStatus("Mode scène verrouillé");
+    return;
+  }
+
+  const password = window.prompt("Mot de passe pour déverrouiller le mode scène");
+  if (password !== lock.password) {
+    setStatus("Mot de passe incorrect");
+    return;
+  }
+  localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: false, password: "" }));
+  updateStageLockUi();
+  setStatus("Mode scène déverrouillé");
+}
+
 function syncHoverLabels(root = document) {
   root.querySelectorAll("button[aria-label], [role='button'][aria-label]").forEach((button) => {
     if (!button.getAttribute("title")) {
@@ -3689,7 +3820,15 @@ function syncHoverLabels(root = document) {
   });
 }
 
-function setStageMode(enabled, requestFullscreen = false) {
+function setStageMode(enabled, requestFullscreen = false, options = {}) {
+  const lock = stageLockSettings();
+  if (!enabled && state.stageMode && lock.enabled && !options.skipLock) {
+    const password = window.prompt("Mot de passe mode scène");
+    if (password !== lock.password) {
+      setStatus("Mode scène verrouillé");
+      return;
+    }
+  }
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
   els.stageMode?.classList.toggle("is-active", state.stageMode);
@@ -5614,6 +5753,12 @@ function reversedBufferForPad(pad) {
 
 async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (!pad.buffer) {
+    if (pad.audioName || pad.audioPath) {
+      pad.node.classList.add("is-missing-audio");
+      setStatus(`Son manquant: ${pad.title}`);
+    } else {
+      setStatus(`Importer un son: ${pad.title}`);
+    }
     pad.fileInput.click();
     return;
   }
@@ -5940,6 +6085,7 @@ async function init() {
   await renderPads();
   await repairAccidentalPadTitles();
   setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
+  updateStageLockUi();
   updateMasterOptionBadges();
   syncHoverLabels();
 
@@ -6012,6 +6158,7 @@ async function init() {
   els.stageMode?.addEventListener("click", () => {
     setStageMode(!state.stageMode, true);
   });
+  els.stageLock?.addEventListener("click", toggleStageLock);
   els.editPads?.addEventListener("click", () => {
     if (state.boardEditMode) {
       setBoardPadEditing(false);
@@ -6108,6 +6255,9 @@ async function init() {
   });
   els.restoreVersion?.addEventListener("click", () => {
     restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible"));
+  });
+  els.renameVersion?.addEventListener("click", () => {
+    renameSelectedBoardVersion().catch(() => setStatus("Renommage impossible"));
   });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));

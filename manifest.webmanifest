@@ -1,6 +1,6 @@
 {
-  "name": "Soundboard Live vl (c) 2026",
-  "short_name": "Soundboard vl",
+  "name": "Soundboard Live",
+  "short_name": "Soundboard",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#101114",
