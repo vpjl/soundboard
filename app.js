@@ -2577,6 +2577,28 @@ function arrayBufferToBase64(buffer) {
   return btoa(parts.join(""));
 }
 
+async function audioSourceToBase64(audio) {
+  if (!audio) return "";
+  if (audio instanceof ArrayBuffer) return arrayBufferToBase64(audio);
+  if (ArrayBuffer.isView(audio)) {
+    return arrayBufferToBase64(audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength));
+  }
+  if (typeof Blob !== "undefined" && audio instanceof Blob) {
+    return arrayBufferToBase64(await audio.arrayBuffer());
+  }
+  return "";
+}
+
+async function audioRecordForExport(record, dataKey = "audio") {
+  if (!record?.audio) return null;
+  const data = await audioSourceToBase64(record.audio);
+  if (!data) return null;
+  return {
+    ...record,
+    [dataKey]: data,
+  };
+}
+
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -2661,10 +2683,15 @@ function revealGalleryPads(save = true) {
 }
 
 async function shareOrDownloadBoard(blob, filename, boardName) {
-  const file = new File([blob], filename, { type: "application/json" });
+  let file = null;
+  try {
+    file = new File([blob], filename, { type: "application/json" });
+  } catch {
+    file = null;
+  }
   const preferShareSheet = shouldPreferShareSheetForExport();
 
-  if (preferShareSheet && await tryShareBoardFile(file, boardName)) return;
+  if (preferShareSheet && file && await tryShareBoardFile(file, boardName)) return;
 
   if (window.showSaveFilePicker) {
     try {
@@ -2689,7 +2716,7 @@ async function shareOrDownloadBoard(blob, filename, boardName) {
     }
   }
 
-  if (!preferShareSheet && await tryShareBoardFile(file, boardName)) return;
+  if (!preferShareSheet && file && await tryShareBoardFile(file, boardName)) return;
 
   setStatus("Export par telechargement");
 
@@ -2711,7 +2738,11 @@ function shouldPreferShareSheetForExport() {
 
 async function tryShareBoardFile(file, boardName) {
   if (!navigator.share) return false;
-  if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+  try {
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+  } catch {
+    return false;
+  }
   try {
     setStatus("Choisir Fichiers, iCloud Drive ou Dropbox");
     await navigator.share({
@@ -2827,7 +2858,7 @@ function versionOptionLabel(snapshot, index) {
   return `${index + 1}. ${label}`;
 }
 
-function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
+async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
   if (!snapshot) return null;
   return {
     id: snapshot.id || createId(),
@@ -2838,20 +2869,15 @@ function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
       cues: normalizeCues(snapshot.board?.cues),
     },
     pads: Array.isArray(snapshot.pads)
-      ? snapshot.pads.map((item) => {
+      ? await Promise.all(snapshot.pads.map(async (item) => {
         const savedAudio = item?.audio;
-        const audio = includeAudio && savedAudio?.audio
-          ? {
-            ...savedAudio,
-            audio: arrayBufferToBase64(savedAudio.audio),
-          }
-          : null;
+        const audio = includeAudio ? await audioRecordForExport(savedAudio, "audio") : null;
         return {
           index: Number(item?.index) || 0,
           meta: item?.meta || null,
           audio,
         };
-      })
+      }))
       : [],
   };
 }
@@ -2950,6 +2976,7 @@ async function exportCurrentBoard(includeAudio = true) {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const resolvedAudio = includeAudio ? await resolvePadAudioRecord(pad, meta, saved) : null;
+    const exportAudio = includeAudio ? await audioRecordForExport(resolvedAudio, "data") : null;
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
@@ -2997,12 +3024,12 @@ async function exportCurrentBoard(includeAudio = true) {
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audioRefIndex: Number.isInteger(audioRef) ? audioRef : null,
-      audio: includeAudio && resolvedAudio?.audio ? {
+      audio: exportAudio ? {
         name: resolvedAudio.name || saved?.name || `Pad ${index + 1}`,
         path: resolvedAudio.path || saved?.path || meta?.audioPath || resolvedAudio.name || `Pad ${index + 1}`,
         pathTrusted: Boolean(resolvedAudio.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
         type: resolvedAudio.type || saved?.type || "audio/mpeg",
-        data: arrayBufferToBase64(resolvedAudio.audio),
+        data: exportAudio.data,
       } : null,
     });
   }
@@ -3027,9 +3054,9 @@ async function exportCurrentBoard(includeAudio = true) {
         key: normalizeShortcutKey(shortcut.key),
         padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
       })),
-      versions: history
+      versions: (await Promise.all(history
         .slice(0, HISTORY_LIMIT)
-        .map((snapshot) => serializeBoardSnapshotForExport(snapshot, includeAudio))
+        .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
         .filter(Boolean),
       pads,
     },
