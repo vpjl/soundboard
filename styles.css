@@ -2656,6 +2656,10 @@ body[data-skin="contrast"] .color-field {
   width: min(620px, calc(100vw - 24px));
 }
 
+.folder-import-panel .dialog-actions {
+  justify-content: flex-start;
+}
+
 .folder-import-list {
   display: grid;
   gap: 8px;

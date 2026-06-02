@@ -71,6 +71,8 @@ const state = {
   masterEqLow: null,
   masterEqMid: null,
   masterEqHigh: null,
+  masterOutputDestination: null,
+  masterOutputAudio: null,
   masterMeterData: null,
   crossfadeDucks: new Map(),
   crossfadeDuckTimers: new Map(),
@@ -971,17 +973,78 @@ function prepareAudio() {
     state.masterAnalyser
       .connect(state.masterEqLow)
       .connect(state.masterEqMid)
-      .connect(state.masterEqHigh)
-      .connect(state.audioContext.destination);
+      .connect(state.masterEqHigh);
     applyStoredMasterOutput().catch(() => {});
     applyMasterReverb();
     applyMasterEq();
   }
 }
 
+function masterOutputCanUseElementSink() {
+  const audio = document.createElement("audio");
+  return typeof audio.setSinkId === "function";
+}
+
+function ensureMasterOutputAudioElement() {
+  if (state.masterOutputAudio) return state.masterOutputAudio;
+  const audio = document.createElement("audio");
+  audio.autoplay = true;
+  audio.playsInline = true;
+  audio.setAttribute("aria-hidden", "true");
+  audio.style.display = "none";
+  document.body.appendChild(audio);
+  state.masterOutputAudio = audio;
+  return audio;
+}
+
+function disconnectMasterFinalOutput() {
+  if (!state.masterEqHigh) return;
+  try {
+    state.masterEqHigh.disconnect();
+  } catch {
+    // Already disconnected.
+  }
+}
+
+function connectMasterDirectOutput() {
+  if (!state.audioContext || !state.masterEqHigh) return false;
+  disconnectMasterFinalOutput();
+  state.masterOutputDestination = null;
+  if (state.masterOutputAudio) {
+    state.masterOutputAudio.pause();
+    state.masterOutputAudio.srcObject = null;
+  }
+  state.masterEqHigh.connect(state.audioContext.destination);
+  return true;
+}
+
+async function connectMasterStreamOutput(deviceId) {
+  if (!state.audioContext || !state.masterEqHigh || !deviceId || !masterOutputCanUseElementSink()) return false;
+  const audio = ensureMasterOutputAudioElement();
+  const destination = state.audioContext.createMediaStreamDestination();
+  disconnectMasterFinalOutput();
+  state.masterOutputDestination = destination;
+  state.masterEqHigh.connect(destination);
+  audio.srcObject = destination.stream;
+  try {
+    await audio.setSinkId(deviceId);
+    await audio.play();
+    return true;
+  } catch (error) {
+    connectMasterDirectOutput();
+    throw error;
+  }
+}
+
 async function applyStoredMasterOutput() {
-  if (!state.audioContext || !state.masterOutputDeviceId) return false;
-  if (typeof state.audioContext.setSinkId !== "function") return false;
+  if (!state.audioContext || !state.masterEqHigh) return false;
+  if (!state.masterOutputDeviceId) return connectMasterDirectOutput();
+  if (await connectMasterStreamOutput(state.masterOutputDeviceId)) return true;
+  if (typeof state.audioContext.setSinkId !== "function") {
+    connectMasterDirectOutput();
+    return false;
+  }
+  connectMasterDirectOutput();
   await state.audioContext.setSinkId(state.masterOutputDeviceId);
   return true;
 }
@@ -4632,12 +4695,8 @@ async function selectMasterOutput() {
   await ensureAudio();
   const output = await navigator.mediaDevices.selectAudioOutput();
   saveMasterOutput(output.deviceId, output.label || "sortie master");
-  if (typeof state.audioContext?.setSinkId === "function") {
-    await state.audioContext.setSinkId(output.deviceId);
-    setStatus(`Sortie master: ${state.masterOutputLabel}`);
-  } else {
-    setStatus(`Sortie master mémorisée: ${state.masterOutputLabel}`);
-  }
+  const routed = await applyStoredMasterOutput();
+  setStatus(routed ? `Sortie master: ${state.masterOutputLabel}` : `Sortie master mémorisée: ${state.masterOutputLabel}`);
   return true;
 }
 
