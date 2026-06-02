@@ -20,6 +20,8 @@ const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
+const CUE_OUTPUT_STORAGE = "soundboard-live-cue-output";
+const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
@@ -110,6 +112,9 @@ const state = {
   cuePreviewPad: null,
   cuePreviewUrl: "",
   cueOutputDeviceId: "",
+  cueOutputLabel: "standard",
+  masterOutputDeviceId: "",
+  masterOutputLabel: "standard",
   audioDialogStartedPad: null,
   audioDialogStartedCue: null,
   transferPad: null,
@@ -124,11 +129,14 @@ const els = {
   masterVolumeValue: document.querySelector("#masterVolumeValue"),
   masterVu: document.querySelector("#masterVu"),
   masterAudio: document.querySelector("#masterAudio"),
+  masterOutputName: document.querySelector("#masterOutputName"),
   masterAudioDialog: document.querySelector("#masterAudioDialog"),
   closeMasterAudio: document.querySelector("#closeMasterAudio"),
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
+  masterAudioOutputName: document.querySelector("#masterAudioOutputName"),
+  masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
@@ -167,11 +175,14 @@ const els = {
   cancelAudio: document.querySelector("#cancelAudio"),
   audioPadName: document.querySelector("#audioPadName"),
   audioFilePath: document.querySelector("#audioFilePath"),
+  audioCueOutputName: document.querySelector("#audioCueOutputName"),
   audioTestPlay: document.querySelector("#audioTestPlay"),
   audioTestStop: document.querySelector("#audioTestStop"),
   audioCuePreview: document.querySelector("#audioCuePreview"),
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
+  audioVideoImport: document.querySelector("#audioVideoImport"),
+  audioVideoFile: document.querySelector("#audioVideoFile"),
   audioReset: document.querySelector("#audioReset"),
   audioOptionBadges: document.querySelector("#audioOptionBadges"),
   audioWaveform: document.querySelector("#audioWaveform"),
@@ -389,6 +400,68 @@ function normalizedFileStem(value) {
   return fileStem(value).toLocaleLowerCase("fr");
 }
 
+function outputLabel(value) {
+  return String(value || "").trim() || "standard";
+}
+
+function escapeText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
+
+function updateOutputLabels() {
+  const cueText = `Cue : ${outputLabel(state.cueOutputLabel)}`;
+  const masterText = `Sortie : ${outputLabel(state.masterOutputLabel)}`;
+  if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
+  if (els.masterOutputName) els.masterOutputName.textContent = masterText;
+  if (els.masterAudioOutputName) els.masterAudioOutputName.textContent = masterText;
+}
+
+function loadOutputSettings() {
+  try {
+    const cue = JSON.parse(localStorage.getItem(CUE_OUTPUT_STORAGE) || "{}");
+    state.cueOutputDeviceId = String(cue.deviceId || "");
+    state.cueOutputLabel = outputLabel(cue.label);
+  } catch {
+    state.cueOutputDeviceId = "";
+    state.cueOutputLabel = "standard";
+  }
+  try {
+    const master = JSON.parse(localStorage.getItem(MASTER_OUTPUT_STORAGE) || "{}");
+    state.masterOutputDeviceId = String(master.deviceId || "");
+    state.masterOutputLabel = outputLabel(master.label);
+  } catch {
+    state.masterOutputDeviceId = "";
+    state.masterOutputLabel = "standard";
+  }
+  updateOutputLabels();
+}
+
+function saveCueOutput(deviceId, label) {
+  state.cueOutputDeviceId = String(deviceId || "");
+  state.cueOutputLabel = outputLabel(label);
+  localStorage.setItem(CUE_OUTPUT_STORAGE, JSON.stringify({
+    deviceId: state.cueOutputDeviceId,
+    label: state.cueOutputLabel,
+  }));
+  updateOutputLabels();
+}
+
+function saveMasterOutput(deviceId, label) {
+  state.masterOutputDeviceId = String(deviceId || "");
+  state.masterOutputLabel = outputLabel(label);
+  localStorage.setItem(MASTER_OUTPUT_STORAGE, JSON.stringify({
+    deviceId: state.masterOutputDeviceId,
+    label: state.masterOutputLabel,
+  }));
+  updateOutputLabels();
+}
+
 function bindEscapeClose(dialog, closeAction = null) {
   dialog?.addEventListener("cancel", (event) => {
     event.preventDefault();
@@ -461,6 +534,7 @@ function formatSampleRate(sampleRate = 0) {
 }
 
 function audioCharacteristics(pad) {
+  if (pad?.videoName) return `Vidéo · ${pad.videoName}${pad.videoDuration ? ` · ${formatTime(pad.videoDuration)}` : ""}`;
   if (!pad?.buffer) return "Aucun fichier";
   const channels = pad.buffer.numberOfChannels === 1 ? "mono" : "stéréo";
   return `${audioFileType(pad)} · ${channels} · ${formatTime(pad.buffer.duration)} · ${formatSampleRate(pad.buffer.sampleRate)}`;
@@ -878,9 +952,17 @@ function prepareAudio() {
       .connect(state.masterEqMid)
       .connect(state.masterEqHigh)
       .connect(state.audioContext.destination);
+    applyStoredMasterOutput().catch(() => {});
     applyMasterReverb();
     applyMasterEq();
   }
+}
+
+async function applyStoredMasterOutput() {
+  if (!state.audioContext || !state.masterOutputDeviceId) return false;
+  if (typeof state.audioContext.setSinkId !== "function") return false;
+  await state.audioContext.setSinkId(state.masterOutputDeviceId);
+  return true;
 }
 
 async function ensureAudio() {
@@ -908,6 +990,13 @@ function makePad(index) {
     audioName: "",
     audioPath: "",
     audioPathTrusted: false,
+    videoName: "",
+    videoPath: "",
+    videoType: "",
+    videoDuration: 0,
+    videoWindow: null,
+    videoUrl: "",
+    videoTimer: null,
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -2682,6 +2771,19 @@ async function audioRecordForExport(record, dataKey = "audio") {
   };
 }
 
+async function videoRecordForExport(record) {
+  if (!record?.video) return null;
+  const data = await audioSourceToBase64(record.video);
+  if (!data) return null;
+  return {
+    name: record.videoName || record.name || "video.mp4",
+    path: record.videoPath || record.path || record.videoName || "video.mp4",
+    type: record.videoType || record.type || "video/mp4",
+    duration: Number(record.videoDuration) || 0,
+    data,
+  };
+}
+
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -3077,6 +3179,7 @@ async function exportCurrentBoard(includeAudio = true) {
     const saved = await dbGet(padAudioKey(pad));
     const audioInfo = await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio ? await audioRecordForExport(audioInfo, "data") : null;
+    const exportVideo = includeAudio ? await videoRecordForExport(saved) : null;
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
@@ -3130,6 +3233,13 @@ async function exportCurrentBoard(includeAudio = true) {
         pathTrusted: Boolean(audioInfo?.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
         type: audioInfo?.type || saved?.type || "audio/mpeg",
         data: exportAudio?.data || "",
+      } : null,
+      video: (exportVideo || saved?.videoName || meta?.videoName || meta?.videoPath) ? {
+        name: exportVideo?.name || saved?.videoName || meta?.videoName || `Pad ${index + 1}`,
+        path: exportVideo?.path || saved?.videoPath || meta?.videoPath || saved?.videoName || meta?.videoName || `Pad ${index + 1}`,
+        type: exportVideo?.type || saved?.videoType || meta?.videoType || "video/mp4",
+        duration: exportVideo?.duration ?? saved?.videoDuration ?? meta?.videoDuration ?? 0,
+        data: exportVideo?.data || "",
       } : null,
     });
   }
@@ -3260,6 +3370,10 @@ async function importBoardFile(file) {
       audioName: item.audio?.name || item.audioName || "",
       audioPath: item.audio?.path || item.audioPath || item.audio?.name || "",
       audioPathTrusted: Boolean(item.audio?.pathTrusted || item.audioPathTrusted),
+      videoName: item.video?.name || item.videoName || "",
+      videoPath: item.video?.path || item.videoPath || item.video?.name || "",
+      videoType: item.video?.type || item.videoType || "",
+      videoDuration: item.video?.duration ?? item.videoDuration ?? 0,
       visualPositionX: item.visualPositionX ?? 50,
       visualPositionY: item.visualPositionY ?? 50,
       visualZoom: item.visualZoom ?? 1,
@@ -3301,6 +3415,22 @@ async function importBoardFile(file) {
         type: item.audio.type || "audio/mpeg",
         ...meta,
       });
+    }
+    if (item.video?.data) {
+      try {
+        await dbSet(padAudioKey(transientPad), {
+          ...(await dbGet(padAudioKey(transientPad)) || {}),
+          uid: meta.uid,
+          title: meta.title,
+          video: base64ToArrayBuffer(item.video.data),
+          videoName: item.video.name || meta.videoName || meta.title,
+          videoPath: item.video.path || meta.videoPath || item.video.name || meta.title,
+          videoType: item.video.type || meta.videoType || "video/mp4",
+          videoDuration: Number(item.video.duration || meta.videoDuration) || 0,
+        });
+      } catch {
+        audioFailures += 1;
+      }
     }
   }
 
@@ -3821,6 +3951,59 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   setStatus(`${pad.title} charge - norm ${pad.normalizedGain.toFixed(2)}x`);
 }
 
+function videoDurationFromBlob(blob) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const video = document.createElement("video");
+    const cleanup = () => URL.revokeObjectURL(url);
+    video.preload = "metadata";
+    video.addEventListener("loadedmetadata", () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      cleanup();
+      resolve(duration);
+    }, { once: true });
+    video.addEventListener("error", () => {
+      cleanup();
+      resolve(0);
+    }, { once: true });
+    video.src = url;
+  });
+}
+
+async function loadVideoIntoPad(pad, file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const exposedPath = file.path || file.webkitRelativePath || "";
+  const blob = new Blob([arrayBuffer.slice(0)], { type: file.type || "video/mp4" });
+  const duration = await videoDurationFromBlob(blob);
+  stopPad(pad, false, false, { triggerEnd: false });
+  pad.buffer = null;
+  pad.audioName = "";
+  pad.audioPath = "";
+  pad.audioType = "";
+  pad.audioRefIndex = null;
+  pad.waveformPeaks = [];
+  pad.videoName = file.name;
+  pad.videoPath = exposedPath || file.name;
+  pad.videoType = file.type || "video/mp4";
+  pad.videoDuration = duration;
+  setPadTitle(pad, cleanName(file.name));
+  setPadDuration(pad, duration);
+  renderWaveform(pad);
+  pad.node.classList.remove("is-empty", "is-missing-audio");
+  await dbSet(padAudioKey(pad), {
+    uid: pad.uid,
+    title: pad.title,
+    video: arrayBuffer,
+    videoName: pad.videoName,
+    videoPath: pad.videoPath,
+    videoType: pad.videoType,
+    videoDuration: pad.videoDuration,
+  });
+  await savePadMeta(pad);
+  if (state.audioPad === pad) syncAudioDialog(pad);
+  setStatus(`Vidéo liée: ${pad.title}`);
+}
+
 function audioFilesFromSelection(files) {
   return [...(files || [])].filter((file) => (
     file?.type?.startsWith("audio/")
@@ -4021,6 +4204,22 @@ async function restorePad(pad) {
   }
 
   const rawSaved = await dbGet(padAudioKey(pad));
+  if (rawSaved?.video) {
+    pad.videoName = rawSaved.videoName || rawSaved.name || "";
+    pad.videoPath = meta?.videoPath || rawSaved.videoPath || rawSaved.path || pad.videoName;
+    pad.videoType = rawSaved.videoType || rawSaved.type || "video/mp4";
+    pad.videoDuration = Number(rawSaved.videoDuration || meta?.videoDuration) || 0;
+    pad.buffer = null;
+    pad.audioName = "";
+    pad.audioPath = "";
+    pad.audioType = "";
+    setPadTitle(pad, meta?.title || rawSaved.title || cleanName(pad.videoName || `Pad ${pad.index + 1}`));
+    setPadDuration(pad, pad.videoDuration);
+    pad.node.classList.remove("is-empty", "is-missing-audio");
+    if (!meta?.uid && !rawSaved.uid) await savePadMeta(pad);
+    if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    return;
+  }
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   if (!saved?.audio) {
     const missingAudio = Boolean(
@@ -4149,13 +4348,32 @@ async function selectCueOutput() {
   const audio = document.createElement("audio");
   const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
   if (!canSelectOutput) {
-    state.cueOutputDeviceId = "";
+    saveCueOutput("", "standard");
     setStatus("Sortie Cue séparée indisponible dans ce navigateur");
     return false;
   }
   const output = await navigator.mediaDevices.selectAudioOutput();
-  state.cueOutputDeviceId = output.deviceId;
-  setStatus("Sortie Cue sélectionnée");
+  saveCueOutput(output.deviceId, output.label || "sortie Cue");
+  setStatus(`Sortie Cue: ${state.cueOutputLabel}`);
+  return true;
+}
+
+async function selectMasterOutput() {
+  if (!navigator.mediaDevices?.selectAudioOutput) {
+    saveMasterOutput("", "standard");
+    setStatus("Choix de sortie master indisponible dans ce navigateur");
+    return false;
+  }
+  await ensureAudio();
+  if (typeof state.audioContext?.setSinkId !== "function") {
+    saveMasterOutput("", "standard");
+    setStatus("Sortie master séparée indisponible dans ce navigateur");
+    return false;
+  }
+  const output = await navigator.mediaDevices.selectAudioOutput();
+  await state.audioContext.setSinkId(output.deviceId);
+  saveMasterOutput(output.deviceId, output.label || "sortie master");
+  setStatus(`Sortie master: ${state.masterOutputLabel}`);
   return true;
 }
 
@@ -4188,7 +4406,7 @@ async function previewPadCue(pad, options = {}) {
     if (!outputDeviceId && canSelectOutput && options.selectOutput !== false) {
       const output = await navigator.mediaDevices.selectAudioOutput();
       outputDeviceId = output.deviceId;
-      state.cueOutputDeviceId = outputDeviceId;
+      saveCueOutput(output.deviceId, output.label || "sortie Cue");
     }
     if (outputDeviceId && typeof audio.setSinkId === "function") {
       await audio.setSinkId(outputDeviceId);
@@ -4272,6 +4490,10 @@ async function savePadMeta(pad) {
     audioName: pad.audioName,
     audioPath: pad.audioPath,
     audioPathTrusted: pad.audioPathTrusted,
+    videoName: pad.videoName,
+    videoPath: pad.videoPath,
+    videoType: pad.videoType,
+    videoDuration: pad.videoDuration,
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
@@ -4494,7 +4716,7 @@ function updatePadModeButtons(pad) {
   pad.modeButtons?.forEach((button) => {
     const buttonMode = button.dataset.mode;
     const active = buttonMode === pad.playMode || (buttonMode === "oneshot" && pad.playMode === "hold");
-    button.classList.toggle("is-active", Boolean(pad.source && active));
+    button.classList.toggle("is-active", Boolean((pad.source || pad.videoWindow) && active));
   });
 }
 
@@ -5155,6 +5377,7 @@ function syncAudioDialog(pad = state.audioPad) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
   if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
+  updateOutputLabels();
   if (els.audioNormalize) els.audioNormalize.checked = pad.normalizeEnabled;
   if (els.audioNormalizeValue) els.audioNormalizeValue.textContent = `${pad.normalizedGain.toFixed(2)}x`;
   if (els.audioMono) {
@@ -6237,6 +6460,83 @@ function connectPadEq(pad, input, output) {
   pad.eqNodes = { low, mid, high };
 }
 
+function clearVideoProjection(pad, triggerEnd = false) {
+  if (!pad) return;
+  if (pad.videoTimer) {
+    window.clearTimeout(pad.videoTimer);
+    pad.videoTimer = null;
+  }
+  if (pad.videoWindow && !pad.videoWindow.closed) {
+    try {
+      pad.videoWindow.close();
+    } catch {}
+  }
+  pad.videoWindow = null;
+  if (pad.videoUrl) {
+    URL.revokeObjectURL(pad.videoUrl);
+    pad.videoUrl = "";
+  }
+  pad.startedAt = 0;
+  pad.stopAt = 0;
+  pad.node.classList.remove("is-playing");
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  if (triggerEnd) {
+    executeEndCrossfade(pad);
+    checkCueConditions(pad);
+  }
+}
+
+async function playPadVideo(pad, options = {}) {
+  const record = await dbGet(padAudioKey(pad));
+  if (!record?.video) {
+    pad.node.classList.add("is-missing-audio");
+    setStatus(`Vidéo manquante: ${pad.title}`);
+    return;
+  }
+  if (!options.skipStartCrossfade) executeStartCrossfade(pad);
+  clearVideoProjection(pad, false);
+  const blob = new Blob([record.video.slice(0)], { type: record.videoType || pad.videoType || "video/mp4" });
+  const url = URL.createObjectURL(blob);
+  const projection = window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+  if (!projection) {
+    URL.revokeObjectURL(url);
+    setStatus("Projection vidéo bloquée par le navigateur");
+    return;
+  }
+  const title = escapeText(pad.title || record.videoName || "Video");
+  projection.document.open();
+  projection.document.write(`<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+video{width:100%;height:100%;object-fit:contain;background:#000}
+.label{position:fixed;left:14px;bottom:12px;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.58);font-size:13px;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<video src="${url}" autoplay controls playsinline></video>
+<div class="label">${title}</div>
+</body>
+</html>`);
+  projection.document.close();
+  pad.videoWindow = projection;
+  pad.videoUrl = url;
+  state.lastStartedPad = pad;
+  pad.startedAt = performance.now() / 1000;
+  pad.node.classList.add("is-playing");
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  startTimer();
+  if (pad.videoDuration > 0) {
+    pad.videoTimer = window.setTimeout(() => clearVideoProjection(pad, true), pad.videoDuration * 1000);
+  }
+  setStatus(`Projection vidéo: ${pad.title}`);
+}
+
 function clearPlayingPad(pad, source, triggerEnd = false) {
   if (source && pad.source !== source) return;
   pad.source = null;
@@ -6279,6 +6579,10 @@ function reversedBufferForPad(pad) {
 }
 
 async function playPad(pad, fade = false, offset = 0, options = {}) {
+  if (pad.videoName) {
+    await playPadVideo(pad, options);
+    return;
+  }
   if (!pad.buffer) {
     if (pad.audioName || pad.audioPath) {
       pad.node.classList.add("is-missing-audio");
@@ -6374,6 +6678,11 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 }
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
+  if (pad?.videoWindow || pad?.videoUrl || pad?.videoTimer) {
+    clearVideoProjection(pad, options.triggerEnd ?? true);
+    setStatus(`${pad.title} stop`);
+    return;
+  }
   const wasMuted = Boolean(pad?.muted);
   if (!pad.source || !state.audioContext) {
     clearPadMuteState(pad);
@@ -6427,6 +6736,10 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
 }
 
 function remainingSeconds(pad) {
+  if (pad.videoName && pad.node.classList.contains("is-playing") && pad.videoDuration) {
+    const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
+    return Math.max(0, pad.videoDuration - elapsed);
+  }
   if (!pad.source || !state.audioContext || !pad.duration) return playableDuration(pad);
   const elapsed = Math.max(0, (state.audioContext.currentTime - pad.startedAt) * pad.speedRate);
   if (pad.loop) {
@@ -6479,7 +6792,7 @@ function startTimer() {
   const tick = () => {
     state.pads.forEach(updatePadTime);
     updateMeters();
-    state.timerFrame = state.pads.some((pad) => pad.source)
+    state.timerFrame = state.pads.some((pad) => pad.source || pad.videoWindow)
       ? requestAnimationFrame(tick)
       : null;
     if (!state.timerFrame) updateMeters();
@@ -6520,7 +6833,7 @@ function bindPerformanceTouchGuards() {
 }
 
 function togglePad(pad) {
-  if (pad.source) {
+  if (pad.source || pad.videoWindow) {
     stopPad(pad, false, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
@@ -6539,7 +6852,7 @@ function stopGroup() {
     setStatus("Choisir un groupe");
     return;
   }
-  const pads = state.pads.filter((pad) => pad.source && padTagList(pad).includes(tag));
+  const pads = state.pads.filter((pad) => (pad.source || pad.videoWindow) && padTagList(pad).includes(tag));
   pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
   setStatus(pads.length ? `Groupe ${tag} stoppé` : `Aucun pad joue: ${tag}`);
 }
@@ -6591,6 +6904,7 @@ function bindKeyboard() {
 
 async function init() {
   state.db = await openDb();
+  loadOutputSettings();
   applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
@@ -6913,6 +7227,9 @@ async function init() {
     els.masterAudioDialog?.close();
   });
   els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
+  els.masterOutputSelect?.addEventListener("click", () => {
+    selectMasterOutput().catch(() => setStatus("Sortie master impossible"));
+  });
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) {
       restoreMasterAudioDraft();
@@ -6971,6 +7288,16 @@ async function init() {
   });
   els.audioImport?.addEventListener("click", () => {
     if (state.audioPad) state.audioPad.fileInput?.click();
+  });
+  els.audioVideoImport?.addEventListener("click", () => {
+    if (state.audioPad) els.audioVideoFile?.click();
+  });
+  els.audioVideoFile?.addEventListener("change", () => {
+    const file = els.audioVideoFile.files?.[0];
+    if (file && state.audioPad) {
+      loadVideoIntoPad(state.audioPad, file).catch(() => setStatus("Import vidéo impossible"));
+      els.audioVideoFile.value = "";
+    }
   });
   els.audioReset?.addEventListener("click", resetAudioDialogSettings);
   els.audioNormalize?.addEventListener("change", () => {

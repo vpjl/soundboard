@@ -443,11 +443,12 @@ body.board-edit-mode .board-edit-actions {
   --master-stop-panel-height: 112px;
   display: grid;
   grid-template-columns: minmax(76px, 88px) 22px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto auto auto;
   grid-template-areas:
     "title title title title"
     "master vu . stop"
     "master vu . group"
+    "output output output output"
     "audio badges badges badges";
   gap: 10px;
   align-items: start;
@@ -461,6 +462,18 @@ body.board-edit-mode .board-edit-actions {
   justify-self: end;
   grid-column: 2;
   grid-row: 2;
+}
+
+.master-output-name {
+  grid-area: output;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board-area {
@@ -3055,6 +3068,15 @@ body[data-skin="contrast"] .color-field {
   display: block;
   min-width: 0;
   font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.audio-output-name {
+  display: block;
+  min-width: 0;
+  color: var(--accent-2);
+  font-size: 0.74rem;
+  font-weight: 800;
   overflow-wrap: anywhere;
 }
 

@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=145">
+    <link rel="stylesheet" href="styles.css?v=146">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v145</p>
+            <p id="audioStatus">Pret pour la scene · v146</p>
           </div>
         </div>
 
@@ -249,6 +249,7 @@
               <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
             </svg>
           </button>
+          <span id="masterOutputName" class="master-output-name">Sortie : standard</span>
           <label class="master-control group-stop-control">
             <span>Stop groupé</span>
             <span class="group-stop-row">
@@ -1003,9 +1004,15 @@
         <div class="audio-head">
           <div>
             <h2 id="audioTitle">audio (pad)</h2>
-            <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span></p>
+            <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span><span id="audioCueOutputName" class="audio-output-name">Cue : standard</span></p>
           </div>
           <div class="audio-head-actions">
+            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Choisir la sortie Cue">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button id="audioTestPlay" class="icon-button" type="button" aria-label="Tester le son, sortie Cue si sélectionnée">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
@@ -1014,12 +1021,6 @@
             <button id="audioTestStop" class="icon-button" type="button" aria-label="Stop test">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-              </svg>
-            </button>
-            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Choisir la sortie Cue">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
             <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
@@ -1031,6 +1032,12 @@
             <button id="audioImport" class="icon-button" type="button" aria-label="Importer un fichier audio">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="audioVideoImport" class="icon-button" type="button" aria-label="Lier une vidéo au pad">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
               </svg>
             </button>
             <button id="audioReset" class="icon-button" type="button" aria-label="Reset audio">
@@ -1190,12 +1197,21 @@
         <div class="audio-head">
           <div>
             <h2 id="masterAudioTitle">audio (master)</h2>
+            <p><span id="masterAudioOutputName" class="audio-output-name">Sortie : standard</span></p>
           </div>
-          <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+          <div class="audio-head-actions">
+            <button id="masterOutputSelect" class="icon-button" type="button" aria-label="Choisir la sortie audio globale">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M16 7h5M19 4l3 3-3 3M16 17h5M19 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="audio-sections">
           <section class="audio-section master-fade-section" aria-label="Fade master">
@@ -1496,6 +1512,8 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=145"></script>
+    <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
+
+    <script src="app.js?v=146"></script>
   </body>
 </html>
