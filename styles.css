@@ -1803,6 +1803,10 @@ body.board-edit-mode .board-action-grid #addBoard {
   display: grid;
 }
 
+body.board-edit-mode.shortcuts-disabled .board-action-grid .keyboard-shortcuts-button {
+  opacity: 0.42;
+}
+
 body.board-edit-mode .board-action-grid .show-cables-button,
 body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .stage-button,

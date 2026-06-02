@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=147">
+    <link rel="stylesheet" href="styles.css?v=148">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v147</p>
+            <p id="audioStatus">Pret pour la scene · v148</p>
           </div>
         </div>
 
@@ -66,6 +66,12 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   <path d="M8 10h5M8 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="archiveVersion" class="icon-button board-history-button" type="button" aria-label="Archiver ou désarchiver la version sélectionnée">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               <select id="versionSelect" class="version-select board-history-button" aria-label="Version à restaurer">
@@ -711,13 +717,19 @@
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Restaure la version sélectionnée (max 4 versions).</dd>
+                </dt><dd>Restaure la version sélectionnée (max 8 versions, hors archives).</dd>
                 <dt aria-label="Renommer une version">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M8 10h5M8 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Renomme la version sélectionnée.</dd>
+                <dt aria-label="Archiver une version">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Archive une version pour éviter son remplacement automatique.</dd>
               </dl>
             </section>
 
@@ -1516,6 +1528,6 @@
 
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
 
-    <script src="app.js?v=147"></script>
+    <script src="app.js?v=148"></script>
   </body>
 </html>

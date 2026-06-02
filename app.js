@@ -25,7 +25,7 @@ const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
-const HISTORY_LIMIT = 4;
+const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
   white: "#f7f7f2",
   lightGrey: "#c7ccd4",
@@ -318,6 +318,7 @@ const els = {
   saveVersion: document.querySelector("#saveVersion"),
   restoreVersion: document.querySelector("#restoreVersion"),
   renameVersion: document.querySelector("#renameVersion"),
+  archiveVersion: document.querySelector("#archiveVersion"),
   versionSelect: document.querySelector("#versionSelect"),
   deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
@@ -673,7 +674,8 @@ function normalizeShortcutKey(value) {
 
 function loadShortcutsForCurrentBoard() {
   const key = boardShortcutsKey(state.currentBoardId);
-  state.shortcutsEnabled = localStorage.getItem(boardShortcutsEnabledKey(state.currentBoardId)) !== "off";
+  const enabledSetting = localStorage.getItem(boardShortcutsEnabledKey(state.currentBoardId));
+  state.shortcutsEnabled = enabledSetting == null ? !isPortableDevice() : enabledSetting !== "off";
   if (els.shortcutEnabled) els.shortcutEnabled.checked = state.shortcutsEnabled;
   const defaults = defaultShortcuts();
   try {
@@ -818,12 +820,14 @@ function renderShortcutRows() {
 }
 
 function updateShortcutIndicators() {
+  document.body.classList.toggle("shortcuts-disabled", !state.shortcutsEnabled);
   state.pads.forEach((pad) => {
     const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
     if (!pad.shortcutEl) return;
-    pad.shortcutEl.classList.toggle("is-number", !state.shortcutsEnabled);
-    pad.shortcutEl.textContent = state.shortcutsEnabled ? (shortcut?.key || "") : String(pad.index + 1);
-    pad.shortcutEl.hidden = state.shortcutsEnabled && !shortcut?.key;
+    const showNumber = !state.shortcutsEnabled || isPortableDevice();
+    pad.shortcutEl.classList.toggle("is-number", showNumber);
+    pad.shortcutEl.textContent = showNumber ? String(pad.index + 1) : (shortcut?.key || "");
+    pad.shortcutEl.hidden = !showNumber && !shortcut?.key;
   });
 }
 
@@ -3036,14 +3040,30 @@ async function saveBoardVersion() {
   const snapshot = await createBoardSnapshot(board);
   const history = await dbGet(boardHistoryKey(board.id)) || [];
   history.unshift(snapshot);
-  await dbSet(boardHistoryKey(board.id), history.slice(0, HISTORY_LIMIT));
+  await dbSet(boardHistoryKey(board.id), pruneVersionHistory(history));
   await refreshVersionOptions(snapshot.id);
   setStatus(`Version sauvegardee: ${board.name}`);
 }
 
+function pruneVersionHistory(history = []) {
+  const kept = [];
+  let regularCount = 0;
+  history.forEach((snapshot) => {
+    if (snapshot?.archived) {
+      kept.push(snapshot);
+      return;
+    }
+    if (regularCount < HISTORY_LIMIT) {
+      kept.push(snapshot);
+      regularCount += 1;
+    }
+  });
+  return kept;
+}
+
 function versionOptionLabel(snapshot, index) {
   const label = String(snapshot?.label || "").trim() || formatVersionLabel(snapshot?.savedAt);
-  return `${index + 1}. ${label}`;
+  return `${index + 1}. ${snapshot?.archived ? "[archive] " : ""}${label}`;
 }
 
 async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
@@ -3051,6 +3071,7 @@ async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
   return {
     id: snapshot.id || createId(),
     label: snapshot.label || "",
+    archived: Boolean(snapshot.archived),
     savedAt: snapshot.savedAt || new Date().toISOString(),
     board: {
       ...(snapshot.board || {}),
@@ -3076,6 +3097,7 @@ function deserializeBoardSnapshotFromExport(snapshot) {
   return {
     id: snapshot.id || createId(),
     label: snapshot.label || "",
+    archived: Boolean(snapshot.archived),
     savedAt: snapshot.savedAt || new Date().toISOString(),
     board: {
       ...(snapshot.board || {}),
@@ -3118,7 +3140,8 @@ async function refreshVersionOptions(selectedId = "") {
   if (!els.versionSelect || !state.db) return;
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
-  const visibleHistory = history.slice(0, HISTORY_LIMIT);
+  const visibleHistory = pruneVersionHistory(history);
+  if (visibleHistory.length !== history.length) await dbSet(boardHistoryKey(board.id), visibleHistory);
   const effectiveSelectedId = selectedId || visibleHistory[0]?.id || "";
   els.versionSelect.innerHTML = '<option value="">Versions</option>';
   visibleHistory.forEach((snapshot, index) => {
@@ -3146,6 +3169,22 @@ async function renameSelectedBoardVersion() {
   await dbSet(boardHistoryKey(board.id), history);
   await refreshVersionOptions(snapshot.id);
   setStatus(`Version renommee: ${snapshot.label}`);
+}
+
+async function toggleSelectedBoardVersionArchive() {
+  const board = currentBoard();
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const selectedId = els.versionSelect?.value;
+  const snapshot = history.find((item) => item.id === selectedId);
+  if (!snapshot) {
+    setStatus("Choisir une version");
+    return;
+  }
+  snapshot.archived = !snapshot.archived;
+  const nextHistory = pruneVersionHistory(history);
+  await dbSet(boardHistoryKey(board.id), nextHistory);
+  await refreshVersionOptions(snapshot.id);
+  setStatus(snapshot.archived ? "Version archivee" : "Version desarchivee");
 }
 
 async function restoreSelectedBoardVersion() {
@@ -3267,8 +3306,7 @@ async function exportCurrentBoard(includeAudio = true) {
         key: normalizeShortcutKey(shortcut.key),
         padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
       })),
-      versions: (await Promise.all(history
-        .slice(0, HISTORY_LIMIT)
+      versions: (await Promise.all(pruneVersionHistory(history)
         .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
         .filter(Boolean),
       pads,
@@ -3457,15 +3495,15 @@ async function importBoardFile(file) {
 
   const importedVersions = (Array.isArray(payload.board.versions) ? payload.board.versions : payload.versions || [])
     .map(deserializeBoardSnapshotFromExport)
-    .filter(Boolean)
-    .slice(0, HISTORY_LIMIT);
-  await hydrateImportedVersionAudio(importedVersions, importedBoard.id);
-  if (importedVersions.length) {
-    await dbSet(boardHistoryKey(importedBoard.id), importedVersions);
+    .filter(Boolean);
+  const prunedImportedVersions = pruneVersionHistory(importedVersions);
+  await hydrateImportedVersionAudio(prunedImportedVersions, importedBoard.id);
+  if (prunedImportedVersions.length) {
+    await dbSet(boardHistoryKey(importedBoard.id), prunedImportedVersions);
   }
 
   await renderPads();
-  await refreshVersionOptions(importedVersions[0]?.id || "");
+  await refreshVersionOptions(prunedImportedVersions[0]?.id || "");
   setStatus(audioFailures
     ? `${importedBoard.name} importe (${audioFailures} audio ignore${audioFailures > 1 ? "s" : ""})`
     : `${importedBoard.name} importe`);
@@ -4916,6 +4954,7 @@ function fillCrossfadeTargetSelect(select, selectedValue = "") {
   } else {
     select.value = "";
   }
+  select.selectedIndex = Math.max(0, select.selectedIndex);
 }
 
 function refreshCrossfadeTargetOptions() {
@@ -5464,6 +5503,18 @@ function fillAudioCrossfadeControls(pad = state.audioPad) {
   }
   fillCrossfadeTargetSelect(els.audioStartStopTarget, pad.startStopMode === "none" ? "" : pad.startStopTag);
   fillCrossfadeTargetSelect(els.audioEndStartTarget, pad.endStartMode === "none" ? "" : pad.endStartTarget);
+}
+
+function commitAudioDialogCrossfade() {
+  if (!state.audioPad) return;
+  const startMode = els.audioStartStopMode?.value || "none";
+  const endMode = els.audioEndStartMode?.value || "none";
+  setPadCrossfade(state.audioPad, {
+    startStopMode: startMode,
+    startStopTag: startMode === "none" ? "" : (els.audioStartStopTarget?.value || ""),
+    endStartMode: endMode,
+    endStartTarget: endMode === "none" ? "" : (els.audioEndStartTarget?.value || ""),
+  });
 }
 
 function openAudioDialog(pad) {
@@ -6973,7 +7024,8 @@ function bindPerformanceTouchGuards() {
 
 function togglePad(pad) {
   if (isPadPlaying(pad)) {
-    stopPad(pad, false, pad.playMode === "toggle");
+    const preservePosition = pad.playMode === "toggle";
+    stopPad(pad, false, preservePosition, { triggerEnd: !preservePosition });
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
     playPad(pad, fadeDurationForPad(pad, "in") > 0, offset);
@@ -7080,6 +7132,7 @@ async function init() {
   els.showCables?.addEventListener("click", () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+    updateShortcutIndicators();
   });
   window.addEventListener("resize", () => {
     state.pads.forEach(renderWaveform);
@@ -7269,6 +7322,16 @@ async function init() {
       })
       .catch(() => setStatus("Renommage impossible"));
   });
+  els.archiveVersion?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const wasEditing = state.boardEditMode;
+    toggleSelectedBoardVersionArchive()
+      .then(() => {
+        if (!wasEditing && state.boardEditMode) setBoardPadEditing(false);
+      })
+      .catch(() => setStatus("Archivage impossible"));
+  });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
@@ -7336,7 +7399,10 @@ async function init() {
     els.audioDialog?.close();
   });
   els.applyAudio?.addEventListener("click", () => {
-    if (state.audioPad) savePadMeta(state.audioPad);
+    if (state.audioPad) {
+      commitAudioDialogCrossfade();
+      savePadMeta(state.audioPad);
+    }
     state.audioDraft = null;
     stopAudioDialogStartedPlayback();
     els.audioDialog?.close();
@@ -7559,19 +7625,16 @@ async function init() {
       savePadMeta(state.audioPad);
     });
   });
+  const handleAudioCrossfadeChange = () => {
+    if (!state.audioPad) return;
+    if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";
+    if (els.audioEndStartMode?.value === "none" && els.audioEndStartTarget) els.audioEndStartTarget.value = "";
+    commitAudioDialogCrossfade();
+    savePadMeta(state.audioPad);
+  };
   [els.audioStartStopMode, els.audioStartStopTarget, els.audioEndStartMode, els.audioEndStartTarget].forEach((element) => {
-    element?.addEventListener("input", () => {
-      if (!state.audioPad) return;
-      if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";
-      if (els.audioEndStartMode?.value === "none" && els.audioEndStartTarget) els.audioEndStartTarget.value = "";
-      setPadCrossfade(state.audioPad, {
-        startStopMode: els.audioStartStopMode?.value,
-        startStopTag: els.audioStartStopTarget?.value,
-        endStartMode: els.audioEndStartMode?.value,
-        endStartTarget: els.audioEndStartTarget?.value,
-      });
-      savePadMeta(state.audioPad);
-    });
+    element?.addEventListener("input", handleAudioCrossfadeChange);
+    element?.addEventListener("change", handleAudioCrossfadeChange);
   });
   els.closeImage?.addEventListener("click", () => els.imageDialog?.close());
   els.applyImage?.addEventListener("click", () => {
