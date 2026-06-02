@@ -5539,10 +5539,20 @@ function saveAudioPadFromDialog() {
   savePadMeta(state.audioPad);
 }
 
+function settleNativeSelects() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      window.setTimeout(resolve, 0);
+    });
+  });
+}
+
 function selectedOptionValue(select) {
   if (!select) return "";
+  const value = String(select.value ?? "").trim();
+  if (value || select.selectedIndex >= 0) return value;
   const option = select.selectedOptions?.[0] || select.options?.[select.selectedIndex];
-  return String(option?.value ?? select.value ?? "").trim();
+  return String(option?.value ?? "").trim();
 }
 
 function openAudioDialog(pad) {
@@ -7455,9 +7465,10 @@ async function init() {
     stopAudioDialogStartedPlayback();
     els.audioDialog?.close();
   });
-  els.applyAudio?.addEventListener("click", () => {
+  els.applyAudio?.addEventListener("click", async () => {
     if (state.audioPad) {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      await settleNativeSelects();
       updateAudioCrossfadeDraftFromControls();
       saveAudioPadFromDialog();
     }
@@ -7690,10 +7701,14 @@ async function init() {
     if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";
     if (els.audioEndStartMode?.value === "none" && els.audioEndStartTarget) els.audioEndStartTarget.value = "";
     updateAudioCrossfadeDraftFromControls();
+    window.setTimeout(() => {
+      if (state.audioPad) updateAudioCrossfadeDraftFromControls();
+    }, 0);
   };
   [els.audioStartStopMode, els.audioStartStopTarget, els.audioEndStartMode, els.audioEndStartTarget].forEach((element) => {
     element?.addEventListener("input", handleAudioCrossfadeChange);
     element?.addEventListener("change", handleAudioCrossfadeChange);
+    element?.addEventListener("blur", handleAudioCrossfadeChange);
   });
   els.closeImage?.addEventListener("click", () => els.imageDialog?.close());
   els.applyImage?.addEventListener("click", () => {
