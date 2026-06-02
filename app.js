@@ -109,6 +109,9 @@ const state = {
   cuePreviewAudio: null,
   cuePreviewPad: null,
   cuePreviewUrl: "",
+  cueOutputDeviceId: "",
+  audioDialogStartedPad: null,
+  audioDialogStartedCue: null,
   transferPad: null,
 };
 
@@ -406,6 +409,7 @@ function closeOpenDialogFromEscape() {
       state.imageDraft = null;
     } },
     { dialog: els.audioDialog, action: () => {
+      stopAudioDialogStartedPlayback();
       restoreAudioDraft();
       state.audioDraft = null;
     } },
@@ -4138,9 +4142,24 @@ function stopCuePreview() {
     URL.revokeObjectURL(state.cuePreviewUrl);
     state.cuePreviewUrl = "";
   }
+  state.audioDialogStartedCue = null;
 }
 
-async function previewPadCue(pad) {
+async function selectCueOutput() {
+  const audio = document.createElement("audio");
+  const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+  if (!canSelectOutput) {
+    state.cueOutputDeviceId = "";
+    setStatus("Sortie Cue séparée indisponible dans ce navigateur");
+    return false;
+  }
+  const output = await navigator.mediaDevices.selectAudioOutput();
+  state.cueOutputDeviceId = output.deviceId;
+  setStatus("Sortie Cue sélectionnée");
+  return true;
+}
+
+async function previewPadCue(pad, options = {}) {
   if (state.cuePreviewAudio && state.cuePreviewPad === pad) {
     stopCuePreview();
     setStatus(`Cue arrêtée: ${pad.title}`);
@@ -4164,16 +4183,22 @@ async function previewPadCue(pad) {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     let cueOutputSelected = false;
+    let outputDeviceId = state.cueOutputDeviceId || "";
     const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
-    if (canSelectOutput) {
+    if (!outputDeviceId && canSelectOutput && options.selectOutput !== false) {
       const output = await navigator.mediaDevices.selectAudioOutput();
-      await audio.setSinkId(output.deviceId);
+      outputDeviceId = output.deviceId;
+      state.cueOutputDeviceId = outputDeviceId;
+    }
+    if (outputDeviceId && typeof audio.setSinkId === "function") {
+      await audio.setSinkId(outputDeviceId);
       cueOutputSelected = true;
     }
     audio.addEventListener("ended", stopCuePreview, { once: true });
     state.cuePreviewAudio = audio;
     state.cuePreviewPad = pad;
     state.cuePreviewUrl = url;
+    if (options.fromAudioDialog) state.audioDialogStartedCue = pad;
     pad.node?.classList.add("is-cue-previewing");
     pad.cueButton?.classList.add("is-active");
     pad.cueButton?.setAttribute("aria-pressed", "true");
@@ -4183,6 +4208,29 @@ async function previewPadCue(pad) {
     stopCuePreview();
     setStatus(error?.name === "NotAllowedError" ? "Pré-écoute annulée" : "Pré-écoute impossible");
   }
+}
+
+function stopAudioDialogStartedPlayback() {
+  if (state.audioDialogStartedCue && state.cuePreviewPad === state.audioDialogStartedCue) {
+    stopCuePreview();
+  }
+  if (state.audioDialogStartedPad) {
+    stopPad(state.audioDialogStartedPad, false);
+  }
+  state.audioDialogStartedPad = null;
+  state.audioDialogStartedCue = null;
+}
+
+async function playAudioDialogTest() {
+  const pad = state.audioPad;
+  if (!pad) return;
+  stopAudioDialogStartedPlayback();
+  if (state.cueOutputDeviceId) {
+    await previewPadCue(pad, { useSavedOutput: true, selectOutput: false, fromAudioDialog: true });
+    return;
+  }
+  state.audioDialogStartedPad = pad;
+  await playPad(pad, false, playbackOffset(pad));
 }
 
 async function savePadMeta(pad) {
@@ -6830,13 +6878,18 @@ async function init() {
   els.helpDialog?.addEventListener("click", (event) => {
     if (event.target === els.helpDialog) els.helpDialog.close();
   });
-  els.closeAudio?.addEventListener("click", () => els.audioDialog?.close());
+  els.closeAudio?.addEventListener("click", () => {
+    stopAudioDialogStartedPlayback();
+    els.audioDialog?.close();
+  });
   els.applyAudio?.addEventListener("click", () => {
     if (state.audioPad) savePadMeta(state.audioPad);
     state.audioDraft = null;
+    stopAudioDialogStartedPlayback();
     els.audioDialog?.close();
   });
   els.cancelAudio?.addEventListener("click", () => {
+    stopAudioDialogStartedPlayback();
     restoreAudioDraft();
     state.audioDraft = null;
     els.audioDialog?.close();
@@ -6897,6 +6950,7 @@ async function init() {
   });
   els.audioDialog?.addEventListener("click", (event) => {
     if (event.target === els.audioDialog) {
+      stopAudioDialogStartedPlayback();
       restoreAudioDraft();
       state.audioDraft = null;
       els.audioDialog.close();
@@ -6904,13 +6958,13 @@ async function init() {
   });
   bindAudioDialogTrim();
   els.audioTestPlay?.addEventListener("click", () => {
-    if (state.audioPad) playPad(state.audioPad, false, playbackOffset(state.audioPad)).catch(() => setStatus("Test audio impossible"));
+    playAudioDialogTest().catch(() => setStatus("Test audio impossible"));
   });
   els.audioTestStop?.addEventListener("click", () => {
-    if (state.audioPad) stopPad(state.audioPad, false);
+    stopAudioDialogStartedPlayback();
   });
   els.audioCuePreview?.addEventListener("click", () => {
-    if (state.audioPad) previewPadCue(state.audioPad).catch(() => setStatus("Test Cue impossible"));
+    selectCueOutput().catch(() => setStatus("Sortie Cue impossible"));
   });
   els.audioRecord?.addEventListener("click", () => {
     if (state.audioPad) toggleRecording(state.audioPad);
@@ -7158,6 +7212,7 @@ async function init() {
     state.transferPad = null;
   });
   bindEscapeClose(els.audioDialog, () => {
+    stopAudioDialogStartedPlayback();
     restoreAudioDraft();
     state.audioDraft = null;
   });

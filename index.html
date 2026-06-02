@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=144">
+    <link rel="stylesheet" href="styles.css?v=145">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v144</p>
+            <p id="audioStatus">Pret pour la scene · v145</p>
           </div>
         </div>
 
@@ -672,7 +672,7 @@
                     <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                     <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Verrouille ou déverrouille la sortie du mode scène avec un mot de passe.</dd>
+                </dt><dd>Dé/verrouille la sortie du mode scène avec un mot de passe.</dd>
                 <dt aria-label="Filtre par tag">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -708,7 +708,7 @@
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Restaure la version sélectionnée dans le menu Versions (max 4 versions).</dd>
+                </dt><dd>Restaure la version sélectionnée (max 4 versions).</dd>
                 <dt aria-label="Renommer une version">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -766,7 +766,7 @@
                     <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
                     <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Associe une touche clavier à un pad et active/désactive les raccourcis.</dd>
+                </dt><dd>Gère les raccourcis clavier pour déclencher les pads.</dd>
                 <dt aria-label="Modification groupée">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -815,7 +815,7 @@
                     <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Pré-écoute le pad sur une sortie séparée si le navigateur le permet.</dd>
+                </dt><dd>Pré-écoute sur une sortie séparée (selon navigateur).</dd>
                 <dt aria-label="Mute demute">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="6" fill="currentColor"/>
@@ -887,7 +887,7 @@
                     <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="8.5" cy="9.5" r="1" fill="currentColor"/>
                   </svg>
-                </dt><dd>Affecte une image, un dessin ou une couleur au pad (skin Basic/Custom).</dd>
+                </dt><dd>Affecte image, dessin ou couleur au pad (skin Basic/Custom).</dd>
                 <dt aria-label="Dupliquer le pad">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -1006,7 +1006,7 @@
             <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span></p>
           </div>
           <div class="audio-head-actions">
-            <button id="audioTestPlay" class="icon-button" type="button" aria-label="Tester le son">
+            <button id="audioTestPlay" class="icon-button" type="button" aria-label="Tester le son, sortie Cue si sélectionnée">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
               </svg>
@@ -1016,7 +1016,7 @@
                 <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
               </svg>
             </button>
-            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Tester en sortie Cue">
+            <button id="audioCuePreview" class="icon-button" type="button" aria-label="Choisir la sortie Cue">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                 <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1496,6 +1496,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=144"></script>
+    <script src="app.js?v=145"></script>
   </body>
 </html>
