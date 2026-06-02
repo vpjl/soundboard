@@ -443,12 +443,11 @@ body.board-edit-mode .board-edit-actions {
   --master-stop-panel-height: 112px;
   display: grid;
   grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
-  grid-template-rows: auto auto auto auto auto;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     "title title title title"
     "master master . stop"
     "master master . group"
-    "output output output output"
     "audio badges badges badges";
   gap: 10px;
   align-items: start;
@@ -465,7 +464,6 @@ body.board-edit-mode .board-edit-actions {
 }
 
 .master-output-name {
-  grid-area: output;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -474,6 +472,28 @@ body.board-edit-mode .board-edit-actions {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.master-volume-stack .master-output-name {
+  align-self: start;
+}
+
+.master-volume-stack .master-output-line {
+  margin-bottom: 5px;
+}
+
+body.no-cue-output .cue-volume-control,
+body.no-cue-output .cue-vu,
+body.no-cue-output .cue-output-line,
+body.no-cue-output #masterCueOutputName,
+body.no-cue-output #masterCueOutputSelect,
+body.no-cue-output #audioCueOutputName,
+body.no-cue-output #audioCuePreview {
+  display: none !important;
+}
+
+body.no-cue-output .master-volume-stack {
+  grid-template-rows: auto 8px auto;
 }
 
 .board-area {
@@ -889,7 +909,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   grid-area: master;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto 8px auto 8px;
+  grid-template-rows: auto 8px auto auto 8px auto;
   gap: 7px;
   align-self: start;
   min-width: 0;

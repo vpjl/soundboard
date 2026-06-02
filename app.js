@@ -140,6 +140,7 @@ const els = {
   cueVu: document.querySelector("#cueVu"),
   masterAudio: document.querySelector("#masterAudio"),
   masterOutputName: document.querySelector("#masterOutputName"),
+  cueOutputName: document.querySelector("#cueOutputName"),
   masterAudioDialog: document.querySelector("#masterAudioDialog"),
   closeMasterAudio: document.querySelector("#closeMasterAudio"),
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
@@ -437,50 +438,43 @@ function escapeText(value) {
 function updateOutputLabels() {
   const cueText = `Cue : ${outputLabel(state.cueOutputLabel)}`;
   const masterText = `Master : ${outputLabel(state.masterOutputLabel)}`;
-  const masterLiveText = `Sortie : ${outputLabel(state.masterOutputLabel)} · Cue : ${outputLabel(state.cueOutputLabel)}`;
+  const masterLiveText = `Sortie : ${outputLabel(state.masterOutputLabel)}`;
   if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
   if (els.masterOutputName) els.masterOutputName.textContent = masterLiveText;
+  if (els.cueOutputName) els.cueOutputName.textContent = cueText;
   if (els.masterAudioOutputName) els.masterAudioOutputName.textContent = masterText;
   if (els.masterCueOutputName) els.masterCueOutputName.textContent = cueText;
 }
 
+function outputSelectionSupported() {
+  const audio = document.createElement("audio");
+  return typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+}
+
+function syncOutputCapabilityUi() {
+  document.body.classList.toggle("no-cue-output", !outputSelectionSupported());
+}
+
 function loadOutputSettings() {
-  try {
-    const cue = JSON.parse(localStorage.getItem(CUE_OUTPUT_STORAGE) || "{}");
-    state.cueOutputDeviceId = String(cue.deviceId || "");
-    state.cueOutputLabel = outputLabel(cue.label);
-  } catch {
-    state.cueOutputDeviceId = "";
-    state.cueOutputLabel = "standard";
-  }
-  try {
-    const master = JSON.parse(localStorage.getItem(MASTER_OUTPUT_STORAGE) || "{}");
-    state.masterOutputDeviceId = String(master.deviceId || "");
-    state.masterOutputLabel = outputLabel(master.label);
-  } catch {
-    state.masterOutputDeviceId = "";
-    state.masterOutputLabel = "standard";
-  }
+  state.cueOutputDeviceId = "";
+  state.cueOutputLabel = "standard";
+  state.masterOutputDeviceId = "";
+  state.masterOutputLabel = "standard";
+  localStorage.removeItem(CUE_OUTPUT_STORAGE);
+  localStorage.removeItem(MASTER_OUTPUT_STORAGE);
+  syncOutputCapabilityUi();
   updateOutputLabels();
 }
 
 function saveCueOutput(deviceId, label) {
   state.cueOutputDeviceId = String(deviceId || "");
   state.cueOutputLabel = outputLabel(label);
-  localStorage.setItem(CUE_OUTPUT_STORAGE, JSON.stringify({
-    deviceId: state.cueOutputDeviceId,
-    label: state.cueOutputLabel,
-  }));
   updateOutputLabels();
 }
 
 function saveMasterOutput(deviceId, label) {
   state.masterOutputDeviceId = String(deviceId || "");
   state.masterOutputLabel = outputLabel(label);
-  localStorage.setItem(MASTER_OUTPUT_STORAGE, JSON.stringify({
-    deviceId: state.masterOutputDeviceId,
-    label: state.masterOutputLabel,
-  }));
   updateOutputLabels();
 }
 
@@ -4696,9 +4690,7 @@ function stopCuePreview() {
 }
 
 async function selectCueOutput() {
-  const audio = document.createElement("audio");
-  const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
-  if (!canSelectOutput) {
+  if (!outputSelectionSupported()) {
     saveCueOutput("", "standard");
     setStatus("Sortie Cue séparée indisponible dans ce navigateur");
     return false;
@@ -4710,9 +4702,7 @@ async function selectCueOutput() {
 }
 
 async function selectMasterOutput() {
-  const probe = document.createElement("audio");
-  const canSelectOutput = typeof probe.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
-  if (!canSelectOutput) {
+  if (!outputSelectionSupported()) {
     saveMasterOutput("", "standard");
     setStatus("Choix de sortie master indisponible dans ce navigateur");
     return false;
@@ -4767,7 +4757,7 @@ async function previewPadCue(pad, options = {}) {
     }
     let cueOutputSelected = false;
     let outputDeviceId = state.cueOutputDeviceId || "";
-    const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+    const canSelectOutput = outputSelectionSupported();
     if (!outputDeviceId && canSelectOutput && options.selectOutput !== false) {
       const output = await navigator.mediaDevices.selectAudioOutput();
       outputDeviceId = output.deviceId;
