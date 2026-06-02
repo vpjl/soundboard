@@ -93,6 +93,7 @@ const state = {
   lastStartedPad: null,
   audioPad: null,
   audioDraft: null,
+  audioCrossfadeDraft: null,
   masterAudioDraft: null,
   audioTrimDrag: null,
   reverbBuffers: {},
@@ -824,6 +825,7 @@ function updateShortcutIndicators() {
   state.pads.forEach((pad) => {
     const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
     if (!pad.shortcutEl) return;
+    pad.shortcutEl.dataset.padNumber = String(pad.index + 1);
     const showNumber = !state.shortcutsEnabled || isPortableDevice();
     pad.shortcutEl.classList.toggle("is-number", showNumber);
     pad.shortcutEl.textContent = showNumber ? String(pad.index + 1) : (shortcut?.key || "");
@@ -2401,23 +2403,19 @@ async function renderPads() {
   state.pads = [];
   els.pads.innerHTML = "";
   const board = currentBoard();
+  const restoreJobs = [];
   for (let index = 0; index < board.padCount; index += 1) {
     const pad = makePad(index);
     state.pads.push(pad);
     els.pads.append(pad.node);
     bindButtonFeedback(pad.node);
-    restorePad(pad)
-      .then(() => {
-        refreshStopGroupOptions();
-        refreshBoardTagFilterOptions();
-        refreshCrossfadeTargetOptions();
-        renderShortcutRows();
-        syncCueControls();
-      })
-      .catch(() => {
+    restoreJobs.push(
+      restorePad(pad).catch(() => {
         pad.node.classList.add("is-empty");
-      });
+      })
+    );
   }
+  await Promise.all(restoreJobs);
   refreshStopGroupOptions();
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
@@ -2846,6 +2844,11 @@ function timestampForFile(date = new Date()) {
 
 function canUseMinimalSkin() {
   return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
+}
+
+function isPortableDevice() {
+  return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches
+    || /Android|iPhone|iPad|iPod|Mobile|FxiOS/i.test(navigator.userAgent || "");
 }
 
 function updateSkinOptions() {
@@ -4916,9 +4919,9 @@ function padMatchesAudioOption(pad, option) {
   return false;
 }
 
-function fillCrossfadeTargetSelect(select, selectedValue = "") {
+function fillCrossfadeTargetSelect(select, selectedValue = null) {
   if (!select) return;
-  const currentValue = String(selectedValue || select.value || "").trim();
+  const currentValue = String(selectedValue == null ? select.value : selectedValue).trim();
   select.innerHTML = '<option value="">Choisir</option>';
 
   const allOption = document.createElement("option");
@@ -5492,29 +5495,42 @@ function syncAudioDialog(pad = state.audioPad) {
 
 function fillAudioCrossfadeControls(pad = state.audioPad) {
   if (!pad) return;
+  const draft = state.audioPad === pad && state.audioCrossfadeDraft
+    ? state.audioCrossfadeDraft
+    : {
+      startStopMode: pad.startStopMode,
+      startStopTag: pad.startStopTag,
+      endStartMode: pad.endStartMode,
+      endStartTarget: pad.endStartTarget,
+    };
   const actionOptions = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="mute">Mute/demute pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
   if (els.audioStartStopMode) {
     els.audioStartStopMode.innerHTML = actionOptions;
-    els.audioStartStopMode.value = pad.startStopMode;
+    els.audioStartStopMode.value = draft.startStopMode || "none";
   }
   if (els.audioEndStartMode) {
     els.audioEndStartMode.innerHTML = actionOptions;
-    els.audioEndStartMode.value = pad.endStartMode;
+    els.audioEndStartMode.value = draft.endStartMode || "none";
   }
-  fillCrossfadeTargetSelect(els.audioStartStopTarget, pad.startStopMode === "none" ? "" : pad.startStopTag);
-  fillCrossfadeTargetSelect(els.audioEndStartTarget, pad.endStartMode === "none" ? "" : pad.endStartTarget);
+  fillCrossfadeTargetSelect(els.audioStartStopTarget, draft.startStopMode === "none" ? "" : draft.startStopTag);
+  fillCrossfadeTargetSelect(els.audioEndStartTarget, draft.endStartMode === "none" ? "" : draft.endStartTarget);
 }
 
-function commitAudioDialogCrossfade() {
-  if (!state.audioPad) return;
+function updateAudioCrossfadeDraftFromControls() {
   const startMode = selectedOptionValue(els.audioStartStopMode) || "none";
   const endMode = selectedOptionValue(els.audioEndStartMode) || "none";
-  setPadCrossfade(state.audioPad, {
+  state.audioCrossfadeDraft = {
     startStopMode: startMode,
     startStopTag: startMode === "none" ? "" : selectedOptionValue(els.audioStartStopTarget),
     endStartMode: endMode,
     endStartTarget: endMode === "none" ? "" : selectedOptionValue(els.audioEndStartTarget),
-  });
+  };
+  return state.audioCrossfadeDraft;
+}
+
+function commitAudioDialogCrossfade() {
+  if (!state.audioPad) return;
+  setPadCrossfade(state.audioPad, state.audioCrossfadeDraft || updateAudioCrossfadeDraftFromControls());
 }
 
 function selectedOptionValue(select) {
@@ -5526,6 +5542,12 @@ function selectedOptionValue(select) {
 function openAudioDialog(pad) {
   state.audioPad = pad;
   state.audioDraft = audioDraftFromPad(pad);
+  state.audioCrossfadeDraft = {
+    startStopMode: pad.startStopMode,
+    startStopTag: pad.startStopTag,
+    endStartMode: pad.endStartMode,
+    endStartTarget: pad.endStartTarget,
+  };
   if (els.applyAudio) els.applyAudio.disabled = false;
   syncAudioDialog(pad);
   if (els.audioDialog?.showModal) {
@@ -5575,6 +5597,7 @@ function restoreAudioDraft() {
   setPadDuckMode(pad, draft.duckMode ?? (draft.duckTrigger ? "global" : "none"), draft.duckPercent ?? duckPercentValue());
   setPadAudioSettings(pad, draft);
   setPadCrossfade(pad, draft);
+  state.audioCrossfadeDraft = null;
   setPadTrim(pad, draft.trimStart, draft.trimEnd);
   if (pad.source) refreshPlayingPadOutput(pad);
   applyDucking();
@@ -6589,7 +6612,9 @@ function fadeVideoVolume(video, fromVolume, toVolume, seconds) {
 }
 
 function isPadPlaying(pad) {
-  return Boolean(pad?.source || (pad?.videoWindow && pad.node.classList.contains("is-playing")));
+  if (pad?.source) return true;
+  const video = videoElementForPad(pad);
+  return Boolean(video && !video.paused && !video.ended);
 }
 
 function markVideoStopped(pad, triggerEnd = false) {
@@ -6706,6 +6731,17 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
     if (!pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
       video.volume = 0;
     }
+    video.addEventListener("play", () => {
+      pad.node.classList.add("is-playing");
+      state.lastStartedPad = pad;
+      pad.startedAt = performance.now() / 1000 - (video.currentTime || 0);
+      updatePadModeButtons(pad);
+      updatePadTime(pad);
+      startTimer();
+    });
+    video.addEventListener("pause", () => {
+      if (!video.ended) markVideoStopped(pad, false);
+    });
     video.addEventListener("ended", () => {
       pad.resumeOffset = 0;
       markVideoStopped(pad, true);
@@ -6713,10 +6749,8 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
   }
   state.lastStartedPad = pad;
   pad.startedAt = performance.now() / 1000;
-  pad.node.classList.add("is-playing");
   updatePadModeButtons(pad);
   updatePadTime(pad);
-  startTimer();
   try {
     await video?.play();
     if (video && !pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
@@ -7412,10 +7446,12 @@ async function init() {
   els.applyAudio?.addEventListener("click", () => {
     if (state.audioPad) {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      updateAudioCrossfadeDraftFromControls();
       commitAudioDialogCrossfade();
       savePadMeta(state.audioPad);
     }
     state.audioDraft = null;
+    state.audioCrossfadeDraft = null;
     stopAudioDialogStartedPlayback();
     els.audioDialog?.close();
   });
@@ -7423,6 +7459,7 @@ async function init() {
     stopAudioDialogStartedPlayback();
     restoreAudioDraft();
     state.audioDraft = null;
+    state.audioCrossfadeDraft = null;
     els.audioDialog?.close();
   });
   els.masterAudio?.addEventListener("click", () => {
@@ -7641,8 +7678,7 @@ async function init() {
     if (!state.audioPad) return;
     if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";
     if (els.audioEndStartMode?.value === "none" && els.audioEndStartTarget) els.audioEndStartTarget.value = "";
-    commitAudioDialogCrossfade();
-    savePadMeta(state.audioPad);
+    updateAudioCrossfadeDraftFromControls();
   };
   [els.audioStartStopMode, els.audioStartStopTarget, els.audioEndStartMode, els.audioEndStartTarget].forEach((element) => {
     element?.addEventListener("input", handleAudioCrossfadeChange);

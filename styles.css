@@ -4625,8 +4625,15 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     width: 42px;
   }
 
-  .pad-shortcut {
-    display: none !important;
+  .pad-shortcut,
+  .pad-shortcut[hidden] {
+    display: inline-grid !important;
+    font-size: 0 !important;
+  }
+
+  .pad-shortcut::after {
+    content: attr(data-pad-number);
+    font-size: 0.72rem;
   }
 
   body.stage-mode .pad-live-row {
