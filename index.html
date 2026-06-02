@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=154">
+    <link rel="stylesheet" href="styles.css?v=155">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v154</p>
+            <p id="audioStatus">Pret pour la scene · v155</p>
           </div>
         </div>
 
@@ -153,7 +153,7 @@
                   <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <button id="relinkAudioFolder" class="icon-button board-transfer-button" type="button" aria-label="Sélectionner un dossier contenant les sons manquants">
+              <button id="relinkAudioFolder" class="icon-button board-transfer-button" type="button" aria-label="Sélectionner un dossier de sons">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   <circle cx="15" cy="14" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -1547,8 +1547,24 @@
       </div>
     </dialog>
 
+    <dialog id="folderImportDialog" class="confirm-dialog" aria-labelledby="folderImportTitle">
+      <div class="confirm-panel folder-import-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="folderImportTitle">Ajouter des sons</h2>
+            <p id="folderImportSummary">Choisir les fichiers à ajouter comme nouveaux pads.</p>
+          </div>
+        </div>
+        <div id="folderImportList" class="folder-import-list" aria-label="Fichiers audio à ajouter"></div>
+        <div class="dialog-actions">
+          <button id="applyFolderImport" class="small-button" type="button">Ajouter</button>
+          <button id="cancelFolderImport" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
 
-    <script src="app.js?v=154"></script>
+    <script src="app.js?v=155"></script>
   </body>
 </html>

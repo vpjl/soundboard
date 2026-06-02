@@ -112,6 +112,7 @@ const state = {
   cuePreviewAudio: null,
   cuePreviewPad: null,
   cuePreviewUrl: "",
+  folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "standard",
   masterOutputDeviceId: "",
@@ -335,6 +336,11 @@ const els = {
   importBoardFile: document.querySelector("#importBoardFile"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
   relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
+  folderImportDialog: document.querySelector("#folderImportDialog"),
+  folderImportList: document.querySelector("#folderImportList"),
+  folderImportSummary: document.querySelector("#folderImportSummary"),
+  applyFolderImport: document.querySelector("#applyFolderImport"),
+  cancelFolderImport: document.querySelector("#cancelFolderImport"),
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
@@ -500,6 +506,9 @@ function closeOpenDialogFromEscape() {
     } },
     { dialog: els.cueDialog, action: () => {
       clearCueDialogDraft();
+    } },
+    { dialog: els.folderImportDialog, action: () => {
+      state.folderImportFiles = [];
     } },
     { dialog: els.padTransferDialog, action: () => {
       state.transferPad = null;
@@ -4131,7 +4140,106 @@ function audioFilesFromSelection(files) {
   return [...(files || [])].filter((file) => (
     file?.type?.startsWith("audio/")
     || AUDIO_FILE_RE.test(file?.name || "")
-  ));
+  )).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
+}
+
+function audioFileIdentity(file) {
+  return [
+    normalizedFileName(file?.webkitRelativePath || file?.name),
+    normalizedFileName(file?.name),
+    normalizedFileStem(file?.name),
+  ].filter(Boolean);
+}
+
+async function boardHasAnyMedia(board = currentBoard()) {
+  for (let index = 0; index < board.padCount; index += 1) {
+    const pad = state.pads.find((item) => item.index === index) || { index };
+    const meta = await dbGet(padMetaKeyFor(board.id, index));
+    const saved = await dbGet(padAudioKeyFor(board.id, index));
+    if (pad.buffer || pad.videoName || saved?.audio || saved?.video || meta?.audioName || meta?.videoName) return true;
+  }
+  return false;
+}
+
+async function fillBlankBoardFromAudioFiles(files) {
+  const board = currentBoard();
+  stopAll();
+  resetRecordingState();
+  const previousPadCount = board.padCount;
+  for (let index = 0; index < previousPadCount; index += 1) {
+    await dbDelete(padMetaKeyFor(board.id, index));
+    await dbDelete(padAudioKeyFor(board.id, index));
+  }
+  board.padCount = Math.max(1, files.length);
+  saveBoards();
+  await renderPads();
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const pad = state.pads[index];
+    const buffer = await file.arrayBuffer();
+    const exposedPath = file.webkitRelativePath || file.path || file.name;
+    await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath));
+  }
+  setBoardPadEditing(false);
+  setStatus(`${files.length} pad${files.length > 1 ? "s" : ""} créé${files.length > 1 ? "s" : ""} depuis le dossier`);
+}
+
+async function addAudioFilesAsNewPads(files) {
+  if (!files.length) return;
+  const board = currentBoard();
+  const startIndex = board.padCount;
+  board.padCount += files.length;
+  saveBoards();
+  await renderPads();
+  for (let offset = 0; offset < files.length; offset += 1) {
+    const pad = state.pads[startIndex + offset];
+    const file = files[offset];
+    const buffer = await file.arrayBuffer();
+    const exposedPath = file.webkitRelativePath || file.path || file.name;
+    await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath));
+  }
+  setBoardPadEditing(false);
+  setStatus(`${files.length} nouveau${files.length > 1 ? "x" : ""} pad${files.length > 1 ? "s" : ""} ajouté${files.length > 1 ? "s" : ""}`);
+}
+
+function openFolderImportDialog(files) {
+  state.folderImportFiles = files;
+  if (!els.folderImportList) return;
+  els.folderImportList.innerHTML = "";
+  if (els.folderImportSummary) {
+    els.folderImportSummary.textContent = `${files.length} fichier${files.length > 1 ? "s" : ""} audio non utilisé${files.length > 1 ? "s" : ""}.`;
+  }
+  files.forEach((file, index) => {
+    const label = document.createElement("label");
+    label.className = "folder-import-item";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = true;
+    checkbox.dataset.folderFileIndex = String(index);
+    const name = document.createElement("span");
+    name.className = "folder-import-name";
+    name.textContent = file.webkitRelativePath || file.name;
+    label.append(checkbox, name);
+    els.folderImportList.append(label);
+  });
+  if (els.folderImportDialog?.showModal) {
+    els.folderImportDialog.showModal();
+  } else {
+    setStatus("Choisir les sons à ajouter");
+  }
+}
+
+async function applyFolderImportSelection() {
+  const selected = [...els.folderImportList?.querySelectorAll("input[type='checkbox']:checked") || []]
+    .map((input) => state.folderImportFiles[Number(input.dataset.folderFileIndex)])
+    .filter(Boolean);
+  state.folderImportFiles = [];
+  els.folderImportDialog?.close();
+  if (!selected.length) {
+    setStatus("Aucun fichier ajouté");
+    return;
+  }
+  await addAudioFilesAsNewPads(selected);
 }
 
 function missingAudioCandidateNames(pad, meta = null, saved = null) {
@@ -4157,9 +4265,14 @@ async function relinkMissingAudioFromFolder(files) {
     return;
   }
 
+  if (!await boardHasAnyMedia()) {
+    await fillBlankBoardFromAudioFiles(audioFiles);
+    return;
+  }
+
   const byName = new Map();
   audioFiles.forEach((file) => {
-    [normalizedFileName(file.name), normalizedFileStem(file.name)].forEach((key) => {
+    audioFileIdentity(file).forEach((key) => {
       if (key && !byName.has(key)) byName.set(key, file);
     });
   });
@@ -4192,7 +4305,23 @@ async function relinkMissingAudioFromFolder(files) {
     linked += 1;
   }
 
-  const unusedFiles = audioFiles.filter((file) => !usedFiles.has(file));
+  const currentAudioKeys = new Set();
+  for (const pad of state.pads) {
+    const saved = await dbGet(padAudioKey(pad));
+    [
+      pad.audioName,
+      pad.audioPath,
+      saved?.name,
+      saved?.path,
+    ].flatMap((value) => [normalizedFileName(value), normalizedFileStem(value)])
+      .filter(Boolean)
+      .forEach((key) => currentAudioKeys.add(key));
+  }
+
+  const unusedFiles = audioFiles.filter((file) => {
+    if (usedFiles.has(file)) return false;
+    return !audioFileIdentity(file).some((key) => currentAudioKeys.has(key));
+  });
   if (unmatchedPads.length && unusedFiles.length === unmatchedPads.length) {
     for (let index = 0; index < unmatchedPads.length; index += 1) {
       const pad = unmatchedPads[index];
@@ -4200,12 +4329,21 @@ async function relinkMissingAudioFromFolder(files) {
       const buffer = await file.arrayBuffer();
       const exposedPath = file.webkitRelativePath || file.path || file.name;
       await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: true });
+      usedFiles.add(file);
       linked += 1;
     }
     missing = 0;
   }
 
+  const remainingNewFiles = unusedFiles.filter((file) => !usedFiles.has(file));
   await persistCurrentPadsForExport();
+  if (remainingNewFiles.length) {
+    openFolderImportDialog(remainingNewFiles);
+    setStatus(linked
+      ? `${linked} son${linked > 1 ? "s" : ""} retrouvé${linked > 1 ? "s" : ""}, nouveaux sons à choisir`
+      : "Nouveaux sons à choisir");
+    return;
+  }
   setBoardPadEditing(false);
   setStatus(linked ? `${linked} son${linked > 1 ? "s" : ""} retrouvé${linked > 1 ? "s" : ""}` : `${missing || "Aucun"} son manquant retrouvé`);
 }
@@ -7551,6 +7689,20 @@ async function init() {
       els.relinkAudioFolderInput.value = "";
     }
   });
+  els.applyFolderImport?.addEventListener("click", () => {
+    applyFolderImportSelection().catch(() => setStatus("Ajout des sons impossible"));
+  });
+  els.cancelFolderImport?.addEventListener("click", () => {
+    state.folderImportFiles = [];
+    els.folderImportDialog?.close();
+    setStatus("Ajout des sons annulé");
+  });
+  els.folderImportDialog?.addEventListener("click", (event) => {
+    if (event.target === els.folderImportDialog) {
+      state.folderImportFiles = [];
+      els.folderImportDialog.close();
+    }
+  });
   els.helpButton?.addEventListener("click", () => {
     if (els.helpDialog?.showModal) {
       els.helpDialog.showModal();
@@ -7919,6 +8071,9 @@ async function init() {
   bindEscapeClose(els.bulkEditDialog);
   bindEscapeClose(els.padTransferDialog, () => {
     state.transferPad = null;
+  });
+  bindEscapeClose(els.folderImportDialog, () => {
+    state.folderImportFiles = [];
   });
   bindEscapeClose(els.audioDialog, () => {
     stopAudioDialogStartedPlayback();

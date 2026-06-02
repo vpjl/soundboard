@@ -2652,6 +2652,40 @@ body[data-skin="contrast"] .color-field {
   font-size: 0.82rem;
 }
 
+.folder-import-panel {
+  width: min(620px, calc(100vw - 24px));
+}
+
+.folder-import-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  padding: 4px 2px;
+}
+
+.folder-import-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.folder-import-item input {
+  width: 18px;
+  height: 18px;
+}
+
+.folder-import-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cue-dialog {
   width: min(1180px, calc(100vw - 24px));
 }
