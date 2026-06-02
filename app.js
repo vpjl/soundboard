@@ -56,6 +56,7 @@ const REVERB_PRESETS = {
 };
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
+const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
 
 const state = {
   audioContext: null,
@@ -165,6 +166,7 @@ const els = {
   audioFilePath: document.querySelector("#audioFilePath"),
   audioTestPlay: document.querySelector("#audioTestPlay"),
   audioTestStop: document.querySelector("#audioTestStop"),
+  audioCuePreview: document.querySelector("#audioCuePreview"),
   audioRecord: document.querySelector("#audioRecord"),
   audioImport: document.querySelector("#audioImport"),
   audioReset: document.querySelector("#audioReset"),
@@ -312,6 +314,8 @@ const els = {
   exportBoardLite: document.querySelector("#exportBoardLite"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
+  relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
+  relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
@@ -364,6 +368,59 @@ function dbDelete(key) {
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
+}
+
+function fileBaseName(value) {
+  return String(value || "").split(/[\\/]/).pop().trim();
+}
+
+function normalizedFileName(value) {
+  return fileBaseName(value).toLocaleLowerCase("fr");
+}
+
+function bindEscapeClose(dialog, closeAction = null) {
+  dialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeAction?.();
+    dialog.close();
+  });
+}
+
+function closeOpenDialogFromEscape() {
+  const entries = [
+    { dialog: els.shortcutDialog, action: () => {
+      restoreShortcutDraft();
+      state.shortcutDraft = null;
+      setBoardPadEditing(false);
+    } },
+    { dialog: els.imageDialog, action: () => {
+      restoreImageDraft();
+      state.imageDraft = null;
+    } },
+    { dialog: els.audioDialog, action: () => {
+      restoreAudioDraft();
+      state.audioDraft = null;
+    } },
+    { dialog: els.masterAudioDialog, action: () => {
+      restoreMasterAudioDraft();
+      state.masterAudioDraft = null;
+    } },
+    { dialog: els.cueDialog, action: () => {
+      state.cueDraft = null;
+    } },
+    { dialog: els.padTransferDialog, action: () => {
+      state.transferPad = null;
+    } },
+    { dialog: els.bulkEditDialog },
+    { dialog: els.patchBayDialog },
+    { dialog: els.cancelEditDialog },
+    { dialog: els.helpDialog },
+  ];
+  const entry = entries.find((item) => item.dialog?.open);
+  if (!entry) return false;
+  entry.action?.();
+  entry.dialog.close();
+  return true;
 }
 
 function formatTime(seconds) {
@@ -2944,14 +3001,16 @@ async function refreshVersionOptions(selectedId = "") {
   if (!els.versionSelect || !state.db) return;
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const visibleHistory = history.slice(0, HISTORY_LIMIT);
+  const effectiveSelectedId = selectedId || visibleHistory[0]?.id || "";
   els.versionSelect.innerHTML = '<option value="">Versions</option>';
-  history.slice(0, HISTORY_LIMIT).forEach((snapshot, index) => {
+  visibleHistory.forEach((snapshot, index) => {
     const option = document.createElement("option");
     option.value = snapshot.id;
     option.textContent = versionOptionLabel(snapshot, index);
     els.versionSelect.append(option);
   });
-  els.versionSelect.value = history.some((snapshot) => snapshot.id === selectedId) ? selectedId : "";
+  els.versionSelect.value = visibleHistory.some((snapshot) => snapshot.id === effectiveSelectedId) ? effectiveSelectedId : "";
 }
 
 async function renameSelectedBoardVersion() {
@@ -2986,7 +3045,7 @@ async function restoreSelectedBoardVersion() {
   if (!window.confirm(`Restaurer "${board.name}" depuis ${selectedLabel} ?`)) return;
 
   await applyBoardSnapshot(snapshot);
-  setBoardPadEditing(true);
+  setBoardPadEditing(false);
   await refreshVersionOptions(snapshot.id);
   setStatus(`Version restauree: ${selectedLabel}`);
 }
@@ -3664,17 +3723,19 @@ async function loadFileIntoPad(pad, file) {
   await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath));
 }
 
-async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false) {
+async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false, options = {}) {
   await ensureAudio();
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
+  const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
   pad.audioName = name;
+  pad.audioType = type || "";
   pad.audioPath = path || name;
   pad.audioPathTrusted = Boolean(pathTrusted && path);
   pad.audioRefIndex = null;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
-  setPadTitle(pad, cleanName(name));
+  setPadTitle(pad, nextTitle);
   setPadDuration(pad, buffer.duration);
   renderWaveform(pad);
   pad.node.classList.remove("is-empty");
@@ -3733,6 +3794,64 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   await savePadMeta(pad);
   if (state.audioPad === pad) syncAudioDialog(pad);
   setStatus(`${pad.title} charge - norm ${pad.normalizedGain.toFixed(2)}x`);
+}
+
+function audioFilesFromSelection(files) {
+  return [...(files || [])].filter((file) => (
+    file?.type?.startsWith("audio/")
+    || AUDIO_FILE_RE.test(file?.name || "")
+  ));
+}
+
+function missingAudioCandidateNames(pad, meta = null, saved = null) {
+  return [
+    pad.audioName,
+    pad.audioPath,
+    meta?.audioPath,
+    saved?.name,
+    saved?.path,
+  ]
+    .map(normalizedFileName)
+    .filter(Boolean);
+}
+
+async function relinkMissingAudioFromFolder(files) {
+  const audioFiles = audioFilesFromSelection(files);
+  if (!audioFiles.length) {
+    setStatus("Aucun fichier audio trouvé dans ce dossier");
+    return;
+  }
+
+  const byName = new Map();
+  audioFiles.forEach((file) => {
+    const key = normalizedFileName(file.name);
+    if (key && !byName.has(key)) byName.set(key, file);
+  });
+
+  let linked = 0;
+  let missing = 0;
+  for (const pad of state.pads) {
+    const meta = await dbGet(padMetaKey(pad));
+    const saved = await dbGet(padAudioKey(pad));
+    if (pad.buffer || saved?.audio) continue;
+
+    const file = missingAudioCandidateNames(pad, meta, saved)
+      .map((name) => byName.get(name))
+      .find(Boolean);
+
+    if (!file) {
+      if (pad.node.classList.contains("is-missing-audio")) missing += 1;
+      continue;
+    }
+
+    const buffer = await file.arrayBuffer();
+    const exposedPath = file.webkitRelativePath || file.path || file.name;
+    await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: true });
+    linked += 1;
+  }
+
+  await persistCurrentPadsForExport();
+  setStatus(linked ? `${linked} son${linked > 1 ? "s" : ""} retrouvé${linked > 1 ? "s" : ""}` : `${missing || "Aucun"} son manquant retrouvé`);
 }
 
 async function toggleRecording(pad) {
@@ -3855,6 +3974,9 @@ async function restorePad(pad) {
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   if (!saved?.audio) {
     const missingAudio = Boolean(meta?.audioPath || rawSaved?.name || rawSaved?.path);
+    pad.audioName = rawSaved?.name || fileBaseName(meta?.audioPath || rawSaved?.path || pad.audioName);
+    pad.audioPath = meta?.audioPath || rawSaved?.path || rawSaved?.name || pad.audioPath;
+    pad.audioType = rawSaved?.type || pad.audioType || "";
     pad.node.classList.toggle("is-missing-audio", missingAudio);
     if (missingAudio) setStatus(`Son manquant: ${pad.title}`);
     if (!meta?.uid) await savePadMeta(pad);
@@ -3867,6 +3989,7 @@ async function restorePad(pad) {
   pad.uid = meta?.uid || saved.uid || pad.uid;
   pad.audioName = saved.name || "";
   pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
+  pad.audioType = saved.type || "";
   pad.audioPathTrusted = Boolean(meta?.audioPathTrusted || saved.pathTrusted);
   pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
@@ -6636,6 +6759,18 @@ async function init() {
       els.importBoardFile.value = "";
     }
   });
+  els.relinkAudioFolder?.addEventListener("click", () => {
+    if (!els.relinkAudioFolderInput) return;
+    setStatus("Choisir le dossier contenant les sons");
+    els.relinkAudioFolderInput.click();
+  });
+  els.relinkAudioFolderInput?.addEventListener("change", () => {
+    const files = els.relinkAudioFolderInput.files;
+    if (files?.length) {
+      relinkMissingAudioFromFolder(files).catch(() => setStatus("Relocalisation impossible"));
+      els.relinkAudioFolderInput.value = "";
+    }
+  });
   els.helpButton?.addEventListener("click", () => {
     if (els.helpDialog?.showModal) {
       els.helpDialog.showModal();
@@ -6723,6 +6858,9 @@ async function init() {
   });
   els.audioTestStop?.addEventListener("click", () => {
     if (state.audioPad) stopPad(state.audioPad, false);
+  });
+  els.audioCuePreview?.addEventListener("click", () => {
+    if (state.audioPad) previewPadCue(state.audioPad).catch(() => setStatus("Test Cue impossible"));
   });
   els.audioRecord?.addEventListener("click", () => {
     if (state.audioPad) toggleRecording(state.audioPad);
@@ -6959,6 +7097,39 @@ async function init() {
       setBoardPadEditing(false);
     }
   });
+  bindEscapeClose(els.helpDialog);
+  bindEscapeClose(els.patchBayDialog);
+  bindEscapeClose(els.cancelEditDialog);
+  bindEscapeClose(els.cueDialog, () => {
+    state.cueDraft = null;
+  });
+  bindEscapeClose(els.bulkEditDialog);
+  bindEscapeClose(els.padTransferDialog, () => {
+    state.transferPad = null;
+  });
+  bindEscapeClose(els.audioDialog, () => {
+    restoreAudioDraft();
+    state.audioDraft = null;
+  });
+  bindEscapeClose(els.masterAudioDialog, () => {
+    restoreMasterAudioDraft();
+    state.masterAudioDraft = null;
+  });
+  bindEscapeClose(els.imageDialog, () => {
+    restoreImageDraft();
+    state.imageDraft = null;
+  });
+  bindEscapeClose(els.shortcutDialog, () => {
+    restoreShortcutDraft();
+    state.shortcutDraft = null;
+    setBoardPadEditing(false);
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!closeOpenDialogFromEscape()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
   bindPerformanceTouchGuards();
