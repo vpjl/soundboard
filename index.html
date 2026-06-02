@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=152">
+    <link rel="stylesheet" href="styles.css?v=153">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v152</p>
+            <p id="audioStatus">Pret pour la scene · v153</p>
           </div>
         </div>
 
@@ -168,6 +168,13 @@
               <button id="exportBoard" class="icon-button board-transfer-button" type="button" aria-label="Exporter le board">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button id="exportBoardAudioOnly" class="icon-button board-transfer-button" type="button" aria-label="Exporter réglages et sons sans vidéo">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M8 8h3l2 2h3v5H8V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M5 5l14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               <button id="exportBoardLite" class="icon-button board-transfer-button" type="button" aria-label="Exporter sans audio">
@@ -770,6 +777,13 @@
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Exporte le board courant avec les sons.</dd>
+                <dt aria-label="Exporter réglages et sons sans vidéo">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 8h3l2 2h3v5H8V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M5 5l14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Exporte les réglages et les sons audio, sans intégrer les vidéos.</dd>
                 <dt aria-label="Exporter sans audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1528,6 +1542,6 @@
 
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
 
-    <script src="app.js?v=152"></script>
+    <script src="app.js?v=153"></script>
   </body>
 </html>

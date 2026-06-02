@@ -327,6 +327,7 @@ const els = {
   boardNotice: document.querySelector("#boardNotice"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
+  exportBoardAudioOnly: document.querySelector("#exportBoardAudioOnly"),
   exportBoardLite: document.querySelector("#exportBoardLite"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
@@ -3209,7 +3210,16 @@ async function restoreSelectedBoardVersion() {
   setStatus(`Version restauree: ${selectedLabel}`);
 }
 
-async function exportCurrentBoard(includeAudio = true) {
+function normalizeExportMode(modeOrIncludeAudio = "full") {
+  if (modeOrIncludeAudio === true) return "full";
+  if (modeOrIncludeAudio === false) return "settings";
+  return ["full", "audioOnly", "settings"].includes(modeOrIncludeAudio) ? modeOrIncludeAudio : "full";
+}
+
+async function exportCurrentBoard(modeOrIncludeAudio = "full") {
+  const exportMode = normalizeExportMode(modeOrIncludeAudio);
+  const includeAudio = exportMode !== "settings";
+  const includeVideo = exportMode === "full";
   const board = currentBoard();
   const pads = [];
   syncPadIndexesFromDom();
@@ -3224,7 +3234,7 @@ async function exportCurrentBoard(includeAudio = true) {
     const saved = await dbGet(padAudioKey(pad));
     const audioInfo = await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio ? await audioRecordForExport(audioInfo, "data") : null;
-    const exportVideo = includeAudio ? await videoRecordForExport(saved) : null;
+    const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
@@ -3294,6 +3304,8 @@ async function exportCurrentBoard(includeAudio = true) {
     version: 1,
     exportedAt: new Date().toISOString(),
     includesAudio: includeAudio,
+    includesVideo: includeVideo,
+    exportMode,
     board: {
       name: board.name,
       padCount: board.padCount,
@@ -3317,7 +3329,11 @@ async function exportCurrentBoard(includeAudio = true) {
   };
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  const suffix = includeAudio ? "soundboard" : "soundboard-settings";
+  const suffix = exportMode === "full"
+    ? "soundboard"
+    : exportMode === "audioOnly"
+      ? "soundboard-audio-sans-video"
+      : "soundboard-settings";
   await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${timestampForFile()}.${suffix}.json`, board.name);
 }
 
@@ -7421,12 +7437,17 @@ async function init() {
   els.boardNotice?.addEventListener("click", exportBoardNotice);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
-    exportCurrentBoard(true)
+    exportCurrentBoard("full")
       .then(() => setBoardPadEditing(false))
       .catch(() => setStatus("Export impossible"));
   });
+  els.exportBoardAudioOnly?.addEventListener("click", () => {
+    exportCurrentBoard("audioOnly")
+      .then(() => setBoardPadEditing(false))
+      .catch(() => setStatus("Export sons sans vidéo impossible"));
+  });
   els.exportBoardLite?.addEventListener("click", () => {
-    exportCurrentBoard(false)
+    exportCurrentBoard("settings")
       .then(() => setBoardPadEditing(false))
       .catch(() => setStatus("Export sans audio impossible"));
   });
