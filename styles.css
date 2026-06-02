@@ -442,7 +442,7 @@ body.board-edit-mode .board-edit-actions {
   --master-stop-size: 54px;
   --master-stop-panel-height: 112px;
   display: grid;
-  grid-template-columns: minmax(132px, 160px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
+  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
   grid-template-rows: auto auto auto auto auto;
   grid-template-areas:
     "title title title title"
@@ -888,31 +888,30 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .master-volume-stack {
   grid-area: master;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  align-self: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  align-self: start;
   min-width: 0;
 }
 
 .master-volume-control,
 .cue-volume-control {
-  grid-template-rows: auto minmax(96px, 1fr);
-  align-self: stretch;
+  grid-template-rows: auto 30px;
+  align-self: start;
 }
 
 .master-volume-control input[type="range"],
 .cue-volume-control input[type="range"] {
   -webkit-appearance: auto;
   appearance: auto;
-  justify-self: center;
+  justify-self: stretch;
   align-self: center;
-  width: 112px;
-  height: 34px;
-  min-height: 34px;
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
   writing-mode: horizontal-tb;
   direction: ltr;
-  transform: rotate(-90deg);
-  transform-origin: center;
+  transform: none;
 }
 
 .master-audio-button {
@@ -3880,7 +3879,7 @@ body.stage-mode .master-strip {
   --master-stop-size: clamp(96px, 10.5vw, 140px);
   --master-stop-panel-height: calc(var(--master-stop-size) + 34px);
   grid-column: 2;
-  grid-template-columns: minmax(108px, 132px) 38px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
+  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
   grid-template-areas:
     "title title title title"
     "master vu . stop"
@@ -4069,7 +4068,7 @@ body.stage-mode .pad-alerts {
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
     --master-stop-panel-height: 126px;
-    grid-template-columns: minmax(108px, 132px) 38px minmax(0, 1fr) minmax(70px, 86px);
+    grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
       "master vu . stop"
@@ -4331,7 +4330,7 @@ body.stage-mode .pad-alerts {
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
     --master-stop-panel-height: 126px;
-    grid-template-columns: minmax(108px, 132px) 38px minmax(0, 1fr) minmax(70px, 86px);
+    grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
       "master vu . stop"
@@ -4733,7 +4732,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
     --master-stop-panel-height: 126px;
-    grid-template-columns: minmax(104px, 124px) 36px minmax(0, 1fr) minmax(70px, 86px);
+    grid-template-columns: minmax(138px, 170px) 36px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
       "master vu . stop"
@@ -4745,13 +4744,13 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .master-volume-control,
   .cue-volume-control {
-    grid-template-rows: auto minmax(104px, 1fr);
+    grid-template-rows: auto 30px;
   }
 
   .master-volume-control input[type="range"],
   .cue-volume-control input[type="range"] {
-    width: 30px;
-    min-height: 104px;
+    width: 100%;
+    min-height: 30px;
   }
 
   .group-stop-control {
