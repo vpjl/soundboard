@@ -22,8 +22,10 @@ const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
 const CUE_OUTPUT_STORAGE = "soundboard-live-cue-output";
 const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
+const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
+const DEFAULT_CUE_VOLUME = 0.9;
 const ENDING_ALERT_SECONDS = 5;
 const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
@@ -117,6 +119,7 @@ const state = {
   folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "standard",
+  cueVolume: DEFAULT_CUE_VOLUME,
   masterOutputDeviceId: "",
   masterOutputLabel: "standard",
   audioDialogStartedPad: null,
@@ -132,6 +135,9 @@ const els = {
   masterVolume: document.querySelector("#masterVolume"),
   masterVolumeValue: document.querySelector("#masterVolumeValue"),
   masterVu: document.querySelector("#masterVu"),
+  cueVolume: document.querySelector("#cueVolume"),
+  cueVolumeValue: document.querySelector("#cueVolumeValue"),
+  cueVu: document.querySelector("#cueVu"),
   masterAudio: document.querySelector("#masterAudio"),
   masterOutputName: document.querySelector("#masterOutputName"),
   masterAudioDialog: document.querySelector("#masterAudioDialog"),
@@ -476,6 +482,24 @@ function saveMasterOutput(deviceId, label) {
     label: state.masterOutputLabel,
   }));
   updateOutputLabels();
+}
+
+function cueVolumeValue() {
+  return clamp01(state.cueVolume ?? DEFAULT_CUE_VOLUME);
+}
+
+function setCueVolume(value, persist = true) {
+  const volume = clamp01(value, DEFAULT_CUE_VOLUME);
+  state.cueVolume = volume;
+  if (els.cueVolume) els.cueVolume.value = String(volume);
+  if (els.cueVolumeValue) els.cueVolumeValue.textContent = `${Math.round(volume * 100)}%`;
+  if (state.cuePreviewAudio) state.cuePreviewAudio.volume = volume;
+  setMeterLevel(els.cueVu, state.cuePreviewAudio && !state.cuePreviewAudio.paused ? volume : 0);
+  if (persist) localStorage.setItem(CUE_VOLUME_STORAGE, String(volume));
+}
+
+function loadCueVolume() {
+  setCueVolume(localStorage.getItem(CUE_VOLUME_STORAGE) ?? DEFAULT_CUE_VOLUME, false);
 }
 
 function bindEscapeClose(dialog, closeAction = null) {
@@ -4667,6 +4691,7 @@ function stopCuePreview() {
     URL.revokeObjectURL(state.cuePreviewUrl);
     state.cuePreviewUrl = "";
   }
+  setMeterLevel(els.cueVu, 0);
   state.audioDialogStartedCue = null;
 }
 
@@ -4730,6 +4755,7 @@ async function previewPadCue(pad, options = {}) {
     const url = URL.createObjectURL(blob);
     const audio = hasVideoCue ? document.createElement("video") : new Audio();
     audio.src = url;
+    audio.volume = cueVolumeValue();
     if (hasVideoCue) {
       audio.playsInline = true;
       audio.style.position = "fixed";
@@ -4760,6 +4786,7 @@ async function previewPadCue(pad, options = {}) {
     pad.cueButton?.classList.add("is-active");
     pad.cueButton?.setAttribute("aria-pressed", "true");
     await audio.play();
+    startTimer();
     setStatus(cueOutputSelected ? `Cue: ${pad.title}` : `Cue sortie standard: ${pad.title}`);
   } catch (error) {
     stopCuePreview();
@@ -7351,12 +7378,15 @@ function meterLevel(analyser, data) {
 function setMeterLevel(element, level) {
   if (!element) return;
   const scale = Math.max(0, Math.min(1, level));
-  element.style.transform = element.parentElement?.classList.contains("master-vu") ? `scaleY(${scale})` : `scaleX(${scale})`;
+  element.style.transform = element.parentElement?.classList.contains("master-vu") || element.parentElement?.classList.contains("cue-vu")
+    ? `scaleY(${scale})`
+    : `scaleX(${scale})`;
 }
 
 function updateMeters() {
   const hasPlayingPad = state.pads.some((pad) => pad.source);
   setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
+  setMeterLevel(els.cueVu, state.cuePreviewAudio && !state.cuePreviewAudio.paused ? cueVolumeValue() : 0);
   state.pads.forEach((pad) => {
     setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
   });
@@ -7367,7 +7397,7 @@ function startTimer() {
   const tick = () => {
     state.pads.forEach(updatePadTime);
     updateMeters();
-    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad))
+    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad)) || Boolean(state.cuePreviewAudio && !state.cuePreviewAudio.paused)
       ? requestAnimationFrame(tick)
       : null;
     if (!state.timerFrame) updateMeters();
@@ -7493,6 +7523,7 @@ async function init() {
   }
   loadMasterReverbSettings();
   loadMasterEqSettings();
+  loadCueVolume();
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
@@ -7509,6 +7540,9 @@ async function init() {
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
     setMasterVolume(els.masterVolume.value);
+  });
+  els.cueVolume?.addEventListener("input", () => {
+    setCueVolume(els.cueVolume.value);
   });
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
