@@ -3407,6 +3407,28 @@ body[data-skin="contrast"] .color-field {
   opacity: 0.55;
 }
 
+.audio-section.is-unavailable {
+  position: relative;
+  opacity: 0.42;
+  filter: grayscale(0.55);
+}
+
+.audio-section.is-unavailable::after {
+  content: "Indisponible pour vidéo";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .audio-toggle-block.is-disabled input {
   cursor: not-allowed;
 }

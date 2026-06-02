@@ -5687,6 +5687,7 @@ function bindAudioDialogTrim() {
   if (!els.audioWaveform) return;
   els.audioWaveform.addEventListener("pointerdown", (event) => {
     const pad = state.audioPad;
+    if (pad?.videoName) return;
     if (!pad?.duration) return;
     event.preventDefault();
     const pointerSeconds = audioTrimPositionFromPointer(event);
@@ -5778,6 +5779,7 @@ function syncAudioDialog(pad = state.audioPad) {
   updateAudioEqValues(pad);
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
+  syncAudioDialogVideoAvailability(pad);
   renderAudioDialogWaveform(pad);
 }
 
@@ -6187,6 +6189,34 @@ function updateAudioPlayhead(pad = state.audioPad) {
   const ratio = duration ? Math.min(1, Math.max(0, playbackOffset(pad) / duration)) : 0;
   els.audioPlayhead.style.left = `${ratio * 100}%`;
   els.audioPlayhead.hidden = !pad.source;
+}
+
+function setDisabledField(element, disabled) {
+  if (!element) return;
+  element.disabled = disabled;
+  element.closest("label")?.classList.toggle("is-disabled", disabled);
+}
+
+function setAudioSectionUnavailable(selector, unavailable) {
+  const section = els.audioDialog?.querySelector(selector);
+  if (!section) return;
+  section.classList.toggle("is-unavailable", unavailable);
+  section.setAttribute("aria-disabled", String(unavailable));
+  section.querySelectorAll("input, select, button").forEach((control) => {
+    control.disabled = unavailable;
+  });
+}
+
+function syncAudioDialogVideoAvailability(pad) {
+  const isVideo = Boolean(pad?.videoName);
+  els.audioDialog?.classList.toggle("is-video-pad", isVideo);
+  setAudioSectionUnavailable('[aria-label="Waveform et trim"]', isVideo);
+  setAudioSectionUnavailable('[aria-label="Pitch"]', isVideo);
+  setAudioSectionUnavailable('[aria-label="Reverb"]', isVideo);
+  setAudioSectionUnavailable('[aria-label="Égalisation audio pad"]', isVideo);
+  setDisabledField(els.audioNormalize, isVideo);
+  setDisabledField(els.audioMono, isVideo || Boolean(pad?.buffer?.numberOfChannels === 1));
+  setDisabledField(els.audioReverse, isVideo);
 }
 
 function seekPadToRatio(pad, ratio) {
