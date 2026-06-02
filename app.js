@@ -7378,9 +7378,7 @@ function meterLevel(analyser, data) {
 function setMeterLevel(element, level) {
   if (!element) return;
   const scale = Math.max(0, Math.min(1, level));
-  element.style.transform = element.parentElement?.classList.contains("master-vu") || element.parentElement?.classList.contains("cue-vu")
-    ? `scaleY(${scale})`
-    : `scaleX(${scale})`;
+  element.style.transform = `scaleX(${scale})`;
 }
 
 function updateMeters() {

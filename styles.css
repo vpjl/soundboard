@@ -446,8 +446,8 @@ body.board-edit-mode .board-edit-actions {
   grid-template-rows: auto auto auto auto auto;
   grid-template-areas:
     "title title title title"
-    "master vu . stop"
-    "master vu . group"
+    "master master . stop"
+    "vu vu . group"
     "output output output output"
     "audio badges badges badges";
   gap: 10px;
@@ -1483,27 +1483,30 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .master-vu-stack {
   grid-area: vu;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(2, 8px);
+  gap: 8px;
+  align-self: start;
   min-width: 0;
-  min-height: 0;
+  min-height: 24px;
 }
 
 .master-vu,
 .cue-vu {
   justify-self: stretch;
-  align-self: stretch;
+  align-self: center;
   width: 100%;
-  min-height: 0;
+  height: 8px;
+  min-height: 8px;
   background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 8px),
     rgba(17, 19, 25, 0.78);
 }
 
 .master-vu .vu-fill,
 .cue-vu .vu-fill {
-  background: linear-gradient(0deg, var(--accent), var(--accent-2), var(--danger));
-  transform-origin: center bottom;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--danger));
+  transform-origin: left center;
 }
 
 .pad-vu {
@@ -3934,8 +3937,8 @@ body.stage-mode .master-strip {
   grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
   grid-template-areas:
     "title title title title"
-    "master vu . stop"
-    "master vu . group"
+    "master master . stop"
+    "vu vu . group"
     "audio badges badges badges";
   width: fit-content;
   min-width: 0;
@@ -4123,8 +4126,8 @@ body.stage-mode .pad-alerts {
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
-      "master vu . stop"
-      "master vu . group"
+      "master master . stop"
+      "vu vu . group"
       "audio badges badges badges";
     align-items: stretch;
     gap: 5px;
@@ -4385,8 +4388,8 @@ body.stage-mode .pad-alerts {
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
-      "master vu . stop"
-      "master vu . group"
+      "master master . stop"
+      "vu vu . group"
       "audio badges badges badges";
     align-items: stretch;
   }
@@ -4787,8 +4790,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-template-columns: minmax(138px, 170px) 36px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
-      "master vu . stop"
-      "master vu . group"
+      "master master . stop"
+      "vu vu . group"
       "audio badges badges badges";
     gap: 6px;
     overflow: hidden;
