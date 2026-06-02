@@ -1301,6 +1301,7 @@ function makePad(index) {
     pad.volume = Number(pad.volumeEl.value);
     updatePadVolumeValue(pad);
     if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+    syncVideoProjectionAudio(pad);
     savePadMeta(pad);
   });
 
@@ -1314,6 +1315,7 @@ function makePad(index) {
   pad.loopEl.addEventListener("click", () => {
     setPadLoop(pad, !pad.loop);
     if (pad.source) pad.source.loop = pad.loop;
+    syncVideoProjectionAudio(pad);
     savePadMeta(pad);
   });
 
@@ -1459,6 +1461,7 @@ function setMasterVolume(value, persist = true) {
   if (state.masterBypassGain && state.audioContext) {
     state.masterBypassGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
   }
+  state.pads.forEach((pad) => syncVideoProjectionAudio(pad));
   if (persist) {
     const board = currentBoard();
     if (board) {
@@ -3880,6 +3883,7 @@ async function loadFileIntoPad(pad, file) {
 
 async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false, options = {}) {
   await ensureAudio();
+  disposeVideoProjection(pad);
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
@@ -3887,6 +3891,10 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.audioType = type || "";
   pad.audioPath = path || name;
   pad.audioPathTrusted = Boolean(pathTrusted && path);
+  pad.videoName = "";
+  pad.videoPath = "";
+  pad.videoType = "";
+  pad.videoDuration = 0;
   pad.audioRefIndex = null;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
@@ -3975,7 +3983,8 @@ async function loadVideoIntoPad(pad, file) {
   const exposedPath = file.path || file.webkitRelativePath || "";
   const blob = new Blob([arrayBuffer.slice(0)], { type: file.type || "video/mp4" });
   const duration = await videoDurationFromBlob(blob);
-  stopPad(pad, false, false, { triggerEnd: false });
+  disposeVideoProjection(pad);
+  const currentTitle = pad.title;
   pad.buffer = null;
   pad.audioName = "";
   pad.audioPath = "";
@@ -3986,7 +3995,8 @@ async function loadVideoIntoPad(pad, file) {
   pad.videoPath = exposedPath || file.name;
   pad.videoType = file.type || "video/mp4";
   pad.videoDuration = duration;
-  setPadTitle(pad, cleanName(file.name));
+  setPadTrim(pad, 0, 0);
+  setPadTitle(pad, currentTitle);
   setPadDuration(pad, duration);
   renderWaveform(pad);
   pad.node.classList.remove("is-empty", "is-missing-audio");
@@ -4359,21 +4369,22 @@ async function selectCueOutput() {
 }
 
 async function selectMasterOutput() {
-  if (!navigator.mediaDevices?.selectAudioOutput) {
+  const probe = document.createElement("audio");
+  const canSelectOutput = typeof probe.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+  if (!canSelectOutput) {
     saveMasterOutput("", "standard");
     setStatus("Choix de sortie master indisponible dans ce navigateur");
     return false;
   }
   await ensureAudio();
-  if (typeof state.audioContext?.setSinkId !== "function") {
-    saveMasterOutput("", "standard");
-    setStatus("Sortie master séparée indisponible dans ce navigateur");
-    return false;
-  }
   const output = await navigator.mediaDevices.selectAudioOutput();
-  await state.audioContext.setSinkId(output.deviceId);
   saveMasterOutput(output.deviceId, output.label || "sortie master");
-  setStatus(`Sortie master: ${state.masterOutputLabel}`);
+  if (typeof state.audioContext?.setSinkId === "function") {
+    await state.audioContext.setSinkId(output.deviceId);
+    setStatus(`Sortie master: ${state.masterOutputLabel}`);
+  } else {
+    setStatus(`Sortie master mémorisée: ${state.masterOutputLabel}`);
+  }
   return true;
 }
 
@@ -4716,7 +4727,7 @@ function updatePadModeButtons(pad) {
   pad.modeButtons?.forEach((button) => {
     const buttonMode = button.dataset.mode;
     const active = buttonMode === pad.playMode || (buttonMode === "oneshot" && pad.playMode === "hold");
-    button.classList.toggle("is-active", Boolean((pad.source || pad.videoWindow) && active));
+    button.classList.toggle("is-active", Boolean(isPadPlaying(pad) && active));
   });
 }
 
@@ -5759,6 +5770,11 @@ function bindImageSketch() {
 function playbackOffset(pad) {
   const duration = playableDuration(pad);
   if (!duration) return 0;
+  if (pad.videoName) {
+    const video = videoElementForPad(pad);
+    if (video) return Math.min(duration, Math.max(0, video.currentTime || 0));
+    return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
+  }
   if (!pad.source || !state.audioContext) {
     return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
   }
@@ -5788,6 +5804,12 @@ function seekPadToRatio(pad, ratio) {
   const offset = Math.min(duration, Math.max(0, ratio * duration));
   pad.resumeOffset = offset;
   updatePadProgress(pad);
+  if (pad.videoName) {
+    const video = videoElementForPad(pad);
+    if (video) video.currentTime = offset;
+    updatePadTime(pad);
+    return;
+  }
   if (pad.source) {
     playPad(pad, false, offset, { skipStartCrossfade: true }).catch(() => setStatus("Navigation audio impossible"));
   } else {
@@ -5878,20 +5900,21 @@ function fadeDurationForPad(pad, type = "out") {
 }
 
 function applyDucking(exceptPad = null) {
-  if (!state.audioContext) return;
-  const now = state.audioContext.currentTime;
+  const now = state.audioContext?.currentTime || 0;
   state.pads.forEach((pad) => {
     if (pad === exceptPad) return;
-    if (!pad.source || !pad.gain) return;
-    pad.gain.gain.cancelScheduledValues(now);
-    pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
+    if (state.audioContext && pad.source && pad.gain) {
+      pad.gain.gain.cancelScheduledValues(now);
+      pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
+    }
+    if (pad.videoWindow) syncVideoProjectionAudio(pad);
   });
   updateAllPadAlerts();
 }
 
 function setCrossfadeDuck(sourceKey, targets, durationSeconds = 0) {
   clearCrossfadeDuck(sourceKey, false);
-  const activeTargets = targets.filter((pad) => pad?.source);
+  const activeTargets = targets.filter((pad) => isPadPlaying(pad));
   if (!activeTargets.length) return;
   state.crossfadeDucks.set(sourceKey, new Set(activeTargets));
   if (durationSeconds > 0) {
@@ -5977,6 +6000,7 @@ function setPadMuted(pad, muted, pulse = true) {
     pad.gain.gain.cancelScheduledValues(now);
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
   }
+  if (pad.videoWindow) syncVideoProjectionAudio(pad);
   pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
   pad.muteEl?.classList.toggle("is-active", pad.muted);
   pad.muteEl?.setAttribute("aria-pressed", String(pad.muted));
@@ -5987,6 +6011,7 @@ function setPadMuted(pad, muted, pulse = true) {
 function clearPadMuteState(pad) {
   if (!pad?.muted) return;
   pad.muted = false;
+  if (pad.videoWindow) syncVideoProjectionAudio(pad);
   pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
   pad.muteEl?.classList.remove("is-active");
   pad.muteEl?.setAttribute("aria-pressed", "false");
@@ -6004,14 +6029,14 @@ function executeCrossfadeAction(action, target, sourcePad, options = {}) {
     return;
   }
   targets.forEach((targetPad) => {
-    if (action === "play" && targetPad.buffer) {
+    if (action === "play" && (targetPad.buffer || targetPad.videoName)) {
       flashCrossfadeTarget(targetPad, "start");
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
     }
     if (action === "mute") {
       setPadMuted(targetPad, !targetPad.muted, true);
     }
-    if (action === "stop" && targetPad.source) {
+    if (action === "stop" && isPadPlaying(targetPad)) {
       stopPad(targetPad, true, false, { triggerEnd: false });
       flashCrossfadeTarget(targetPad, "stop");
     }
@@ -6460,7 +6485,98 @@ function connectPadEq(pad, input, output) {
   pad.eqNodes = { low, mid, high };
 }
 
-function clearVideoProjection(pad, triggerEnd = false) {
+function videoElementForPad(pad) {
+  if (!pad?.videoWindow || pad.videoWindow.closed) return null;
+  try {
+    return pad.videoWindow.document.querySelector("video");
+  } catch {
+    return null;
+  }
+}
+
+function syncVideoProjectionAudio(pad) {
+  const video = videoElementForPad(pad);
+  if (!video) return;
+  video.volume = videoTargetVolume(pad);
+  video.muted = Boolean(pad.muted);
+  video.loop = Boolean(pad.loop);
+}
+
+function videoTargetVolume(pad) {
+  const masterVolume = clamp01(els.masterVolume?.value, currentBoard()?.masterVolume ?? DEFAULT_MASTER_VOLUME);
+  return Math.min(1, Math.max(0, pad.volume * masterVolume * duckFactorForPad(pad)));
+}
+
+function fadeVideoVolume(video, fromVolume, toVolume, seconds) {
+  if (!video || seconds <= 0) {
+    if (video) video.volume = Math.min(1, Math.max(0, toVolume));
+    return Promise.resolve();
+  }
+  const startTime = performance.now();
+  const duration = seconds * 1000;
+  const from = Math.min(1, Math.max(0, fromVolume));
+  const to = Math.min(1, Math.max(0, toVolume));
+  return new Promise((resolve) => {
+    const step = () => {
+      const ratio = Math.min(1, Math.max(0, (performance.now() - startTime) / duration));
+      video.volume = from + (to - from) * ratio;
+      if (ratio >= 1) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(step);
+    };
+    step();
+  });
+}
+
+function isPadPlaying(pad) {
+  return Boolean(pad?.source || (pad?.videoWindow && pad.node.classList.contains("is-playing")));
+}
+
+function markVideoStopped(pad, triggerEnd = false) {
+  if (!pad) return;
+  if (pad.videoTimer) {
+    window.clearTimeout(pad.videoTimer);
+    pad.videoTimer = null;
+  }
+  pad.startedAt = 0;
+  pad.stopAt = 0;
+  pad.node.classList.remove("is-playing");
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  if (triggerEnd) {
+    executeEndCrossfade(pad);
+    checkCueConditions(pad);
+  }
+}
+
+async function stopVideoProjection(pad, options = {}) {
+  const { preservePosition = false, resetPosition = true, triggerEnd = true, fade = false } = options;
+  const video = videoElementForPad(pad);
+  const duration = playableDuration(pad);
+  if (video) {
+    pad.resumeOffset = preservePosition
+      ? Math.min(duration || video.duration || 0, Math.max(0, video.currentTime || 0))
+      : 0;
+    if (!pad.muted && fade) {
+      await fadeVideoVolume(video, video.volume, 0, fadeDurationForPad(pad, "out"));
+    }
+    video.pause();
+    if (resetPosition) {
+      try {
+        video.currentTime = 0;
+      } catch {}
+    }
+    syncVideoProjectionAudio(pad);
+  } else {
+    pad.resumeOffset = 0;
+  }
+  clearPadMuteState(pad);
+  markVideoStopped(pad, triggerEnd);
+}
+
+function disposeVideoProjection(pad) {
   if (!pad) return;
   if (pad.videoTimer) {
     window.clearTimeout(pad.videoTimer);
@@ -6476,15 +6592,7 @@ function clearVideoProjection(pad, triggerEnd = false) {
     URL.revokeObjectURL(pad.videoUrl);
     pad.videoUrl = "";
   }
-  pad.startedAt = 0;
-  pad.stopAt = 0;
-  pad.node.classList.remove("is-playing");
-  updatePadModeButtons(pad);
-  updatePadTime(pad);
-  if (triggerEnd) {
-    executeEndCrossfade(pad);
-    checkCueConditions(pad);
-  }
+  markVideoStopped(pad, false);
 }
 
 async function playPadVideo(pad, options = {}) {
@@ -6495,12 +6603,20 @@ async function playPadVideo(pad, options = {}) {
     return;
   }
   if (!options.skipStartCrossfade) executeStartCrossfade(pad);
-  clearVideoProjection(pad, false);
-  const blob = new Blob([record.video.slice(0)], { type: record.videoType || pad.videoType || "video/mp4" });
-  const url = URL.createObjectURL(blob);
-  const projection = window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+  let url = pad.videoUrl;
+  if (!url) {
+    const blob = new Blob([record.video.slice(0)], { type: record.videoType || pad.videoType || "video/mp4" });
+    url = URL.createObjectURL(blob);
+    pad.videoUrl = url;
+  }
+  const projection = (pad.videoWindow && !pad.videoWindow.closed)
+    ? pad.videoWindow
+    : window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
   if (!projection) {
-    URL.revokeObjectURL(url);
+    if (!pad.videoWindow && pad.videoUrl) {
+      URL.revokeObjectURL(pad.videoUrl);
+      pad.videoUrl = "";
+    }
     setStatus("Projection vidéo bloquée par le navigateur");
     return;
   }
@@ -6518,21 +6634,38 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
 </style>
 </head>
 <body>
-<video src="${url}" autoplay controls playsinline></video>
+<video src="${url}" controls playsinline></video>
 <div class="label">${title}</div>
 </body>
 </html>`);
   projection.document.close();
   pad.videoWindow = projection;
-  pad.videoUrl = url;
+  const video = videoElementForPad(pad);
+  const targetVolume = videoTargetVolume(pad);
+  if (video) {
+    video.currentTime = Math.min(playableDuration(pad), Math.max(0, options.offset ?? pad.resumeOffset ?? 0));
+    syncVideoProjectionAudio(pad);
+    if (!pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
+      video.volume = 0;
+    }
+    video.addEventListener("ended", () => {
+      pad.resumeOffset = 0;
+      markVideoStopped(pad, true);
+    }, { once: true });
+  }
   state.lastStartedPad = pad;
   pad.startedAt = performance.now() / 1000;
   pad.node.classList.add("is-playing");
   updatePadModeButtons(pad);
   updatePadTime(pad);
   startTimer();
-  if (pad.videoDuration > 0) {
-    pad.videoTimer = window.setTimeout(() => clearVideoProjection(pad, true), pad.videoDuration * 1000);
+  try {
+    await video?.play();
+    if (video && !pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
+      fadeVideoVolume(video, 0, targetVolume, fadeDurationForPad(pad, "in"));
+    }
+  } catch {
+    setStatus("Lecture vidéo à confirmer dans la fenêtre de projection");
   }
   setStatus(`Projection vidéo: ${pad.title}`);
 }
@@ -6580,7 +6713,7 @@ function reversedBufferForPad(pad) {
 
 async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (pad.videoName) {
-    await playPadVideo(pad, options);
+    await playPadVideo(pad, { ...options, offset, fadeIn: fade });
     return;
   }
   if (!pad.buffer) {
@@ -6679,7 +6812,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   if (pad?.videoWindow || pad?.videoUrl || pad?.videoTimer) {
-    clearVideoProjection(pad, options.triggerEnd ?? true);
+    stopVideoProjection(pad, {
+      preservePosition,
+      resetPosition: !preservePosition,
+      triggerEnd: options.triggerEnd ?? true,
+      fade,
+    });
     setStatus(`${pad.title} stop`);
     return;
   }
@@ -6737,7 +6875,8 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
 
 function remainingSeconds(pad) {
   if (pad.videoName && pad.node.classList.contains("is-playing") && pad.videoDuration) {
-    const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
+    const video = videoElementForPad(pad);
+    const elapsed = video ? Math.max(0, video.currentTime || 0) : Math.max(0, performance.now() / 1000 - pad.startedAt);
     return Math.max(0, pad.videoDuration - elapsed);
   }
   if (!pad.source || !state.audioContext || !pad.duration) return playableDuration(pad);
@@ -6757,7 +6896,7 @@ function updatePadTime(pad) {
     return;
   }
   const seconds = remainingSeconds(pad);
-  pad.timeEl.textContent = pad.source ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
+  pad.timeEl.textContent = isPadPlaying(pad) ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
   updatePadProgress(pad);
   updatePadAlerts(pad);
 }
@@ -6792,7 +6931,7 @@ function startTimer() {
   const tick = () => {
     state.pads.forEach(updatePadTime);
     updateMeters();
-    state.timerFrame = state.pads.some((pad) => pad.source || pad.videoWindow)
+    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad))
       ? requestAnimationFrame(tick)
       : null;
     if (!state.timerFrame) updateMeters();
@@ -6833,7 +6972,7 @@ function bindPerformanceTouchGuards() {
 }
 
 function togglePad(pad) {
-  if (pad.source || pad.videoWindow) {
+  if (isPadPlaying(pad)) {
     stopPad(pad, false, pad.playMode === "toggle");
   } else {
     const offset = pad.playMode === "toggle" ? pad.resumeOffset : 0;
@@ -6852,7 +6991,7 @@ function stopGroup() {
     setStatus("Choisir un groupe");
     return;
   }
-  const pads = state.pads.filter((pad) => (pad.source || pad.videoWindow) && padTagList(pad).includes(tag));
+  const pads = state.pads.filter((pad) => isPadPlaying(pad) && padTagList(pad).includes(tag));
   pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
   setStatus(pads.length ? `Groupe ${tag} stoppé` : `Aucun pad joue: ${tag}`);
 }
@@ -7306,6 +7445,7 @@ async function init() {
     if (state.audioPad.gain && state.audioContext) {
       state.audioPad.gain.gain.setTargetAtTime(targetPadGain(state.audioPad), state.audioContext.currentTime, 0.015);
     }
+    syncVideoProjectionAudio(state.audioPad);
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
@@ -7324,6 +7464,7 @@ async function init() {
     if (!state.audioPad) return;
     setPadLoop(state.audioPad, !state.audioPad.loop);
     if (state.audioPad.source) state.audioPad.source.loop = state.audioPad.loop;
+    syncVideoProjectionAudio(state.audioPad);
     syncAudioDialog(state.audioPad);
     savePadMeta(state.audioPad);
   });
@@ -7340,6 +7481,7 @@ async function init() {
       const nextMode = els.audioDuckNone?.checked ? "none" : (els.audioDuckPad?.checked ? "pad" : "global");
       setPadDuckMode(state.audioPad, nextMode, state.audioPad.duckPercent || duckPercentValue());
       applyDucking();
+      syncVideoProjectionAudio(state.audioPad);
       syncAudioDialog(state.audioPad);
       savePadMeta(state.audioPad);
     });
@@ -7405,6 +7547,7 @@ async function init() {
         eqHigh: els.audioEqHigh?.value,
       });
       applyDucking();
+      syncVideoProjectionAudio(state.audioPad);
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
         state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
