@@ -137,7 +137,9 @@ const els = {
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
   masterAudioOutputName: document.querySelector("#masterAudioOutputName"),
+  masterCueOutputName: document.querySelector("#masterCueOutputName"),
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
+  masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
@@ -345,6 +347,7 @@ const els = {
   cueRows: document.querySelector("#cueRows"),
   cueTimeline: document.querySelector("#cueTimeline"),
   addCueStep: document.querySelector("#addCueStep"),
+  addAllCuePads: document.querySelector("#addAllCuePads"),
   resetCuePosition: document.querySelector("#resetCuePosition"),
   applyCues: document.querySelector("#applyCues"),
   cancelCues: document.querySelector("#cancelCues"),
@@ -419,10 +422,12 @@ function escapeText(value) {
 
 function updateOutputLabels() {
   const cueText = `Cue : ${outputLabel(state.cueOutputLabel)}`;
-  const masterText = `Sortie : ${outputLabel(state.masterOutputLabel)}`;
+  const masterText = `Master : ${outputLabel(state.masterOutputLabel)}`;
+  const masterLiveText = `Sortie : ${outputLabel(state.masterOutputLabel)} · Cue : ${outputLabel(state.cueOutputLabel)}`;
   if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
-  if (els.masterOutputName) els.masterOutputName.textContent = masterText;
+  if (els.masterOutputName) els.masterOutputName.textContent = masterLiveText;
   if (els.masterAudioOutputName) els.masterAudioOutputName.textContent = masterText;
+  if (els.masterCueOutputName) els.masterCueOutputName.textContent = cueText;
 }
 
 function loadOutputSettings() {
@@ -494,7 +499,7 @@ function closeOpenDialogFromEscape() {
       state.masterAudioDraft = null;
     } },
     { dialog: els.cueDialog, action: () => {
-      state.cueDraft = null;
+      clearCueDialogDraft();
     } },
     { dialog: els.padTransferDialog, action: () => {
       state.transferPad = null;
@@ -1613,6 +1618,10 @@ function syncCueControls() {
   if (els.cueRun) els.cueRun.disabled = cueActionDisabled;
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
+  const hasCrossfade = patchBayRows().length > 0;
+  if (els.showCables) els.showCables.disabled = !hasCrossfade;
+  if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
+  if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
   if (els.cueStatus) {
     els.cueStatus.textContent = !cuesEnabled
       ? "Cues désactivées"
@@ -1940,6 +1949,26 @@ function openCueDialog() {
   } else {
     setStatus("Cues");
   }
+}
+
+function clearCueDialogDraft() {
+  state.cueDraft = null;
+  if (els.cueRows) els.cueRows.innerHTML = "";
+  if (els.cueTimeline) {
+    els.cueTimeline.innerHTML = "";
+    els.cueTimeline.classList.add("is-empty");
+  }
+}
+
+function addAllPadsToCueDraft() {
+  const draft = cueDraft();
+  state.pads.forEach((pad) => {
+    draft.push(normalizeCueStep({
+      action: "playPad",
+      target: padTargetValue(pad),
+    }));
+  });
+  renderCueRows();
 }
 
 function saveCueDraft() {
@@ -2631,11 +2660,27 @@ function boardNoticeCueRows() {
   }));
 }
 
-function boardNoticeHtml() {
+async function boardNoticeVersionRows(board) {
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  return pruneVersionHistory(history).map((snapshot, index) => ({
+    index: index + 1,
+    label: String(snapshot?.label || "").trim() || formatVersionLabel(snapshot?.savedAt),
+    savedAt: snapshot?.savedAt ? new Date(snapshot.savedAt).toLocaleString("fr-FR") : "-",
+    archived: snapshot?.archived ? "Oui" : "Non",
+    printed: snapshot?.id && snapshot.id === els.versionSelect?.value,
+  }));
+}
+
+async function boardNoticeHtml() {
   const board = currentBoard();
   const rows = boardNoticeRows();
   const crossfadeRows = boardNoticeCrossfadeRows();
   const cueRows = boardNoticeCueRows();
+  const versionRows = await boardNoticeVersionRows(board);
+  const selectedVersion = versionRows.find((row) => row.printed);
+  const printedVersion = selectedVersion
+    ? `${selectedVersion.index}. ${selectedVersion.label}`
+    : "État courant du board";
   const showShortcuts = state.shortcutsEnabled && rows.some((row) => row.shortcut);
   const soundCount = boardSoundCount();
   const date = new Date().toLocaleString("fr-FR");
@@ -2665,8 +2710,19 @@ function boardNoticeHtml() {
 <body>
   <h1>Notice du board : ${escapeHtml(board.name)}</h1>
   <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live · vincent lainé (c) 2026.</p>
+  <p class="meta">Version imprimée : ${escapeHtml(printedVersion)}.</p>
   <h2>Board</h2>
   <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""} et ${soundCount} son${soundCount > 1 ? "s" : ""} différent${soundCount > 1 ? "s" : ""}. ${escapeHtml(boardAudioNotice())}.</p>
+  <h2>Versions</h2>
+  ${versionRows.length ? `
+  <table>
+    <thead>
+      <tr><th>#</th><th>Nom</th><th>Date</th><th>Archivée</th></tr>
+    </thead>
+    <tbody>
+      ${versionRows.map((row) => `<tr><td>${row.index}</td><td>${escapeHtml(row.label)}${row.printed ? " (imprimée)" : ""}</td><td>${escapeHtml(row.savedAt)}</td><td>${escapeHtml(row.archived)}</td></tr>`).join("")}
+    </tbody>
+  </table>` : "<p>Aucune version sauvegardée.</p>"}
   <h2>Pads</h2>
   <table>
     <thead>
@@ -2712,9 +2768,9 @@ function downloadBlob(content, filename, type) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function exportBoardNotice() {
+async function exportBoardNotice() {
   const board = currentBoard();
-  const html = boardNoticeHtml();
+  const html = await boardNoticeHtml();
   const baseName = `notice-${fileSafeName(board.name)}`;
   setBoardPadEditing(false);
   downloadBlob(html, `${baseName}.doc`, "application/msword;charset=utf-8");
@@ -3898,7 +3954,7 @@ async function deleteCurrentBoard() {
   saveBoards();
   renderBoardOptions();
   await renderPads();
-  setBoardPadEditing(true);
+  setBoardPadEditing(false);
   setStatus(`${board.name} supprime`);
 }
 
@@ -4396,6 +4452,8 @@ function stopCuePreview() {
   if (state.cuePreviewAudio) {
     state.cuePreviewAudio.pause();
     state.cuePreviewAudio.removeAttribute("src");
+    state.cuePreviewAudio.srcObject = null;
+    state.cuePreviewAudio.remove?.();
     state.cuePreviewAudio = null;
   }
   if (state.cuePreviewPad) {
@@ -4451,23 +4509,39 @@ async function previewPadCue(pad, options = {}) {
     setStatus(`Cue arrêtée: ${pad.title}`);
     return;
   }
-  if (!pad?.buffer) {
-    setStatus(`Pré-écoute impossible: son manquant sur ${pad?.title || "pad"}`);
+  if (!pad?.buffer && !pad?.videoName) {
+    setStatus(`Pré-écoute impossible: média manquant sur ${pad?.title || "pad"}`);
     return;
   }
 
-  const saved = await resolvePadAudioRecord(pad, await dbGet(padMetaKey(pad)), await dbGet(padAudioKey(pad)));
-  if (!saved?.audio) {
+  const meta = await dbGet(padMetaKey(pad));
+  const rawSaved = await dbGet(padAudioKey(pad));
+  const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+  const hasVideoCue = Boolean(rawSaved?.video);
+  const hasAudioCue = Boolean(saved?.audio);
+  if (!hasAudioCue && !hasVideoCue) {
     pad.node.classList.add("is-missing-audio");
-    setStatus(`Son manquant: ${pad.title}`);
+    setStatus(`Média manquant: ${pad.title}`);
     return;
   }
 
   try {
     stopCuePreview();
-    const blob = new Blob([saved.audio.slice(0)], { type: saved.type || "audio/mpeg" });
+    const blob = hasVideoCue
+      ? new Blob([rawSaved.video.slice(0)], { type: rawSaved.videoType || pad.videoType || "video/mp4" })
+      : new Blob([saved.audio.slice(0)], { type: saved.type || "audio/mpeg" });
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = hasVideoCue ? document.createElement("video") : new Audio();
+    audio.src = url;
+    if (hasVideoCue) {
+      audio.playsInline = true;
+      audio.style.position = "fixed";
+      audio.style.left = "-9999px";
+      audio.style.width = "1px";
+      audio.style.height = "1px";
+      audio.style.opacity = "0";
+      document.body.append(audio);
+    }
     let cueOutputSelected = false;
     let outputDeviceId = state.cueOutputDeviceId || "";
     const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
@@ -5112,6 +5186,7 @@ function setPadCrossfade(pad, rule = {}) {
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
   if (pad.endStartTargetEl) pad.endStartTargetEl.value = pad.endStartTarget;
   updatePadAlerts(pad);
+  syncCueControls();
   if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
@@ -7323,6 +7398,7 @@ async function init() {
     cueDraft().push(normalizeCueStep({ action: "playPad", target: "" }));
     renderCueRows();
   });
+  els.addAllCuePads?.addEventListener("click", addAllPadsToCueDraft);
   els.resetCuePosition?.addEventListener("click", () => {
     const board = currentBoard();
     if (!board) return;
@@ -7337,16 +7413,16 @@ async function init() {
     setStatus("Cues enregistrées");
   });
   els.cancelCues?.addEventListener("click", () => {
-    state.cueDraft = null;
+    clearCueDialogDraft();
     els.cueDialog?.close();
   });
   els.closeCueDialog?.addEventListener("click", () => {
-    state.cueDraft = null;
+    clearCueDialogDraft();
     els.cueDialog?.close();
   });
   els.cueDialog?.addEventListener("click", (event) => {
     if (event.target === els.cueDialog) {
-      state.cueDraft = null;
+      clearCueDialogDraft();
       els.cueDialog.close();
     }
   });
@@ -7434,7 +7510,9 @@ async function init() {
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.duplicateBoard?.addEventListener("click", duplicateCurrentBoard);
-  els.boardNotice?.addEventListener("click", exportBoardNotice);
+  els.boardNotice?.addEventListener("click", () => {
+    exportBoardNotice().catch(() => setStatus("Notice impossible"));
+  });
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
     exportCurrentBoard("full")
@@ -7526,6 +7604,9 @@ async function init() {
   els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
   els.masterOutputSelect?.addEventListener("click", () => {
     selectMasterOutput().catch(() => setStatus("Sortie master impossible"));
+  });
+  els.masterCueOutputSelect?.addEventListener("click", () => {
+    selectCueOutput().catch(() => setStatus("Sortie Cue impossible"));
   });
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) {
@@ -7833,7 +7914,7 @@ async function init() {
   bindEscapeClose(els.patchBayDialog);
   bindEscapeClose(els.cancelEditDialog);
   bindEscapeClose(els.cueDialog, () => {
-    state.cueDraft = null;
+    clearCueDialogDraft();
   });
   bindEscapeClose(els.bulkEditDialog);
   bindEscapeClose(els.padTransferDialog, () => {
