@@ -5533,6 +5533,12 @@ function commitAudioDialogCrossfade() {
   setPadCrossfade(state.audioPad, state.audioCrossfadeDraft || updateAudioCrossfadeDraftFromControls());
 }
 
+function saveAudioPadFromDialog() {
+  if (!state.audioPad) return;
+  commitAudioDialogCrossfade();
+  savePadMeta(state.audioPad);
+}
+
 function selectedOptionValue(select) {
   if (!select) return "";
   const option = select.selectedOptions?.[0] || select.options?.[select.selectedIndex];
@@ -5641,6 +5647,12 @@ function resetAudioDialogSettings() {
     endStartMode: "none",
     endStartTarget: "",
   });
+  state.audioCrossfadeDraft = {
+    startStopMode: "none",
+    startStopTag: "",
+    endStartMode: "none",
+    endStartTarget: "",
+  };
   syncAudioDialog(pad);
   savePadMeta(pad);
 }
@@ -7447,8 +7459,7 @@ async function init() {
     if (state.audioPad) {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       updateAudioCrossfadeDraftFromControls();
-      commitAudioDialogCrossfade();
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     }
     state.audioDraft = null;
     state.audioCrossfadeDraft = null;
@@ -7562,7 +7573,7 @@ async function init() {
     }
     syncVideoProjectionAudio(state.audioPad);
     syncAudioDialog(state.audioPad);
-    savePadMeta(state.audioPad);
+    saveAudioPadFromDialog();
   });
   els.audioMono?.addEventListener("change", () => {
     if (!state.audioPad) return;
@@ -7573,7 +7584,7 @@ async function init() {
     setPadAudioSettings(state.audioPad, { mono: els.audioMono.checked });
     refreshPlayingPadOutput(state.audioPad);
     syncAudioDialog(state.audioPad);
-    savePadMeta(state.audioPad);
+    saveAudioPadFromDialog();
   });
   els.audioLoop?.addEventListener("click", () => {
     if (!state.audioPad) return;
@@ -7581,14 +7592,14 @@ async function init() {
     if (state.audioPad.source) state.audioPad.source.loop = state.audioPad.loop;
     syncVideoProjectionAudio(state.audioPad);
     syncAudioDialog(state.audioPad);
-    savePadMeta(state.audioPad);
+    saveAudioPadFromDialog();
   });
   els.audioReverse?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadAudioSettings(state.audioPad, { reverse: els.audioReverse.checked });
     if (state.audioPad.source) refreshPlayingPadOutput(state.audioPad);
     syncAudioDialog(state.audioPad);
-    savePadMeta(state.audioPad);
+    saveAudioPadFromDialog();
   });
   [els.audioDuckNone, els.audioDuckGlobal, els.audioDuckPad].forEach((element) => {
     element?.addEventListener("change", () => {
@@ -7598,7 +7609,7 @@ async function init() {
       applyDucking();
       syncVideoProjectionAudio(state.audioPad);
       syncAudioDialog(state.audioPad);
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     });
   });
   [els.audioFadeNone, els.audioFadeGlobal, els.audioFadePad].forEach((element) => {
@@ -7615,7 +7626,7 @@ async function init() {
         fadeOutSeconds: state.audioPad.fadeOutSeconds,
       });
       syncAudioDialog(state.audioPad);
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     });
   });
   [els.audioReverbNone, els.audioReverbGlobal, els.audioReverbPad].forEach((element) => {
@@ -7628,7 +7639,7 @@ async function init() {
       });
       refreshPlayingPadOutput(state.audioPad);
       syncAudioDialog(state.audioPad);
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     });
   });
   [els.audioEqNone, els.audioEqGlobal, els.audioEqPad].forEach((element) => {
@@ -7639,7 +7650,7 @@ async function init() {
       });
       refreshPlayingPadOutput(state.audioPad);
       syncAudioDialog(state.audioPad);
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     });
   });
   [els.audioFadeIn, els.audioFadeOut, els.audioPitchSemitones, els.audioPitchFine, els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh, els.audioDuckPercent].forEach((element) => {
@@ -7671,7 +7682,7 @@ async function init() {
         }
       }
       syncAudioDialog(state.audioPad);
-      savePadMeta(state.audioPad);
+      saveAudioPadFromDialog();
     });
   });
   const handleAudioCrossfadeChange = () => {
