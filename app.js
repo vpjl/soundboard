@@ -5507,19 +5507,26 @@ function fillAudioCrossfadeControls(pad = state.audioPad) {
 
 function commitAudioDialogCrossfade() {
   if (!state.audioPad) return;
-  const startMode = els.audioStartStopMode?.value || "none";
-  const endMode = els.audioEndStartMode?.value || "none";
+  const startMode = selectedOptionValue(els.audioStartStopMode) || "none";
+  const endMode = selectedOptionValue(els.audioEndStartMode) || "none";
   setPadCrossfade(state.audioPad, {
     startStopMode: startMode,
-    startStopTag: startMode === "none" ? "" : (els.audioStartStopTarget?.value || ""),
+    startStopTag: startMode === "none" ? "" : selectedOptionValue(els.audioStartStopTarget),
     endStartMode: endMode,
-    endStartTarget: endMode === "none" ? "" : (els.audioEndStartTarget?.value || ""),
+    endStartTarget: endMode === "none" ? "" : selectedOptionValue(els.audioEndStartTarget),
   });
+}
+
+function selectedOptionValue(select) {
+  if (!select) return "";
+  const option = select.selectedOptions?.[0] || select.options?.[select.selectedIndex];
+  return String(option?.value ?? select.value ?? "").trim();
 }
 
 function openAudioDialog(pad) {
   state.audioPad = pad;
   state.audioDraft = audioDraftFromPad(pad);
+  if (els.applyAudio) els.applyAudio.disabled = false;
   syncAudioDialog(pad);
   if (els.audioDialog?.showModal) {
     els.audioDialog.showModal();
@@ -6862,6 +6869,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 }
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
+  if (!isPadPlaying(pad)) {
+    clearPadMuteState(pad);
+    return;
+  }
   if (pad?.videoWindow || pad?.videoUrl || pad?.videoTimer) {
     stopVideoProjection(pad, {
       preservePosition,
@@ -7400,6 +7411,7 @@ async function init() {
   });
   els.applyAudio?.addEventListener("click", () => {
     if (state.audioPad) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       commitAudioDialogCrossfade();
       savePadMeta(state.audioPad);
     }
@@ -7777,8 +7789,18 @@ async function init() {
 
 init();
 
-if ("serviceWorker" in navigator && window.isSecureContext) {
+function shouldUseServiceWorker() {
+  const ua = navigator.userAgent || "";
+  const firefox = /Firefox|FxiOS/i.test(ua);
+  return !(firefox && isPortableDevice());
+}
+
+if ("serviceWorker" in navigator && window.isSecureContext && shouldUseServiceWorker()) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
+} else if ("serviceWorker" in navigator && !shouldUseServiceWorker()) {
+  navigator.serviceWorker.getRegistrations?.()
+    .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+    .catch(() => {});
 }

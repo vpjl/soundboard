@@ -678,7 +678,7 @@ body.board-edit-mode .board-action-grid .icon-button {
 
 .board-version-row {
   display: grid;
-  grid-template-columns: 42px 42px 42px minmax(0, 1fr);
+  grid-template-columns: 42px 42px 42px 42px minmax(160px, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -4037,6 +4037,10 @@ body.stage-mode .pad-alerts {
     font-size: 0.66rem;
   }
 
+  .board-version-row {
+    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr);
+  }
+
   .board-layout-controls {
     grid-template-columns: 42px auto;
     gap: 4px;
@@ -4207,6 +4211,10 @@ body.stage-mode .pad-alerts {
     height: 30px;
     padding: 0 5px;
     font-size: 0.66rem;
+  }
+
+  .board-version-row {
+    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr);
   }
 
   .board-layout-controls {
