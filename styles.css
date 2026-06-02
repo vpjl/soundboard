@@ -896,22 +896,74 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .master-volume-control,
 .cue-volume-control {
-  grid-template-rows: auto 30px;
+  grid-template-rows: auto 34px;
   align-self: start;
+  overflow: visible;
+}
+
+.master-volume-control > span,
+.cue-volume-control > span {
+  overflow: hidden;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .master-volume-control input[type="range"],
 .cue-volume-control input[type="range"] {
-  -webkit-appearance: auto;
-  appearance: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
   justify-self: stretch;
   align-self: center;
   width: 100%;
-  height: 30px;
-  min-height: 30px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  background: transparent;
   writing-mode: horizontal-tb;
   direction: ltr;
   transform: none;
+}
+
+.master-volume-control input[type="range"]::-webkit-slider-runnable-track,
+.cue-volume-control input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(73, 211, 160, 0.95), rgba(246, 196, 81, 0.92));
+}
+
+.master-volume-control input[type="range"]::-webkit-slider-thumb,
+.cue-volume-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border: 2px solid #f7f7f2;
+  border-radius: 50%;
+  background: #101114;
+  box-shadow: 0 0 0 2px rgba(73, 211, 160, 0.35), 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.master-volume-control input[type="range"]::-moz-range-track,
+.cue-volume-control input[type="range"]::-moz-range-track {
+  height: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(73, 211, 160, 0.95), rgba(246, 196, 81, 0.92));
+}
+
+.master-volume-control input[type="range"]::-moz-range-thumb,
+.cue-volume-control input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #f7f7f2;
+  border-radius: 50%;
+  background: #101114;
+  box-shadow: 0 0 0 2px rgba(73, 211, 160, 0.35), 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .master-audio-button {
@@ -4744,13 +4796,13 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .master-volume-control,
   .cue-volume-control {
-    grid-template-rows: auto 30px;
+    grid-template-rows: auto 34px;
   }
 
   .master-volume-control input[type="range"],
   .cue-volume-control input[type="range"] {
     width: 100%;
-    min-height: 30px;
+    min-height: 34px;
   }
 
   .group-stop-control {
