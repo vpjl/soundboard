@@ -902,6 +902,8 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .master-volume-control input[type="range"],
 .cue-volume-control input[type="range"] {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
   justify-self: center;
   width: 34px;
   height: 100%;

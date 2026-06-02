@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=158">
+    <link rel="stylesheet" href="styles.css?v=159">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v158</p>
+            <p id="audioStatus">Pret pour la scene · v159</p>
           </div>
         </div>
 
@@ -251,11 +251,11 @@
           <div class="master-volume-stack">
             <label class="master-control master-volume-control">
               <span>Volume global <output id="masterVolumeValue">90%</output></span>
-              <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+              <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9" orient="vertical">
             </label>
             <label class="master-control cue-volume-control">
               <span>Volume Cue <output id="cueVolumeValue">90%</output></span>
-              <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+              <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.9" orient="vertical">
             </label>
           </div>
           <div class="master-vu-stack">
@@ -1582,6 +1582,6 @@
 
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
 
-    <script src="app.js?v=158"></script>
+    <script src="app.js?v=159"></script>
   </body>
 </html>
