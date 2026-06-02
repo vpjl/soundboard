@@ -1248,9 +1248,7 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0;
   pointer-events: none;
 }
@@ -1483,7 +1481,8 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 .pad.has-audio-fade-in .pad-alert-fade-in,
 .pad.has-audio-fade-out .pad-alert-fade-out,
 .pad.has-reverb .pad-alert-reverb,
-.pad.has-crossfade .pad-alert-crossfade {
+.pad.has-crossfade .pad-alert-crossfade,
+.pad.is-missing-audio .pad-alert-missing {
   display: inline-flex;
 }
 
@@ -1514,6 +1513,11 @@ body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
 
 .pad-alert-crossfade {
   color: #ffc28a;
+}
+
+.pad-alert-missing {
+  color: #ffce5c;
+  font-size: 0.72rem;
 }
 
 .option-badges {
@@ -4780,9 +4784,7 @@ body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.i
 body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
+body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0 !important;
   pointer-events: none !important;
 }

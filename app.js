@@ -378,6 +378,14 @@ function normalizedFileName(value) {
   return fileBaseName(value).toLocaleLowerCase("fr");
 }
 
+function fileStem(value) {
+  return fileBaseName(value).replace(/\.[^/.]+$/, "").trim();
+}
+
+function normalizedFileStem(value) {
+  return fileStem(value).toLocaleLowerCase("fr");
+}
+
 function bindEscapeClose(dialog, closeAction = null) {
   dialog?.addEventListener("cancel", (event) => {
     event.preventDefault();
@@ -3063,8 +3071,8 @@ async function exportCurrentBoard(includeAudio = true) {
     const pad = orderedPads.find((item) => item.index === index) || state.pads.find((item) => item.index === index) || makePad(index);
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
-    const resolvedAudio = includeAudio ? await resolvePadAudioRecord(pad, meta, saved) : null;
-    const exportAudio = includeAudio ? await audioRecordForExport(resolvedAudio, "data") : null;
+    const audioInfo = await resolvePadAudioRecord(pad, meta, saved);
+    const exportAudio = includeAudio ? await audioRecordForExport(audioInfo, "data") : null;
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     pads.push({
       index,
@@ -3112,12 +3120,12 @@ async function exportCurrentBoard(includeAudio = true) {
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audioRefIndex: Number.isInteger(audioRef) ? audioRef : null,
-      audio: exportAudio ? {
-        name: resolvedAudio.name || saved?.name || `Pad ${index + 1}`,
-        path: resolvedAudio.path || saved?.path || meta?.audioPath || resolvedAudio.name || `Pad ${index + 1}`,
-        pathTrusted: Boolean(resolvedAudio.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
-        type: resolvedAudio.type || saved?.type || "audio/mpeg",
-        data: exportAudio.data,
+      audio: (exportAudio || audioInfo?.name || audioInfo?.path || meta?.audioName || meta?.audioPath) ? {
+        name: audioInfo?.name || meta?.audioName || saved?.name || `Pad ${index + 1}`,
+        path: audioInfo?.path || saved?.path || meta?.audioPath || audioInfo?.name || meta?.audioName || `Pad ${index + 1}`,
+        pathTrusted: Boolean(audioInfo?.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
+        type: audioInfo?.type || saved?.type || "audio/mpeg",
+        data: exportAudio?.data || "",
       } : null,
     });
   }
@@ -3245,6 +3253,9 @@ async function importBoardFile(file) {
       visualImage: item.visualImage || "",
       visualImageHidden: Boolean(item.visualImageHidden),
       visualKind: item.visualKind || "",
+      audioName: item.audio?.name || item.audioName || "",
+      audioPath: item.audio?.path || item.audioPath || item.audio?.name || "",
+      audioPathTrusted: Boolean(item.audio?.pathTrusted || item.audioPathTrusted),
       visualPositionX: item.visualPositionX ?? 50,
       visualPositionY: item.visualPositionY ?? 50,
       visualZoom: item.visualZoom ?? 1,
@@ -3276,6 +3287,16 @@ async function importBoardFile(file) {
       } catch {
         audioFailures += 1;
       }
+    } else if (item.audio?.name || item.audio?.path) {
+      await dbSet(padAudioKey(transientPad), {
+        uid: meta.uid,
+        name: item.audio.name || meta.title,
+        path: item.audio.path || item.audio.name || meta.title,
+        pathTrusted: Boolean(item.audio.pathTrusted),
+        title: meta.title,
+        type: item.audio.type || "audio/mpeg",
+        ...meta,
+      });
     }
   }
 
@@ -3807,11 +3828,15 @@ function missingAudioCandidateNames(pad, meta = null, saved = null) {
   return [
     pad.audioName,
     pad.audioPath,
+    pad.title,
     meta?.audioPath,
+    meta?.audioName,
+    meta?.title,
     saved?.name,
     saved?.path,
+    saved?.title,
   ]
-    .map(normalizedFileName)
+    .flatMap((value) => [normalizedFileName(value), normalizedFileStem(value)])
     .filter(Boolean);
 }
 
@@ -3824,12 +3849,15 @@ async function relinkMissingAudioFromFolder(files) {
 
   const byName = new Map();
   audioFiles.forEach((file) => {
-    const key = normalizedFileName(file.name);
-    if (key && !byName.has(key)) byName.set(key, file);
+    [normalizedFileName(file.name), normalizedFileStem(file.name)].forEach((key) => {
+      if (key && !byName.has(key)) byName.set(key, file);
+    });
   });
 
   let linked = 0;
   let missing = 0;
+  const usedFiles = new Set();
+  const unmatchedPads = [];
   for (const pad of state.pads) {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
@@ -3837,20 +3865,38 @@ async function relinkMissingAudioFromFolder(files) {
 
     const file = missingAudioCandidateNames(pad, meta, saved)
       .map((name) => byName.get(name))
-      .find(Boolean);
+      .find((item) => item && !usedFiles.has(item));
 
     if (!file) {
-      if (pad.node.classList.contains("is-missing-audio")) missing += 1;
+      if (pad.node.classList.contains("is-missing-audio")) {
+        missing += 1;
+        unmatchedPads.push(pad);
+      }
       continue;
     }
 
     const buffer = await file.arrayBuffer();
     const exposedPath = file.webkitRelativePath || file.path || file.name;
     await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: true });
+    usedFiles.add(file);
     linked += 1;
   }
 
+  const unusedFiles = audioFiles.filter((file) => !usedFiles.has(file));
+  if (unmatchedPads.length && unusedFiles.length === unmatchedPads.length) {
+    for (let index = 0; index < unmatchedPads.length; index += 1) {
+      const pad = unmatchedPads[index];
+      const file = unusedFiles[index];
+      const buffer = await file.arrayBuffer();
+      const exposedPath = file.webkitRelativePath || file.path || file.name;
+      await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: true });
+      linked += 1;
+    }
+    missing = 0;
+  }
+
   await persistCurrentPadsForExport();
+  setBoardPadEditing(false);
   setStatus(linked ? `${linked} son${linked > 1 ? "s" : ""} retrouvé${linked > 1 ? "s" : ""}` : `${missing || "Aucun"} son manquant retrouvé`);
 }
 
@@ -3973,7 +4019,14 @@ async function restorePad(pad) {
   const rawSaved = await dbGet(padAudioKey(pad));
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   if (!saved?.audio) {
-    const missingAudio = Boolean(meta?.audioPath || rawSaved?.name || rawSaved?.path);
+    const missingAudio = Boolean(
+      meta?.audioPath
+      || meta?.audioName
+      || rawSaved?.name
+      || rawSaved?.path
+      || rawSaved?.audioRefIndex != null
+      || meta?.audioRefIndex != null
+    );
     pad.audioName = rawSaved?.name || fileBaseName(meta?.audioPath || rawSaved?.path || pad.audioName);
     pad.audioPath = meta?.audioPath || rawSaved?.path || rawSaved?.name || pad.audioPath;
     pad.audioType = rawSaved?.type || pad.audioType || "";
@@ -4097,15 +4150,6 @@ async function previewPadCue(pad) {
     setStatus(`Pré-écoute impossible: son manquant sur ${pad?.title || "pad"}`);
     return;
   }
-  const audioPrototype = window.HTMLMediaElement?.prototype;
-  if (!audioPrototype || typeof audioPrototype.setSinkId !== "function") {
-    setStatus("Pré-écoute casque indisponible dans ce navigateur");
-    return;
-  }
-  if (!navigator.mediaDevices?.selectAudioOutput) {
-    setStatus("Choix de sortie audio indisponible dans ce navigateur");
-    return;
-  }
 
   const saved = await resolvePadAudioRecord(pad, await dbGet(padMetaKey(pad)), await dbGet(padAudioKey(pad)));
   if (!saved?.audio) {
@@ -4115,12 +4159,17 @@ async function previewPadCue(pad) {
   }
 
   try {
-    const output = await navigator.mediaDevices.selectAudioOutput();
     stopCuePreview();
     const blob = new Blob([saved.audio.slice(0)], { type: saved.type || "audio/mpeg" });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    await audio.setSinkId(output.deviceId);
+    let cueOutputSelected = false;
+    const canSelectOutput = typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+    if (canSelectOutput) {
+      const output = await navigator.mediaDevices.selectAudioOutput();
+      await audio.setSinkId(output.deviceId);
+      cueOutputSelected = true;
+    }
     audio.addEventListener("ended", stopCuePreview, { once: true });
     state.cuePreviewAudio = audio;
     state.cuePreviewPad = pad;
@@ -4129,7 +4178,7 @@ async function previewPadCue(pad) {
     pad.cueButton?.classList.add("is-active");
     pad.cueButton?.setAttribute("aria-pressed", "true");
     await audio.play();
-    setStatus(`Cue: ${pad.title}`);
+    setStatus(cueOutputSelected ? `Cue: ${pad.title}` : `Cue sortie standard: ${pad.title}`);
   } catch (error) {
     stopCuePreview();
     setStatus(error?.name === "NotAllowedError" ? "Pré-écoute annulée" : "Pré-écoute impossible");
@@ -4172,6 +4221,7 @@ async function savePadMeta(pad) {
     visualImage: pad.visualImage,
     visualImageHidden: pad.visualImageHidden,
     visualKind: pad.visualKind,
+    audioName: pad.audioName,
     audioPath: pad.audioPath,
     audioPathTrusted: pad.audioPathTrusted,
     visualPositionX: pad.visualPositionX,
