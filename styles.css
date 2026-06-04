@@ -2757,12 +2757,50 @@ body[data-skin="contrast"] .color-field {
 .audio-dialog,
 .image-dialog {
   width: min(680px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+  overflow-y: scroll;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.42) rgba(255, 255, 255, 0.08);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0;
   background: var(--panel);
   color: var(--text);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.help-dialog::-webkit-scrollbar,
+.shortcut-dialog::-webkit-scrollbar,
+.bulk-edit-dialog::-webkit-scrollbar,
+.patch-bay-dialog::-webkit-scrollbar,
+.confirm-dialog::-webkit-scrollbar,
+.audio-dialog::-webkit-scrollbar,
+.image-dialog::-webkit-scrollbar {
+  width: 11px;
+}
+
+.help-dialog::-webkit-scrollbar-track,
+.shortcut-dialog::-webkit-scrollbar-track,
+.bulk-edit-dialog::-webkit-scrollbar-track,
+.patch-bay-dialog::-webkit-scrollbar-track,
+.confirm-dialog::-webkit-scrollbar-track,
+.audio-dialog::-webkit-scrollbar-track,
+.image-dialog::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.help-dialog::-webkit-scrollbar-thumb,
+.shortcut-dialog::-webkit-scrollbar-thumb,
+.bulk-edit-dialog::-webkit-scrollbar-thumb,
+.patch-bay-dialog::-webkit-scrollbar-thumb,
+.confirm-dialog::-webkit-scrollbar-thumb,
+.audio-dialog::-webkit-scrollbar-thumb,
+.image-dialog::-webkit-scrollbar-thumb {
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.46);
+  background-clip: padding-box;
 }
 
 .help-dialog::backdrop,
@@ -2783,10 +2821,7 @@ body[data-skin="contrast"] .color-field {
 .audio-panel,
 .image-panel {
   padding: 14px;
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 
 .bulk-edit-dialog {
