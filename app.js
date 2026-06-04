@@ -286,6 +286,7 @@ const els = {
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
+  helpTitle: document.querySelector("#helpTitle"),
   closeHelp: document.querySelector("#closeHelp"),
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
@@ -750,6 +751,12 @@ function setPadTextSettings(pad, settings = {}) {
   pad.textContent = String(settings.textContent ?? pad.textContent ?? "");
   pad.textName = String(settings.textName ?? pad.textName ?? "");
   pad.textMode = Boolean(settings.textMode ?? pad.textMode ?? pad.textContent);
+  if (pad.textMode) {
+    pad.fadeMode = "none";
+    pad.fadeInSeconds = "";
+    pad.fadeOutSeconds = "";
+    pad.fadeSeconds = "";
+  }
   pad.textLang = String(settings.textLang || pad.textLang || "fr-FR");
   pad.textGender = ["female", "male"].includes(settings.textGender) ? settings.textGender : (pad.textGender || "female");
   const rate = Number(settings.textRate ?? pad.textRate ?? 1);
@@ -1210,6 +1217,7 @@ function makePad(index) {
     speechUtterance: null,
     speechStopTimer: null,
     speechFadeTimer: null,
+    speechMutedPause: false,
     textStartedAt: 0,
     textDuration: 0,
     noteText: "",
@@ -6756,7 +6764,7 @@ function playbackOffset(pad) {
   const duration = playableDuration(pad);
   if (!duration) return 0;
   if (pad?.speechUtterance) {
-    if (pad.isPaused) return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
+    if (pad.isPaused || pad.speechMutedPause) return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
     const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
     return pad.loop ? elapsed % duration : Math.min(duration, elapsed);
   }
@@ -6820,6 +6828,7 @@ function syncAudioDialogMediaAvailability(pad) {
   setAudioSectionUnavailable('[aria-label="Pitch"]', isVideo || isText);
   setAudioSectionUnavailable('[aria-label="Reverb"]', isVideo || isText);
   setAudioSectionUnavailable('[aria-label="Égalisation audio pad"]', isVideo || isText);
+  setAudioSectionUnavailable('[aria-label="Fades"]', isText);
   setDisabledField(els.audioNormalize, isVideo || isText);
   setDisabledField(els.audioMono, isVideo || isText || Boolean(pad?.buffer?.numberOfChannels === 1));
   setDisabledField(els.audioReverse, isVideo || isText);
@@ -6828,6 +6837,7 @@ function syncAudioDialogMediaAvailability(pad) {
   setAudioSectionHidden('[aria-label="Pitch"]', isText);
   setAudioSectionHidden('[aria-label="Reverb"]', isText);
   setAudioSectionHidden('[aria-label="Égalisation audio pad"]', isText);
+  setAudioSectionHidden('[aria-label="Fades"]', isText);
   if (els.audioTextEditorFrame) els.audioTextEditorFrame.hidden = !isText;
   if (els.audioWaveform) els.audioWaveform.hidden = isText;
   els.audioDialog?.querySelector(".trim-values")?.toggleAttribute("hidden", isText);
@@ -6918,6 +6928,7 @@ function targetPadGain(pad) {
 }
 
 function fadeDurationForPad(pad, type = "out") {
+  if (padType(pad) === "text") return 0;
   if (pad.fadeMode === "none") return 0;
   const padValue = type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds;
   if (pad.fadeMode === "pad") {
@@ -7031,13 +7042,29 @@ function flashCrossfadeTarget(pad, stateName) {
 function setPadMuted(pad, muted, pulse = true) {
   if (!pad) return;
   pad.muted = Boolean(muted);
+  if (pad.speechUtterance) {
+    if (pad.muted && !pad.isPaused && !pad.speechMutedPause) {
+      pad.resumeOffset = playbackOffset(pad);
+      pad.speechMutedPause = true;
+      window.speechSynthesis?.pause?.();
+    } else if (!pad.muted && pad.speechMutedPause && !pad.isPaused) {
+      pad.speechUtterance.volume = speechTargetVolume(pad);
+      pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
+      pad.speechMutedPause = false;
+      window.speechSynthesis?.resume?.();
+    } else if (!pad.muted && pad.speechMutedPause) {
+      pad.speechMutedPause = false;
+      pad.speechUtterance.volume = speechTargetVolume(pad);
+    } else if (!pad.isPaused) {
+      pad.speechUtterance.volume = speechTargetVolume(pad);
+    }
+  }
   if (pad.gain && state.audioContext) {
     const now = state.audioContext.currentTime;
     pad.gain.gain.cancelScheduledValues(now);
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
   }
   if (pad.videoWindow) syncVideoProjectionAudio(pad);
-  if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
   pad.muteEl?.classList.toggle("is-active", pad.muted);
   pad.muteEl?.setAttribute("aria-pressed", String(pad.muted));
@@ -7047,9 +7074,17 @@ function setPadMuted(pad, muted, pulse = true) {
 
 function clearPadMuteState(pad) {
   if (!pad?.muted) return;
+  const shouldResumeSpeech = Boolean(pad.speechUtterance && pad.speechMutedPause && !pad.isPaused);
   pad.muted = false;
+  if (shouldResumeSpeech) {
+    pad.speechMutedPause = false;
+    pad.speechUtterance.volume = speechTargetVolume(pad);
+    pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
+    window.speechSynthesis?.resume?.();
+  } else {
+    pad.speechMutedPause = false;
+  }
   if (pad.videoWindow) syncVideoProjectionAudio(pad);
-  if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
   pad.muteEl?.classList.remove("is-active");
   pad.muteEl?.setAttribute("aria-pressed", "false");
@@ -7637,6 +7672,7 @@ function clearSpeechPad(pad, triggerEnd = false) {
     pad.speechFadeTimer = null;
   }
   pad.speechUtterance = null;
+  pad.speechMutedPause = false;
   pad.textStartedAt = 0;
   pad.stopAt = 0;
   pad.node.classList.remove("is-playing");
@@ -8626,6 +8662,7 @@ async function init() {
   });
   els.helpButton?.addEventListener("click", () => {
     if (els.helpDialog?.showModal) {
+      if (els.helpTitle) els.helpTitle.textContent = state.boardEditMode ? "Aide (mode edit)" : "Aide (mode live)";
       els.helpDialog.showModal();
     }
   });

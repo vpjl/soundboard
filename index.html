@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=172">
+    <link rel="stylesheet" href="styles.css?v=173">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v172</p>
+            <p id="audioStatus">Pret pour la scene · v173</p>
           </div>
         </div>
 
@@ -369,6 +369,8 @@
       <article class="pad" data-pad>
         <div class="pad-head">
           <div class="pad-play-row">
+            <span class="pad-shortcut" data-shortcut></span>
+            <span class="pad-type" data-pad-type>A</span>
             <button class="pad-trigger" type="button" data-action="play">
               <span class="visual-preview" data-visual-preview aria-hidden="true"></span>
               <span class="visual-toggle-button" role="button" tabindex="0" data-action="visual-toggle" aria-label="Masquer l’image du pad" aria-pressed="false">
@@ -378,8 +380,6 @@
                 </svg>
               </span>
               <span class="pad-label">
-                <span class="pad-shortcut" data-shortcut></span>
-                <span class="pad-type" data-pad-type>A</span>
                 <span class="pad-title" data-title>Pad</span>
                 <span class="pad-tags" data-tags-display></span>
               </span>
@@ -1661,6 +1661,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=172"></script>
+    <script src="app.js?v=173"></script>
   </body>
 </html>

@@ -5746,3 +5746,97 @@ body.stage-mode .pad-alerts {
   justify-self: end;
   max-width: 100%;
 }
+
+.pad:not(.is-editing) .pad-head {
+  order: 1;
+}
+
+.pad:not(.is-editing) .controls {
+  order: 2;
+}
+
+.pad:not(.is-editing) .pad-actions {
+  order: 3;
+}
+
+.pad:not(.is-editing) .pad-play-row,
+body.stage-mode .pad:not(.is-editing) .pad-play-row {
+  grid-template-columns: 22px 22px 16px minmax(0, 1fr) auto 28px 28px !important;
+  grid-template-areas:
+    "shortcut type flash . time note eye"
+    "title title title title title title title"
+    "progress progress progress progress progress vu vu"
+    "alerts alerts alerts alerts alerts alerts alerts" !important;
+  min-height: 112px;
+}
+
+.pad:not(.is-editing) .pad-shortcut {
+  grid-area: shortcut;
+}
+
+.pad:not(.is-editing) .pad-type {
+  grid-area: type;
+}
+
+.pad:not(.is-editing) .pad-trigger,
+body.stage-mode .pad:not(.is-editing) .pad-trigger {
+  grid-area: title;
+  min-height: 38px;
+  padding: 4px 0 !important;
+  background: transparent;
+}
+
+.pad:not(.is-editing) .pad-label,
+body.stage-mode .pad:not(.is-editing) .pad-label {
+  display: block !important;
+}
+
+.pad:not(.is-editing) .pad-title,
+body.stage-mode .pad:not(.is-editing) .pad-title {
+  display: -webkit-box;
+  width: 100%;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pad:not(.is-editing) .pad-tags {
+  display: none;
+}
+
+.pad:not(.is-editing) .pad-vu,
+body.stage-mode .pad:not(.is-editing) .pad-vu {
+  align-self: center;
+  height: 9px;
+}
+
+.pad:not(.is-editing) .controls,
+body.stage-mode .pad:not(.is-editing) .controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pad:not(.is-editing) .pad-actions {
+  display: grid;
+}
+
+.pad.is-paused .pad-crossfade-flash:not(.is-crossfade-muted) {
+  opacity: 1;
+  background: #49d3a0;
+  box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.22);
+  animation: paused-green-flash 0.72s ease-in-out infinite;
+}
+
+@keyframes paused-green-flash {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
