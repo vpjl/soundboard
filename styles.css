@@ -1480,7 +1480,7 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   background: rgba(0, 0, 0, 0.48);
   font-size: 1.35rem;
   line-height: 1.12;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: unset;
 }
 
 body[data-skin="visual"] .pad.has-visual-image:not(.is-editing),
@@ -1928,17 +1928,17 @@ select:disabled,
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(255, 206, 92, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 7px;
-  background: rgba(17, 19, 25, 0.68);
-  color: var(--accent-2);
+  background: rgba(0, 0, 0, 0.48);
+  color: var(--text);
   padding: 0;
 }
 
 .pad-note-button.has-note {
   border-color: rgba(255, 206, 92, 0.9);
-  background: rgba(255, 206, 92, 0.28);
-  color: #fff1b8;
+  background: rgba(0, 0, 0, 0.48);
+  color: #ffce5c;
 }
 
 .pad-note-button svg {
@@ -2783,6 +2783,10 @@ body[data-skin="contrast"] .color-field {
 .audio-panel,
 .image-panel {
   padding: 14px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bulk-edit-dialog {
@@ -5703,7 +5707,7 @@ body.stage-mode .pad-time {
 }
 
 .pad-note-button {
-  grid-area: note;
+  grid-area: eye;
   position: static !important;
   justify-self: center;
   align-self: center;
@@ -5974,7 +5978,7 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
 }
 
 body[data-skin="visual"] .visual-toggle-button {
-  display: grid;
+  display: none;
   grid-area: eye !important;
   position: static !important;
   width: 24px;
@@ -5985,8 +5989,50 @@ body[data-skin="visual"] .visual-toggle-button {
   transform: none !important;
 }
 
+body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button,
+body[data-skin="visual"] .pad.has-color .visual-toggle-button {
+  display: grid;
+}
+
+body[data-skin="visual"] .pad.has-visual-image .pad-note-button,
+body[data-skin="visual"] .pad.has-color .pad-note-button {
+  grid-area: note;
+}
+
 body[data-skin="visual"] .pad:not(.is-editing) .pad-play-row {
   grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+  padding: 8px;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  place-items: center;
+  padding: 8px !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+  display: grid !important;
+  place-items: center;
+  height: 100%;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow: visible;
+  text-align: center;
+  -webkit-line-clamp: unset;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
