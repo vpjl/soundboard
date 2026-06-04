@@ -132,6 +132,7 @@ const state = {
   textPad: null,
   notePad: null,
   noteOverlayPad: null,
+  audioCleanupCandidates: [],
   cueFloatAnchorTop: null,
 };
 
@@ -366,6 +367,12 @@ const els = {
   folderImportSummary: document.querySelector("#folderImportSummary"),
   applyFolderImport: document.querySelector("#applyFolderImport"),
   cancelFolderImport: document.querySelector("#cancelFolderImport"),
+  audioCleanupDialog: document.querySelector("#audioCleanupDialog"),
+  audioCleanupList: document.querySelector("#audioCleanupList"),
+  audioCleanupSummary: document.querySelector("#audioCleanupSummary"),
+  exportCleanupAudio: document.querySelector("#exportCleanupAudio"),
+  confirmAudioCleanup: document.querySelector("#confirmAudioCleanup"),
+  cancelAudioCleanup: document.querySelector("#cancelAudioCleanup"),
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
@@ -429,6 +436,15 @@ function dbDelete(key) {
     const tx = state.db.transaction(STORE, "readwrite");
     const request = tx.objectStore(STORE).delete(key);
     request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function dbKeys() {
+  return new Promise((resolve, reject) => {
+    const tx = state.db.transaction(STORE, "readonly");
+    const request = tx.objectStore(STORE).getAllKeys();
+    request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 }
@@ -4319,6 +4335,181 @@ async function deleteCurrentBoard() {
   await renderPads();
   setBoardPadEditing(false);
   setStatus(`${board.name} supprime`);
+  offerAudioCleanupAfterDeletion().catch(() => setStatus(`${board.name} supprime · nettoyage indisponible`));
+}
+
+function isAudioStoreKey(key) {
+  return /^pad-\d+$/.test(String(key || ""))
+    || /^board-.+-pad-\d+$/.test(String(key || ""));
+}
+
+function recordContainsAudio(record) {
+  return Boolean(record?.audio);
+}
+
+function referencedAudioKeyForRecord(boardId, index, record) {
+  const refIndex = Number(record?.audioRefIndex);
+  return padAudioKeyFor(boardId, Number.isInteger(refIndex) ? refIndex : index);
+}
+
+async function referencedAudioKeysForBoard(board) {
+  const keys = new Set();
+  const padCount = Math.max(0, Number(board?.padCount) || 0);
+  for (let index = 0; index < padCount; index += 1) {
+    const ownKey = padAudioKeyFor(board.id, index);
+    keys.add(ownKey);
+    const [audioRecord, metaRecord] = await Promise.all([
+      dbGet(ownKey),
+      dbGet(padMetaKeyFor(board.id, index)),
+    ]);
+    keys.add(referencedAudioKeyForRecord(board.id, index, audioRecord));
+    keys.add(referencedAudioKeyForRecord(board.id, index, metaRecord));
+  }
+  return keys;
+}
+
+function referencedAudioKeysForSnapshot(boardId, snapshot) {
+  const keys = new Set();
+  (snapshot?.pads || []).forEach((item) => {
+    const index = Number(item?.index);
+    if (!Number.isInteger(index) || index < 0) return;
+    const audio = item?.audio;
+    const meta = item?.meta;
+    if (audio?.preserveCurrentAudio || audio?.audioRefIndex != null) {
+      keys.add(referencedAudioKeyForRecord(boardId, index, audio));
+    }
+    if (meta?.audioRefIndex != null) {
+      keys.add(referencedAudioKeyForRecord(boardId, index, meta));
+    }
+  });
+  return keys;
+}
+
+async function referencedAudioKeysForAllBoards() {
+  const keys = new Set();
+  for (const board of state.boards) {
+    const boardKeys = await referencedAudioKeysForBoard(board);
+    boardKeys.forEach((key) => keys.add(key));
+    const history = await dbGet(boardHistoryKey(board.id)) || [];
+    history.forEach((snapshot) => {
+      referencedAudioKeysForSnapshot(board.id, snapshot).forEach((key) => keys.add(key));
+    });
+  }
+  return keys;
+}
+
+function cleanupAudioLabel(record, key) {
+  return String(record?.title || record?.name || record?.audioName || record?.path || key || "son").trim();
+}
+
+function cleanupAudioDetail(record) {
+  const details = [
+    record?.name || record?.audioName || "",
+    record?.type || "",
+  ].filter(Boolean);
+  return details.join(" · ");
+}
+
+async function orphanAudioCandidates() {
+  const [keys, referenced] = await Promise.all([
+    dbKeys(),
+    referencedAudioKeysForAllBoards(),
+  ]);
+  const candidates = [];
+  for (const key of keys) {
+    if (!isAudioStoreKey(key) || referenced.has(key)) continue;
+    const record = await dbGet(key);
+    if (!recordContainsAudio(record)) continue;
+    candidates.push({
+      key,
+      record,
+      label: cleanupAudioLabel(record, key),
+      detail: cleanupAudioDetail(record),
+    });
+  }
+  return candidates.sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
+}
+
+function selectedCleanupCandidates() {
+  const selectedKeys = new Set([...els.audioCleanupList?.querySelectorAll("input:checked") || []].map((input) => input.value));
+  return (state.audioCleanupCandidates || []).filter((candidate) => selectedKeys.has(candidate.key));
+}
+
+function renderAudioCleanupDialog(candidates) {
+  state.audioCleanupCandidates = candidates;
+  if (els.audioCleanupSummary) {
+    els.audioCleanupSummary.textContent = `${candidates.length} son${candidates.length > 1 ? "s" : ""} non référencé${candidates.length > 1 ? "s" : ""}. Suppression possible seulement car les 4 conditions sont réunies.`;
+  }
+  if (!els.audioCleanupList) return;
+  els.audioCleanupList.innerHTML = "";
+  candidates.forEach((candidate) => {
+    const label = document.createElement("label");
+    label.className = "cleanup-audio-item";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = candidate.key;
+    input.checked = true;
+    const text = document.createElement("span");
+    text.textContent = candidate.label;
+    const detail = document.createElement("small");
+    detail.textContent = candidate.detail || candidate.key;
+    label.append(input, text, detail);
+    els.audioCleanupList.append(label);
+  });
+}
+
+async function offerAudioCleanupAfterDeletion() {
+  const candidates = await orphanAudioCandidates();
+  if (!candidates.length) return;
+  renderAudioCleanupDialog(candidates);
+  if (els.audioCleanupDialog?.showModal) {
+    els.audioCleanupDialog.showModal();
+  } else if (window.confirm(`${candidates.length} son(s) ne sont plus référencés. Les supprimer ?`)) {
+    await deleteSelectedCleanupAudio(candidates);
+  }
+}
+
+async function exportCleanupAudioToAttic() {
+  const candidates = selectedCleanupCandidates();
+  if (!candidates.length) {
+    setStatus("Aucun son sélectionné");
+    return;
+  }
+  const sounds = (await Promise.all(candidates.map(async (candidate) => {
+    const audio = await audioRecordForExport(candidate.record, "audio");
+    return audio ? {
+      key: candidate.key,
+      label: candidate.label,
+      record: audio,
+    } : null;
+  }))).filter(Boolean);
+  if (!sounds.length) {
+    setStatus("Export grenier impossible");
+    return;
+  }
+  const payload = {
+    format: "soundboard-live-audio-attic",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sounds,
+  };
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  await shareOrDownloadBoard(blob, `grenier-a-sons.${timestampForFile()}.json`, "grenier à sons");
+}
+
+async function deleteSelectedCleanupAudio(candidates = selectedCleanupCandidates()) {
+  if (!candidates.length) {
+    setStatus("Aucun son sélectionné");
+    return;
+  }
+  const names = candidates.map((candidate) => `- ${candidate.label}`).join("\n");
+  if (!window.confirm(`Supprimer définitivement les sons sélectionnés ?\n\n${names}`)) return;
+  for (const candidate of candidates) {
+    await dbDelete(candidate.key);
+  }
+  state.audioCleanupCandidates = [];
+  els.audioCleanupDialog?.close();
+  setStatus(`${candidates.length} son${candidates.length > 1 ? "s" : ""} supprimé${candidates.length > 1 ? "s" : ""}`);
 }
 
 async function repairAccidentalPadTitles() {
@@ -8732,10 +8923,27 @@ async function init() {
     els.folderImportDialog?.close();
     setStatus("Ajout des sons annulé");
   });
+  els.exportCleanupAudio?.addEventListener("click", () => {
+    exportCleanupAudioToAttic().catch(() => setStatus("Export grenier impossible"));
+  });
+  els.confirmAudioCleanup?.addEventListener("click", () => {
+    deleteSelectedCleanupAudio().catch(() => setStatus("Suppression audio impossible"));
+  });
+  els.cancelAudioCleanup?.addEventListener("click", () => {
+    state.audioCleanupCandidates = [];
+    els.audioCleanupDialog?.close();
+    setStatus("Sons conservés");
+  });
   els.folderImportDialog?.addEventListener("click", (event) => {
     if (event.target === els.folderImportDialog) {
       state.folderImportFiles = [];
       els.folderImportDialog.close();
+    }
+  });
+  els.audioCleanupDialog?.addEventListener("click", (event) => {
+    if (event.target === els.audioCleanupDialog) {
+      state.audioCleanupCandidates = [];
+      els.audioCleanupDialog.close();
     }
   });
   els.helpButton?.addEventListener("click", () => {
@@ -9175,6 +9383,9 @@ async function init() {
   });
   bindEscapeClose(els.folderImportDialog, () => {
     state.folderImportFiles = [];
+  });
+  bindEscapeClose(els.audioCleanupDialog, () => {
+    state.audioCleanupCandidates = [];
   });
   bindEscapeClose(els.audioDialog, () => {
     stopAudioDialogStartedPlayback();

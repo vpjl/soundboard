@@ -2572,6 +2572,60 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   line-height: 1.35;
 }
 
+.audio-cleanup-panel {
+  max-width: min(680px, calc(100vw - 24px));
+}
+
+.cleanup-rules {
+  display: grid;
+  gap: 4px;
+}
+
+.cleanup-rules p {
+  margin: 0;
+}
+
+.audio-cleanup-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(340px, 45vh);
+  overflow: auto;
+  padding: 2px;
+}
+
+.cleanup-audio-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cleanup-audio-item input {
+  grid-row: span 2;
+  width: 18px;
+  height: 18px;
+}
+
+.cleanup-audio-item span,
+.cleanup-audio-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cleanup-audio-item span {
+  font-weight: 800;
+}
+
+.cleanup-audio-item small {
+  color: var(--muted);
+}
+
 .control-group {
   display: grid;
   gap: 6px;
