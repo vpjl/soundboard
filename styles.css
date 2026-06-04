@@ -5840,3 +5840,117 @@ body.stage-mode .pad:not(.is-editing) .controls {
     transform: scale(1.08);
   }
 }
+
+.audio-dialog.is-text-pad [aria-label="Waveform et trim"],
+.audio-dialog.is-text-pad [aria-label="Normalisation"],
+.audio-dialog.is-text-pad [aria-label="Fades"],
+.audio-dialog.is-text-pad [aria-label="Pitch"],
+.audio-dialog.is-text-pad [aria-label="Reverb"],
+.audio-dialog.is-text-pad [aria-label="Égalisation audio pad"] {
+  display: none !important;
+}
+
+.pad,
+.pad * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.pad.is-ending {
+  animation: none !important;
+}
+
+.pad-alert-ending {
+  display: none !important;
+}
+
+.pad.is-ending-flash .pad-crossfade-flash:not(.is-crossfade-muted) {
+  opacity: 1;
+  background: #ff5f56;
+  box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24);
+  animation: ending-red-flash 0.32s linear 2;
+}
+
+@keyframes ending-red-flash {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(0.84);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(34, 40, 50, 0.96), rgba(24, 28, 36, 0.96));
+  padding: 7px 9px !important;
+}
+
+body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
+body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
+  display: none !important;
+}
+
+.pad:not(.is-editing) .pad-play-row,
+body.stage-mode .pad:not(.is-editing) .pad-play-row {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pad:not(.is-editing) .pad-alerts,
+body.stage-mode .pad:not(.is-editing) .pad-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.pad-live-row,
+.pad-live-row .control-group,
+.pad:not(.is-editing) .pad-actions,
+.pad:not(.is-editing) .controls,
+.pad:not(.is-editing) .pad-vu,
+.pad:not(.is-editing) .pad-progress {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.visual-toggle-button {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+}
+
+body[data-skin="visual"] .visual-toggle-button {
+  justify-self: end;
+  align-self: center;
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  .pad:not(.is-editing) .pad-play-row,
+  body.stage-mode .pad:not(.is-editing) .pad-play-row {
+    grid-template-columns: 22px 22px 14px minmax(0, 1fr) auto 24px 24px !important;
+    gap: 4px !important;
+  }
+
+  .pad:not(.is-editing) .pad-actions {
+    gap: 6px;
+  }
+
+  .pad-live-row .icon-button,
+  .pad-live-row button {
+    min-width: 0 !important;
+  }
+
+  .pad-alert {
+    max-width: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

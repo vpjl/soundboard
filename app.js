@@ -5504,13 +5504,22 @@ function updatePadAlerts(pad) {
   const remaining = remainingSeconds(pad);
   const duration = playableDuration(pad);
   const endingThreshold = Math.min(ENDING_ALERT_SECONDS, Math.max(1, duration * 0.2));
-  const isEnding = Boolean(pad.source && !pad.loop && remaining <= endingThreshold);
   const playing = isPadPlaying(pad);
+  const isEnding = Boolean(playing && !pad.loop && remaining > 0 && remaining <= endingThreshold);
   const isDuckSource = Boolean(playing && duckAmountForSource(pad) > 0 && pad.duckMode !== "global");
   const isDucked = Boolean(playing && duckingActive() && !pad.duckTrigger);
   const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
   const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
 
+  if (!playing || remaining > endingThreshold) {
+    pad.endingFlashSeen = false;
+    pad.node.classList.remove("is-ending-flash");
+  }
+  if (isEnding && !pad.endingFlashSeen) {
+    pad.endingFlashSeen = true;
+    pad.node.classList.add("is-ending-flash");
+    window.setTimeout(() => pad.node?.classList.remove("is-ending-flash"), 900);
+  }
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode !== "global");
@@ -6547,6 +6556,7 @@ function resetAudioDialogSettings() {
     endStartMode: "none",
     endStartTarget: "",
   });
+  setPadTrim(pad, 0, 0);
   state.audioCrossfadeDraft = {
     startStopMode: "none",
     startStopTag: "",
@@ -6764,7 +6774,7 @@ function playbackOffset(pad) {
   const duration = playableDuration(pad);
   if (!duration) return 0;
   if (pad?.speechUtterance) {
-    if (pad.isPaused || pad.speechMutedPause) return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
+    if (pad.isPaused) return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
     const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
     return pad.loop ? elapsed % duration : Math.min(duration, elapsed);
   }
@@ -7043,21 +7053,8 @@ function setPadMuted(pad, muted, pulse = true) {
   if (!pad) return;
   pad.muted = Boolean(muted);
   if (pad.speechUtterance) {
-    if (pad.muted && !pad.isPaused && !pad.speechMutedPause) {
-      pad.resumeOffset = playbackOffset(pad);
-      pad.speechMutedPause = true;
-      window.speechSynthesis?.pause?.();
-    } else if (!pad.muted && pad.speechMutedPause && !pad.isPaused) {
-      pad.speechUtterance.volume = speechTargetVolume(pad);
-      pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
-      pad.speechMutedPause = false;
-      window.speechSynthesis?.resume?.();
-    } else if (!pad.muted && pad.speechMutedPause) {
-      pad.speechMutedPause = false;
-      pad.speechUtterance.volume = speechTargetVolume(pad);
-    } else if (!pad.isPaused) {
-      pad.speechUtterance.volume = speechTargetVolume(pad);
-    }
+    pad.speechMutedPause = false;
+    pad.speechUtterance.volume = speechTargetVolume(pad);
   }
   if (pad.gain && state.audioContext) {
     const now = state.audioContext.currentTime;
@@ -7074,15 +7071,10 @@ function setPadMuted(pad, muted, pulse = true) {
 
 function clearPadMuteState(pad) {
   if (!pad?.muted) return;
-  const shouldResumeSpeech = Boolean(pad.speechUtterance && pad.speechMutedPause && !pad.isPaused);
   pad.muted = false;
-  if (shouldResumeSpeech) {
-    pad.speechMutedPause = false;
+  pad.speechMutedPause = false;
+  if (pad.speechUtterance) {
     pad.speechUtterance.volume = speechTargetVolume(pad);
-    pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
-    window.speechSynthesis?.resume?.();
-  } else {
-    pad.speechMutedPause = false;
   }
   if (pad.videoWindow) syncVideoProjectionAudio(pad);
   pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
