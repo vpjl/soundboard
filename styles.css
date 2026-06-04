@@ -487,8 +487,7 @@ body.no-cue-output .cue-vu,
 body.no-cue-output .cue-output-line,
 body.no-cue-output #masterCueOutputName,
 body.no-cue-output #masterCueOutputSelect,
-body.no-cue-output #audioCueOutputName,
-body.no-cue-output #audioCuePreview {
+body.no-cue-output #audioCueOutputName {
   display: none !important;
 }
 
@@ -2514,6 +2513,13 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border-color: rgba(130, 207, 255, 0.9);
   background: rgba(130, 207, 255, 0.22);
   color: #ffffff;
+}
+
+body.no-cue-output .pad-live-row .pad-cue-button,
+.pad-live-row .pad-cue-button:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 .pad-live-row .pad-mute-button {
