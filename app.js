@@ -5511,15 +5511,6 @@ function updatePadAlerts(pad) {
   const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
   const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
 
-  if (!playing || remaining > endingThreshold) {
-    pad.endingFlashSeen = false;
-    pad.node.classList.remove("is-ending-flash");
-  }
-  if (isEnding && !pad.endingFlashSeen) {
-    pad.endingFlashSeen = true;
-    pad.node.classList.add("is-ending-flash");
-    window.setTimeout(() => pad.node?.classList.remove("is-ending-flash"), 900);
-  }
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode !== "global");
@@ -5536,6 +5527,14 @@ function updateAllPadAlerts() {
   state.pads.forEach(updatePadAlerts);
 }
 
+function flashPadEnd(pad) {
+  if (!pad?.crossfadeFlashEl) return;
+  pad.node.classList.remove("is-end-flash");
+  void pad.node.offsetWidth;
+  pad.node.classList.add("is-end-flash");
+  window.setTimeout(() => pad.node?.classList.remove("is-end-flash"), 1450);
+}
+
 function setPadMode(pad, mode) {
   pad.playMode = ["oneshot", "hold", "toggle"].includes(mode) ? mode : "oneshot";
   updatePadModeButtons(pad);
@@ -5549,8 +5548,9 @@ function updatePadModeButtons(pad) {
     const buttonMode = button.dataset.mode;
     const active = buttonMode === pad.playMode || (buttonMode === "oneshot" && pad.playMode === "hold");
     const paused = Boolean(pad.isPaused && buttonMode === "toggle");
-    button.classList.toggle("is-active", Boolean((isPadPlaying(pad) && active) || paused));
-    button.setAttribute("aria-pressed", String(Boolean((isPadPlaying(pad) && active) || paused)));
+    const playingActive = buttonMode === "toggle" ? false : Boolean(isPadPlaying(pad) && active);
+    button.classList.toggle("is-active", Boolean(playingActive || paused));
+    button.setAttribute("aria-pressed", String(Boolean(playingActive || paused)));
   });
   pad.node?.classList.toggle("is-paused", Boolean(pad.isPaused));
 }
@@ -6842,7 +6842,6 @@ function syncAudioDialogMediaAvailability(pad) {
   setDisabledField(els.audioNormalize, isVideo || isText);
   setDisabledField(els.audioMono, isVideo || isText || Boolean(pad?.buffer?.numberOfChannels === 1));
   setDisabledField(els.audioReverse, isVideo || isText);
-  setAudioSectionHidden('[aria-label="Waveform et trim"]', isText);
   setAudioSectionHidden('[aria-label="Normalisation"]', isText);
   setAudioSectionHidden('[aria-label="Pitch"]', isText);
   setAudioSectionHidden('[aria-label="Reverb"]', isText);
@@ -7053,8 +7052,21 @@ function setPadMuted(pad, muted, pulse = true) {
   if (!pad) return;
   pad.muted = Boolean(muted);
   if (pad.speechUtterance) {
-    pad.speechMutedPause = false;
-    pad.speechUtterance.volume = speechTargetVolume(pad);
+    if (pad.muted && !pad.speechMutedPause) {
+      pad.speechMutedPause = true;
+      window.speechSynthesis?.pause?.();
+    } else if (!pad.muted && pad.speechMutedPause) {
+      pad.speechMutedPause = false;
+      if (playbackOffset(pad) >= playableDuration(pad)) {
+        window.speechSynthesis?.cancel?.();
+        clearSpeechPad(pad, true);
+      } else {
+        pad.speechUtterance.volume = speechTargetVolume(pad);
+        window.speechSynthesis?.resume?.();
+      }
+    } else {
+      pad.speechUtterance.volume = speechTargetVolume(pad);
+    }
   }
   if (pad.gain && state.audioContext) {
     const now = state.audioContext.currentTime;
@@ -7072,6 +7084,9 @@ function setPadMuted(pad, muted, pulse = true) {
 function clearPadMuteState(pad) {
   if (!pad?.muted) return;
   pad.muted = false;
+  if (pad.speechMutedPause && pad.speechUtterance && !pad.isPaused) {
+    window.speechSynthesis?.resume?.();
+  }
   pad.speechMutedPause = false;
   if (pad.speechUtterance) {
     pad.speechUtterance.volume = speechTargetVolume(pad);
@@ -7674,6 +7689,7 @@ function clearSpeechPad(pad, triggerEnd = false) {
   applyDucking();
   updateAllPadAlerts();
   if (triggerEnd) {
+    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }
@@ -7768,6 +7784,7 @@ function markVideoStopped(pad, triggerEnd = false) {
   updatePadModeButtons(pad);
   updatePadTime(pad);
   if (triggerEnd) {
+    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }
@@ -7918,6 +7935,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   applyDucking();
   updateAllPadAlerts();
   if (triggerEnd) {
+    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }
