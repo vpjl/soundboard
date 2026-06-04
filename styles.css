@@ -5871,7 +5871,7 @@ body.stage-mode .pad:not(.is-editing) .controls {
 
 .pad.is-preend-flash .pad-crossfade-flash {
   opacity: 1;
-  animation: end-green-red-flash 1.35s linear 1;
+  animation: end-green-red-flash var(--preend-flash-duration, 1.35s) linear 1;
 }
 
 @keyframes end-green-red-flash {

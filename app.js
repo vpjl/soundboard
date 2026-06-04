@@ -5080,17 +5080,25 @@ function previewTextCue(pad) {
     setStatus("Cue texte indisponible dans ce navigateur");
     return;
   }
-  const text = String(pad?.textContent || "").trim();
+  const liveSettings = state.audioPad === pad && els.audioDialog?.open
+    ? {
+        textContent: els.audioTextInlineEditor?.value ?? pad.textContent,
+        textLang: els.audioTextLang?.value || pad.textLang || "fr-FR",
+        textGender: els.audioTextGender?.value || pad.textGender || "female",
+        textRate: els.audioTextRate?.value || pad.textRate || 1,
+      }
+    : pad;
+  const text = String(liveSettings?.textContent || "").trim();
   if (!text) {
     setStatus(`Texte vide: ${pad?.title || "pad"}`);
     return;
   }
   stopCuePreview();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = pad.textLang || "fr-FR";
-  utterance.rate = Math.min(1.8, Math.max(0.6, Number(pad.textRate) || 1));
+  utterance.lang = liveSettings.textLang || "fr-FR";
+  utterance.rate = Math.min(1.8, Math.max(0.6, Number(liveSettings.textRate) || 1));
   utterance.volume = Math.min(1, Math.max(0, cueVolumeValue()));
-  const voice = speechVoiceForPad(pad);
+  const voice = speechVoiceForPad(liveSettings);
   if (voice) utterance.voice = voice;
   utterance.onend = () => {
     if (state.cuePreviewUtterance === utterance) stopCuePreview();
@@ -5517,7 +5525,7 @@ function updatePadAlerts(pad) {
   }
   if (isEnding && !pad.preEndFlashSeen) {
     pad.preEndFlashSeen = true;
-    flashPadPreEnd(pad);
+    flashPadPreEnd(pad, remaining);
   }
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
@@ -5535,12 +5543,14 @@ function updateAllPadAlerts() {
   state.pads.forEach(updatePadAlerts);
 }
 
-function flashPadPreEnd(pad) {
+function flashPadPreEnd(pad, durationSeconds = 1.35) {
   if (!pad?.crossfadeFlashEl) return;
+  const duration = Math.max(0.25, Number(durationSeconds) || 1.35);
   pad.node.classList.remove("is-preend-flash");
+  pad.node.style.setProperty("--preend-flash-duration", `${duration}s`);
   void pad.node.offsetWidth;
   pad.node.classList.add("is-preend-flash");
-  window.setTimeout(() => pad.node?.classList.remove("is-preend-flash"), 1450);
+  window.setTimeout(() => pad.node?.classList.remove("is-preend-flash"), duration * 1000 + 40);
 }
 
 function setPadMode(pad, mode) {
@@ -6564,6 +6574,13 @@ function resetAudioDialogSettings() {
     endStartMode: "none",
     endStartTarget: "",
   });
+  if (pad.textMode || pad.textContent) {
+    setPadTextSettings(pad, {
+      textLang: "fr-FR",
+      textGender: "female",
+      textRate: 1,
+    });
+  }
   setPadTrim(pad, 0, 0);
   state.audioCrossfadeDraft = {
     startStopMode: "none",
@@ -8998,17 +9015,19 @@ async function init() {
       saveAudioPadFromDialog();
     });
   });
-  [els.audioTextLang, els.audioTextGender, els.audioTextRate].forEach((element) => {
-    element?.addEventListener("input", () => {
-      if (!state.audioPad) return;
-      setPadTextSettings(state.audioPad, {
-        textLang: els.audioTextLang?.value,
-        textGender: els.audioTextGender?.value,
-        textRate: els.audioTextRate?.value,
-      });
-      syncAudioDialog(state.audioPad);
-      saveAudioPadFromDialog();
+  const saveAudioTextControlSettings = () => {
+    if (!state.audioPad) return;
+    setPadTextSettings(state.audioPad, {
+      textLang: els.audioTextLang?.value,
+      textGender: els.audioTextGender?.value,
+      textRate: els.audioTextRate?.value,
     });
+    syncAudioDialog(state.audioPad);
+    saveAudioPadFromDialog();
+  };
+  [els.audioTextLang, els.audioTextGender, els.audioTextRate].forEach((element) => {
+    element?.addEventListener("input", saveAudioTextControlSettings);
+    element?.addEventListener("change", saveAudioTextControlSettings);
   });
   els.audioTextInlineEditor?.addEventListener("input", () => {
     if (!state.audioPad) return;
