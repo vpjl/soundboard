@@ -5511,6 +5511,14 @@ function updatePadAlerts(pad) {
   const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
   const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
 
+  if (!playing || remaining > endingThreshold) {
+    pad.preEndFlashSeen = false;
+    pad.node.classList.remove("is-preend-flash");
+  }
+  if (isEnding && !pad.preEndFlashSeen) {
+    pad.preEndFlashSeen = true;
+    flashPadPreEnd(pad);
+  }
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode !== "global");
@@ -5527,12 +5535,12 @@ function updateAllPadAlerts() {
   state.pads.forEach(updatePadAlerts);
 }
 
-function flashPadEnd(pad) {
+function flashPadPreEnd(pad) {
   if (!pad?.crossfadeFlashEl) return;
-  pad.node.classList.remove("is-end-flash");
+  pad.node.classList.remove("is-preend-flash");
   void pad.node.offsetWidth;
-  pad.node.classList.add("is-end-flash");
-  window.setTimeout(() => pad.node?.classList.remove("is-end-flash"), 1450);
+  pad.node.classList.add("is-preend-flash");
+  window.setTimeout(() => pad.node?.classList.remove("is-preend-flash"), 1450);
 }
 
 function setPadMode(pad, mode) {
@@ -6842,12 +6850,16 @@ function syncAudioDialogMediaAvailability(pad) {
   setDisabledField(els.audioNormalize, isVideo || isText);
   setDisabledField(els.audioMono, isVideo || isText || Boolean(pad?.buffer?.numberOfChannels === 1));
   setDisabledField(els.audioReverse, isVideo || isText);
+  setAudioSectionHidden('[aria-label="Waveform et trim"]', false);
   setAudioSectionHidden('[aria-label="Normalisation"]', isText);
   setAudioSectionHidden('[aria-label="Pitch"]', isText);
   setAudioSectionHidden('[aria-label="Reverb"]', isText);
   setAudioSectionHidden('[aria-label="Égalisation audio pad"]', isText);
   setAudioSectionHidden('[aria-label="Fades"]', isText);
-  if (els.audioTextEditorFrame) els.audioTextEditorFrame.hidden = !isText;
+  if (els.audioTextEditorFrame) {
+    els.audioTextEditorFrame.hidden = !isText;
+    els.audioTextEditorFrame.closest(".audio-section")?.toggleAttribute("hidden", false);
+  }
   if (els.audioWaveform) els.audioWaveform.hidden = isText;
   els.audioDialog?.querySelector(".trim-values")?.toggleAttribute("hidden", isText);
 }
@@ -7056,13 +7068,13 @@ function setPadMuted(pad, muted, pulse = true) {
       pad.speechMutedPause = true;
       window.speechSynthesis?.pause?.();
     } else if (!pad.muted && pad.speechMutedPause) {
+      const offset = playbackOffset(pad);
       pad.speechMutedPause = false;
-      if (playbackOffset(pad) >= playableDuration(pad)) {
+      if (offset >= playableDuration(pad)) {
         window.speechSynthesis?.cancel?.();
         clearSpeechPad(pad, true);
       } else {
-        pad.speechUtterance.volume = speechTargetVolume(pad);
-        window.speechSynthesis?.resume?.();
+        speakPadTextFromOffset(pad, offset);
       }
     } else {
       pad.speechUtterance.volume = speechTargetVolume(pad);
@@ -7689,7 +7701,6 @@ function clearSpeechPad(pad, triggerEnd = false) {
   applyDucking();
   updateAllPadAlerts();
   if (triggerEnd) {
-    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }
@@ -7697,6 +7708,48 @@ function clearSpeechPad(pad, triggerEnd = false) {
 
 function speechTargetVolume(pad) {
   return Math.min(1, Math.max(0, pad?.muted ? 0 : Number(pad?.volume) || 0));
+}
+
+function textFromSpeechOffset(pad, offset = 0) {
+  const words = String(pad?.textContent || "").trim().match(/\S+/g) || [];
+  if (!words.length) return "";
+  const duration = Math.max(1, pad?.textDuration || estimateSpeechDuration(pad.textContent, pad.textRate));
+  const ratio = Math.min(0.98, Math.max(0, Number(offset) / duration));
+  const startIndex = Math.min(words.length - 1, Math.max(0, Math.floor(words.length * ratio)));
+  return words.slice(startIndex).join(" ");
+}
+
+function speakPadTextFromOffset(pad, offset = 0) {
+  const text = textFromSpeechOffset(pad, offset);
+  if (!text) {
+    window.speechSynthesis?.cancel?.();
+    clearSpeechPad(pad, true);
+    return;
+  }
+  const previousUtterance = pad.speechUtterance;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = pad.textLang || "fr-FR";
+  utterance.rate = Math.min(1.8, Math.max(0.6, Number(pad.textRate) || 1));
+  utterance.volume = speechTargetVolume(pad);
+  const voice = speechVoiceForPad(pad);
+  if (voice) utterance.voice = voice;
+  pad.speechUtterance = utterance;
+  pad.speechMutedPause = false;
+  pad.isPaused = false;
+  pad.startedAt = performance.now() / 1000 - Math.max(0, offset);
+  pad.node.classList.add("is-playing");
+  utterance.onend = () => {
+    if (pad.speechUtterance === utterance) clearSpeechPad(pad, true);
+  };
+  utterance.onerror = () => {
+    if (pad.speechUtterance === utterance) clearSpeechPad(pad, false);
+    setStatus("Lecture de texte impossible");
+  };
+  if (previousUtterance) window.speechSynthesis?.cancel?.();
+  window.speechSynthesis?.speak?.(utterance);
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  startTimer();
 }
 
 function fadeSpeechVolume(pad, from, to, seconds, done = null) {
@@ -7784,7 +7837,6 @@ function markVideoStopped(pad, triggerEnd = false) {
   updatePadModeButtons(pad);
   updatePadTime(pad);
   if (triggerEnd) {
-    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }
@@ -7935,7 +7987,6 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   applyDucking();
   updateAllPadAlerts();
   if (triggerEnd) {
-    flashPadEnd(pad);
     executeEndCrossfade(pad);
     checkCueConditions(pad);
   }

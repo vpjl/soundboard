@@ -5869,7 +5869,7 @@ body.stage-mode .pad:not(.is-editing) .controls {
   display: none !important;
 }
 
-.pad.is-end-flash .pad-crossfade-flash {
+.pad.is-preend-flash .pad-crossfade-flash {
   opacity: 1;
   animation: end-green-red-flash 1.35s linear 1;
 }
@@ -5975,10 +5975,18 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
 
 body[data-skin="visual"] .visual-toggle-button {
   display: grid;
+  grid-area: eye !important;
+  position: static !important;
   width: 24px;
   height: 24px;
+  margin: 0 !important;
   justify-self: end;
   align-self: center;
+  transform: none !important;
+}
+
+body[data-skin="visual"] .pad:not(.is-editing) .pad-play-row {
+  grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
