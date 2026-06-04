@@ -7178,6 +7178,26 @@ function videoTargetVolume(pad) {
   return Math.min(1, Math.max(0, pad.volume * masterVolume * duckFactorForPad(pad)));
 }
 
+function writeVideoProjectionDocument(projection, title, body) {
+  if (!projection) return;
+  projection.document.open();
+  projection.document.write(`<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+video{width:100%;height:100%;object-fit:contain;background:#000}
+.label{position:fixed;left:14px;bottom:12px;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.58);font-size:13px;letter-spacing:.02em}
+.loading{display:grid;place-items:center;width:100%;height:100%;color:#d7dde8;font-size:18px}
+</style>
+</head>
+<body>${body}</body>
+</html>`);
+  projection.document.close();
+}
+
 function fadeVideoVolume(video, fromVolume, toVolume, seconds) {
   if (!video || seconds <= 0) {
     if (video) video.volume = Math.min(1, Math.max(0, toVolume));
@@ -7274,7 +7294,10 @@ function disposeVideoProjection(pad) {
 async function playPadVideo(pad, options = {}) {
   const projection = (pad.videoWindow && !pad.videoWindow.closed)
     ? pad.videoWindow
-    : window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+    : window.open("about:blank", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+  if (projection) {
+    writeVideoProjectionDocument(projection, escapeText(pad.title || "Video"), `<div class="loading">${escapeText(pad.title || "Video")}</div>`);
+  }
   const record = await dbGet(padAudioKey(pad));
   if (!record?.video) {
     if (projection && !pad.videoWindow) {
@@ -7302,24 +7325,7 @@ async function playPadVideo(pad, options = {}) {
     return;
   }
   const title = escapeText(pad.title || record.videoName || "Video");
-  projection.document.open();
-  projection.document.write(`<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<title>${title}</title>
-<style>
-html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-video{width:100%;height:100%;object-fit:contain;background:#000}
-.label{position:fixed;left:14px;bottom:12px;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.58);font-size:13px;letter-spacing:.02em}
-</style>
-</head>
-<body>
-<video src="${url}" controls playsinline></video>
-<div class="label">${title}</div>
-</body>
-</html>`);
-  projection.document.close();
+  writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline></video><div class="label">${title}</div>`);
   pad.videoWindow = projection;
   const video = videoElementForPad(pad);
   const targetVolume = videoTargetVolume(pad);
