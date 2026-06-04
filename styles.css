@@ -1893,6 +1893,8 @@ body.board-edit-mode .board-action-grid #addBoard {
 
 body.board-edit-mode.shortcuts-disabled .board-action-grid .keyboard-shortcuts-button {
   opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 body.board-edit-mode .board-action-grid .show-cables-button,
@@ -5260,5 +5262,76 @@ body.stage-mode .secondary-live-group {
   body.board-edit-mode .board-center-actions .icon-button {
     width: 100% !important;
     height: 34px !important;
+  }
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  body.cues-enabled:not(.board-edit-mode) .live-tools {
+    position: sticky;
+    top: max(6px, env(safe-area-inset-top));
+    z-index: 70;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(10px);
+  }
+
+  body.cues-enabled:not(.board-edit-mode) .show-cables-button,
+  body.cues-enabled:not(.board-edit-mode) .patch-bay-button {
+    display: none !important;
+  }
+
+  body.cues-enabled:not(.board-edit-mode) .xfade-live-row {
+    grid-template-columns: minmax(36px, 42px) !important;
+  }
+
+  body.stage-mode .master-strip {
+    grid-template-columns: minmax(170px, 1fr) 30px minmax(0, 0) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
+    max-width: 100%;
+  }
+
+  body.stage-mode .master-volume-stack {
+    min-width: 0;
+  }
+
+  .board-layout-controls select:disabled,
+  .board-layout-controls input:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+}
+
+@media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
+  .cue-live-row,
+  body.stage-mode .cue-live-row {
+    grid-template-columns: repeat(4, minmax(44px, 1fr)) minmax(140px, 1.6fr) !important;
+  }
+
+  .cue-live-row .icon-button,
+  body.stage-mode .cue-live-row .icon-button {
+    width: 100% !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .pad-live-row button,
+  body.stage-mode .pad-live-row button {
+    min-height: 44px;
+  }
+
+  .live-button-group,
+  .secondary-live-group,
+  body.stage-mode .live-button-group,
+  body.stage-mode .secondary-live-group {
+    gap: 8px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.stage-mode .board-layout-controls {
+    display: grid !important;
+    opacity: 0.56;
+    pointer-events: none;
   }
 }

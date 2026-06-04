@@ -792,6 +792,27 @@ function stopEvent(event) {
   event.stopPropagation();
 }
 
+function stopButtonEvent(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  event?.stopImmediatePropagation?.();
+}
+
+function bindSafeActionButton(button, action) {
+  if (!button) return;
+  const run = (event) => {
+    stopButtonEvent(event);
+    if (button.disabled || button.getAttribute("aria-disabled") === "true") return;
+    const now = performance.now();
+    const lastRun = Number(button.dataset.lastRun || 0);
+    if (now - lastRun < 700) return;
+    button.dataset.lastRun = String(now);
+    Promise.resolve(action(event)).catch(() => {});
+  };
+  button.addEventListener("click", run);
+  button.addEventListener("touchend", run, { passive: false });
+}
+
 function setShortcut(rowIndex, key, padIndex) {
   const normalizedKey = normalizeShortcutKey(key);
   state.shortcuts[rowIndex] = {
@@ -865,6 +886,10 @@ function renderShortcutRows() {
 
 function updateShortcutIndicators() {
   document.body.classList.toggle("shortcuts-disabled", !state.shortcutsEnabled);
+  if (els.keyboardShortcuts) {
+    els.keyboardShortcuts.disabled = !state.shortcutsEnabled;
+    els.keyboardShortcuts.setAttribute("aria-disabled", String(!state.shortcutsEnabled));
+  }
   state.pads.forEach((pad) => {
     const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
     if (!pad.shortcutEl) return;
@@ -1301,7 +1326,7 @@ function makePad(index) {
     const clickedButton = event.target.closest("button");
     if (clickedButton && clickedButton !== trigger) return;
     event.preventDefault();
-    togglePad(pad);
+    playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
   });
   trigger.addEventListener("click", (event) => {
     event.preventDefault();
@@ -1717,6 +1742,7 @@ function syncCueControls() {
   }
   const hasCues = cues.length > 0;
   const cuesEnabled = board?.cuesEnabled !== false;
+  document.body.classList.toggle("cues-enabled", Boolean(cuesEnabled && hasCues));
   els.cueEditor?.classList.toggle("is-active", cuesEnabled);
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
@@ -2358,18 +2384,30 @@ function renderBoardLayoutControls() {
   const board = currentBoard();
   if (!board) return;
   const layout = layoutForBoard(board);
+  const portraitLocked = isPortablePortrait();
   if (els.padColumns) {
-    els.padColumns.value = layout.columns || 4;
+    els.padColumns.value = portraitLocked ? 2 : layout.columns || 4;
+    els.padColumns.disabled = portraitLocked;
+    els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
   }
   if (els.padRows) {
-    els.padRows.value = layout.rows || "";
-    els.padRows.textContent = String(layout.rows || "");
+    const rows = portraitLocked
+      ? Math.max(1, Math.ceil((Number(board.padCount) || DEFAULT_PAD_COUNT) / 2))
+      : layout.rows || "";
+    els.padRows.value = rows;
+    els.padRows.textContent = String(rows);
   }
 }
 
 function updateBoardLayout() {
   const board = currentBoard();
   if (!board) return;
+  if (isPortablePortrait()) {
+    renderBoardLayoutControls();
+    applyPadLayout(board);
+    setStatus("Portrait smartphone: 2 colonnes fixes");
+    return;
+  }
   board.layoutMode = "custom";
   board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
   board.padRows = Math.max(1, Math.ceil(board.padCount / board.padColumns));
@@ -3015,6 +3053,10 @@ function isPortableDevice() {
     || /Android|iPhone|iPad|iPod|Mobile|FxiOS/i.test(navigator.userAgent || "");
 }
 
+function isPortablePortrait() {
+  return window.matchMedia("(orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse)").matches;
+}
+
 function updateSkinOptions() {
   const minimalOption = els.skinSelect?.querySelector('option[value="minimal"]');
   if (!minimalOption) return;
@@ -3120,20 +3162,54 @@ async function tryShareBoardFile(file, boardName) {
   }
 }
 
-async function createBoardSnapshot(board) {
+function lightweightAudioSnapshot(record, index) {
+  if (!record) return null;
+  const refIndex = Number(record.audioRefIndex);
+  return {
+    ...record,
+    audio: undefined,
+    video: undefined,
+    audioRefIndex: Number.isInteger(refIndex) ? refIndex : index,
+    preserveCurrentAudio: true,
+  };
+}
+
+function lightweightVersionSnapshot(snapshot) {
+  if (!snapshot) return snapshot;
+  return {
+    ...snapshot,
+    lightweight: true,
+    pads: Array.isArray(snapshot.pads)
+      ? snapshot.pads.map((item) => ({
+        ...item,
+        audio: lightweightAudioSnapshot(item.audio, Number(item.index) || 0),
+      }))
+      : [],
+  };
+}
+
+function versionHistoryForStorage(history = []) {
+  const pruned = pruneVersionHistory(history);
+  return isPortableDevice() ? pruned.map(lightweightVersionSnapshot) : pruned;
+}
+
+async function createBoardSnapshot(board, options = {}) {
+  const includeMedia = options.includeMedia !== false;
   syncPadIndexesFromDom();
   await persistCurrentPadsForExport();
   const pads = [];
   for (let index = 0; index < board.padCount; index += 1) {
+    const audio = await dbGet(padAudioKeyFor(board.id, index));
     pads.push({
       index,
       meta: await dbGet(padMetaKeyFor(board.id, index)),
-      audio: await dbGet(padAudioKeyFor(board.id, index)),
+      audio: includeMedia ? audio : lightweightAudioSnapshot(audio, index),
     });
   }
   return {
     id: createId(),
     savedAt: new Date().toISOString(),
+    lightweight: !includeMedia,
     board: {
       name: board.name,
       padCount: board.padCount,
@@ -3159,6 +3235,10 @@ async function applyBoardSnapshot(snapshot) {
   stopAll();
   resetRecordingState();
   const previousPadCount = board.padCount;
+  const preservedAudio = new Map();
+  for (let index = 0; index < previousPadCount; index += 1) {
+    preservedAudio.set(index, await dbGet(padAudioKeyFor(board.id, index)));
+  }
   board.name = snapshot.board?.name || board.name;
   board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
   board.masterVolume = clamp01(snapshot.board?.masterVolume);
@@ -3180,7 +3260,21 @@ async function applyBoardSnapshot(snapshot) {
     const index = Number(item.index);
     if (!Number.isInteger(index) || index < 0 || index >= board.padCount) continue;
     if (item.meta) await dbSet(padMetaKeyFor(board.id, index), item.meta);
-    if (item.audio) await dbSet(padAudioKeyFor(board.id, index), item.audio);
+    if (item.audio?.preserveCurrentAudio) {
+      const refIndex = Number(item.audio.audioRefIndex);
+      const preserved = preservedAudio.get(Number.isInteger(refIndex) ? refIndex : index);
+      if (preserved) {
+        await dbSet(padAudioKeyFor(board.id, index), {
+          ...preserved,
+          ...item.audio,
+          audio: preserved.audio,
+          video: preserved.video,
+          preserveCurrentAudio: undefined,
+        });
+      }
+    } else if (item.audio) {
+      await dbSet(padAudioKeyFor(board.id, index), item.audio);
+    }
   }
 
   const snapshotShortcuts = Array.isArray(snapshot.board?.shortcuts) ? snapshot.board.shortcuts : [];
@@ -3204,12 +3298,22 @@ async function applyBoardSnapshot(snapshot) {
 
 async function saveBoardVersion() {
   const board = currentBoard();
-  const snapshot = await createBoardSnapshot(board);
+  const snapshot = await createBoardSnapshot(board, { includeMedia: !isPortableDevice() });
   const history = await dbGet(boardHistoryKey(board.id)) || [];
   history.unshift(snapshot);
-  await dbSet(boardHistoryKey(board.id), pruneVersionHistory(history));
-  await refreshVersionOptions(snapshot.id);
-  setStatus(`Version sauvegardee: ${board.name}`);
+  try {
+    await dbSet(boardHistoryKey(board.id), versionHistoryForStorage(history));
+    await refreshVersionOptions(snapshot.id);
+    setStatus(snapshot.lightweight ? `Version sauvegardee sans copie audio: ${board.name}` : `Version sauvegardee: ${board.name}`);
+  } catch (error) {
+    console.warn("Sauvegarde complète impossible, tentative sans copie media", error);
+    const fallbackSnapshot = await createBoardSnapshot(board, { includeMedia: false });
+    const fallbackHistory = await dbGet(boardHistoryKey(board.id)) || [];
+    fallbackHistory.unshift(fallbackSnapshot);
+    await dbSet(boardHistoryKey(board.id), versionHistoryForStorage(fallbackHistory));
+    await refreshVersionOptions(fallbackSnapshot.id);
+    setStatus(`Version sauvegardee sans copie audio: ${board.name}`);
+  }
 }
 
 function pruneVersionHistory(history = []) {
@@ -3348,7 +3452,7 @@ async function toggleSelectedBoardVersionArchive() {
     return;
   }
   snapshot.archived = !snapshot.archived;
-  const nextHistory = pruneVersionHistory(history);
+  const nextHistory = versionHistoryForStorage(history);
   await dbSet(boardHistoryKey(board.id), nextHistory);
   await refreshVersionOptions(snapshot.id);
   setStatus(snapshot.archived ? "Version archivee" : "Version desarchivee");
@@ -5068,7 +5172,7 @@ function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   if (state.stageMode) {
     setBoardPadEditing(false);
-    const canRequestFullscreen = Boolean(document.documentElement.requestFullscreen);
+    const canRequestFullscreen = Boolean(document.documentElement.requestFullscreen) && !isPortableDevice();
     if (requestFullscreen && !document.fullscreenElement && canRequestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
@@ -7168,8 +7272,16 @@ function disposeVideoProjection(pad) {
 }
 
 async function playPadVideo(pad, options = {}) {
+  const projection = (pad.videoWindow && !pad.videoWindow.closed)
+    ? pad.videoWindow
+    : window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
   const record = await dbGet(padAudioKey(pad));
   if (!record?.video) {
+    if (projection && !pad.videoWindow) {
+      try {
+        projection.close();
+      } catch {}
+    }
     pad.node.classList.add("is-missing-audio");
     setStatus(`Vidéo manquante: ${pad.title}`);
     return;
@@ -7181,9 +7293,6 @@ async function playPadVideo(pad, options = {}) {
     url = URL.createObjectURL(blob);
     pad.videoUrl = url;
   }
-  const projection = (pad.videoWindow && !pad.videoWindow.closed)
-    ? pad.videoWindow
-    : window.open("", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
   if (!projection) {
     if (!pad.videoWindow && pad.videoUrl) {
       URL.revokeObjectURL(pad.videoUrl);
@@ -7682,12 +7791,14 @@ async function init() {
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
-  els.showCables?.addEventListener("click", () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
+  bindSafeActionButton(els.showCables, () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
     updateShortcutIndicators();
   });
   window.addEventListener("resize", () => {
+    renderBoardLayoutControls();
+    applyPadLayout(currentBoard());
     state.pads.forEach(renderWaveform);
     if (document.body.classList.contains("show-cables")) drawCableOverlay();
   });
@@ -7739,12 +7850,12 @@ async function init() {
   els.stopGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
   });
-  els.stopAll.addEventListener("click", stopAll);
-  els.stopGroup?.addEventListener("click", stopGroup);
-  els.stageMode?.addEventListener("click", () => {
+  bindSafeActionButton(els.stopAll, () => stopAll());
+  bindSafeActionButton(els.stopGroup, () => stopGroup());
+  bindSafeActionButton(els.stageMode, () => {
     setStageMode(!state.stageMode, true);
   });
-  els.stageLock?.addEventListener("click", toggleStageLock);
+  bindSafeActionButton(els.stageLock, () => toggleStageLock());
   els.editPads?.addEventListener("click", () => {
     if (state.boardEditMode) {
       setBoardPadEditing(false);
@@ -7766,12 +7877,12 @@ async function init() {
   els.cancelEditDialog?.addEventListener("click", (event) => {
     if (event.target === els.cancelEditDialog) els.cancelEditDialog.close();
   });
-  els.patchBay?.addEventListener("click", openPatchBayDialog);
+  bindSafeActionButton(els.patchBay, () => openPatchBayDialog());
   els.closePatchBay?.addEventListener("click", () => els.patchBayDialog?.close());
   els.patchBayDialog?.addEventListener("click", (event) => {
     if (event.target === els.patchBayDialog) els.patchBayDialog.close();
   });
-  els.cueEditor?.addEventListener("click", () => {
+  bindSafeActionButton(els.cueEditor, () => {
     const board = currentBoard();
     if (!board) return;
     board.cuesEnabled = board.cuesEnabled === false;
@@ -7779,14 +7890,14 @@ async function init() {
     syncCueControls();
     setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
   });
-  els.openCueDialog?.addEventListener("click", openCueDialog);
-  els.cueRun?.addEventListener("click", () => {
+  bindSafeActionButton(els.openCueDialog, () => openCueDialog());
+  bindSafeActionButton(els.cueRun, () => {
     runCurrentCue().catch(() => {
       clearCueWaitTimer();
       setStatus("Cue impossible");
     });
   });
-  els.cueNext?.addEventListener("click", () => {
+  bindSafeActionButton(els.cueNext, () => {
     advanceCuePosition();
   });
   els.addCueStep?.addEventListener("click", () => {
@@ -7794,7 +7905,7 @@ async function init() {
     renderCueRows();
   });
   els.addAllCuePads?.addEventListener("click", addAllPadsToCueDraft);
-  els.resetCuePosition?.addEventListener("click", () => {
+  bindSafeActionButton(els.resetCuePosition, () => {
     const board = currentBoard();
     if (!board) return;
     board.cueIndex = 0;
@@ -7860,14 +7971,8 @@ async function init() {
       els.padTransferDialog.close();
     }
   });
-  els.saveVersion?.addEventListener("click", (event) => {
-    stopEvent(event);
-    saveBoardVersion().catch(() => setStatus("Sauvegarde impossible"));
-  });
-  els.restoreVersion?.addEventListener("click", (event) => {
-    stopEvent(event);
-    restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible"));
-  });
+  bindSafeActionButton(els.saveVersion, () => saveBoardVersion().catch(() => setStatus("Sauvegarde impossible")));
+  bindSafeActionButton(els.restoreVersion, () => restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible")));
   els.renameVersion?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -7878,8 +7983,7 @@ async function init() {
       })
       .catch(() => setStatus("Renommage impossible"));
   });
-  els.archiveVersion?.addEventListener("click", (event) => {
-    stopEvent(event);
+  bindSafeActionButton(els.archiveVersion, () => {
     const wasEditing = state.boardEditMode;
     toggleSelectedBoardVersionArchive()
       .then(() => {
@@ -8283,7 +8387,11 @@ async function init() {
     state.shortcutsEnabled = els.shortcutEnabled.checked;
     updateShortcutIndicators();
   });
-  els.keyboardShortcuts?.addEventListener("click", () => {
+  els.keyboardShortcuts?.addEventListener("click", (event) => {
+    if (els.keyboardShortcuts.disabled || els.keyboardShortcuts.getAttribute("aria-disabled") === "true") {
+      stopEvent(event);
+      return;
+    }
     renderShortcutRows();
     state.shortcutDraft = shortcutDraftFromState();
     if (els.shortcutDialog?.showModal) {
