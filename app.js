@@ -23,6 +23,7 @@ const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
 const CUE_OUTPUT_STORAGE = "soundboard-live-cue-output";
 const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
+const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
 const DEFAULT_MASTER_VOLUME = 0.9;
 const DEFAULT_CUE_VOLUME = 0.9;
@@ -88,6 +89,7 @@ const state = {
   recordingPad: null,
   recordingChunks: [],
   recordingStream: null,
+  recordingStartedAt: 0,
   drag: null,
   trimDrag: null,
   progressDrag: null,
@@ -1073,11 +1075,59 @@ function setPadDuration(pad, seconds) {
 function bestRecordingType() {
   if (!window.MediaRecorder) return "";
   const types = [
-    "audio/mp4",
     "audio/webm;codecs=opus",
     "audio/webm",
+    "audio/mp4",
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/aac",
   ];
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function recordingExtension(type = "") {
+  const cleanType = String(type || "").toLowerCase();
+  if (cleanType.includes("webm")) return "webm";
+  if (cleanType.includes("ogg")) return "ogg";
+  if (cleanType.includes("wav")) return "wav";
+  return "m4a";
+}
+
+function microphoneLabel(device, index) {
+  return String(device?.label || "").trim() || `Micro ${index + 1}`;
+}
+
+async function chooseMicrophoneStream() {
+  let firstStream = null;
+  try {
+    firstStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const devices = typeof navigator.mediaDevices.enumerateDevices === "function"
+      ? await navigator.mediaDevices.enumerateDevices()
+      : [];
+    const inputs = devices.filter((device) => device.kind === "audioinput");
+    if (inputs.length <= 1) return firstStream;
+    const list = inputs.map((device, index) => `${index + 1}. ${microphoneLabel(device, index)}`).join("\n");
+    const answer = window.prompt(`Source micro :\n${list}\n\nNuméro à utiliser`, "1");
+    if (answer == null) return firstStream;
+    const selectedIndex = Math.max(0, Math.min(inputs.length - 1, (Number(answer) || 1) - 1));
+    const selected = inputs[selectedIndex];
+    if (!selected?.deviceId) return firstStream;
+    firstStream.getTracks().forEach((track) => track.stop());
+    firstStream = null;
+    return navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: selected.deviceId } },
+    });
+  } catch (error) {
+    firstStream?.getTracks().forEach((track) => track.stop());
+    throw error;
+  }
+}
+
+function updateRecordingUi() {
+  state.pads.forEach((pad) => {
+    pad.recordButton?.classList.toggle("is-recording", state.recordingPad === pad);
+  });
+  els.audioRecord?.classList.toggle("is-recording", Boolean(state.recordingPad));
+  els.audioRecord?.setAttribute("aria-pressed", String(Boolean(state.recordingPad)));
 }
 
 function clampEqGain(value) {
@@ -4239,6 +4289,30 @@ async function deletePad(pad) {
   await removePadFromCurrentBoard(pad, { confirm: true, render: true, status: true });
 }
 
+function orphanAudioKey() {
+  return `${ORPHAN_AUDIO_PREFIX}${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sameAudioPayload(a, b) {
+  return Boolean(a && b && a === b);
+}
+
+function snapshotsReferenceAudio(snapshots, audioRecord) {
+  if (!audioRecord?.audio) return false;
+  return snapshots.some((snapshot) => sameAudioPayload(snapshot.audio?.audio, audioRecord.audio));
+}
+
+async function preserveAudioForCleanup(record, source = "") {
+  if (!recordContainsAudio(record)) return "";
+  const key = orphanAudioKey();
+  await dbSet(key, {
+    ...record,
+    cleanupSource: source,
+    cleanupCreatedAt: new Date().toISOString(),
+  });
+  return key;
+}
+
 async function removePadFromCurrentBoard(pad, options = {}) {
   if (!state.boardEditMode) return;
   const shouldConfirm = options.confirm !== false;
@@ -4282,6 +4356,9 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     }
   }
 
+  if (deletedAudio?.audio && !snapshotsReferenceAudio(snapshots, deletedAudio)) {
+    await preserveAudioForCleanup(deletedAudio, `${board.name} / ${pad.title}`);
+  }
   await dbDelete(padMetaKeyFor(boardId, board.padCount - 1));
   await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
   board.padCount = remainingPads.length;
@@ -4291,6 +4368,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     setBoardPadEditing(true);
   }
   if (shouldStatus) setStatus(`${pad.title} supprime`);
+  if (shouldStatus) offerAudioCleanupAfterDeletion().catch(() => {});
   return true;
 }
 
@@ -4321,6 +4399,8 @@ async function deleteCurrentBoard() {
   stopAll();
   resetRecordingState();
   for (let index = 0; index < board.padCount; index += 1) {
+    const record = await dbGet(padAudioKeyFor(board.id, index));
+    if (record?.audio) await preserveAudioForCleanup(record, `${board.name} / pad ${index + 1}`);
     await dbDelete(padMetaKeyFor(board.id, index));
     await dbDelete(padAudioKeyFor(board.id, index));
   }
@@ -4340,7 +4420,8 @@ async function deleteCurrentBoard() {
 
 function isAudioStoreKey(key) {
   return /^pad-\d+$/.test(String(key || ""))
-    || /^board-.+-pad-\d+$/.test(String(key || ""));
+    || /^board-.+-pad-\d+$/.test(String(key || ""))
+    || String(key || "").startsWith(ORPHAN_AUDIO_PREFIX);
 }
 
 function recordContainsAudio(record) {
@@ -4404,6 +4485,7 @@ function cleanupAudioLabel(record, key) {
 
 function cleanupAudioDetail(record) {
   const details = [
+    record?.cleanupSource ? `source: ${record.cleanupSource}` : "",
     record?.name || record?.audioName || "",
     record?.type || "",
   ].filter(Boolean);
@@ -4959,16 +5041,18 @@ async function toggleRecording(pad) {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setStatus("Micro: choix de la source");
+    const stream = await chooseMicrophoneStream();
     const mimeType = bestRecordingType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
     state.recordingPad = pad;
     state.recordingChunks = [];
     state.recordingStream = stream;
+    state.recordingStartedAt = performance.now();
     state.recorder = recorder;
-    pad.recordButton.classList.add("is-recording");
-    setStatus(`Enregistrement ${pad.title}`);
+    updateRecordingUi();
+    setStatus(`● Enregistrement en cours: ${pad.title}`);
 
     recorder.addEventListener("dataavailable", (event) => {
       if (event.data.size) state.recordingChunks.push(event.data);
@@ -4977,8 +5061,8 @@ async function toggleRecording(pad) {
     recorder.addEventListener("stop", async () => {
       const recordedPad = state.recordingPad;
       const chunks = state.recordingChunks;
-      const type = recorder.mimeType || "audio/mp4";
-      const extension = type.includes("webm") ? "webm" : "m4a";
+      const type = recorder.mimeType || mimeType || "audio/webm";
+      const extension = recordingExtension(type);
 
       resetRecordingState();
 
@@ -4990,15 +5074,15 @@ async function toggleRecording(pad) {
       setStatus(`${recordedPad.title} enregistre`);
     });
 
-    recorder.start();
+    recorder.start(250);
   } catch (error) {
     resetRecordingState();
     if (error?.name === "NotAllowedError") {
-      setStatus("Micro refuse: autorisez Safari");
+      setStatus("Micro refusé: autorisez le navigateur");
     } else if (error?.name === "NotFoundError") {
       setStatus("Aucun micro detecte");
     } else {
-      setStatus("Erreur micro");
+      setStatus(`Erreur micro${error?.name ? `: ${error.name}` : ""}`);
     }
   }
 }
@@ -5016,6 +5100,8 @@ function resetRecordingState() {
   state.recordingPad = null;
   state.recordingChunks = [];
   state.recordingStream = null;
+  state.recordingStartedAt = 0;
+  updateRecordingUi();
 }
 
 async function restorePad(pad) {

@@ -2085,7 +2085,8 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   height: 20px;
 }
 
-.record-button.is-recording {
+.record-button.is-recording,
+.icon-button.is-recording {
   border-color: rgba(255, 95, 86, 0.85);
   background: rgba(255, 95, 86, 0.24);
   color: #ffd8d5;
