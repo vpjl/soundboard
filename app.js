@@ -4520,7 +4520,7 @@ function selectedCleanupCandidates() {
 function renderAudioCleanupDialog(candidates) {
   state.audioCleanupCandidates = candidates;
   if (els.audioCleanupSummary) {
-    els.audioCleanupSummary.textContent = `${candidates.length} son${candidates.length > 1 ? "s" : ""} non référencé${candidates.length > 1 ? "s" : ""}. Suppression possible seulement car les 4 conditions sont réunies.`;
+    els.audioCleanupSummary.textContent = "Le ou les sons suivants ne sont plus référencés (ils n’apparaissent plus dans aucun pad, aucun board, aucune version sauvegardée ou archivée) :";
   }
   if (!els.audioCleanupList) return;
   els.audioCleanupList.innerHTML = "";
