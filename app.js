@@ -114,6 +114,7 @@ const state = {
   cueWaitTimer: null,
   cueRunning: false,
   cuePreviewAudio: null,
+  cuePreviewUtterance: null,
   cuePreviewPad: null,
   cuePreviewUrl: "",
   cuePreviewTrimHandler: null,
@@ -844,9 +845,9 @@ function padIndexForShortcutKey(key) {
 }
 
 function stopLastStartedPadFromKeyboard() {
-  const pad = state.lastStartedPad?.source
+  const pad = isPadPlaying(state.lastStartedPad)
     ? state.lastStartedPad
-    : state.pads.find((item) => item.source);
+    : state.pads.find((item) => isPadPlaying(item));
   if (!pad) {
     setStatus("Aucun pad à arrêter");
     return false;
@@ -955,8 +956,8 @@ function renderShortcutRows() {
 function updateShortcutIndicators() {
   document.body.classList.toggle("shortcuts-disabled", !state.shortcutsEnabled);
   if (els.keyboardShortcuts) {
-    els.keyboardShortcuts.disabled = !state.shortcutsEnabled;
-    els.keyboardShortcuts.setAttribute("aria-disabled", String(!state.shortcutsEnabled));
+    els.keyboardShortcuts.disabled = false;
+    els.keyboardShortcuts.setAttribute("aria-disabled", "false");
   }
   state.pads.forEach((pad) => {
     const shortcut = state.shortcuts.find((item) => item.padIndex === pad.index && item.key);
@@ -5041,6 +5042,10 @@ function clearCuePreviewTrimControls() {
 
 function stopCuePreview() {
   clearCuePreviewTrimControls();
+  if (state.cuePreviewUtterance) {
+    window.speechSynthesis?.cancel?.();
+    state.cuePreviewUtterance = null;
+  }
   if (state.cuePreviewAudio) {
     state.cuePreviewAudio.pause();
     state.cuePreviewAudio.removeAttribute("src");
@@ -5060,6 +5065,41 @@ function stopCuePreview() {
   }
   setMeterLevel(els.cueVu, 0);
   state.audioDialogStartedCue = null;
+}
+
+function previewTextCue(pad) {
+  if (!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
+    setStatus("Cue texte indisponible dans ce navigateur");
+    return;
+  }
+  const text = String(pad?.textContent || "").trim();
+  if (!text) {
+    setStatus(`Texte vide: ${pad?.title || "pad"}`);
+    return;
+  }
+  stopCuePreview();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = pad.textLang || "fr-FR";
+  utterance.rate = Math.min(1.8, Math.max(0.6, Number(pad.textRate) || 1));
+  utterance.volume = Math.min(1, Math.max(0, cueVolumeValue()));
+  const voice = speechVoiceForPad(pad);
+  if (voice) utterance.voice = voice;
+  utterance.onend = () => {
+    if (state.cuePreviewUtterance === utterance) stopCuePreview();
+  };
+  utterance.onerror = () => {
+    if (state.cuePreviewUtterance === utterance) stopCuePreview();
+    setStatus("Cue texte impossible");
+  };
+  state.cuePreviewUtterance = utterance;
+  state.cuePreviewPad = pad;
+  pad.node?.classList.add("is-cue-previewing");
+  pad.cueButton?.classList.add("is-active");
+  pad.cueButton?.setAttribute("aria-pressed", "true");
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+  startTimer();
+  setStatus(`Cue texte: ${pad.title}`);
 }
 
 async function selectCueOutput() {
@@ -5089,9 +5129,13 @@ async function selectMasterOutput() {
 }
 
 async function previewPadCue(pad, options = {}) {
-  if (state.cuePreviewAudio && state.cuePreviewPad === pad) {
+  if ((state.cuePreviewAudio || state.cuePreviewUtterance) && state.cuePreviewPad === pad) {
     stopCuePreview();
     setStatus(`Cue arrêtée: ${pad.title}`);
+    return;
+  }
+  if (padType(pad) === "text") {
+    previewTextCue(pad);
     return;
   }
   if (!pad?.buffer && !pad?.videoName) {
@@ -6711,6 +6755,11 @@ function bindImageSketch() {
 function playbackOffset(pad) {
   const duration = playableDuration(pad);
   if (!duration) return 0;
+  if (pad?.speechUtterance) {
+    if (pad.isPaused) return Math.min(duration, Math.max(0, pad.resumeOffset || 0));
+    const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
+    return pad.loop ? elapsed % duration : Math.min(duration, elapsed);
+  }
   if (pad.videoName) {
     const video = videoElementForPad(pad);
     if (video) return Math.min(duration, Math.max(0, video.currentTime || 0));
@@ -6774,7 +6823,11 @@ function syncAudioDialogMediaAvailability(pad) {
   setDisabledField(els.audioNormalize, isVideo || isText);
   setDisabledField(els.audioMono, isVideo || isText || Boolean(pad?.buffer?.numberOfChannels === 1));
   setDisabledField(els.audioReverse, isVideo || isText);
+  setAudioSectionHidden('[aria-label="Waveform et trim"]', isText);
+  setAudioSectionHidden('[aria-label="Normalisation"]', isText);
   setAudioSectionHidden('[aria-label="Pitch"]', isText);
+  setAudioSectionHidden('[aria-label="Reverb"]', isText);
+  setAudioSectionHidden('[aria-label="Égalisation audio pad"]', isText);
   if (els.audioTextEditorFrame) els.audioTextEditorFrame.hidden = !isText;
   if (els.audioWaveform) els.audioWaveform.hidden = isText;
   els.audioDialog?.querySelector(".trim-values")?.toggleAttribute("hidden", isText);
@@ -6890,6 +6943,7 @@ function applyDucking(exceptPad = null) {
       pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
     }
     if (pad.videoWindow) syncVideoProjectionAudio(pad);
+    if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   });
   updateAllPadAlerts();
 }
@@ -6983,6 +7037,7 @@ function setPadMuted(pad, muted, pulse = true) {
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
   }
   if (pad.videoWindow) syncVideoProjectionAudio(pad);
+  if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
   pad.muteEl?.classList.toggle("is-active", pad.muted);
   pad.muteEl?.setAttribute("aria-pressed", String(pad.muted));
@@ -6994,6 +7049,7 @@ function clearPadMuteState(pad) {
   if (!pad?.muted) return;
   pad.muted = false;
   if (pad.videoWindow) syncVideoProjectionAudio(pad);
+  if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
   pad.muteEl?.classList.remove("is-active");
   pad.muteEl?.setAttribute("aria-pressed", "false");
@@ -7011,7 +7067,7 @@ function executeCrossfadeAction(action, target, sourcePad, options = {}) {
     return;
   }
   targets.forEach((targetPad) => {
-    if (action === "play" && (targetPad.buffer || targetPad.videoName)) {
+    if (action === "play" && (targetPad.buffer || targetPad.videoName || targetPad.textMode || targetPad.textContent)) {
       flashCrossfadeTarget(targetPad, "start");
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
     }
@@ -7645,8 +7701,7 @@ async function playPadText(pad, options = {}) {
   utterance.lang = pad.textLang || "fr-FR";
   utterance.rate = Math.min(1.8, Math.max(0.6, Number(pad.textRate) || 1));
   const targetVolume = speechTargetVolume(pad);
-  const fadeInTime = options.fadeIn ? fadeDurationForPad(pad, "in") : 0;
-  utterance.volume = fadeInTime > 0 ? 0 : targetVolume;
+  utterance.volume = targetVolume;
   const voice = speechVoiceForPad(pad);
   if (voice) utterance.voice = voice;
   pad.speechUtterance = utterance;
@@ -7670,7 +7725,6 @@ async function playPadText(pad, options = {}) {
   };
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
-  if (fadeInTime > 0) fadeSpeechVolume(pad, 0, targetVolume, fadeInTime);
   setStatus(`Lecture texte: ${pad.title}`);
 }
 
@@ -8059,8 +8113,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
 
 function remainingSeconds(pad) {
   if (pad?.speechUtterance && pad.textDuration) {
-    const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
-    return Math.max(0, pad.textDuration - elapsed);
+    return Math.max(0, pad.textDuration - playbackOffset(pad));
   }
   if (pad.videoName && pad.node.classList.contains("is-playing") && pad.videoDuration) {
     const video = videoElementForPad(pad);
@@ -8109,7 +8162,7 @@ function setMeterLevel(element, level) {
 function updateMeters() {
   const hasPlayingPad = state.pads.some((pad) => pad.source);
   setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
-  setMeterLevel(els.cueVu, state.cuePreviewAudio && !state.cuePreviewAudio.paused ? cueVolumeValue() : 0);
+  setMeterLevel(els.cueVu, (state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance ? cueVolumeValue() : 0);
   state.pads.forEach((pad) => {
     setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
   });
@@ -8120,7 +8173,7 @@ function startTimer() {
   const tick = () => {
     state.pads.forEach(updatePadTime);
     updateMeters();
-    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad)) || Boolean(state.cuePreviewAudio && !state.cuePreviewAudio.paused)
+    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad)) || Boolean((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance)
       ? requestAnimationFrame(tick)
       : null;
     if (!state.timerFrame) updateMeters();
@@ -8161,6 +8214,27 @@ function bindPerformanceTouchGuards() {
 }
 
 function togglePad(pad) {
+  if (pad?.speechUtterance) {
+    if (pad.isPaused) {
+      pad.speechUtterance.volume = speechTargetVolume(pad);
+      window.speechSynthesis?.resume?.();
+      pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
+      pad.isPaused = false;
+      pad.node.classList.add("is-playing");
+      updatePadModeButtons(pad);
+      startTimer();
+      setStatus(`${pad.title} reprend`);
+      return;
+    }
+    pad.resumeOffset = Math.max(0, performance.now() / 1000 - pad.startedAt);
+    window.speechSynthesis?.pause?.();
+    pad.isPaused = true;
+    pad.node.classList.remove("is-playing");
+    updatePadModeButtons(pad);
+    updatePadTime(pad);
+    setStatus(`${pad.title} pause`);
+    return;
+  }
   if (isPadPlaying(pad)) {
     stopPad(pad, false, true, { triggerEnd: false });
     return;

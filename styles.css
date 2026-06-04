@@ -2046,7 +2046,7 @@ body.board-edit-mode .board-action-grid #addBoard {
 
 body.board-edit-mode.shortcuts-disabled .board-action-grid .keyboard-shortcuts-button {
   opacity: 0.42;
-  cursor: not-allowed;
+  cursor: pointer;
   filter: grayscale(1);
 }
 
@@ -5598,4 +5598,151 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row {
     opacity: 0.56;
     pointer-events: none;
   }
+}
+
+body.board-edit-mode .master-strip {
+  display: none !important;
+}
+
+body.board-edit-mode .help-section[aria-label="Master"],
+body.board-edit-mode .help-section[aria-label="Audio master"],
+body.board-edit-mode .help-section[aria-label="Board live"],
+body.board-edit-mode .help-section[aria-label="Pad live"],
+body.board-edit-mode .help-section[aria-label="Audio pad"],
+body.board-edit-mode .help-section[aria-label="Cues crossfade"] {
+  display: none !important;
+}
+
+body:not(.board-edit-mode) .help-section[aria-label="Board edit"],
+body:not(.board-edit-mode) .help-section[aria-label="Pad edit"] {
+  display: none !important;
+}
+
+.pad-play-row,
+body.stage-mode .pad-play-row {
+  display: grid !important;
+  width: 100%;
+  box-sizing: border-box;
+  grid-template-columns: 24px 16px minmax(0, 1fr) auto 28px 28px !important;
+  grid-template-areas:
+    ". flash . time note eye"
+    "label label label label label label"
+    "progress progress progress progress progress progress"
+    "vu vu vu vu vu vu"
+    "alerts alerts alerts alerts alerts alerts" !important;
+  align-items: center !important;
+  gap: 5px 6px !important;
+  min-height: 104px;
+}
+
+.pad-trigger,
+body.stage-mode .pad-trigger {
+  grid-area: label;
+  width: 100%;
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: center !important;
+  min-height: 46px;
+  padding: 8px 8px 9px !important;
+}
+
+.pad-label,
+body.stage-mode .pad-label {
+  display: grid !important;
+  grid-template-columns: 22px 22px minmax(0, 1fr) !important;
+  align-items: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 !important;
+}
+
+.pad-shortcut,
+.pad-shortcut.is-number,
+.pad-type,
+body.stage-mode .pad-shortcut,
+body.stage-mode .pad-shortcut.is-number,
+body.stage-mode .pad-type {
+  position: static !important;
+  display: inline-grid !important;
+  justify-self: start;
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0 !important;
+  font-size: 0.7rem !important;
+}
+
+.pad-shortcut[hidden] {
+  display: none !important;
+}
+
+.pad-shortcut::after {
+  content: none !important;
+}
+
+.pad-title,
+.pad-shortcut.is-number + .pad-title,
+body.stage-mode .pad-title {
+  grid-column: 3 !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.pad-tags,
+.pad-shortcut.is-number ~ .pad-tags {
+  grid-column: 3 !important;
+}
+
+.pad-time,
+body.stage-mode .pad-time {
+  grid-area: time;
+  position: static !important;
+  justify-self: end;
+  align-self: center;
+  font-size: 0.76rem;
+}
+
+.pad-note-button {
+  grid-area: note;
+  position: static !important;
+  justify-self: center;
+  align-self: center;
+}
+
+.visual-toggle-button {
+  grid-area: eye;
+  top: 0;
+  right: 0;
+}
+
+.pad-crossfade-flash {
+  grid-area: flash;
+  position: static !important;
+  justify-self: center;
+  align-self: center;
+}
+
+.pad-progress,
+body.stage-mode .pad-progress {
+  grid-area: progress;
+  position: static !important;
+  width: 100%;
+  height: 9px;
+  min-height: 9px;
+}
+
+.pad-vu,
+body.stage-mode .pad-vu {
+  grid-area: vu;
+  position: static !important;
+  width: 100%;
+  height: 4px;
+}
+
+.pad-alerts,
+body.stage-mode .pad-alerts {
+  grid-area: alerts;
+  position: static !important;
+  justify-self: end;
+  max-width: 100%;
 }
