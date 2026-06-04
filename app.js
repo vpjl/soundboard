@@ -128,6 +128,10 @@ const state = {
   audioDialogStartedPad: null,
   audioDialogStartedCue: null,
   transferPad: null,
+  textPad: null,
+  notePad: null,
+  noteOverlayPad: null,
+  cueFloatAnchorTop: null,
 };
 
 const els = {
@@ -198,6 +202,8 @@ const els = {
   audioImport: document.querySelector("#audioImport"),
   audioVideoImport: document.querySelector("#audioVideoImport"),
   audioVideoFile: document.querySelector("#audioVideoFile"),
+  audioTextImport: document.querySelector("#audioTextImport"),
+  audioTextFile: document.querySelector("#audioTextFile"),
   audioReset: document.querySelector("#audioReset"),
   audioOptionBadges: document.querySelector("#audioOptionBadges"),
   audioWaveform: document.querySelector("#audioWaveform"),
@@ -249,6 +255,10 @@ const els = {
   audioEqLowValue: document.querySelector("#audioEqLowValue"),
   audioEqMidValue: document.querySelector("#audioEqMidValue"),
   audioEqHighValue: document.querySelector("#audioEqHighValue"),
+  audioTextLang: document.querySelector("#audioTextLang"),
+  audioTextGender: document.querySelector("#audioTextGender"),
+  audioTextRate: document.querySelector("#audioTextRate"),
+  audioTextRateValue: document.querySelector("#audioTextRateValue"),
   audioStartStopMode: document.querySelector("#audioStartStopMode"),
   audioStartStopTarget: document.querySelector("#audioStartStopTarget"),
   audioEndStartMode: document.querySelector("#audioEndStartMode"),
@@ -369,6 +379,18 @@ const els = {
   applyCues: document.querySelector("#applyCues"),
   cancelCues: document.querySelector("#cancelCues"),
   closeCueDialog: document.querySelector("#closeCueDialog"),
+  liveTools: document.querySelector(".live-tools"),
+  textDialog: document.querySelector("#textDialog"),
+  textEditor: document.querySelector("#textEditor"),
+  applyText: document.querySelector("#applyText"),
+  cancelText: document.querySelector("#cancelText"),
+  noteDialog: document.querySelector("#noteDialog"),
+  noteEditor: document.querySelector("#noteEditor"),
+  noteShowRow: document.querySelector("#noteShowRow"),
+  noteShowOnStart: document.querySelector("#noteShowOnStart"),
+  applyNote: document.querySelector("#applyNote"),
+  cancelNote: document.querySelector("#cancelNote"),
+  padNoteOverlay: document.querySelector("#padNoteOverlay"),
 };
 
 function openDb() {
@@ -580,6 +602,7 @@ function formatSampleRate(sampleRate = 0) {
 
 function audioCharacteristics(pad) {
   if (pad?.videoName) return `Vidéo · ${pad.videoName}${pad.videoDuration ? ` · ${formatTime(pad.videoDuration)}` : ""}`;
+  if (pad?.textContent) return `Texte · ${pad.textName || "saisi"} · ${formatTime(pad.textDuration || estimateSpeechDuration(pad.textContent, pad.textRate))}`;
   if (!pad?.buffer) return "Aucun fichier";
   const channels = pad.buffer.numberOfChannels === 1 ? "mono" : "stéréo";
   return `${audioFileType(pad)} · ${channels} · ${formatTime(pad.buffer.duration)} · ${formatSampleRate(pad.buffer.sampleRate)}`;
@@ -696,6 +719,48 @@ function setPadTitle(pad, title, options = {}) {
   pad.title = rawTitle.trim() ? displayTitle : `Pad ${pad.index + 1}`;
   pad.titleEl.textContent = pad.title;
   if (syncInput) pad.nameEl.value = pad.title;
+}
+
+function padType(pad) {
+  if (pad?.videoName || pad?.videoPath || pad?.videoUrl) return "video";
+  if (pad?.textContent) return "text";
+  return "audio";
+}
+
+function padTypeLetter(pad) {
+  const type = padType(pad);
+  if (type === "video") return "V";
+  if (type === "text") return "T";
+  return "A";
+}
+
+function updatePadType(pad) {
+  if (!pad) return;
+  const type = padType(pad);
+  if (pad.typeEl) pad.typeEl.textContent = padTypeLetter(pad);
+  pad.node?.classList.toggle("is-text-pad", type === "text");
+  pad.node?.classList.toggle("is-video-pad", type === "video");
+  pad.node?.classList.toggle("is-audio-pad", type === "audio");
+}
+
+function setPadTextSettings(pad, settings = {}) {
+  pad.textContent = String(settings.textContent ?? pad.textContent ?? "");
+  pad.textName = String(settings.textName ?? pad.textName ?? "");
+  pad.textLang = String(settings.textLang || pad.textLang || "fr-FR");
+  pad.textGender = ["female", "male"].includes(settings.textGender) ? settings.textGender : (pad.textGender || "female");
+  const rate = Number(settings.textRate ?? pad.textRate ?? 1);
+  pad.textRate = Number.isFinite(rate) ? Math.min(1.8, Math.max(0.6, rate)) : 1;
+  pad.textDuration = estimateSpeechDuration(pad.textContent, pad.textRate);
+  updatePadType(pad);
+  updatePadTime(pad);
+}
+
+function setPadNote(pad, text = "", showOnStart = false) {
+  pad.noteText = String(text || "").trim();
+  pad.noteShowOnStart = Boolean(showOnStart && pad.noteText);
+  pad.node?.classList.toggle("has-note", Boolean(pad.noteText));
+  pad.noteButton?.classList.toggle("has-note", Boolean(pad.noteText));
+  pad.noteButton?.setAttribute("aria-pressed", String(Boolean(pad.noteText)));
 }
 
 function padTargetValue(pad) {
@@ -1132,6 +1197,16 @@ function makePad(index) {
     videoWindow: null,
     videoUrl: "",
     videoTimer: null,
+    textContent: "",
+    textName: "",
+    textLang: "fr-FR",
+    textGender: "female",
+    textRate: 1,
+    speechUtterance: null,
+    textStartedAt: 0,
+    textDuration: 0,
+    noteText: "",
+    noteShowOnStart: false,
     startedAt: 0,
     stopAt: 0,
     duration: 0,
@@ -1190,6 +1265,7 @@ function makePad(index) {
 
   pad.titleEl = node.querySelector("[data-title]");
   pad.shortcutEl = node.querySelector("[data-shortcut]");
+  pad.typeEl = node.querySelector("[data-pad-type]");
   pad.nameEl = node.querySelector("[data-name]");
   pad.tagsEl = node.querySelector("[data-tags]");
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
@@ -1221,6 +1297,7 @@ function makePad(index) {
   pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.muteEl = node.querySelector('[data-action="mute"]');
   pad.cueButton = node.querySelector('[data-action="cue-preview"]');
+  pad.noteButton = node.querySelector('[data-action="note"]');
   pad.cueButton?.setAttribute("aria-pressed", "false");
   if (pad.cueButton && !outputSelectionSupported()) {
     pad.cueButton.disabled = true;
@@ -1277,6 +1354,14 @@ function makePad(index) {
     endStartTarget: pad.endStartTarget,
   });
   setPadTrim(pad, pad.trimStart, pad.trimEnd);
+  setPadTextSettings(pad, {
+    textContent: pad.textContent,
+    textName: pad.textName,
+    textLang: pad.textLang,
+    textGender: pad.textGender,
+    textRate: pad.textRate,
+  });
+  setPadNote(pad, pad.noteText, pad.noteShowOnStart);
   setPadMode(pad, pad.playMode);
   setPadLoop(pad, pad.loop);
   setPadDuckTrigger(pad, pad.duckTrigger);
@@ -1471,7 +1556,12 @@ function makePad(index) {
 
   pad.muteEl?.addEventListener("click", (event) => {
     stopEvent(event);
-    setPadMuted(pad, !pad.muted);
+    setPadMuted(pad, !pad.muted, false);
+  });
+
+  pad.noteButton?.addEventListener("click", (event) => {
+    stopEvent(event);
+    openNoteDialog(pad);
   });
 
   pad.colorButtons.forEach((button) => {
@@ -1633,9 +1723,11 @@ function applyPadLayout(board = currentBoard()) {
   if (enabled) {
     els.pads.style.setProperty("--pad-columns", String(layout.columns));
     els.pads.style.setProperty("--pad-rows", String(layout.rows));
+    els.pads.dataset.columns = String(layout.columns);
   } else {
     els.pads.style.removeProperty("--pad-columns");
     els.pads.style.removeProperty("--pad-rows");
+    delete els.pads.dataset.columns;
   }
 }
 
@@ -1760,9 +1852,26 @@ function syncCueControls() {
       ? "Cues désactivées"
       : hasCues
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
-      : "Aucune cue";
+      : "Pas de cue";
   }
   renderCueTimeline(cues);
+  requestAnimationFrame(() => syncFloatingCueFrame(true));
+}
+
+function syncFloatingCueFrame(resetAnchor = false) {
+  if (!els.liveTools) return;
+  const shouldFloat = document.body.classList.contains("cues-enabled") && !state.boardEditMode;
+  if (!shouldFloat) {
+    document.body.classList.remove("cues-stuck");
+    state.cueFloatAnchorTop = null;
+    return;
+  }
+  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
+  if (resetAnchor || state.cueFloatAnchorTop == null || !document.body.classList.contains("cues-stuck")) {
+    state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
+  }
+  const stuck = window.scrollY > Math.max(0, state.cueFloatAnchorTop - topOffset);
+  document.body.classList.toggle("cues-stuck", stuck);
 }
 
 function fillCueTargetSelect(select, action, selectedValue = "") {
@@ -2186,7 +2295,7 @@ function advanceCuePosition() {
     return;
   }
   if (!board?.cues?.length) {
-    setStatus("Aucune cue");
+    setStatus("Pas de cue");
     syncCueControls();
     return;
   }
@@ -2204,7 +2313,7 @@ async function runCurrentCue(options = {}) {
     return;
   }
   if (!board?.cues?.length) {
-    setStatus("Aucune cue");
+    setStatus("Pas de cue");
     syncCueControls();
     return;
   }
@@ -2234,6 +2343,11 @@ function padsForBoardTagSelection() {
 function padsForBoardFilterValue(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return [];
+  if (normalized === "all") return [...state.pads];
+  if (normalized.startsWith("type:")) {
+    const type = normalized.slice(5);
+    return state.pads.filter((pad) => padType(pad) === type);
+  }
   if (normalized.startsWith("pad:")) {
     const index = Number(normalized.slice(4));
     return Number.isInteger(index) && state.pads[index] ? [state.pads[index]] : [];
@@ -3563,6 +3677,13 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
         duration: exportVideo?.duration ?? saved?.videoDuration ?? meta?.videoDuration ?? 0,
         data: exportVideo?.data || "",
       } : null,
+      textContent: meta?.textContent ?? saved?.textContent ?? "",
+      textName: meta?.textName ?? saved?.textName ?? "",
+      textLang: meta?.textLang ?? saved?.textLang ?? "fr-FR",
+      textGender: meta?.textGender ?? saved?.textGender ?? "female",
+      textRate: meta?.textRate ?? saved?.textRate ?? 1,
+      noteText: meta?.noteText ?? saved?.noteText ?? "",
+      noteShowOnStart: Boolean(meta?.noteShowOnStart ?? saved?.noteShowOnStart),
     });
   }
 
@@ -3701,6 +3822,13 @@ async function importBoardFile(file) {
       videoPath: item.video?.path || item.videoPath || item.video?.name || "",
       videoType: item.video?.type || item.videoType || "",
       videoDuration: item.video?.duration ?? item.videoDuration ?? 0,
+      textContent: item.textContent || "",
+      textName: item.textName || "",
+      textLang: item.textLang || "fr-FR",
+      textGender: item.textGender || "female",
+      textRate: item.textRate ?? 1,
+      noteText: item.noteText || "",
+      noteShowOnStart: Boolean(item.noteShowOnStart),
       visualPositionX: item.visualPositionX ?? 50,
       visualPositionY: item.visualPositionY ?? 50,
       visualZoom: item.visualZoom ?? 1,
@@ -4219,11 +4347,14 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.videoPath = "";
   pad.videoType = "";
   pad.videoDuration = 0;
+  pad.textContent = "";
+  pad.textName = "";
   pad.audioRefIndex = null;
   pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, nextTitle);
   setPadDuration(pad, buffer.duration);
+  updatePadType(pad);
   renderWaveform(pad);
   pad.node.classList.remove("is-empty");
   pad.node.classList.remove("is-missing-audio");
@@ -4351,9 +4482,12 @@ async function loadVideoIntoPad(pad, file) {
   pad.videoPath = exposedPath || file.name;
   pad.videoType = file.type || "video/mp4";
   pad.videoDuration = duration;
+  pad.textContent = "";
+  pad.textName = "";
   setPadTrim(pad, 0, 0);
   setPadTitle(pad, currentTitle);
   setPadDuration(pad, duration);
+  updatePadType(pad);
   renderWaveform(pad);
   pad.node.classList.remove("is-empty", "is-missing-audio");
   await dbSet(padAudioKey(pad), {
@@ -4690,6 +4824,14 @@ async function restorePad(pad) {
       endStartTarget: meta.endStartTarget,
     });
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
+    setPadTextSettings(pad, {
+      textContent: meta.textContent,
+      textName: meta.textName,
+      textLang: meta.textLang,
+      textGender: meta.textGender,
+      textRate: meta.textRate,
+    });
+    setPadNote(pad, meta.noteText, meta.noteShowOnStart);
     setPadMode(pad, meta.playMode || pad.playMode);
     pad.audioRefIndex = Number.isInteger(Number(meta.audioRefIndex)) ? Number(meta.audioRefIndex) : null;
     pad.volumeEl.value = pad.volume;
@@ -4713,6 +4855,7 @@ async function restorePad(pad) {
     pad.node.classList.remove("is-empty", "is-missing-audio");
     if (!meta?.uid && !rawSaved.uid) await savePadMeta(pad);
     if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    updatePadType(pad);
     return;
   }
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
@@ -4729,9 +4872,14 @@ async function restorePad(pad) {
     pad.audioPath = meta?.audioPath || rawSaved?.path || rawSaved?.name || pad.audioPath;
     pad.audioType = rawSaved?.type || pad.audioType || "";
     pad.node.classList.toggle("is-missing-audio", missingAudio);
+    if (pad.textContent) {
+      pad.node.classList.remove("is-empty", "is-missing-audio");
+      setPadDuration(pad, pad.textDuration || estimateSpeechDuration(pad.textContent, pad.textRate));
+    }
     if (missingAudio) setStatus(`Son manquant: ${pad.title}`);
     if (!meta?.uid) await savePadMeta(pad);
     if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    updatePadType(pad);
     return;
   }
 
@@ -4784,6 +4932,14 @@ async function restorePad(pad) {
     endStartTarget: meta?.endStartTarget ?? saved.endStartTarget,
   });
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
+  setPadTextSettings(pad, {
+    textContent: meta?.textContent ?? saved.textContent,
+    textName: meta?.textName ?? saved.textName,
+    textLang: meta?.textLang ?? saved.textLang,
+    textGender: meta?.textGender ?? saved.textGender,
+    textRate: meta?.textRate ?? saved.textRate,
+  });
+  setPadNote(pad, meta?.noteText ?? saved.noteText, meta?.noteShowOnStart ?? saved.noteShowOnStart);
   setPadMode(pad, saved.playMode || pad.playMode);
   const restoredRef = Number(meta?.audioRefIndex ?? saved.audioRefIndex);
   pad.audioRefIndex = rawSaved?.audio
@@ -4801,6 +4957,7 @@ async function restorePad(pad) {
   pad.node.classList.remove("is-missing-audio");
   if (!meta?.uid && !saved.uid) await savePadMeta(pad);
   if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+  updatePadType(pad);
 }
 
 async function resolvePadAudioRecord(pad, meta, saved) {
@@ -5080,6 +5237,13 @@ async function savePadMeta(pad) {
     videoPath: pad.videoPath,
     videoType: pad.videoType,
     videoDuration: pad.videoDuration,
+    textContent: pad.textContent,
+    textName: pad.textName,
+    textLang: pad.textLang,
+    textGender: pad.textGender,
+    textRate: pad.textRate,
+    noteText: pad.noteText,
+    noteShowOnStart: pad.noteShowOnStart,
     visualPositionX: pad.visualPositionX,
     visualPositionY: pad.visualPositionY,
     visualZoom: pad.visualZoom,
@@ -5237,8 +5401,8 @@ function padOptionBadges(pad) {
   if (pad.reverse) items.push("Revrs");
   if (pad.muted) items.push("Mute");
   if (pad.mono) items.push("Mono");
-  if (fadeDurationForPad(pad, "in") > 0) items.push("Fade in");
-  if (fadeDurationForPad(pad, "out") > 0) items.push("Fade out");
+  if (fadeDurationForPad(pad, "in") > 0) items.push("f in");
+  if (fadeDurationForPad(pad, "out") > 0) items.push("f out");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
   if (pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
   if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xf");
@@ -5397,6 +5561,27 @@ function refreshBoardTagFilterOptions() {
     els.boardTagFilterLabel.textContent = state.boardEditMode ? "Modification groupée" : "Sélection groupée";
   }
   els.boardTagFilter.innerHTML = "";
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "-";
+  els.boardTagFilter.append(emptyOption);
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "Tous";
+  els.boardTagFilter.append(allOption);
+  const typeGroup = document.createElement("optgroup");
+  typeGroup.label = "Types";
+  [
+    ["type:audio", "Audio"],
+    ["type:video", "Vidéo"],
+    ["type:text", "Texte"],
+  ].forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    typeGroup.append(option);
+  });
+  els.boardTagFilter.append(typeGroup);
   if (state.boardEditMode) {
     const audioOptions = audioOptionFilterOptions();
     if (audioOptions.length) {
@@ -5423,13 +5608,18 @@ function refreshBoardTagFilterOptions() {
       els.boardTagFilter.append(tagGroup);
     }
   } else {
-    els.boardTagFilter.innerHTML = '<option value="">-</option>';
-    boardTags().forEach((tag) => {
-      const option = document.createElement("option");
-      option.value = tag;
-      option.textContent = tag;
-      els.boardTagFilter.append(option);
-    });
+    const tags = boardTags();
+    if (tags.length) {
+      const tagGroup = document.createElement("optgroup");
+      tagGroup.label = "Tags";
+      tags.forEach((tag) => {
+        const option = document.createElement("option");
+        option.value = tag;
+        option.textContent = tag;
+        tagGroup.append(option);
+      });
+      els.boardTagFilter.append(tagGroup);
+    }
   }
   els.boardTagFilter.value = [...els.boardTagFilter.options].some((option) => option.value === currentValue && !option.disabled) ? currentValue : "";
   applyBoardTagFilter();
@@ -6027,6 +6217,10 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioEqMid) els.audioEqMid.value = String(pad.eqMid);
   if (els.audioEqHigh) els.audioEqHigh.value = String(pad.eqHigh);
   updateAudioEqValues(pad);
+  if (els.audioTextLang) els.audioTextLang.value = pad.textLang || "fr-FR";
+  if (els.audioTextGender) els.audioTextGender.value = pad.textGender || "female";
+  if (els.audioTextRate) els.audioTextRate.value = String(pad.textRate || 1);
+  if (els.audioTextRateValue) els.audioTextRateValue.textContent = `${(Number(pad.textRate) || 1).toFixed(2)}x`;
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   syncAudioDialogVideoAvailability(pad);
@@ -6140,6 +6334,11 @@ function audioDraftFromPad(pad) {
     endStartTarget: pad.endStartTarget,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
+    textContent: pad.textContent,
+    textName: pad.textName,
+    textLang: pad.textLang,
+    textGender: pad.textGender,
+    textRate: pad.textRate,
   };
 }
 
@@ -6155,10 +6354,76 @@ function restoreAudioDraft() {
   setPadCrossfade(pad, draft);
   state.audioCrossfadeDraft = null;
   setPadTrim(pad, draft.trimStart, draft.trimEnd);
+  setPadTextSettings(pad, draft);
   if (pad.source) refreshPlayingPadOutput(pad);
   applyDucking();
   syncAudioDialog(pad);
   savePadMeta(pad);
+}
+
+function openTextDialog(pad = state.audioPad) {
+  if (!pad) return;
+  state.textPad = pad;
+  if (els.textEditor) els.textEditor.value = pad.textContent || "";
+  els.textDialog?.showModal?.();
+}
+
+function applyTextDialog() {
+  const pad = state.textPad || state.audioPad;
+  if (!pad) return;
+  const text = String(els.textEditor?.value || "").trim();
+  setPadTextSettings(pad, {
+    textContent: text,
+    textName: text ? "Texte saisi" : "",
+    textLang: els.audioTextLang?.value || pad.textLang,
+    textGender: els.audioTextGender?.value || pad.textGender,
+    textRate: els.audioTextRate?.value || pad.textRate,
+  });
+  if (text) {
+    disposeVideoProjection(pad);
+    pad.buffer = null;
+    pad.audioName = "";
+    pad.audioPath = "";
+    pad.videoName = "";
+    pad.videoPath = "";
+    pad.node.classList.remove("is-empty", "is-missing-audio");
+    setPadDuration(pad, pad.textDuration);
+  }
+  syncAudioDialog(pad);
+  savePadMeta(pad);
+  els.textDialog?.close();
+  state.textPad = null;
+}
+
+function cancelTextDialog() {
+  els.textDialog?.close();
+  state.textPad = null;
+}
+
+function openNoteDialog(pad) {
+  state.notePad = pad;
+  if (els.noteEditor) els.noteEditor.value = pad.noteText || "";
+  if (els.noteShowOnStart) els.noteShowOnStart.checked = Boolean(pad.noteShowOnStart);
+  if (els.noteShowRow) els.noteShowRow.hidden = !pad.noteText;
+  els.noteDialog?.showModal?.();
+}
+
+function syncNoteDialogVisibility() {
+  if (els.noteShowRow) els.noteShowRow.hidden = !String(els.noteEditor?.value || "").trim();
+}
+
+function applyNoteDialog() {
+  const pad = state.notePad;
+  if (!pad) return;
+  setPadNote(pad, els.noteEditor?.value || "", Boolean(els.noteShowOnStart?.checked));
+  savePadMeta(pad);
+  els.noteDialog?.close();
+  state.notePad = null;
+}
+
+function cancelNoteDialog() {
+  els.noteDialog?.close();
+  state.notePad = null;
 }
 
 function refreshPlayingPadOutput(pad) {
@@ -7223,8 +7488,97 @@ function fadeVideoVolume(video, fromVolume, toVolume, seconds) {
 
 function isPadPlaying(pad) {
   if (pad?.source) return true;
+  if (pad?.speechUtterance) return true;
   const video = videoElementForPad(pad);
   return Boolean(video && !video.paused && !video.ended);
+}
+
+function estimateSpeechDuration(text, rate = 1) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
+  if (!words) return 0;
+  return Math.max(1, (words / 2.6) / Math.max(0.4, Number(rate) || 1));
+}
+
+function speechVoiceForPad(pad) {
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  const lang = String(pad.textLang || "fr-FR").toLowerCase();
+  const langRoot = lang.split("-")[0];
+  const byLang = voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(langRoot));
+  const gender = pad.textGender === "male" ? /male|homme|paul|thomas|daniel|alex/i : /female|femme|amelie|audrey|victoria|samantha/i;
+  return byLang.find((voice) => gender.test(voice.name)) || byLang[0] || voices[0] || null;
+}
+
+function showPadNoteOverlay(pad) {
+  if (!pad?.noteText || !pad.noteShowOnStart || !els.padNoteOverlay) return;
+  state.noteOverlayPad = pad;
+  els.padNoteOverlay.textContent = pad.noteText;
+  els.padNoteOverlay.hidden = false;
+}
+
+function hidePadNoteOverlay(pad = null) {
+  if (pad && state.noteOverlayPad && state.noteOverlayPad !== pad) return;
+  state.noteOverlayPad = null;
+  if (els.padNoteOverlay) {
+    els.padNoteOverlay.hidden = true;
+    els.padNoteOverlay.textContent = "";
+  }
+}
+
+function clearSpeechPad(pad, triggerEnd = false) {
+  if (!pad) return;
+  pad.speechUtterance = null;
+  pad.textStartedAt = 0;
+  pad.stopAt = 0;
+  pad.node.classList.remove("is-playing");
+  hidePadNoteOverlay(pad);
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  hidePadNoteOverlay(pad);
+  updateAllPadAlerts();
+  if (triggerEnd) {
+    executeEndCrossfade(pad);
+    checkCueConditions(pad);
+  }
+}
+
+async function playPadText(pad, options = {}) {
+  if (!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
+    setStatus("Lecture de texte indisponible dans ce navigateur");
+    return;
+  }
+  const text = String(pad.textContent || "").trim();
+  if (!text) {
+    setStatus(`Texte vide: ${pad.title}`);
+    return;
+  }
+  if (!options.skipStartCrossfade) executeStartCrossfade(pad);
+  stopPad(pad, false, false, { triggerEnd: false });
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = pad.textLang || "fr-FR";
+  utterance.rate = Math.min(1.8, Math.max(0.6, Number(pad.textRate) || 1));
+  const voice = speechVoiceForPad(pad);
+  if (voice) utterance.voice = voice;
+  pad.speechUtterance = utterance;
+  pad.textDuration = estimateSpeechDuration(text, utterance.rate);
+  pad.startedAt = performance.now() / 1000;
+  pad.stopAt = 0;
+  pad.isPaused = false;
+  pad.node.classList.add("is-playing");
+  state.lastStartedPad = pad;
+  updatePadModeButtons(pad);
+  updatePadTime(pad);
+  showPadNoteOverlay(pad);
+  startTimer();
+  utterance.onend = () => {
+    if (pad.speechUtterance === utterance) clearSpeechPad(pad, true);
+  };
+  utterance.onerror = () => {
+    if (pad.speechUtterance === utterance) clearSpeechPad(pad, false);
+    setStatus("Lecture de texte impossible");
+  };
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+  setStatus(`Lecture texte: ${pad.title}`);
 }
 
 function markVideoStopped(pad, triggerEnd = false) {
@@ -7342,6 +7696,7 @@ async function playPadVideo(pad, options = {}) {
       pad.startedAt = performance.now() / 1000 - (video.currentTime || 0);
       updatePadModeButtons(pad);
       updatePadTime(pad);
+      showPadNoteOverlay(pad);
       startTimer();
     });
     video.addEventListener("pause", () => {
@@ -7381,6 +7736,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.stopAt = 0;
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing");
+  hidePadNoteOverlay(pad);
   updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
   updatePadTime(pad);
@@ -7412,6 +7768,10 @@ function reversedBufferForPad(pad) {
 async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (pad.videoName) {
     await playPadVideo(pad, { ...options, offset, fadeIn: fade });
+    return;
+  }
+  if (pad.textContent && !pad.buffer) {
+    await playPadText(pad, options);
     return;
   }
   if (!pad.buffer) {
@@ -7488,6 +7848,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.stopAt = 0;
   pad.keepResumeOffsetOnEnd = false;
   pad.node.classList.add("is-playing");
+  showPadNoteOverlay(pad);
   updatePadModeButtons(pad);
   updatePadTime(pad);
   startTimer();
@@ -7519,6 +7880,14 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
       updatePadTime(pad);
     }
     clearPadMuteState(pad);
+    return;
+  }
+  if (pad?.speechUtterance) {
+    const triggerEnd = options.triggerEnd ?? true;
+    window.speechSynthesis?.cancel?.();
+    clearSpeechPad(pad, triggerEnd);
+    clearPadMuteState(pad);
+    setStatus(`${pad.title} stop`);
     return;
   }
   if (pad?.videoWindow || pad?.videoUrl || pad?.videoTimer) {
@@ -7586,6 +7955,10 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
 }
 
 function remainingSeconds(pad) {
+  if (pad?.speechUtterance && pad.textDuration) {
+    const elapsed = Math.max(0, performance.now() / 1000 - pad.startedAt);
+    return Math.max(0, pad.textDuration - elapsed);
+  }
   if (pad.videoName && pad.node.classList.contains("is-playing") && pad.videoDuration) {
     const video = videoElementForPad(pad);
     const elapsed = video ? Math.max(0, video.currentTime || 0) : Math.max(0, performance.now() / 1000 - pad.startedAt);
@@ -7807,7 +8180,9 @@ async function init() {
     applyPadLayout(currentBoard());
     state.pads.forEach(renderWaveform);
     if (document.body.classList.contains("show-cables")) drawCableOverlay();
+    syncFloatingCueFrame(true);
   });
+  window.addEventListener("scroll", () => syncFloatingCueFrame(false), { passive: true });
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
@@ -7944,6 +8319,7 @@ async function init() {
       drawCableOverlay();
       positionCableLegend();
     }
+    syncFloatingCueFrame(true);
   });
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
@@ -8187,11 +8563,51 @@ async function init() {
   els.audioVideoImport?.addEventListener("click", () => {
     if (state.audioPad) els.audioVideoFile?.click();
   });
+  els.audioTextImport?.addEventListener("click", () => {
+    if (!state.audioPad) return;
+    const chooseFile = window.confirm("OK : sélectionner un fichier texte. Annuler : saisir le texte.");
+    if (chooseFile) {
+      els.audioTextFile?.click();
+    } else {
+      openTextDialog(state.audioPad);
+    }
+  });
   els.audioVideoFile?.addEventListener("change", () => {
     const file = els.audioVideoFile.files?.[0];
     if (file && state.audioPad) {
       loadVideoIntoPad(state.audioPad, file).catch(() => setStatus("Import vidéo impossible"));
       els.audioVideoFile.value = "";
+    }
+  });
+  els.audioTextFile?.addEventListener("change", async () => {
+    const file = els.audioTextFile.files?.[0];
+    const pad = state.audioPad;
+    if (!file || !pad) return;
+    try {
+      const text = await file.text();
+      setPadTextSettings(pad, {
+        textContent: text,
+        textName: file.name || "Texte",
+        textLang: els.audioTextLang?.value || pad.textLang,
+        textGender: els.audioTextGender?.value || pad.textGender,
+        textRate: els.audioTextRate?.value || pad.textRate,
+      });
+      disposeVideoProjection(pad);
+      pad.buffer = null;
+      pad.audioName = "";
+      pad.audioPath = "";
+      pad.videoName = "";
+      pad.videoPath = "";
+      if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(file.name || "Texte"));
+      setPadDuration(pad, pad.textDuration);
+      pad.node.classList.remove("is-empty", "is-missing-audio");
+      syncAudioDialog(pad);
+      saveAudioPadFromDialog();
+      setStatus("Texte importé");
+    } catch {
+      setStatus("Import texte impossible");
+    } finally {
+      els.audioTextFile.value = "";
     }
   });
   els.audioReset?.addEventListener("click", resetAudioDialogSettings);
@@ -8315,6 +8731,30 @@ async function init() {
       saveAudioPadFromDialog();
     });
   });
+  [els.audioTextLang, els.audioTextGender, els.audioTextRate].forEach((element) => {
+    element?.addEventListener("input", () => {
+      if (!state.audioPad) return;
+      setPadTextSettings(state.audioPad, {
+        textLang: els.audioTextLang?.value,
+        textGender: els.audioTextGender?.value,
+        textRate: els.audioTextRate?.value,
+      });
+      syncAudioDialog(state.audioPad);
+      saveAudioPadFromDialog();
+    });
+  });
+  els.applyText?.addEventListener("click", applyTextDialog);
+  els.cancelText?.addEventListener("click", cancelTextDialog);
+  els.textDialog?.addEventListener("click", (event) => {
+    if (event.target === els.textDialog) cancelTextDialog();
+  });
+  els.noteEditor?.addEventListener("input", syncNoteDialogVisibility);
+  els.applyNote?.addEventListener("click", applyNoteDialog);
+  els.cancelNote?.addEventListener("click", cancelNoteDialog);
+  els.noteDialog?.addEventListener("click", (event) => {
+    if (event.target === els.noteDialog) cancelNoteDialog();
+  });
+  els.padNoteOverlay?.addEventListener("click", () => hidePadNoteOverlay());
   const handleAudioCrossfadeChange = () => {
     if (!state.audioPad) return;
     if (els.audioStartStopMode?.value === "none" && els.audioStartStopTarget) els.audioStartStopTarget.value = "";

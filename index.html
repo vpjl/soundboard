@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=168">
+    <link rel="stylesheet" href="styles.css?v=169">
   </head>
   <body>
     <div class="app">
@@ -28,12 +28,13 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v168</p>
+            <p id="audioStatus">Pret pour la scene · v169</p>
           </div>
         </div>
 
         <div class="board-area">
           <div id="cableLegend" class="cable-legend-panel" aria-hidden="true">
+            <strong>Câblage crossfade</strong>
             <span><i class="cable-swatch cable-play"></i>Lance</span>
             <span><i class="cable-swatch cable-stop"></i>Stoppe</span>
             <span><i class="cable-swatch cable-duck"></i>Duck</span>
@@ -70,8 +71,9 @@
               </button>
               <button id="archiveVersion" class="icon-button board-history-button" type="button" aria-label="Archiver ou désarchiver la version sélectionnée">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
                 </svg>
               </button>
               <select id="versionSelect" class="version-select board-history-button" aria-label="Version à restaurer">
@@ -184,6 +186,12 @@
                 </svg>
               </button>
               </div>
+              <button id="helpButton" class="icon-button help-button board-help-button" type="button" aria-label="Aide">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
               <button id="editPads" class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" aria-pressed="false">
                 <svg class="edit-mode-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -233,12 +241,6 @@
                   <path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
-              <button id="helpButton" class="icon-button help-button board-help-button" type="button" aria-label="Aide">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
             </div>
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
@@ -249,22 +251,26 @@
         <div class="master-strip" aria-label="Controle principal">
           <h2 class="master-title">Master</h2>
           <div class="master-volume-stack">
-            <label class="master-control master-volume-control">
-              <span>Volume global <output id="masterVolumeValue">90%</output></span>
-              <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
-            </label>
-            <div class="vu-meter master-vu" aria-label="VU-mètre master">
-              <span id="masterVu" class="vu-fill"></span>
+            <div class="master-output-group">
+              <label class="master-control master-volume-control">
+                <span>Volume sono <output id="masterVolumeValue">90%</output></span>
+                <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+              </label>
+              <div class="vu-meter master-vu" aria-label="VU-mètre master">
+                <span id="masterVu" class="vu-fill"></span>
+              </div>
+              <span id="masterOutputName" class="master-output-name master-output-line">Sortie : standard</span>
             </div>
-            <span id="masterOutputName" class="master-output-name master-output-line">Sortie : standard</span>
-            <label class="master-control cue-volume-control">
-              <span>Volume Cue <output id="cueVolumeValue">90%</output></span>
-              <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.9">
-            </label>
-            <div class="vu-meter cue-vu" aria-label="VU-mètre Cue">
-              <span id="cueVu" class="vu-fill"></span>
+            <div class="master-output-group cue-output-group">
+              <label class="master-control cue-volume-control">
+                <span>Volume Cue <output id="cueVolumeValue">90%</output></span>
+                <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+              </label>
+              <div class="vu-meter cue-vu" aria-label="VU-mètre Cue">
+                <span id="cueVu" class="vu-fill"></span>
+              </div>
+              <span id="cueOutputName" class="master-output-name cue-output-line">Cue : standard</span>
             </div>
-            <span id="cueOutputName" class="master-output-name cue-output-line">Cue : standard</span>
           </div>
           <button id="masterAudio" class="icon-button master-audio-button" type="button" aria-label="Audio master">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -324,7 +330,7 @@
                 <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
               </svg>
             </button>
-            <span id="cueStatus" class="cue-status">Aucune cue</span>
+            <span id="cueStatus" class="cue-status">Pas de cue</span>
           </div>
           <div class="xfade-live-row" aria-label="Crossfade live">
             <button id="openCueDialog" class="icon-button cue-window-button" type="button" aria-label="Ouvrir la fenêtre cues">
@@ -373,9 +379,16 @@
               </span>
               <span class="pad-label">
                 <span class="pad-shortcut" data-shortcut></span>
+                <span class="pad-type" data-pad-type>A</span>
                 <span class="pad-title" data-title>Pad</span>
                 <span class="pad-tags" data-tags-display></span>
               </span>
+              <button class="pad-note-button" type="button" data-action="note" aria-label="Pense-bête du pad">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 4h12v16H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M9 8h6M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
               <span class="pad-time" data-time>--:--</span>
               <span class="pad-crossfade-flash" data-crossfade-flash aria-hidden="true"></span>
               <span class="pad-progress" data-progress aria-hidden="true">
@@ -749,8 +762,9 @@
                 </dt><dd>Renomme la version sélectionnée.</dd>
                 <dt aria-label="Archiver une version">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Archive une version pour éviter son remplacement automatique.</dd>
               </dl>
@@ -866,6 +880,12 @@
                     <circle cx="12" cy="12" r="6" fill="currentColor"/>
                   </svg>
                 </dt><dd>Mute/demute le pad.</dd>
+                <dt aria-label="Pense-bête du pad">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 4h12v16H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M9 8h6M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Ouvre le pense-bête du pad.</dd>
               </dl>
             </section>
 
@@ -987,6 +1007,13 @@
                     <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Importe un fichier audio.</dd>
+                <dt aria-label="Lecture de texte">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 4v4h4M8 11h8M8 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Importe ou saisit un texte à lire.</dd>
                 <dt aria-label="Reset audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1076,6 +1103,13 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                 <path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button id="audioTextImport" class="icon-button" type="button" aria-label="Lecture de texte">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M14 4v4h4M8 11h8M8 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
             <button id="audioReset" class="icon-button" type="button" aria-label="Reset audio">
@@ -1213,6 +1247,21 @@
               <span>%</span>
             </label>
           </section>
+          <section class="audio-section audio-text-section" aria-label="Lecture de texte">
+            <h3>Texte</h3>
+            <label><span>Langue</span><select id="audioTextLang">
+              <option value="fr-FR">Français</option>
+              <option value="en-US">Anglais</option>
+              <option value="es-ES">Espagnol</option>
+              <option value="de-DE">Allemand</option>
+              <option value="it-IT">Italien</option>
+            </select></label>
+            <label><span>Voix</span><select id="audioTextGender">
+              <option value="female">Féminine</option>
+              <option value="male">Masculine</option>
+            </select></label>
+            <label><span>Vélocité</span><input id="audioTextRate" type="range" min="0.6" max="1.8" step="0.05" value="1"><output id="audioTextRateValue">1.00x</output></label>
+          </section>
           <section class="audio-section audio-crossfade-section" aria-label="Crossfade audio">
             <h3>Crossfade</h3>
             <div class="crossfade-field audio-crossfade-field">
@@ -1229,6 +1278,35 @@
         </div>
       </div>
     </dialog>
+
+    <dialog id="textDialog" class="text-dialog" aria-labelledby="textTitle">
+      <div class="text-panel">
+        <div class="help-head">
+          <h2 id="textTitle">Texte du pad</h2>
+        </div>
+        <textarea id="textEditor" rows="8" maxlength="5000" placeholder="Texte à lire..."></textarea>
+        <div class="dialog-actions">
+          <button id="applyText" class="small-button" type="button">Enregistrer</button>
+          <button id="cancelText" class="small-button ghost" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="noteDialog" class="note-dialog" aria-labelledby="noteTitle">
+      <div class="note-panel">
+        <div class="help-head">
+          <h2 id="noteTitle">Pense-bête</h2>
+        </div>
+        <textarea id="noteEditor" rows="3" maxlength="180" placeholder="Une ou deux lignes..."></textarea>
+        <label id="noteShowRow" class="note-show-row"><input id="noteShowOnStart" type="checkbox"> Afficher au départ</label>
+        <div class="dialog-actions">
+          <button id="applyNote" class="small-button" type="button">Enregistrer</button>
+          <button id="cancelNote" class="small-button ghost" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div id="padNoteOverlay" class="pad-note-overlay" hidden></div>
 
     <dialog id="masterAudioDialog" class="audio-dialog" aria-labelledby="masterAudioTitle">
       <div class="audio-panel master-audio-panel">
@@ -1529,6 +1607,7 @@
             </svg>
           </button>
         </div>
+        <p class="patch-bay-subtitle">Câblage crossfade</p>
         <div class="patch-bay-legend" aria-label="Légende patch bay">
           <span><i class="cable-swatch cable-play"></i>Lance</span>
           <span><i class="cable-swatch cable-stop"></i>Stoppe</span>
@@ -1574,7 +1653,8 @@
     </dialog>
 
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
+    <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=168"></script>
+    <script src="app.js?v=169"></script>
   </body>
 </html>
