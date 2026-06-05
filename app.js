@@ -2197,10 +2197,24 @@ function cueDraft() {
   return state.cueDraft;
 }
 
+function syncAddAllCuePadsButton(draft = cueDraft()) {
+  if (!els.addAllCuePads) return;
+  const hasCueSteps = Boolean(draft?.length);
+  const playableCount = cueSelectablePads().length;
+  els.addAllCuePads.disabled = hasCueSteps || playableCount === 0;
+  els.addAllCuePads.classList.toggle("is-disabled", els.addAllCuePads.disabled);
+  els.addAllCuePads.title = hasCueSteps
+    ? "Disponible seulement quand la liste de cues est vide"
+    : playableCount
+      ? `Ajouter ${playableCount} pad${playableCount > 1 ? "s" : ""} avec son`
+      : "Aucun pad avec son";
+}
+
 function renderCueRows() {
   const draft = cueDraft();
   if (!els.cueRows) return;
   els.cueRows.innerHTML = "";
+  syncAddAllCuePadsButton(draft);
   if (!draft.length) {
     const empty = document.createElement("p");
     empty.className = "cue-empty";
@@ -2443,9 +2457,14 @@ function cuePlayablePad(pad) {
 }
 
 function addAllPadsToCueDraft() {
+  const draft = cueDraft();
+  if (draft.length) {
+    syncAddAllCuePadsButton(draft);
+    setStatus("Liste cues non vide: ajout automatique désactivé");
+    return;
+  }
   const playablePads = cueSelectablePads();
   if (!playablePads.length) {
-    state.cueDraft = [];
     renderCueRows();
     setStatus("Aucun pad avec son");
     return;

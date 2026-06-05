@@ -3398,6 +3398,14 @@ body[data-skin="contrast"] .color-field {
   margin-left: auto;
 }
 
+.small-button:disabled,
+.icon-button:disabled,
+.small-button.is-disabled,
+.icon-button.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .bulk-edit-grid {
   display: grid;
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
