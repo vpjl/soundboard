@@ -2430,7 +2430,10 @@ function clearCueDialogDraft() {
 }
 
 function cuePlayablePad(pad) {
-  return Boolean(pad?.buffer || pad?.audioName || pad?.videoName || pad?.videoPath || pad?.textContent || pad?.textMode);
+  if (!pad) return false;
+  if (pad.buffer) return true;
+  if (pad.videoName || pad.videoPath || pad.videoUrl) return true;
+  return Boolean(String(pad.textContent || "").trim());
 }
 
 function addAllPadsToCueDraft() {
@@ -7514,9 +7517,9 @@ function syncAudioDialogMediaAvailability(pad) {
   setAudioSectionHidden('[aria-label="Reverb"]', isText);
   setAudioSectionHidden('[aria-label="Égalisation audio pad"]', isText);
   setAudioSectionHidden('[aria-label="Fades"]', isText);
+  setAudioSectionHidden('[aria-label="Lecture de texte"]', !isText);
   if (els.audioTextEditorFrame) {
     els.audioTextEditorFrame.hidden = !isText;
-    els.audioTextEditorFrame.closest(".audio-section")?.toggleAttribute("hidden", false);
   }
   if (els.audioWaveform) els.audioWaveform.hidden = isText;
   els.audioDialog?.querySelector(".trim-values")?.toggleAttribute("hidden", isText);
