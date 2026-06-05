@@ -528,6 +528,7 @@ async function refreshOutputSelectOptions() {
   const selects = [els.masterOutputSelect, els.masterCueOutputSelect].filter(Boolean);
   selects.forEach((select) => {
     select.innerHTML = "";
+    select.dataset.outputPicker = "";
     select.append(outputSelectOption("Par défaut", ""));
   });
 
@@ -548,9 +549,20 @@ async function refreshOutputSelectOptions() {
   }
 
   if (!outputCount) {
-    selects.forEach((select) => select.append(disabledOutputSelectOption("Liste indisponible")));
+    if (outputSelectionSupported()) {
+      selects.forEach((select) => {
+        select.dataset.outputPicker = "available";
+        select.append(disabledOutputSelectOption("Cliquer pour sélectionner"));
+      });
+    } else {
+      selects.forEach((select) => select.append(disabledOutputSelectOption("Liste indisponible")));
+    }
   }
   syncOutputSelectValues();
+}
+
+function outputSelectUsesNativePicker(select) {
+  return select?.dataset.outputPicker === "available";
 }
 
 function syncOutputCapabilityUi() {
@@ -5574,6 +5586,29 @@ async function handleCueOutputChange() {
   setStatus(`Sortie Cue: ${state.cueOutputLabel}`);
 }
 
+async function handleOutputSelectPointer(event, type) {
+  const select = event.currentTarget;
+  if (!outputSelectUsesNativePicker(select)) return;
+  event.preventDefault();
+  if (type === "master") {
+    await selectMasterOutput();
+  } else {
+    await selectCueOutput();
+  }
+}
+
+async function handleOutputSelectKeydown(event, type) {
+  if (!["Enter", " "].includes(event.key)) return;
+  const select = event.currentTarget;
+  if (!outputSelectUsesNativePicker(select)) return;
+  event.preventDefault();
+  if (type === "master") {
+    await selectMasterOutput();
+  } else {
+    await selectCueOutput();
+  }
+}
+
 async function previewPadCue(pad, options = {}) {
   if ((state.cuePreviewAudio || state.cuePreviewUtterance) && state.cuePreviewPad === pad) {
     stopCuePreview();
@@ -9254,8 +9289,20 @@ async function init() {
     els.masterAudioDialog?.close();
   });
   els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
+  els.masterOutputSelect?.addEventListener("pointerdown", (event) => {
+    handleOutputSelectPointer(event, "master").catch(() => setStatus("Sortie master impossible"));
+  });
+  els.masterOutputSelect?.addEventListener("keydown", (event) => {
+    handleOutputSelectKeydown(event, "master").catch(() => setStatus("Sortie master impossible"));
+  });
   els.masterOutputSelect?.addEventListener("change", () => {
     handleMasterOutputChange().catch(() => setStatus("Sortie master impossible"));
+  });
+  els.masterCueOutputSelect?.addEventListener("pointerdown", (event) => {
+    handleOutputSelectPointer(event, "cue").catch(() => setStatus("Sortie Cue impossible"));
+  });
+  els.masterCueOutputSelect?.addEventListener("keydown", (event) => {
+    handleOutputSelectKeydown(event, "cue").catch(() => setStatus("Sortie Cue impossible"));
   });
   els.masterCueOutputSelect?.addEventListener("change", () => {
     handleCueOutputChange().catch(() => setStatus("Sortie Cue impossible"));
