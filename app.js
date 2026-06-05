@@ -124,10 +124,10 @@ const state = {
   cuePreviewTrimTimer: null,
   folderImportFiles: [],
   cueOutputDeviceId: "",
-  cueOutputLabel: "standard",
+  cueOutputLabel: "par défaut",
   cueVolume: DEFAULT_CUE_VOLUME,
   masterOutputDeviceId: "",
-  masterOutputLabel: "standard",
+  masterOutputLabel: "par défaut",
   audioDialogStartedPad: null,
   audioDialogStartedCue: null,
   transferPad: null,
@@ -466,7 +466,7 @@ function normalizedFileStem(value) {
 }
 
 function outputLabel(value) {
-  return String(value || "").trim() || "standard";
+  return String(value || "").trim() || "par défaut";
 }
 
 function escapeText(value) {
@@ -504,6 +504,12 @@ function outputSelectOption(label, value = "") {
   return option;
 }
 
+function disabledOutputSelectOption(label) {
+  const option = outputSelectOption(label, "__unavailable__");
+  option.disabled = true;
+  return option;
+}
+
 function syncOneOutputSelect(select, deviceId, label) {
   if (!select) return;
   const value = String(deviceId || "");
@@ -522,9 +528,10 @@ async function refreshOutputSelectOptions() {
   const selects = [els.masterOutputSelect, els.masterCueOutputSelect].filter(Boolean);
   selects.forEach((select) => {
     select.innerHTML = "";
-    select.append(outputSelectOption("Standard", ""));
+    select.append(outputSelectOption("Par défaut", ""));
   });
 
+  let outputCount = 0;
   if (enumerateOutputSupported()) {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -533,12 +540,16 @@ async function refreshOutputSelectOptions() {
         .forEach((device) => {
           const label = device.label || `Sortie ${device.deviceId.slice(0, 6)}`;
           selects.forEach((select) => select.append(outputSelectOption(label, device.deviceId)));
+          outputCount += 1;
         });
     } catch {
-      // Les navigateurs qui refusent l'énumération gardent au moins la sortie standard.
+      // Les navigateurs qui refusent l'énumération gardent au moins la sortie par défaut.
     }
   }
 
+  if (!outputCount) {
+    selects.forEach((select) => select.append(disabledOutputSelectOption("Liste indisponible")));
+  }
   syncOutputSelectValues();
 }
 
@@ -554,9 +565,9 @@ function syncOutputCapabilityUi() {
 
 function loadOutputSettings() {
   state.cueOutputDeviceId = "";
-  state.cueOutputLabel = "standard";
+  state.cueOutputLabel = "par défaut";
   state.masterOutputDeviceId = "";
-  state.masterOutputLabel = "standard";
+  state.masterOutputLabel = "par défaut";
   localStorage.removeItem(CUE_OUTPUT_STORAGE);
   localStorage.removeItem(MASTER_OUTPUT_STORAGE);
   syncOutputCapabilityUi();
@@ -5517,7 +5528,7 @@ function previewTextCue(pad) {
 
 async function selectCueOutput() {
   if (!outputSelectionSupported()) {
-    saveCueOutput("", "standard");
+    saveCueOutput("", "par défaut");
     setStatus("Sortie Cue séparée indisponible dans ce navigateur");
     return false;
   }
@@ -5530,7 +5541,7 @@ async function selectCueOutput() {
 
 async function selectMasterOutput() {
   if (!outputSelectionSupported()) {
-    saveMasterOutput("", "standard");
+    saveMasterOutput("", "par défaut");
     setStatus("Choix de sortie master indisponible dans ce navigateur");
     return false;
   }
@@ -5546,7 +5557,8 @@ async function selectMasterOutput() {
 async function handleMasterOutputChange() {
   const select = els.masterOutputSelect;
   if (!select) return;
-  const label = select.selectedOptions?.[0]?.textContent || "standard";
+  if (select.value === "__unavailable__") return;
+  const label = select.selectedOptions?.[0]?.textContent || "par défaut";
   saveMasterOutput(select.value, label);
   if (select.value) await ensureAudio();
   const routed = await applyStoredMasterOutput();
@@ -5556,7 +5568,8 @@ async function handleMasterOutputChange() {
 async function handleCueOutputChange() {
   const select = els.masterCueOutputSelect;
   if (!select) return;
-  const label = select.selectedOptions?.[0]?.textContent || "standard";
+  if (select.value === "__unavailable__") return;
+  const label = select.selectedOptions?.[0]?.textContent || "par défaut";
   saveCueOutput(select.value, label);
   setStatus(`Sortie Cue: ${state.cueOutputLabel}`);
 }
@@ -5660,7 +5673,7 @@ async function previewPadCue(pad, options = {}) {
       }, Math.max(20, segment.duration * 1000 + 80));
     }
     startTimer();
-    setStatus(cueOutputSelected ? `Cue: ${pad.title}` : `Cue sortie standard: ${pad.title}`);
+    setStatus(cueOutputSelected ? `Cue: ${pad.title}` : `Cue sortie par défaut: ${pad.title}`);
   } catch (error) {
     stopCuePreview();
     setStatus(error?.name === "NotAllowedError" ? "Pré-écoute annulée" : "Pré-écoute impossible");
