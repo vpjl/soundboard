@@ -2431,9 +2431,8 @@ function clearCueDialogDraft() {
 
 function cuePlayablePad(pad) {
   if (!pad) return false;
-  if (pad.buffer) return true;
-  if (pad.videoName || pad.videoPath || pad.videoUrl) return true;
-  return Boolean(String(pad.textContent || "").trim());
+  if (pad.node?.classList.contains("is-empty") || pad.node?.classList.contains("is-missing-audio")) return false;
+  return Boolean(pad.buffer);
 }
 
 function addAllPadsToCueDraft() {

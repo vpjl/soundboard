@@ -3391,6 +3391,11 @@ body[data-skin="contrast"] .color-field {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.cue-toolbar #applyCues {
+  margin-left: auto;
 }
 
 .bulk-edit-grid {
@@ -3780,12 +3785,21 @@ body[data-skin="contrast"] .color-field {
   height: 86px;
 }
 
+.audio-section[hidden],
+.audio-text-editor-frame[hidden] {
+  display: none !important;
+}
+
 .audio-text-editor-frame {
   display: none;
 }
 
 .audio-dialog.is-text-pad .audio-text-editor-frame {
   display: grid;
+}
+
+.audio-dialog:not(.is-text-pad) .audio-text-section {
+  display: none !important;
 }
 
 .audio-text-editor-frame label {
