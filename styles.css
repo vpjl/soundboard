@@ -906,6 +906,25 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   cursor: pointer;
 }
 
+.master-output-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.icon-text-button {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, auto);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.icon-text-button svg {
+  width: 20px;
+  height: 20px;
+}
+
 .text-panel,
 .note-panel {
   display: grid;
@@ -5962,7 +5981,7 @@ body.stage-mode .pad:not(.is-editing) .controls {
 
 .pad.is-preend-flash .pad-crossfade-flash {
   opacity: 1;
-  animation: end-green-red-flash var(--preend-flash-duration, 1.35s) linear 1;
+  animation: end-green-red-flash var(--preend-flash-duration, 1.05s) linear 1;
 }
 
 @keyframes end-green-red-flash {
@@ -5973,14 +5992,16 @@ body.stage-mode .pad:not(.is-editing) .controls {
     transform: scale(1.08);
   }
 
-  12%,
-  24% {
+  8%,
+  24%,
+  40% {
     opacity: 0.22;
     background: #49d3a0;
     transform: scale(0.82);
   }
 
-  36% {
+  16%,
+  32% {
     opacity: 1;
     background: #49d3a0;
     box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.24);
@@ -5988,30 +6009,20 @@ body.stage-mode .pad:not(.is-editing) .controls {
   }
 
   48%,
-  60% {
-    opacity: 0.22;
-    background: #ff5f56;
-    transform: scale(0.82);
-  }
-
-  72% {
+  64%,
+  80% {
     opacity: 1;
     background: #ff5f56;
     box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24);
     transform: scale(1.08);
   }
 
-  84% {
+  56%,
+  72%,
+  88% {
     opacity: 0.22;
     background: #ff5f56;
     transform: scale(0.82);
-  }
-
-  96% {
-    opacity: 1;
-    background: #ff5f56;
-    box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24);
-    transform: scale(1.08);
   }
 
   100% {

@@ -25,8 +25,8 @@ const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
-const DEFAULT_MASTER_VOLUME = 0.9;
-const DEFAULT_CUE_VOLUME = 0.9;
+const DEFAULT_MASTER_VOLUME = 0.6;
+const DEFAULT_CUE_VOLUME = 0.6;
 const ENDING_ALERT_SECONDS = 5;
 const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
@@ -2821,12 +2821,13 @@ async function addBoard() {
     layoutMode: "auto",
     padColumns: 0,
     padRows: 0,
-    cuesEnabled: true,
+    cuesEnabled: false,
     cues: [],
     cueIndex: 0,
   };
   state.boards.push(board);
   state.currentBoardId = board.id;
+  applyDefaultMasterAudioSettings(false, true);
   state.shortcutsEnabled = false;
   localStorage.setItem(boardShortcutsEnabledKey(board.id), "off");
   saveBoards();
@@ -5822,7 +5823,8 @@ function updateAllPadAlerts() {
 
 function flashPadPreEnd(pad, durationSeconds = 1.35) {
   if (!pad?.crossfadeFlashEl) return;
-  const duration = Math.max(0.25, Number(durationSeconds) || 1.35);
+  const remaining = Number(durationSeconds) || 1.05;
+  const duration = Math.min(1.05, Math.max(0.45, remaining));
   pad.node.classList.remove("is-preend-flash");
   pad.node.style.setProperty("--preend-flash-duration", `${duration}s`);
   void pad.node.offsetWidth;
@@ -6869,9 +6871,9 @@ function resetAudioDialogSettings() {
   savePadMeta(pad);
 }
 
-function resetMasterAudioSettings() {
+function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = false) {
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = false;
-  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = false;
+  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = true;
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = false;
   if (els.fadeInSeconds) els.fadeInSeconds.value = "2";
   if (els.fadeSeconds) els.fadeSeconds.value = "2";
@@ -6887,6 +6889,10 @@ function resetMasterAudioSettings() {
   localStorage.setItem(FADE_IN_STORAGE, "2");
   localStorage.setItem(FADE_OUT_STORAGE, "2");
   localStorage.setItem(DUCKING_STORAGE, "60");
+  if (includeVolumes) {
+    setMasterVolume(DEFAULT_MASTER_VOLUME, true);
+    setCueVolume(DEFAULT_CUE_VOLUME, true);
+  }
   saveMasterReverbSettings();
   saveMasterEqSettings();
   updateMasterReverbValue();
@@ -6894,7 +6900,11 @@ function resetMasterAudioSettings() {
   applyMasterEq();
   applyDucking();
   updateMasterOptionBadges();
-  setStatus("Audio master réinitialisé");
+  if (showStatus) setStatus("Audio master réinitialisé");
+}
+
+function resetMasterAudioSettings() {
+  applyDefaultMasterAudioSettings(true, true);
 }
 
 function masterAudioDraftFromControls() {
@@ -7733,9 +7743,9 @@ function loadMasterReverbSettings() {
   const savedFadeInEnabled = localStorage.getItem(MASTER_FADE_IN_ENABLED_STORAGE);
   const savedFadeOutEnabled = localStorage.getItem(MASTER_FADE_OUT_ENABLED_STORAGE);
   const savedDuckEnabled = localStorage.getItem(MASTER_DUCK_ENABLED_STORAGE);
-  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = savedFadeInEnabled == null ? true : savedFadeInEnabled === "on";
+  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = savedFadeInEnabled == null ? false : savedFadeInEnabled === "on";
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = savedFadeOutEnabled == null ? true : savedFadeOutEnabled === "on";
-  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? true : savedDuckEnabled === "on";
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? false : savedDuckEnabled === "on";
   updateMasterReverbValue();
 }
 
@@ -8317,9 +8327,9 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
       pad.node.classList.add("is-missing-audio");
       setStatus(`Son manquant: ${pad.title}`);
     } else {
-      setStatus(`Importer un son: ${pad.title}`);
+      setStatus(`Réglages audio: ${pad.title}`);
     }
-    pad.fileInput.click();
+    openAudioDialog(pad);
     return;
   }
 

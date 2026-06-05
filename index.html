@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=185">
+    <link rel="stylesheet" href="styles.css?v=187">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v185</p>
+            <p id="audioStatus">Pret pour la scene · v187</p>
           </div>
         </div>
 
@@ -253,8 +253,8 @@
           <div class="master-volume-stack">
             <div class="master-output-group">
               <label class="master-control master-volume-control">
-                <span>Volume sono <output id="masterVolumeValue">90%</output></span>
-                <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+                <span>Volume sono <output id="masterVolumeValue">60%</output></span>
+                <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.6">
               </label>
               <div class="vu-meter master-vu" aria-label="VU-mètre master">
                 <span id="masterVu" class="vu-fill"></span>
@@ -263,8 +263,8 @@
             </div>
             <div class="master-output-group cue-output-group">
               <label class="master-control cue-volume-control">
-                <span>Volume Cue <output id="cueVolumeValue">90%</output></span>
-                <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+                <span>Volume Cue <output id="cueVolumeValue">60%</output></span>
+                <input id="cueVolume" type="range" min="0" max="1" step="0.01" value="0.6">
               </label>
               <div class="vu-meter cue-vu" aria-label="VU-mètre Cue">
                 <span id="cueVu" class="vu-fill"></span>
@@ -1322,18 +1322,6 @@
             <p><span id="masterAudioOutputName" class="audio-output-name">Master : standard</span><span id="masterCueOutputName" class="audio-output-name">Cue : standard</span></p>
           </div>
           <div class="audio-head-actions">
-            <button id="masterCueOutputSelect" class="icon-button" type="button" aria-label="Choisir la sortie Cue globale">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 13v-2a7 7 0 0 1 14 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M5 13h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM19 13h-3v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button id="masterOutputSelect" class="icon-button" type="button" aria-label="Choisir la sortie audio globale">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 7h5M19 4l3 3-3 3M16 17h5M19 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
             <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1342,6 +1330,25 @@
           </div>
         </div>
         <div class="audio-sections">
+          <section class="audio-section master-outputs-section" aria-label="Sorties audio master">
+            <h3>Sorties</h3>
+            <div class="master-output-buttons">
+              <button id="masterOutputSelect" class="small-button icon-text-button" type="button" aria-label="Choisir la sortie audio globale">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M16 7h5M19 4l3 3-3 3M16 17h5M19 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Sono</span>
+              </button>
+              <button id="masterCueOutputSelect" class="small-button icon-text-button" type="button" aria-label="Choisir la sortie Cue globale">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 13v-2a7 7 0 0 1 14 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M5 13h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM19 13h-3v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+                <span>Cue</span>
+              </button>
+            </div>
+          </section>
           <section class="audio-section master-fade-section" aria-label="Fade master">
             <h3>Fade</h3>
             <label class="master-audio-control" aria-label="Fade in global">
@@ -1351,7 +1358,7 @@
               </svg>
               <span>Fade in</span>
               <input id="masterFadeInEnabled" type="checkbox">
-              <input id="fadeInSeconds" type="number" min="0" max="30" step="1" value="0">
+              <input id="fadeInSeconds" type="number" min="0" max="30" step="1" value="2">
               <span class="field-unit">secondes</span>
             </label>
             <label class="master-audio-control" aria-label="Fade out global">
@@ -1678,6 +1685,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=185"></script>
+    <script src="app.js?v=187"></script>
   </body>
 </html>
