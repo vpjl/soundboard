@@ -490,11 +490,64 @@ function updateOutputLabels() {
   if (els.cueOutputName) els.cueOutputName.textContent = cueText;
   if (els.masterAudioOutputName) els.masterAudioOutputName.textContent = masterText;
   if (els.masterCueOutputName) els.masterCueOutputName.textContent = cueText;
+  syncOutputSelectValues();
 }
 
 function outputSelectionSupported() {
   const audio = document.createElement("audio");
   return typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
+}
+
+function enumerateOutputSupported() {
+  return Boolean(navigator.mediaDevices?.enumerateDevices);
+}
+
+function outputSelectOption(label, value = "") {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+function syncOneOutputSelect(select, deviceId, label) {
+  if (!select) return;
+  const value = String(deviceId || "");
+  if (value && ![...select.options].some((option) => option.value === value)) {
+    select.append(outputSelectOption(outputLabel(label), value));
+  }
+  select.value = value;
+}
+
+function syncOutputSelectValues() {
+  syncOneOutputSelect(els.masterOutputSelect, state.masterOutputDeviceId, state.masterOutputLabel);
+  syncOneOutputSelect(els.masterCueOutputSelect, state.cueOutputDeviceId, state.cueOutputLabel);
+}
+
+async function refreshOutputSelectOptions() {
+  const selects = [els.masterOutputSelect, els.masterCueOutputSelect].filter(Boolean);
+  selects.forEach((select) => {
+    select.innerHTML = "";
+    select.append(outputSelectOption("Standard", ""));
+  });
+
+  if (enumerateOutputSupported()) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      devices
+        .filter((device) => device.kind === "audiooutput" && device.deviceId)
+        .forEach((device) => {
+          const label = device.label || `Sortie ${device.deviceId.slice(0, 6)}`;
+          selects.forEach((select) => select.append(outputSelectOption(label, device.deviceId)));
+        });
+    } catch {
+      // Les navigateurs qui refusent l'énumération gardent au moins la sortie standard.
+    }
+  }
+
+  if (outputSelectionSupported()) {
+    selects.forEach((select) => select.append(outputSelectOption("Choisir...", "__choose__")));
+  }
+  syncOutputSelectValues();
 }
 
 function syncOutputCapabilityUi() {
@@ -516,6 +569,7 @@ function loadOutputSettings() {
   localStorage.removeItem(MASTER_OUTPUT_STORAGE);
   syncOutputCapabilityUi();
   updateOutputLabels();
+  refreshOutputSelectOptions().catch(() => {});
 }
 
 function saveCueOutput(deviceId, label) {
@@ -1265,6 +1319,7 @@ function makePad(index) {
     analyser: null,
     meterData: null,
     audioName: "",
+    audioUid: "",
     audioPath: "",
     audioPathTrusted: false,
     videoName: "",
@@ -2984,7 +3039,7 @@ function boardSoundCount() {
   state.pads.forEach((pad) => {
     if (!pad.buffer && !pad.audioName) return;
     const refIndex = Number(pad.audioRefIndex);
-    keys.add(`slot:${Number.isInteger(refIndex) ? refIndex : pad.index}`);
+    keys.add(pad.audioUid ? `audio:${pad.audioUid}` : `slot:${Number.isInteger(refIndex) ? refIndex : pad.index}`);
   });
   return keys.size;
 }
@@ -3368,13 +3423,23 @@ async function tryShareBoardFile(file, boardName) {
 function lightweightAudioSnapshot(record, index) {
   if (!record) return null;
   const refIndex = Number(record.audioRefIndex);
+  const audioUid = audioRecordUid(record);
   return {
     ...record,
+    audioUid,
     audio: undefined,
     video: undefined,
     audioRefIndex: Number.isInteger(refIndex) ? refIndex : index,
     preserveCurrentAudio: true,
   };
+}
+
+function audioRecordUid(record) {
+  return String(record?.audioUid || record?.uid || "").trim();
+}
+
+function ensureAudioRecordUid(record, fallbackUid = "") {
+  return audioRecordUid(record) || String(fallbackUid || "").trim() || createId();
 }
 
 function lightweightVersionSnapshot(snapshot) {
@@ -3439,8 +3504,12 @@ async function applyBoardSnapshot(snapshot) {
   resetRecordingState();
   const previousPadCount = board.padCount;
   const preservedAudio = new Map();
+  const preservedAudioByUid = new Map();
   for (let index = 0; index < previousPadCount; index += 1) {
-    preservedAudio.set(index, await dbGet(padAudioKeyFor(board.id, index)));
+    const record = await dbGet(padAudioKeyFor(board.id, index));
+    preservedAudio.set(index, record);
+    const uid = audioRecordUid(record);
+    if (uid) preservedAudioByUid.set(uid, record);
   }
   board.name = snapshot.board?.name || board.name;
   board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
@@ -3465,11 +3534,14 @@ async function applyBoardSnapshot(snapshot) {
     if (item.meta) await dbSet(padMetaKeyFor(board.id, index), item.meta);
     if (item.audio?.preserveCurrentAudio) {
       const refIndex = Number(item.audio.audioRefIndex);
-      const preserved = preservedAudio.get(Number.isInteger(refIndex) ? refIndex : index);
+      const audioUid = audioRecordUid(item.audio) || audioRecordUid(item.meta);
+      const preserved = (audioUid && preservedAudioByUid.get(audioUid))
+        || preservedAudio.get(Number.isInteger(refIndex) ? refIndex : index);
       if (preserved) {
         await dbSet(padAudioKeyFor(board.id, index), {
           ...preserved,
           ...item.audio,
+          audioUid: ensureAudioRecordUid(item.audio, audioRecordUid(preserved)),
           audio: preserved.audio,
           video: preserved.video,
           preserveCurrentAudio: undefined,
@@ -3554,9 +3626,12 @@ async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
     pads: Array.isArray(snapshot.pads)
       ? await Promise.all(snapshot.pads.map(async (item) => {
         const savedAudio = item?.audio;
-        const audio = includeAudio ? await audioRecordForExport(savedAudio, "audio") : null;
+        const index = Number(item?.index) || 0;
+        const audio = includeAudio
+          ? await audioRecordForExport(savedAudio, "audio")
+          : lightweightAudioSnapshot(savedAudio, index);
         return {
-          index: Number(item?.index) || 0,
+          index,
           meta: item?.meta || null,
           audio,
           hasAudio: Boolean(savedAudio?.audio || savedAudio?.audioRefIndex != null || item?.hasAudio),
@@ -3585,6 +3660,8 @@ function deserializeBoardSnapshotFromExport(snapshot) {
             ...item.audio,
             audio: base64ToArrayBuffer(item.audio.audio),
           };
+        } else if (item?.audio) {
+          audio = item.audio;
         }
         return {
           index: Number(item?.index) || 0,
@@ -3598,14 +3675,30 @@ function deserializeBoardSnapshotFromExport(snapshot) {
 }
 
 async function hydrateImportedVersionAudio(versions, boardId) {
+  const currentAudioByUid = new Map();
+  const board = state.boards.find((item) => item.id === boardId);
+  const padCount = Math.max(0, Number(board?.padCount) || 0);
+  for (let index = 0; index < padCount; index += 1) {
+    const currentAudio = await dbGet(padAudioKeyFor(boardId, index));
+    const uid = audioRecordUid(currentAudio);
+    if (uid) currentAudioByUid.set(uid, currentAudio);
+  }
   for (const snapshot of versions) {
     for (const item of snapshot.pads || []) {
-      if (item.audio) continue;
       if (item.hasAudio === false) continue;
       const index = Number(item.index);
       if (!Number.isInteger(index) || index < 0) continue;
-      const currentAudio = await dbGet(padAudioKeyFor(boardId, index));
-      if (currentAudio?.audio) item.audio = currentAudio;
+      const uid = audioRecordUid(item.audio) || audioRecordUid(item.meta);
+      const currentAudio = (uid && currentAudioByUid.get(uid)) || await dbGet(padAudioKeyFor(boardId, index));
+      if (currentAudio?.audio) {
+        item.audio = {
+          ...currentAudio,
+          ...(item.audio || {}),
+          audioUid: ensureAudioRecordUid(item.audio || currentAudio, audioRecordUid(currentAudio)),
+          audio: currentAudio.audio,
+          video: currentAudio.video,
+        };
+      }
     }
   }
 }
@@ -3706,9 +3799,11 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     const exportAudio = includeAudio ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
     const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
+    const audioUid = ensureAudioRecordUid(audioInfo || saved || meta, meta?.uid || saved?.uid || pad.uid);
     pads.push({
       index,
       uid: meta?.uid || saved?.uid || pad.uid || createId(),
+      audioUid,
       title: meta?.title || saved?.title || `Pad ${index + 1}`,
       volume: meta?.volume ?? saved?.volume ?? 0.85,
       panValue: meta?.panValue ?? saved?.panValue ?? 0,
@@ -3753,6 +3848,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
       playMode: meta?.playMode || saved?.playMode || "oneshot",
       audioRefIndex: Number.isInteger(audioRef) ? audioRef : null,
       audio: (exportAudio || audioInfo?.name || audioInfo?.path || meta?.audioName || meta?.audioPath) ? {
+        audioUid,
         name: audioInfo?.name || meta?.audioName || saved?.name || `Pad ${index + 1}`,
         path: audioInfo?.path || saved?.path || meta?.audioPath || audioInfo?.name || meta?.audioName || `Pad ${index + 1}`,
         pathTrusted: Boolean(audioInfo?.pathTrusted || saved?.pathTrusted || meta?.audioPathTrusted),
@@ -3760,6 +3856,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
         data: exportAudio?.data || "",
       } : null,
       video: (exportVideo || saved?.videoName || meta?.videoName || meta?.videoPath) ? {
+        audioUid,
         name: exportVideo?.name || saved?.videoName || meta?.videoName || `Pad ${index + 1}`,
         path: exportVideo?.path || saved?.videoPath || meta?.videoPath || saved?.videoName || meta?.videoName || `Pad ${index + 1}`,
         type: exportVideo?.type || saved?.videoType || meta?.videoType || "video/mp4",
@@ -3905,6 +4002,7 @@ async function importBoardFile(file) {
       visualImage: item.visualImage || "",
       visualImageHidden: Boolean(item.visualImageHidden),
       visualKind: item.visualKind || "",
+      audioUid: item.audioUid || item.audio?.audioUid || item.video?.audioUid || "",
       audioName: item.audio?.name || item.audioName || "",
       audioPath: item.audio?.path || item.audioPath || item.audio?.name || "",
       audioPathTrusted: Boolean(item.audio?.pathTrusted || item.audioPathTrusted),
@@ -3940,6 +4038,8 @@ async function importBoardFile(file) {
     if (item.audio?.data) {
       try {
         await dbSet(padAudioKey(transientPad), {
+          uid: meta.uid,
+          audioUid: meta.audioUid || createId(),
           name: item.audio.name || meta.title,
           path: item.audio.path || item.audio.name || meta.title,
           pathTrusted: Boolean(item.audio.pathTrusted),
@@ -3954,6 +4054,7 @@ async function importBoardFile(file) {
     } else if (item.audio?.name || item.audio?.path) {
       await dbSet(padAudioKey(transientPad), {
         uid: meta.uid,
+        audioUid: meta.audioUid || createId(),
         name: item.audio.name || meta.title,
         path: item.audio.path || item.audio.name || meta.title,
         pathTrusted: Boolean(item.audio.pathTrusted),
@@ -3967,6 +4068,7 @@ async function importBoardFile(file) {
         await dbSet(padAudioKey(transientPad), {
           ...(await dbGet(padAudioKey(transientPad)) || {}),
           uid: meta.uid,
+          audioUid: meta.audioUid || item.video?.audioUid || createId(),
           title: meta.title,
           video: base64ToArrayBuffer(item.video.data),
           videoName: item.video.name || meta.videoName || meta.title,
@@ -4638,6 +4740,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
   pad.audioName = name;
+  pad.audioUid = createId();
   pad.audioType = type || "";
   pad.audioPath = path || name;
   pad.audioPathTrusted = Boolean(pathTrusted && path);
@@ -4659,6 +4762,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.node.classList.remove("is-missing-audio");
   await dbSet(padAudioKey(pad), {
     uid: pad.uid,
+    audioUid: pad.audioUid,
     name,
     path: pad.audioPath,
     pathTrusted: pad.audioPathTrusted,
@@ -4773,6 +4877,7 @@ async function loadVideoIntoPad(pad, file) {
   const currentTitle = pad.title;
   pad.buffer = null;
   pad.audioName = "";
+  pad.audioUid = createId();
   pad.audioPath = "";
   pad.audioType = "";
   pad.audioRefIndex = null;
@@ -4792,6 +4897,7 @@ async function loadVideoIntoPad(pad, file) {
   pad.node.classList.remove("is-empty", "is-missing-audio");
   await dbSet(padAudioKey(pad), {
     uid: pad.uid,
+    audioUid: pad.audioUid,
     title: pad.title,
     video: arrayBuffer,
     videoName: pad.videoName,
@@ -5147,6 +5253,7 @@ async function restorePad(pad) {
 
   const rawSaved = await dbGet(padAudioKey(pad));
   if (rawSaved?.video) {
+    pad.audioUid = ensureAudioRecordUid(rawSaved, pad.uid);
     pad.videoName = rawSaved.videoName || rawSaved.name || "";
     pad.videoPath = meta?.videoPath || rawSaved.videoPath || rawSaved.path || pad.videoName;
     pad.videoType = rawSaved.videoType || rawSaved.type || "video/mp4";
@@ -5191,6 +5298,7 @@ async function restorePad(pad) {
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
   pad.uid = meta?.uid || saved.uid || pad.uid;
+  pad.audioUid = ensureAudioRecordUid(saved, pad.uid);
   pad.audioName = saved.name || "";
   pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
   pad.audioType = saved.type || "";
@@ -5268,6 +5376,24 @@ async function restorePad(pad) {
 
 async function resolvePadAudioRecord(pad, meta, saved) {
   if (saved?.audio) return saved;
+  const wantedUid = audioRecordUid(saved) || audioRecordUid(meta);
+  if (wantedUid) {
+    const board = currentBoard();
+    for (let index = 0; index < board.padCount; index += 1) {
+      if (index === pad.index) continue;
+      const candidate = await dbGet(padAudioKeyFor(state.currentBoardId, index));
+      if (audioRecordUid(candidate) === wantedUid && candidate?.audio) {
+        return {
+          ...candidate,
+          ...(saved || {}),
+          audioUid: wantedUid,
+          audio: candidate.audio,
+          video: candidate.video,
+          audioRefIndex: index,
+        };
+      }
+    }
+  }
   const refIndex = Number(saved?.audioRefIndex ?? meta?.audioRefIndex);
   if (!Number.isInteger(refIndex) || refIndex < 0 || refIndex === pad.index) return saved;
   const referenced = await dbGet(padAudioKeyFor(state.currentBoardId, refIndex));
@@ -5275,6 +5401,7 @@ async function resolvePadAudioRecord(pad, meta, saved) {
   return {
     ...referenced,
     ...(saved || {}),
+    audioUid: ensureAudioRecordUid(saved || referenced, audioRecordUid(referenced)),
     audio: referenced.audio,
     name: saved?.name || referenced.name,
     path: saved?.path || referenced.path,
@@ -5404,6 +5531,7 @@ async function selectCueOutput() {
   }
   const output = await navigator.mediaDevices.selectAudioOutput();
   saveCueOutput(output.deviceId, output.label || "sortie Cue");
+  await refreshOutputSelectOptions();
   setStatus(`Sortie Cue: ${state.cueOutputLabel}`);
   return true;
 }
@@ -5417,9 +5545,36 @@ async function selectMasterOutput() {
   await ensureAudio();
   const output = await navigator.mediaDevices.selectAudioOutput();
   saveMasterOutput(output.deviceId, output.label || "sortie master");
+  await refreshOutputSelectOptions();
   const routed = await applyStoredMasterOutput();
   setStatus(routed ? `Sortie master: ${state.masterOutputLabel}` : `Sortie master mémorisée: ${state.masterOutputLabel}`);
   return true;
+}
+
+async function handleMasterOutputChange() {
+  const select = els.masterOutputSelect;
+  if (!select) return;
+  if (select.value === "__choose__") {
+    await selectMasterOutput();
+    return;
+  }
+  const label = select.selectedOptions?.[0]?.textContent || "standard";
+  saveMasterOutput(select.value, label);
+  if (select.value) await ensureAudio();
+  const routed = await applyStoredMasterOutput();
+  setStatus(routed ? `Sortie master: ${state.masterOutputLabel}` : `Sortie master: ${state.masterOutputLabel}`);
+}
+
+async function handleCueOutputChange() {
+  const select = els.masterCueOutputSelect;
+  if (!select) return;
+  if (select.value === "__choose__") {
+    await selectCueOutput();
+    return;
+  }
+  const label = select.selectedOptions?.[0]?.textContent || "standard";
+  saveCueOutput(select.value, label);
+  setStatus(`Sortie Cue: ${state.cueOutputLabel}`);
 }
 
 async function previewPadCue(pad, options = {}) {
@@ -5588,6 +5743,7 @@ async function savePadMeta(pad) {
     visualImageHidden: pad.visualImageHidden,
     visualKind: pad.visualKind,
     audioName: pad.audioName,
+    audioUid: pad.audioUid,
     audioPath: pad.audioPath,
     audioPathTrusted: pad.audioPathTrusted,
     videoName: pad.videoName,
@@ -5617,9 +5773,12 @@ async function savePadMeta(pad) {
   await dbSet(padMetaKey(pad), meta);
   const saved = await dbGet(padAudioKey(pad));
   if (saved) {
+    const audioUid = ensureAudioRecordUid(saved, pad.audioUid || pad.uid);
+    pad.audioUid = audioUid;
     await dbSet(padAudioKey(pad), {
       ...saved,
       ...meta,
+      audioUid,
     });
   }
 }
@@ -6059,6 +6218,13 @@ function fillCrossfadeTargetSelect(select, selectedValue = null) {
   }
 
   if (currentValue && [...select.options].some((option) => option.value === currentValue)) {
+    select.value = currentValue;
+  } else if (currentValue) {
+    const missingOption = document.createElement("option");
+    missingOption.value = currentValue;
+    missingOption.textContent = "Cible à retrouver";
+    missingOption.dataset.missingTarget = "true";
+    select.append(missingOption);
     select.value = currentValue;
   } else {
     select.value = "";
@@ -6665,10 +6831,7 @@ function settleNativeSelects() {
 
 function selectedOptionValue(select) {
   if (!select) return "";
-  const value = String(select.value ?? "").trim();
-  if (value || select.selectedIndex >= 0) return value;
-  const option = select.selectedOptions?.[0] || select.options?.[select.selectedIndex];
-  return String(option?.value ?? "").trim();
+  return String(select.value ?? "").trim();
 }
 
 function openAudioDialog(pad) {
@@ -9094,11 +9257,11 @@ async function init() {
     els.masterAudioDialog?.close();
   });
   els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
-  els.masterOutputSelect?.addEventListener("click", () => {
-    selectMasterOutput().catch(() => setStatus("Sortie master impossible"));
+  els.masterOutputSelect?.addEventListener("change", () => {
+    handleMasterOutputChange().catch(() => setStatus("Sortie master impossible"));
   });
-  els.masterCueOutputSelect?.addEventListener("click", () => {
-    selectCueOutput().catch(() => setStatus("Sortie Cue impossible"));
+  els.masterCueOutputSelect?.addEventListener("change", () => {
+    handleCueOutputChange().catch(() => setStatus("Sortie Cue impossible"));
   });
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) {

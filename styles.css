@@ -487,7 +487,7 @@ body.no-cue-output .cue-volume-control,
 body.no-cue-output .cue-vu,
 body.no-cue-output .cue-output-line,
 body.no-cue-output #masterCueOutputName,
-body.no-cue-output #masterCueOutputSelect,
+body.no-cue-output .cue-output-field,
 body.no-cue-output #audioCueOutputName {
   display: none !important;
 }
@@ -906,12 +906,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   cursor: pointer;
 }
 
-.master-output-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
 .icon-text-button {
   display: inline-grid;
   grid-template-columns: auto minmax(0, auto);
@@ -923,6 +917,39 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .icon-text-button svg {
   width: 20px;
   height: 20px;
+}
+
+.master-output-selects {
+  display: grid;
+  gap: 10px;
+}
+
+.master-output-field {
+  display: grid;
+  grid-template-columns: 22px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.master-output-field svg {
+  width: 20px;
+  height: 20px;
+}
+
+.master-output-field span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.master-output-field select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 8px;
+  background: #111319;
+  color: var(--text);
 }
 
 .text-panel,
