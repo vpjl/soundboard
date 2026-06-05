@@ -6874,7 +6874,7 @@ function resetAudioDialogSettings() {
 function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = false) {
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = false;
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = true;
-  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = false;
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = true;
   if (els.fadeInSeconds) els.fadeInSeconds.value = "2";
   if (els.fadeSeconds) els.fadeSeconds.value = "2";
   if (els.duckPercent) els.duckPercent.value = "60";
@@ -6885,7 +6885,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
   localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
-  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "off");
+  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "on");
   localStorage.setItem(FADE_IN_STORAGE, "2");
   localStorage.setItem(FADE_OUT_STORAGE, "2");
   localStorage.setItem(DUCKING_STORAGE, "60");
@@ -7745,7 +7745,7 @@ function loadMasterReverbSettings() {
   const savedDuckEnabled = localStorage.getItem(MASTER_DUCK_ENABLED_STORAGE);
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = savedFadeInEnabled == null ? false : savedFadeInEnabled === "on";
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = savedFadeOutEnabled == null ? true : savedFadeOutEnabled === "on";
-  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? false : savedDuckEnabled === "on";
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? true : savedDuckEnabled === "on";
   updateMasterReverbValue();
 }
 
