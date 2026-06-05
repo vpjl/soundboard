@@ -90,6 +90,13 @@ const state = {
   recordingChunks: [],
   recordingStream: null,
   recordingStartedAt: 0,
+  recordingSource: null,
+  recordingAnalyser: null,
+  recordingMeterData: null,
+  recordingWaveformFrame: null,
+  selectedMicrophoneId: "",
+  selectedMicrophoneLabel: "",
+  pendingRecordingPad: null,
   drag: null,
   trimDrag: null,
   progressDrag: null,
@@ -373,6 +380,12 @@ const els = {
   exportCleanupAudio: document.querySelector("#exportCleanupAudio"),
   confirmAudioCleanup: document.querySelector("#confirmAudioCleanup"),
   cancelAudioCleanup: document.querySelector("#cancelAudioCleanup"),
+  microphoneDialog: document.querySelector("#microphoneDialog"),
+  microphoneSummary: document.querySelector("#microphoneSummary"),
+  microphoneSelect: document.querySelector("#microphoneSelect"),
+  refreshMicrophones: document.querySelector("#refreshMicrophones"),
+  applyMicrophone: document.querySelector("#applyMicrophone"),
+  cancelMicrophone: document.querySelector("#cancelMicrophone"),
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padRows: document.querySelector("#padRows"),
@@ -558,6 +571,7 @@ async function refreshOutputSelectOptions() {
       selects.forEach((select) => select.append(disabledOutputSelectOption("Liste indisponible")));
     }
   }
+  document.body.classList.toggle("no-output-choice", !outputCount && !outputSelectionSupported());
   syncOutputSelectValues();
 }
 
@@ -1158,6 +1172,7 @@ function recordingExtension(type = "") {
   if (cleanType.includes("webm")) return "webm";
   if (cleanType.includes("ogg")) return "ogg";
   if (cleanType.includes("wav")) return "wav";
+  if (cleanType.includes("mpeg") || cleanType.includes("mp3")) return "mp3";
   return "m4a";
 }
 
@@ -1165,37 +1180,93 @@ function microphoneLabel(device, index) {
   return String(device?.label || "").trim() || `Micro ${index + 1}`;
 }
 
-async function chooseMicrophoneStream() {
-  let firstStream = null;
+async function refreshMicrophoneDevices(requestPermission = false) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus("Micro indisponible dans ce navigateur");
+    return [];
+  }
+  let permissionStream = null;
   try {
-    firstStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (requestPermission) {
+      permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
     const devices = typeof navigator.mediaDevices.enumerateDevices === "function"
       ? await navigator.mediaDevices.enumerateDevices()
       : [];
     const inputs = devices.filter((device) => device.kind === "audioinput");
-    if (inputs.length <= 1) return firstStream;
-    const list = inputs.map((device, index) => `${index + 1}. ${microphoneLabel(device, index)}`).join("\n");
-    const answer = window.prompt(`Source micro :\n${list}\n\nNuméro à utiliser`, "1");
-    if (answer == null) return firstStream;
-    const selectedIndex = Math.max(0, Math.min(inputs.length - 1, (Number(answer) || 1) - 1));
-    const selected = inputs[selectedIndex];
-    if (!selected?.deviceId) return firstStream;
-    firstStream.getTracks().forEach((track) => track.stop());
-    firstStream = null;
-    return navigator.mediaDevices.getUserMedia({
-      audio: { deviceId: { exact: selected.deviceId } },
-    });
+    if (els.microphoneSelect) {
+      const current = state.selectedMicrophoneId || els.microphoneSelect.value || "";
+      els.microphoneSelect.innerHTML = '<option value="">Aucun micro sélectionné</option>';
+      inputs.forEach((device, index) => {
+        const option = document.createElement("option");
+        option.value = device.deviceId || "__default__";
+        option.textContent = microphoneLabel(device, index);
+        els.microphoneSelect.append(option);
+      });
+      els.microphoneSelect.value = [...els.microphoneSelect.options].some((option) => option.value === current) ? current : "";
+    }
+    if (els.microphoneSummary) {
+      els.microphoneSummary.textContent = inputs.length
+        ? "Choisir une source, puis cliquer sur Sélectionner. L’enregistrement démarrera au prochain clic sur l’icône micro."
+        : "Aucun micro détecté.";
+    }
+    return inputs;
   } catch (error) {
-    firstStream?.getTracks().forEach((track) => track.stop());
+    if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système");
+      if (els.microphoneSummary) {
+        els.microphoneSummary.textContent = "Micro inaccessible : autoriser l’accès au micro dans les préférences système, puis actualiser.";
+      }
+      return [];
+    }
     throw error;
+  } finally {
+    permissionStream?.getTracks().forEach((track) => track.stop());
   }
+}
+
+function openMicrophoneDialog(pad) {
+  state.pendingRecordingPad = pad;
+  if (els.microphoneSummary) {
+    els.microphoneSummary.textContent = "Autoriser l’accès au micro, choisir une source, puis cliquer à nouveau sur l’icône micro pour enregistrer.";
+  }
+  refreshMicrophoneDevices(false).catch(() => {});
+  if (els.microphoneDialog?.showModal) {
+    els.microphoneDialog.showModal();
+  } else {
+    setStatus("Choisir un micro dans la fenêtre audio");
+  }
+}
+
+async function selectMicrophoneFromDialog() {
+  const select = els.microphoneSelect;
+  const option = select?.selectedOptions?.[0];
+  if (!select?.value) {
+    setStatus("Choisir un micro");
+    return;
+  }
+  state.selectedMicrophoneId = select.value;
+  state.selectedMicrophoneLabel = option?.textContent || "micro sélectionné";
+  els.microphoneDialog?.close();
+  updateRecordingUi();
+  setStatus(`Micro sélectionné: ${state.selectedMicrophoneLabel}. Cliquer à nouveau sur micro pour enregistrer.`);
+}
+
+function microphoneConstraints() {
+  return state.selectedMicrophoneId && state.selectedMicrophoneId !== "__default__"
+    ? { audio: { deviceId: { exact: state.selectedMicrophoneId } } }
+    : { audio: true };
 }
 
 function updateRecordingUi() {
   state.pads.forEach((pad) => {
     pad.recordButton?.classList.toggle("is-recording", state.recordingPad === pad);
+    pad.recordButton?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && state.recordingPad !== pad);
+    pad.recordButton?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && state.recordingPad !== pad);
   });
   els.audioRecord?.classList.toggle("is-recording", Boolean(state.recordingPad));
+  els.audioRecord?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && !state.recordingPad);
+  els.audioRecord?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && !state.recordingPad);
   els.audioRecord?.setAttribute("aria-pressed", String(Boolean(state.recordingPad)));
 }
 
@@ -2867,6 +2938,7 @@ async function renderPads() {
   loadShortcutsForCurrentBoard();
   renderShortcutRows();
   updateShortcutIndicators();
+  updateRecordingUi();
   syncCueControls();
   setStatus(`${board.name} charge`);
 }
@@ -4610,6 +4682,11 @@ function cleanupAudioDetail(record) {
   return details.join(" · ");
 }
 
+function cleanupSourceBoardName(record) {
+  const source = String(record?.cleanupSource || "").split("/")[0]?.trim();
+  return source || currentBoard()?.name || "board";
+}
+
 async function orphanAudioCandidates() {
   const [keys, referenced] = await Promise.all([
     dbKeys(),
@@ -4669,32 +4746,34 @@ async function offerAudioCleanupAfterDeletion() {
   }
 }
 
-async function exportCleanupAudioToAttic() {
+async function exportCleanupAudioFiles() {
   const candidates = selectedCleanupCandidates();
   if (!candidates.length) {
     setStatus("Aucun son sélectionné");
     return;
   }
-  const sounds = (await Promise.all(candidates.map(async (candidate) => {
-    const audio = await audioRecordForExport(candidate.record, "audio");
-    return audio ? {
-      key: candidate.key,
-      label: candidate.label,
-      record: audio,
-    } : null;
-  }))).filter(Boolean);
-  if (!sounds.length) {
-    setStatus("Export grenier impossible");
+  if (!window.showDirectoryPicker) {
+    setStatus("Sélection de dossier indisponible dans ce navigateur");
     return;
   }
-  const payload = {
-    format: "soundboard-live-audio-attic",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    sounds,
-  };
-  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-  await shareOrDownloadBoard(blob, `grenier-a-sons.${timestampForFile()}.json`, "grenier à sons");
+  const directory = await window.showDirectoryPicker({ mode: "readwrite" });
+  const stamp = timestampForFile();
+  let written = 0;
+  for (const candidate of candidates) {
+    if (!candidate.record?.audio) continue;
+    const type = candidate.record.type || "audio/mpeg";
+    const extension = recordingExtension(type);
+    const boardName = safeFileName(cleanupSourceBoardName(candidate.record));
+    const padName = safeFileName(cleanupAudioLabel(candidate.record, candidate.key));
+    const filename = `${stamp}.${boardName}.${padName}.${extension}`;
+    const handle = await directory.getFileHandle(filename, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(new Blob([candidate.record.audio], { type }));
+    await writable.close();
+    written += 1;
+  }
+  els.audioCleanupDialog?.close();
+  setStatus(`${written} son${written > 1 ? "s" : ""} enregistré${written > 1 ? "s" : ""}`);
 }
 
 async function deleteSelectedCleanupAudio(candidates = selectedCleanupCandidates()) {
@@ -5162,9 +5241,14 @@ async function toggleRecording(pad) {
     return;
   }
 
+  if (!state.selectedMicrophoneId) {
+    openMicrophoneDialog(pad);
+    return;
+  }
+
   try {
-    setStatus("Micro: choix de la source");
-    const stream = await chooseMicrophoneStream();
+    setStatus(`Micro: ${state.selectedMicrophoneLabel || "source sélectionnée"}`);
+    const stream = await navigator.mediaDevices.getUserMedia(microphoneConstraints());
     const mimeType = bestRecordingType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
@@ -5173,6 +5257,7 @@ async function toggleRecording(pad) {
     state.recordingStream = stream;
     state.recordingStartedAt = performance.now();
     state.recorder = recorder;
+    startRecordingWaveform(stream, pad);
     updateRecordingUi();
     setStatus(`● Enregistrement en cours: ${pad.title}`);
 
@@ -5200,7 +5285,7 @@ async function toggleRecording(pad) {
   } catch (error) {
     resetRecordingState();
     if (error?.name === "NotAllowedError") {
-      setStatus("Micro refusé: autorisez le navigateur");
+      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système");
     } else if (error?.name === "NotFoundError") {
       setStatus("Aucun micro detecte");
     } else {
@@ -5215,7 +5300,72 @@ function stopRecording() {
   }
 }
 
+function startRecordingWaveform(stream, pad) {
+  if (!state.audioContext || !stream) return;
+  stopRecordingWaveform();
+  const source = state.audioContext.createMediaStreamSource(stream);
+  const analyser = state.audioContext.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  state.recordingSource = source;
+  state.recordingAnalyser = analyser;
+  state.recordingMeterData = new Uint8Array(analyser.fftSize);
+  const draw = () => {
+    if (!state.recordingAnalyser || state.recordingPad !== pad) return;
+    state.recordingAnalyser.getByteTimeDomainData(state.recordingMeterData);
+    drawRecordingWaveform(pad, state.recordingMeterData);
+    state.recordingWaveformFrame = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function stopRecordingWaveform() {
+  if (state.recordingWaveformFrame) {
+    cancelAnimationFrame(state.recordingWaveformFrame);
+  }
+  try {
+    state.recordingSource?.disconnect();
+  } catch {}
+  state.recordingWaveformFrame = null;
+  state.recordingSource = null;
+  state.recordingAnalyser = null;
+  state.recordingMeterData = null;
+}
+
+function drawRecordingWaveform(pad, data) {
+  const canvas = state.audioPad === pad && els.audioDialog?.open
+    ? els.audioWaveformCanvas
+    : pad.waveformCanvas;
+  const host = state.audioPad === pad && els.audioDialog?.open
+    ? els.audioWaveform
+    : pad.waveformEl;
+  if (!canvas || !host || !data?.length) return;
+  const rect = host.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const width = Math.max(1, Math.floor((rect.width || 1) * dpr));
+  const height = Math.max(1, Math.floor((rect.height || 1) * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "rgba(255, 95, 86, 0.95)";
+  ctx.lineWidth = Math.max(1, dpr * 1.4);
+  ctx.beginPath();
+  for (let index = 0; index < data.length; index += 1) {
+    const x = (index / Math.max(1, data.length - 1)) * width;
+    const y = (data[index] / 255) * height;
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
 function resetRecordingState() {
+  stopRecordingWaveform();
   state.recordingStream?.getTracks().forEach((track) => track.stop());
   state.recordingPad?.recordButton.classList.remove("is-recording");
   state.recorder = null;
@@ -9215,7 +9365,7 @@ async function init() {
     setStatus("Ajout des sons annulé");
   });
   els.exportCleanupAudio?.addEventListener("click", () => {
-    exportCleanupAudioToAttic().catch(() => setStatus("Export grenier impossible"));
+    exportCleanupAudioFiles().catch(() => setStatus("Enregistrement des sons impossible"));
   });
   els.confirmAudioCleanup?.addEventListener("click", () => {
     deleteSelectedCleanupAudio().catch(() => setStatus("Suppression audio impossible"));
@@ -9224,6 +9374,23 @@ async function init() {
     state.audioCleanupCandidates = [];
     els.audioCleanupDialog?.close();
     setStatus("Sons conservés");
+  });
+  els.refreshMicrophones?.addEventListener("click", () => {
+    refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
+  });
+  els.applyMicrophone?.addEventListener("click", () => {
+    selectMicrophoneFromDialog().catch(() => setStatus("Sélection micro impossible"));
+  });
+  els.cancelMicrophone?.addEventListener("click", () => {
+    state.pendingRecordingPad = null;
+    els.microphoneDialog?.close();
+    setStatus("Micro non sélectionné");
+  });
+  els.microphoneDialog?.addEventListener("click", (event) => {
+    if (event.target === els.microphoneDialog) {
+      state.pendingRecordingPad = null;
+      els.microphoneDialog.close();
+    }
   });
   els.folderImportDialog?.addEventListener("click", (event) => {
     if (event.target === els.folderImportDialog) {
@@ -9689,6 +9856,9 @@ async function init() {
   });
   bindEscapeClose(els.audioCleanupDialog, () => {
     state.audioCleanupCandidates = [];
+  });
+  bindEscapeClose(els.microphoneDialog, () => {
+    state.pendingRecordingPad = null;
   });
   bindEscapeClose(els.audioDialog, () => {
     stopAudioDialogStartedPlayback();

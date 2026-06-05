@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=192">
+    <link rel="stylesheet" href="styles.css?v=193">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v192</p>
+            <p id="audioStatus">Pret pour la scene · v193</p>
           </div>
         </div>
 
@@ -1670,6 +1670,28 @@
       </div>
     </dialog>
 
+    <dialog id="microphoneDialog" class="confirm-dialog" aria-labelledby="microphoneTitle">
+      <div class="confirm-panel microphone-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="microphoneTitle">Micro</h2>
+            <p id="microphoneSummary">Autoriser l’accès au micro, choisir une source, puis cliquer à nouveau sur l’icône micro pour enregistrer.</p>
+          </div>
+        </div>
+        <label class="microphone-select-row">
+          <span>Source</span>
+          <select id="microphoneSelect">
+            <option value="">Aucun micro sélectionné</option>
+          </select>
+        </label>
+        <div class="dialog-actions">
+          <button id="refreshMicrophones" class="small-button" type="button">Autoriser / actualiser</button>
+          <button id="applyMicrophone" class="small-button" type="button">Sélectionner</button>
+          <button id="cancelMicrophone" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="audioCleanupDialog" class="confirm-dialog" aria-labelledby="audioCleanupTitle">
       <div class="confirm-panel audio-cleanup-panel">
         <div class="help-head">
@@ -1680,7 +1702,7 @@
         </div>
         <div id="audioCleanupList" class="audio-cleanup-list" aria-label="Sons à nettoyer"></div>
         <div class="dialog-actions">
-          <button id="exportCleanupAudio" class="small-button" type="button">Exporter vers grenier</button>
+          <button id="exportCleanupAudio" class="small-button" type="button">Enregistrer les sons</button>
           <button id="confirmAudioCleanup" class="danger-button" type="button">Supprimer sélection</button>
           <button id="cancelAudioCleanup" class="small-button" type="button">Conserver</button>
         </div>
@@ -1690,6 +1712,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=192"></script>
+    <script src="app.js?v=193"></script>
   </body>
 </html>
