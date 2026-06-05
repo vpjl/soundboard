@@ -2429,9 +2429,18 @@ function clearCueDialogDraft() {
   }
 }
 
+function cuePlayablePad(pad) {
+  return Boolean(pad?.buffer || pad?.audioName || pad?.videoName || pad?.videoPath || pad?.textContent || pad?.textMode);
+}
+
 function addAllPadsToCueDraft() {
   const draft = cueDraft();
-  state.pads.forEach((pad) => {
+  const playablePads = state.pads.filter(cuePlayablePad);
+  if (!playablePads.length) {
+    setStatus("Aucun pad avec son");
+    return;
+  }
+  playablePads.forEach((pad) => {
     draft.push(normalizeCueStep({
       action: "playPad",
       target: padTargetValue(pad),
