@@ -2101,6 +2101,10 @@ function syncFloatingCueFrame(resetAnchor = false) {
   document.body.classList.toggle("cues-stuck", stuck);
 }
 
+function cueSelectablePads() {
+  return state.pads.filter(cuePlayablePad);
+}
+
 function fillCueTargetSelect(select, action, selectedValue = "") {
   if (!select) return;
   const mode = normalizeCueAction(action);
@@ -2122,7 +2126,7 @@ function fillCueTargetSelect(select, action, selectedValue = "") {
   if (mode.endsWith("Pad")) {
     const padGroup = document.createElement("optgroup");
     padGroup.label = "Pads";
-    state.pads.forEach((pad) => {
+    cueSelectablePads().forEach((pad) => {
       const option = document.createElement("option");
       option.value = padTargetValue(pad);
       option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
@@ -2167,7 +2171,7 @@ function fillCueConditionTargetSelect(select, condition, selectedValue = "") {
   if (mode === "padEnd") {
     const padGroup = document.createElement("optgroup");
     padGroup.label = "Pads";
-    state.pads.forEach((pad) => {
+    cueSelectablePads().forEach((pad) => {
       const option = document.createElement("option");
       option.value = padTargetValue(pad);
       option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
@@ -2432,23 +2436,28 @@ function clearCueDialogDraft() {
 function cuePlayablePad(pad) {
   if (!pad) return false;
   if (pad.node?.classList.contains("is-empty") || pad.node?.classList.contains("is-missing-audio")) return false;
-  return Boolean(pad.buffer);
+  if (padType(pad) !== "audio") return false;
+  if (!pad.buffer) return false;
+  if (!Number.isFinite(Number(pad.buffer.duration)) || Number(pad.buffer.duration) <= 0) return false;
+  return Boolean(String(pad.audioName || pad.audioPath || "").trim());
 }
 
 function addAllPadsToCueDraft() {
-  const draft = cueDraft();
-  const playablePads = state.pads.filter(cuePlayablePad);
+  const playablePads = cueSelectablePads();
   if (!playablePads.length) {
+    state.cueDraft = [];
+    renderCueRows();
     setStatus("Aucun pad avec son");
     return;
   }
-  playablePads.forEach((pad) => {
-    draft.push(normalizeCueStep({
+  state.cueDraft = playablePads.map((pad) => (
+    normalizeCueStep({
       action: "playPad",
       target: padTargetValue(pad),
-    }));
-  });
+    })
+  ));
   renderCueRows();
+  setStatus(`${playablePads.length} pad${playablePads.length > 1 ? "s" : ""} avec son ajouté${playablePads.length > 1 ? "s" : ""}`);
 }
 
 function saveCueDraft() {
@@ -2457,7 +2466,16 @@ function saveCueDraft() {
   board.cues = normalizeCues(state.cueDraft).filter((step) => {
     const hasActionTarget = step.action === "wait" || step.target;
     const hasConditionTarget = step.condition === "manual" || step.conditionTarget;
-    return hasActionTarget && hasConditionTarget;
+    if (!hasActionTarget || !hasConditionTarget) return false;
+    if (step.action.endsWith("Pad")) {
+      const targetPad = padsFromCueTarget(step)[0];
+      if (!cuePlayablePad(targetPad)) return false;
+    }
+    if (step.condition === "padEnd") {
+      const conditionPad = padsFromCrossfadeTarget(step.conditionTarget)[0];
+      if (!cuePlayablePad(conditionPad)) return false;
+    }
+    return true;
   });
   board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(board.cueIndex) || 0));
   if (board.cueIndex < 0) board.cueIndex = 0;
