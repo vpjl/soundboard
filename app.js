@@ -157,8 +157,6 @@ const els = {
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
-  masterAudioOutputName: document.querySelector("#masterAudioOutputName"),
-  masterCueOutputName: document.querySelector("#masterCueOutputName"),
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
@@ -483,13 +481,10 @@ function escapeText(value) {
 
 function updateOutputLabels() {
   const cueText = `Cue : ${outputLabel(state.cueOutputLabel)}`;
-  const masterText = `Master : ${outputLabel(state.masterOutputLabel)}`;
   const masterLiveText = `Sortie : ${outputLabel(state.masterOutputLabel)}`;
   if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
   if (els.masterOutputName) els.masterOutputName.textContent = masterLiveText;
   if (els.cueOutputName) els.cueOutputName.textContent = cueText;
-  if (els.masterAudioOutputName) els.masterAudioOutputName.textContent = masterText;
-  if (els.masterCueOutputName) els.masterCueOutputName.textContent = cueText;
   syncOutputSelectValues();
 }
 
@@ -544,9 +539,6 @@ async function refreshOutputSelectOptions() {
     }
   }
 
-  if (outputSelectionSupported()) {
-    selects.forEach((select) => select.append(outputSelectOption("Choisir...", "__choose__")));
-  }
   syncOutputSelectValues();
 }
 
@@ -5554,10 +5546,6 @@ async function selectMasterOutput() {
 async function handleMasterOutputChange() {
   const select = els.masterOutputSelect;
   if (!select) return;
-  if (select.value === "__choose__") {
-    await selectMasterOutput();
-    return;
-  }
   const label = select.selectedOptions?.[0]?.textContent || "standard";
   saveMasterOutput(select.value, label);
   if (select.value) await ensureAudio();
@@ -5568,10 +5556,6 @@ async function handleMasterOutputChange() {
 async function handleCueOutputChange() {
   const select = els.masterCueOutputSelect;
   if (!select) return;
-  if (select.value === "__choose__") {
-    await selectCueOutput();
-    return;
-  }
   const label = select.selectedOptions?.[0]?.textContent || "standard";
   saveCueOutput(select.value, label);
   setStatus(`Sortie Cue: ${state.cueOutputLabel}`);

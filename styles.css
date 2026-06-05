@@ -486,7 +486,6 @@ body.board-edit-mode .board-edit-actions {
 body.no-cue-output .cue-volume-control,
 body.no-cue-output .cue-vu,
 body.no-cue-output .cue-output-line,
-body.no-cue-output #masterCueOutputName,
 body.no-cue-output .cue-output-field,
 body.no-cue-output #audioCueOutputName {
   display: none !important;
