@@ -173,7 +173,6 @@ const els = {
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterMicrophoneSelect: document.querySelector("#masterMicrophoneSelect"),
-  masterMicrophoneRefresh: document.querySelector("#masterMicrophoneRefresh"),
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
@@ -429,7 +428,6 @@ const els = {
   versionNotesDialog: document.querySelector("#versionNotesDialog"),
   versionNotesLabel: document.querySelector("#versionNotesLabel"),
   versionNotesEditor: document.querySelector("#versionNotesEditor"),
-  applyVersionNotes: document.querySelector("#applyVersionNotes"),
   closeVersionNotes: document.querySelector("#closeVersionNotes"),
   padNoteOverlay: document.querySelector("#padNoteOverlay"),
 };
@@ -2303,6 +2301,7 @@ function renderCueRows() {
     empty.className = "cue-empty";
     empty.textContent = "Aucune étape. Ajouter une étape pour créer la séquence.";
     els.cueRows.append(empty);
+    renderCueTimeline(draft);
     return;
   }
   draft.forEach((step, index) => {
@@ -3981,10 +3980,10 @@ async function openVersionNotesDialog() {
   }
   if (els.versionNotesEditor) {
     els.versionNotesEditor.value = state.versionNotesDraft;
-    els.versionNotesEditor.readOnly = !state.boardEditMode;
+    els.versionNotesEditor.readOnly = false;
   }
-  if (els.applyVersionNotes) els.applyVersionNotes.hidden = !state.boardEditMode;
   els.versionNotesDialog?.showModal?.();
+  els.versionNotesEditor?.focus();
 }
 
 async function saveVersionNotesDialog() {
@@ -4001,7 +4000,11 @@ async function saveVersionNotesDialog() {
   setStatus("Notes de version enregistrées");
 }
 
-function closeVersionNotesDialog() {
+async function closeVersionNotesDialog() {
+  if (els.versionNotesDialog?.open) {
+    await saveVersionNotesDialog();
+    return;
+  }
   state.versionNotesDraft = null;
   els.versionNotesDialog?.close();
 }
@@ -5841,11 +5844,26 @@ function stopCuePreview() {
   state.audioDialogStartedCue = null;
 }
 
-function previewTextCue(pad) {
+async function ensureSpeechVoices() {
+  if (!("speechSynthesis" in window)) return [];
+  const current = window.speechSynthesis.getVoices?.() || [];
+  if (current.length) return current;
+  return new Promise((resolve) => {
+    const done = () => {
+      window.speechSynthesis.removeEventListener?.("voiceschanged", done);
+      resolve(window.speechSynthesis.getVoices?.() || []);
+    };
+    window.speechSynthesis.addEventListener?.("voiceschanged", done, { once: true });
+    window.setTimeout(done, 350);
+  });
+}
+
+async function previewTextCue(pad) {
   if (!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
     setStatus("Cue texte indisponible dans ce navigateur");
     return;
   }
+  await ensureSpeechVoices();
   const liveSettings = state.audioPad === pad && els.audioDialog?.open
     ? {
         textContent: els.audioTextInlineEditor?.value ?? pad.textContent,
@@ -5962,7 +5980,7 @@ async function previewPadCue(pad, options = {}) {
     return;
   }
   if (padType(pad) === "text") {
-    previewTextCue(pad);
+    await previewTextCue(pad);
     return;
   }
   if (!pad?.buffer && !pad?.videoName) {
@@ -8548,20 +8566,41 @@ function estimateSpeechDuration(text, rate = DEFAULT_TEXT_RATE) {
   return Math.max(1, (words / 2.6) / Math.max(0.4, normalizedTextRate(rate)));
 }
 
+function voiceScoreForGender(voice, gender) {
+  const name = String(voice?.name || "").toLowerCase();
+  const uri = String(voice?.voiceURI || "").toLowerCase();
+  const haystack = `${name} ${uri}`;
+  const maleTokens = [
+    "homme", "masculin", "paul", "thomas", "daniel", "alex", "xavier",
+    "nicolas", "yann", "fred", "felix", "olivier", "antoine", "julien", "arthur", "albert",
+  ];
+  const femaleTokens = [
+    "femme", "féminin", "feminin", "amelie", "amélie", "audrey",
+    "aurelie", "aurélie", "victoria", "samantha", "marie", "julie", "virginie", "alice",
+    "celine", "céline", "claire", "lea", "léa", "anna", "flo",
+  ];
+  const wanted = gender === "male" ? maleTokens : femaleTokens;
+  const unwanted = gender === "male" ? femaleTokens : maleTokens;
+  let score = 0;
+  if (wanted.some((token) => haystack.includes(token))) score += 10;
+  if (unwanted.some((token) => haystack.includes(token))) score -= 20;
+  if (gender === "male" && /\bmale\b/.test(haystack) && !/\bfemale\b/.test(haystack)) score += 10;
+  if (gender === "female" && /\bfemale\b/.test(haystack)) score += 10;
+  if (voice?.default) score += 1;
+  return score;
+}
+
 function speechVoiceForPad(pad) {
   const voices = window.speechSynthesis?.getVoices?.() || [];
   const lang = String(pad.textLang || "fr-FR").toLowerCase();
   const langRoot = lang.split("-")[0];
   const byLang = voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(langRoot));
-  const male = /(^|\b)(male|homme|masculin|paul|thomas|daniel|alex|xavier|nicolas|yann|fred)($|\b)/i;
-  const female = /(^|\b)(female|femme|féminin|feminin|amelie|amélie|audrey|aurelie|aurélie|victoria|samantha|marie|julie|virginie|alice)($|\b)/i;
-  const wanted = pad.textGender === "male" ? male : female;
-  const unwanted = pad.textGender === "male" ? female : male;
-  return byLang.find((voice) => wanted.test(voice.name) && !unwanted.test(voice.name))
-    || byLang.find((voice) => wanted.test(voice.name))
-    || byLang.find((voice) => !unwanted.test(voice.name))
+  const gender = pad.textGender === "male" ? "male" : "female";
+  const bestByLang = [...byLang].sort((a, b) => voiceScoreForGender(b, gender) - voiceScoreForGender(a, gender))[0];
+  const bestAny = [...voices].sort((a, b) => voiceScoreForGender(b, gender) - voiceScoreForGender(a, gender))[0];
+  return (bestByLang && voiceScoreForGender(bestByLang, gender) > 0 ? bestByLang : null)
     || byLang[0]
-    || voices.find((voice) => wanted.test(voice.name))
+    || (bestAny && voiceScoreForGender(bestAny, gender) > 0 ? bestAny : null)
     || voices[0]
     || null;
 }
@@ -8691,6 +8730,7 @@ async function playPadText(pad, options = {}) {
     setStatus("Lecture de texte indisponible dans ce navigateur");
     return;
   }
+  await ensureSpeechVoices();
   const text = String(pad.textContent || "").trim();
   if (!text) {
     setStatus(`Texte vide: ${pad.title}`);
@@ -9555,12 +9595,13 @@ async function init() {
       .catch(() => setStatus("Archivage impossible"));
   });
   bindSafeActionButton(els.versionNotes, () => openVersionNotesDialog().catch(() => setStatus("Notes indisponibles")));
-  els.applyVersionNotes?.addEventListener("click", () => {
-    saveVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
+  els.closeVersionNotes?.addEventListener("click", () => {
+    closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
   });
-  els.closeVersionNotes?.addEventListener("click", closeVersionNotesDialog);
   els.versionNotesDialog?.addEventListener("click", (event) => {
-    if (event.target === els.versionNotesDialog) closeVersionNotesDialog();
+    if (event.target === els.versionNotesDialog) {
+      closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
+    }
   });
   els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
@@ -9755,13 +9796,10 @@ async function init() {
     handleCueOutputChange().catch(() => setStatus("Sortie Cue impossible"));
   });
   els.masterMicrophoneSelect?.addEventListener("pointerdown", () => {
-    refreshMicrophoneDevices(false).catch(() => {});
+    refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
   });
   els.masterMicrophoneSelect?.addEventListener("change", () => {
     selectMicrophoneFromMaster();
-  });
-  els.masterMicrophoneRefresh?.addEventListener("click", () => {
-    refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
   });
   els.masterAudioDialog?.addEventListener("click", (event) => {
     if (event.target === els.masterAudioDialog) {
@@ -10172,7 +10210,9 @@ async function init() {
     state.imageDraft = null;
   });
   bindEscapeClose(els.noteDialog, cancelNoteDialog);
-  bindEscapeClose(els.versionNotesDialog, closeVersionNotesDialog);
+  bindEscapeClose(els.versionNotesDialog, () => {
+    closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
+  });
   bindEscapeClose(els.shortcutDialog, () => {
     restoreShortcutDraft();
     state.shortcutDraft = null;
