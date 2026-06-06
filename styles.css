@@ -994,6 +994,15 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   font-size: 0.82rem;
 }
 
+.version-notes-button {
+  background: color-mix(in srgb, var(--accent) 18%, var(--button));
+}
+
+.version-notes-panel textarea[readonly] {
+  color: var(--text);
+  opacity: 0.9;
+}
+
 .pad-note-overlay {
   position: fixed;
   z-index: 120;
@@ -5989,16 +5998,21 @@ body.stage-mode .pad:not(.is-editing) .pad-trigger {
 
 .pad:not(.is-editing) .pad-label,
 body.stage-mode .pad:not(.is-editing) .pad-label {
-  display: block !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100%;
+  min-width: 0;
 }
 
 .pad:not(.is-editing) .pad-title,
 body.stage-mode .pad:not(.is-editing) .pad-title {
   display: -webkit-box;
+  grid-column: 1 / -1 !important;
   width: 100%;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-align: center;
 }
 
 .pad:not(.is-editing) .pad-tags {
