@@ -1399,6 +1399,7 @@ function makePad(index) {
     key: keyForIndex(index),
     title: `Pad ${index + 1}`,
     buffer: null,
+    hasDirectAudio: false,
     source: null,
     gain: null,
     pan: null,
@@ -2105,6 +2106,14 @@ function cueSelectablePads() {
   return state.pads.filter(cuePlayablePad);
 }
 
+function cueAutoAddablePads() {
+  return state.pads.filter((pad) => (
+    cuePlayablePad(pad)
+    && pad.hasDirectAudio === true
+    && !isDefaultPadTitle(pad.title)
+  ));
+}
+
 function fillCueTargetSelect(select, action, selectedValue = "") {
   if (!select) return;
   const mode = normalizeCueAction(action);
@@ -2200,13 +2209,13 @@ function cueDraft() {
 function syncAddAllCuePadsButton(draft = cueDraft()) {
   if (!els.addAllCuePads) return;
   const hasCueSteps = Boolean(draft?.length);
-  const playableCount = cueSelectablePads().length;
+  const playableCount = cueAutoAddablePads().length;
   els.addAllCuePads.disabled = hasCueSteps || playableCount === 0;
   els.addAllCuePads.classList.toggle("is-disabled", els.addAllCuePads.disabled);
   els.addAllCuePads.title = hasCueSteps
     ? "Disponible seulement quand la liste de cues est vide"
     : playableCount
-      ? `Ajouter ${playableCount} pad${playableCount > 1 ? "s" : ""} avec son`
+      ? `Ajouter ${playableCount} pad${playableCount > 1 ? "s" : ""} avec son direct`
       : "Aucun pad avec son";
 }
 
@@ -2463,7 +2472,7 @@ function addAllPadsToCueDraft() {
     setStatus("Liste cues non vide: ajout automatique désactivé");
     return;
   }
-  const playablePads = cueSelectablePads();
+  const playablePads = cueAutoAddablePads();
   if (!playablePads.length) {
     renderCueRows();
     setStatus("Aucun pad avec son");
@@ -4881,6 +4890,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
+  pad.hasDirectAudio = true;
   pad.audioName = name;
   pad.audioUid = createId();
   pad.audioType = type || "";
@@ -4976,6 +4986,7 @@ async function importAudioFileIntoPad(pad, file, index, total) {
     console.warn("Import fichier audio impossible", file?.name, error);
     if (pad) {
       setPadTitle(pad, cleanName(file?.name || pad.title));
+      pad.hasDirectAudio = false;
       pad.node?.classList.add("is-empty", "is-missing-audio");
       await savePadMeta(pad).catch(() => {});
     }
@@ -5018,6 +5029,7 @@ async function loadVideoIntoPad(pad, file) {
   disposeVideoProjection(pad);
   const currentTitle = pad.title;
   pad.buffer = null;
+  pad.hasDirectAudio = false;
   pad.audioName = "";
   pad.audioUid = createId();
   pad.audioPath = "";
@@ -5472,6 +5484,7 @@ async function restorePad(pad) {
     pad.videoType = rawSaved.videoType || rawSaved.type || "video/mp4";
     pad.videoDuration = Number(rawSaved.videoDuration || meta?.videoDuration) || 0;
     pad.buffer = null;
+    pad.hasDirectAudio = false;
     pad.audioName = "";
     pad.audioPath = "";
     pad.audioType = "";
@@ -5494,6 +5507,7 @@ async function restorePad(pad) {
       || meta?.audioRefIndex != null
     );
     pad.audioName = rawSaved?.name || fileBaseName(meta?.audioPath || rawSaved?.path || pad.audioName);
+    pad.hasDirectAudio = false;
     pad.audioPath = meta?.audioPath || rawSaved?.path || rawSaved?.name || pad.audioPath;
     pad.audioType = rawSaved?.type || pad.audioType || "";
     pad.node.classList.toggle("is-missing-audio", missingAudio);
@@ -5510,6 +5524,7 @@ async function restorePad(pad) {
 
   prepareAudio();
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  pad.hasDirectAudio = Boolean(rawSaved?.audio);
   pad.uid = meta?.uid || saved.uid || pad.uid;
   pad.audioUid = ensureAudioRecordUid(saved, pad.uid);
   pad.audioName = saved.name || "";
@@ -7159,6 +7174,7 @@ function setPadAsTextFromControls(pad, text) {
   if (!pad) return;
   disposeVideoProjection(pad);
   pad.buffer = null;
+  pad.hasDirectAudio = false;
   pad.audioName = "";
   pad.audioPath = "";
   pad.videoName = "";
