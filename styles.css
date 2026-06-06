@@ -1028,10 +1028,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 }
 
 .audio-text-gender {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  align-items: center;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1040,17 +1036,9 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .audio-text-gender legend {
   width: 100%;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   color: var(--muted);
   font-size: 0.78rem;
-}
-
-.audio-text-gender label {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-  font-size: 0.84rem;
 }
 
 .pad-note-overlay {
