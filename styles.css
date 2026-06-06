@@ -729,7 +729,7 @@ body.board-edit-mode .board-action-grid .icon-button {
 
 .board-version-row {
   display: grid;
-  grid-template-columns: 42px 42px 42px 42px minmax(160px, 1fr);
+  grid-template-columns: 42px 42px 42px 42px 42px minmax(160px, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -1006,6 +1006,16 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .version-notes-button {
   background: color-mix(in srgb, var(--accent) 18%, var(--button));
   align-self: start;
+}
+
+.version-notes-button.is-muted {
+  opacity: 0.45;
+  filter: grayscale(0.45);
+}
+
+.version-notes-button.has-version-notes {
+  opacity: 1;
+  filter: none;
 }
 
 .version-notes-dialog {
@@ -4630,7 +4640,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr);
+    grid-template-columns: 30px 30px 30px 30px 30px minmax(150px, 1fr);
   }
 
   .board-layout-controls {
@@ -4806,7 +4816,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr);
+    grid-template-columns: 30px 30px 30px 30px 30px minmax(150px, 1fr);
   }
 
   .board-layout-controls {

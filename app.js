@@ -275,6 +275,7 @@ const els = {
   audioTextLang: document.querySelector("#audioTextLang"),
   audioTextGenderFemale: document.querySelector("#audioTextGenderFemale"),
   audioTextGenderMale: document.querySelector("#audioTextGenderMale"),
+  audioTextVoice: document.querySelector("#audioTextVoice"),
   audioTextRate: document.querySelector("#audioTextRate"),
   audioTextRateValue: document.querySelector("#audioTextRateValue"),
   audioTextEditorFrame: document.querySelector("#audioTextEditorFrame"),
@@ -365,6 +366,7 @@ const els = {
   restoreVersion: document.querySelector("#restoreVersion"),
   renameVersion: document.querySelector("#renameVersion"),
   archiveVersion: document.querySelector("#archiveVersion"),
+  deleteVersion: document.querySelector("#deleteVersion"),
   versionNotes: document.querySelector("#versionNotes"),
   versionSelect: document.querySelector("#versionSelect"),
   deleteBoard: document.querySelector("#deleteBoard"),
@@ -743,6 +745,14 @@ function keyForIndex(index) {
   return KEYS[index] || String(index + 1);
 }
 
+function padListIndexLabel(pad) {
+  return state.shortcutsEnabled && !isPortableDevice() ? keyForIndex(pad.index) : String(pad.index + 1);
+}
+
+function padCueOptionLabel(pad) {
+  return `${padListIndexLabel(pad)}. ${pad.title}`;
+}
+
 function createId() {
   return crypto?.randomUUID?.() || `board-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -893,6 +903,7 @@ function setPadTextSettings(pad, settings = {}) {
   }
   pad.textLang = String(settings.textLang || pad.textLang || "fr-FR");
   pad.textGender = ["female", "male"].includes(settings.textGender) ? settings.textGender : (pad.textGender || "female");
+  pad.textVoiceURI = String(settings.textVoiceURI ?? pad.textVoiceURI ?? "");
   pad.textRate = normalizedTextRate(settings.textRate ?? pad.textRate ?? DEFAULT_TEXT_RATE);
   pad.textDuration = estimateSpeechDuration(pad.textContent, pad.textRate);
   updatePadType(pad);
@@ -1505,6 +1516,7 @@ function makePad(index) {
     textName: "",
     textLang: "fr-FR",
     textGender: "female",
+    textVoiceURI: "",
     textRate: DEFAULT_TEXT_RATE,
     speechUtterance: null,
     speechStopTimer: null,
@@ -1668,6 +1680,7 @@ function makePad(index) {
     textName: pad.textName,
     textLang: pad.textLang,
     textGender: pad.textGender,
+    textVoiceURI: pad.textVoiceURI,
     textRate: pad.textRate,
   });
   setPadNote(pad, pad.noteText, pad.noteShowOnStart, pad.noteShowOnEnd);
@@ -2223,7 +2236,7 @@ function fillCueTargetSelect(select, action, selectedValue = "") {
     cueSelectablePads().forEach((pad) => {
       const option = document.createElement("option");
       option.value = padTargetValue(pad);
-      option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
+      option.textContent = padCueOptionLabel(pad);
       padGroup.append(option);
     });
     select.append(padGroup);
@@ -2268,7 +2281,7 @@ function fillCueConditionTargetSelect(select, condition, selectedValue = "") {
     cueSelectablePads().forEach((pad) => {
       const option = document.createElement("option");
       option.value = padTargetValue(pad);
-      option.textContent = `${keyForIndex(pad.index)}. ${pad.title}`;
+      option.textContent = padCueOptionLabel(pad);
       padGroup.append(option);
     });
     select.append(padGroup);
@@ -2406,7 +2419,7 @@ function renderCueRows() {
       const isWait = normalizeCueAction(action.value) === "wait";
       targetField.hidden = isWait;
       target.disabled = isWait;
-      waitField.hidden = !isWait;
+      waitField.hidden = false;
       wait.disabled = !isWait;
     };
     syncCueRowFields();
@@ -2545,9 +2558,11 @@ function clearCueDialogDraft() {
 function cuePlayablePad(pad) {
   if (!pad) return false;
   if (pad.node?.classList.contains("is-empty") || pad.node?.classList.contains("is-missing-audio")) return false;
-  if (padType(pad) !== "audio") return false;
-  if (!pad.buffer) return false;
-  if (!Number.isFinite(Number(pad.buffer.duration)) || Number(pad.buffer.duration) <= 0) return false;
+  const type = padType(pad);
+  if (type === "video") return Boolean(String(pad.videoName || pad.videoPath || "").trim());
+  if (type === "text") return Boolean(String(pad.textContent || "").trim());
+  if (type !== "audio") return false;
+  if (pad.buffer && Number.isFinite(Number(pad.buffer.duration)) && Number(pad.buffer.duration) > 0) return true;
   return Boolean(String(pad.audioName || pad.audioPath || "").trim());
 }
 
@@ -3951,6 +3966,25 @@ async function refreshVersionOptions(selectedId = "") {
     els.versionSelect.append(option);
   });
   els.versionSelect.value = visibleHistory.some((snapshot) => snapshot.id === effectiveSelectedId) ? effectiveSelectedId : "";
+  syncVersionButtons(visibleHistory);
+}
+
+function syncVersionButtons(history = null) {
+  const selectedId = els.versionSelect?.value || "";
+  const snapshots = Array.isArray(history) ? history : [];
+  const snapshot = snapshots.find((item) => item.id === selectedId);
+  const hasSelection = Boolean(snapshot);
+  const hasNotes = Boolean(String(snapshot?.notes || "").trim());
+  [els.restoreVersion, els.renameVersion, els.archiveVersion, els.deleteVersion].forEach((button) => {
+    if (!button) return;
+    button.disabled = !hasSelection;
+    button.classList.toggle("is-disabled", !hasSelection);
+  });
+  if (els.versionNotes) {
+    els.versionNotes.classList.toggle("has-version-notes", hasNotes);
+    els.versionNotes.classList.toggle("is-muted", !hasNotes);
+    els.versionNotes.setAttribute("aria-pressed", String(hasNotes));
+  }
 }
 
 async function renameSelectedBoardVersion() {
@@ -4037,6 +4071,20 @@ async function toggleSelectedBoardVersionArchive() {
   setStatus(snapshot.archived ? "Version archivee" : "Version desarchivee");
 }
 
+async function deleteSelectedBoardVersion() {
+  const { board, history, snapshot } = await selectedVersionSnapshot();
+  if (!snapshot) {
+    setStatus("Choisir une version");
+    return;
+  }
+  const label = String(snapshot.label || "").trim() || formatVersionLabel(snapshot.savedAt);
+  if (!window.confirm(`Supprimer la version "${label}" ?`)) return;
+  const nextHistory = history.filter((item) => item.id !== snapshot.id);
+  await dbSet(boardHistoryKey(board.id), nextHistory);
+  await refreshVersionOptions(nextHistory[0]?.id || "");
+  setStatus(`Version supprimée: ${label}`);
+}
+
 async function restoreSelectedBoardVersion() {
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
@@ -4071,11 +4119,12 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
   syncPadIndexesFromDom();
   await persistCurrentPadsForExport();
   const orderedPads = orderedPadsForCurrentBoard();
+  const orderedPadByIndex = new Map(orderedPads.map((pad) => [pad.index, pad]));
   const shortcuts = state.shortcuts.length ? state.shortcuts : defaultShortcuts();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
 
   for (let index = 0; index < board.padCount; index += 1) {
-    const pad = orderedPads.find((item) => item.index === index) || state.pads.find((item) => item.index === index) || makePad(index);
+    const pad = orderedPadByIndex.get(index) || state.pads.find((item) => item.index === index) || makePad(index);
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const audioInfo = await resolvePadAudioRecord(pad, meta, saved);
@@ -4151,12 +4200,17 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
       textName: meta?.textName ?? saved?.textName ?? "",
       textLang: meta?.textLang ?? saved?.textLang ?? "fr-FR",
       textGender: meta?.textGender ?? saved?.textGender ?? "female",
+      textVoiceURI: meta?.textVoiceURI ?? saved?.textVoiceURI ?? "",
       textRate: meta?.textRate ?? saved?.textRate ?? DEFAULT_TEXT_RATE,
       noteText: meta?.noteText ?? saved?.noteText ?? "",
       noteShowOnStart: Boolean(meta?.noteShowOnStart ?? saved?.noteShowOnStart),
       noteShowOnEnd: Boolean(meta?.noteShowOnEnd ?? saved?.noteShowOnEnd),
     });
   }
+
+  const versionsForExport = (await Promise.all(pruneVersionHistory(history)
+    .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
+    .filter(Boolean);
 
   const payload = {
     format: "soundboard-live-board",
@@ -4165,6 +4219,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     includesAudio: includeAudio,
     includesVideo: includeVideo,
     exportMode,
+    versions: versionsForExport,
     board: {
       name: board.name,
       padCount: board.padCount,
@@ -4180,9 +4235,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
         key: normalizeShortcutKey(shortcut.key),
         padIndex: Math.min(board.padCount - 1, Math.max(0, Number(shortcut.padIndex) || 0)),
       })),
-      versions: (await Promise.all(pruneVersionHistory(history)
-        .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
-        .filter(Boolean),
+      versions: versionsForExport,
       pads,
     },
   };
@@ -4299,6 +4352,7 @@ async function importBoardFile(file) {
       textName: item.textName || "",
       textLang: item.textLang || "fr-FR",
       textGender: item.textGender || "female",
+      textVoiceURI: item.textVoiceURI || "",
       textRate: item.textRate ?? DEFAULT_TEXT_RATE,
       noteText: item.noteText || "",
       noteShowOnStart: Boolean(item.noteShowOnStart),
@@ -4385,7 +4439,19 @@ async function importBoardFile(file) {
   saveShortcutsForCurrentBoard();
   saveShortcutsEnabledForCurrentBoard();
 
-  const importedVersions = (Array.isArray(payload.board.versions) ? payload.board.versions : payload.versions || [])
+  const rawImportedVersions = [
+    ...(Array.isArray(payload.versions) ? payload.versions : []),
+    ...(Array.isArray(payload.board.versions) ? payload.board.versions : []),
+  ];
+  const seenImportedVersionIds = new Set();
+  const importedVersions = rawImportedVersions
+    .filter((snapshot) => {
+      const id = String(snapshot?.id || "");
+      if (!id) return true;
+      if (seenImportedVersionIds.has(id)) return false;
+      seenImportedVersionIds.add(id);
+      return true;
+    })
     .map(deserializeBoardSnapshotFromExport)
     .filter(Boolean);
   const prunedImportedVersions = pruneVersionHistory(importedVersions);
@@ -5606,6 +5672,7 @@ async function restorePad(pad) {
       textName: meta.textName,
       textLang: meta.textLang,
       textGender: meta.textGender,
+      textVoiceURI: meta.textVoiceURI,
       textRate: meta.textRate,
     });
     setPadNote(pad, meta.noteText, meta.noteShowOnStart, meta.noteShowOnEnd);
@@ -5727,6 +5794,7 @@ async function restorePad(pad) {
     textName: meta?.textName ?? saved.textName,
     textLang: meta?.textLang ?? saved.textLang,
     textGender: meta?.textGender ?? saved.textGender,
+    textVoiceURI: meta?.textVoiceURI ?? saved.textVoiceURI,
     textRate: meta?.textRate ?? saved.textRate,
   });
   setPadNote(pad, meta?.noteText ?? saved.noteText, meta?.noteShowOnStart ?? saved.noteShowOnStart, meta?.noteShowOnEnd ?? saved.noteShowOnEnd);
@@ -5881,6 +5949,7 @@ async function previewTextCue(pad) {
         textContent: els.audioTextInlineEditor?.value ?? pad.textContent,
         textLang: els.audioTextLang?.value || pad.textLang || "fr-FR",
         textGender: audioTextGenderValue(pad.textGender || "female"),
+        textVoiceURI: els.audioTextVoice?.value ?? pad.textVoiceURI ?? "",
         textRate: els.audioTextRate?.value || pad.textRate || DEFAULT_TEXT_RATE,
       }
     : pad;
@@ -6164,6 +6233,7 @@ async function savePadMeta(pad) {
     textName: pad.textName,
     textLang: pad.textLang,
     textGender: pad.textGender,
+    textVoiceURI: pad.textVoiceURI,
     textRate: pad.textRate,
     noteText: pad.noteText,
     noteShowOnStart: pad.noteShowOnStart,
@@ -7174,6 +7244,7 @@ function syncAudioDialog(pad = state.audioPad) {
   updateAudioEqValues(pad);
   if (els.audioTextLang) els.audioTextLang.value = pad.textLang || "fr-FR";
   setAudioTextGenderControls(pad.textGender || "female");
+  fillAudioTextVoiceOptions(pad);
   if (els.audioTextRate) els.audioTextRate.value = String(normalizedTextRate(pad.textRate));
   if (els.audioTextRateValue) els.audioTextRateValue.textContent = `${normalizedTextRate(pad.textRate).toFixed(2)}x`;
   if (els.audioTextInlineEditor && document.activeElement !== els.audioTextInlineEditor) {
@@ -7183,6 +7254,26 @@ function syncAudioDialog(pad = state.audioPad) {
   fillAudioCrossfadeControls(pad);
   syncAudioDialogMediaAvailability(pad);
   renderAudioDialogWaveform(pad);
+}
+
+function fillAudioTextVoiceOptions(pad = state.audioPad) {
+  if (!els.audioTextVoice) return;
+  const currentValue = pad?.textVoiceURI || "";
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  const langRoot = String(pad?.textLang || els.audioTextLang?.value || "fr-FR").toLowerCase().split("-")[0];
+  const sortedVoices = [...voices].sort((a, b) => {
+    const aLang = String(a.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
+    const bLang = String(b.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
+    return aLang - bLang || String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  els.audioTextVoice.innerHTML = '<option value="">Automatique</option>';
+  sortedVoices.forEach((voice) => {
+    const option = document.createElement("option");
+    option.value = voice.voiceURI || voice.name || "";
+    option.textContent = `${voice.name || "Voix"}${voice.lang ? ` · ${voice.lang}` : ""}${voice.localService ? " · système" : " · navigateur"}`;
+    els.audioTextVoice.append(option);
+  });
+  els.audioTextVoice.value = [...els.audioTextVoice.options].some((option) => option.value === currentValue) ? currentValue : "";
 }
 
 function fillAudioCrossfadeControls(pad = state.audioPad) {
@@ -7246,6 +7337,7 @@ function selectedOptionValue(select) {
 
 async function openAudioDialog(pad) {
   state.audioPad = pad;
+  await ensureSpeechVoices();
   state.audioDraft = audioDraftFromPad(pad);
   state.audioMediaDraft = {
     audioRecord: await dbGet(padAudioKey(pad)),
@@ -7298,6 +7390,7 @@ function audioDraftFromPad(pad) {
     textName: pad.textName,
     textLang: pad.textLang,
     textGender: pad.textGender,
+    textVoiceURI: pad.textVoiceURI,
     textRate: pad.textRate,
   };
 }
@@ -7364,6 +7457,7 @@ function setPadAsTextFromControls(pad, text) {
     textName: String(text || "").trim() ? (pad.textName || "Texte saisi") : "",
     textLang: els.audioTextLang?.value || pad.textLang,
     textGender: audioTextGenderValue(pad.textGender),
+    textVoiceURI: els.audioTextVoice?.value ?? pad.textVoiceURI,
     textRate: els.audioTextRate?.value || pad.textRate,
   });
   setPadDuration(pad, pad.textDuration);
@@ -7376,6 +7470,22 @@ async function clearAudioPadMedia(pad = state.audioPad) {
   if (!pad) return;
   stopPad(pad, false, false, { triggerEnd: false });
   disposeVideoProjection(pad);
+  if (padType(pad) === "text") {
+    pad.textContent = "";
+    pad.textMode = true;
+    pad.textName = "";
+    pad.textDuration = 0;
+    setPadDuration(pad, 0);
+    updatePadType(pad);
+    updatePadTime(pad);
+    await dbDelete(padAudioKey(pad));
+    await savePadMeta(pad);
+    syncAudioDialog(pad);
+    refreshBoardTagFilterOptions();
+    refreshCrossfadeTargetOptions();
+    setStatus(`Texte effacé: ${pad.title}`);
+    return;
+  }
   pad.buffer = null;
   pad.hasDirectAudio = false;
   pad.audioName = "";
@@ -7477,6 +7587,7 @@ function resetAudioDialogSettings() {
     setPadTextSettings(pad, {
       textLang: "fr-FR",
       textGender: "female",
+      textVoiceURI: "",
       textRate: DEFAULT_TEXT_RATE,
     });
   }
@@ -8605,6 +8716,11 @@ function voiceScoreForGender(voice, gender) {
 
 function speechVoiceForPad(pad) {
   const voices = window.speechSynthesis?.getVoices?.() || [];
+  const selectedVoice = String(pad?.textVoiceURI || "");
+  if (selectedVoice) {
+    const exact = voices.find((voice) => voice.voiceURI === selectedVoice || voice.name === selectedVoice);
+    if (exact) return exact;
+  }
   const lang = String(pad.textLang || "fr-FR").toLowerCase();
   const langRoot = lang.split("-")[0];
   const byLang = voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(langRoot));
@@ -9613,6 +9729,12 @@ async function init() {
       })
       .catch(() => setStatus("Archivage impossible"));
   });
+  bindSafeActionButton(els.deleteVersion, () => deleteSelectedBoardVersion().catch(() => setStatus("Suppression version impossible")));
+  els.versionSelect?.addEventListener("change", () => {
+    selectedVersionSnapshot()
+      .then(({ history }) => syncVersionButtons(history))
+      .catch(() => syncVersionButtons([]));
+  });
   bindSafeActionButton(els.versionNotes, () => openVersionNotesDialog().catch(() => setStatus("Notes indisponibles")));
   els.closeVersionNotes?.addEventListener("click", () => {
     closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
@@ -10052,12 +10174,13 @@ async function init() {
     setPadTextSettings(state.audioPad, {
       textLang: els.audioTextLang?.value,
       textGender: audioTextGenderValue(state.audioPad.textGender),
+      textVoiceURI: els.audioTextVoice?.value,
       textRate: els.audioTextRate?.value,
     });
     syncAudioDialog(state.audioPad);
     saveAudioPadFromDialog();
   };
-  [els.audioTextLang, els.audioTextGenderFemale, els.audioTextGenderMale, els.audioTextRate].forEach((element) => {
+  [els.audioTextLang, els.audioTextGenderFemale, els.audioTextGenderMale, els.audioTextVoice, els.audioTextRate].forEach((element) => {
     element?.addEventListener("input", saveAudioTextControlSettings);
     element?.addEventListener("change", saveAudioTextControlSettings);
   });

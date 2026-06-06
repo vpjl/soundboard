@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=204">
+    <link rel="stylesheet" href="styles.css?v=205">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v204</p>
+            <p id="audioStatus">Pret pour la scene · v205</p>
           </div>
         </div>
 
@@ -74,6 +74,11 @@
                   <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+              <button id="deleteVersion" class="icon-button board-history-button danger-button" type="button" aria-label="Supprimer la version sélectionnée">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
               <select id="versionSelect" class="version-select board-history-button" aria-label="Version à restaurer">
@@ -1279,6 +1284,9 @@
               <label><input id="audioTextGenderFemale" name="audioTextGender" type="radio" value="female" checked> Féminin</label>
               <label><input id="audioTextGenderMale" name="audioTextGender" type="radio" value="male"> Masculin</label>
             </fieldset>
+            <label><span>Voix disponible</span><select id="audioTextVoice">
+              <option value="">Automatique</option>
+            </select></label>
             <label><span>Vélocité</span><input id="audioTextRate" type="range" min="0.35" max="1.6" step="0.05" value="0.85"><output id="audioTextRateValue">0.85x</output></label>
           </section>
           <section class="audio-section audio-crossfade-section" aria-label="Crossfade audio">
@@ -1747,6 +1755,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=204"></script>
+    <script src="app.js?v=205"></script>
   </body>
 </html>
