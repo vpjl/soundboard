@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=202">
+    <link rel="stylesheet" href="styles.css?v=203">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v202</p>
+            <p id="audioStatus">Pret pour la scene · v203</p>
           </div>
         </div>
 
@@ -1274,10 +1274,11 @@
               <option value="de-DE">Allemand</option>
               <option value="it-IT">Italien</option>
             </select></label>
-            <label><span>Voix</span><select id="audioTextGender">
-              <option value="female">Féminine</option>
-              <option value="male">Masculine</option>
-            </select></label>
+            <fieldset class="audio-text-gender" aria-label="Genre de voix">
+              <legend>Voix</legend>
+              <label><input id="audioTextGenderFemale" name="audioTextGender" type="radio" value="female" checked> Féminin</label>
+              <label><input id="audioTextGenderMale" name="audioTextGender" type="radio" value="male"> Masculin</label>
+            </fieldset>
             <label><span>Vélocité</span><input id="audioTextRate" type="range" min="0.35" max="1.6" step="0.05" value="0.85"><output id="audioTextRateValue">0.85x</output></label>
           </section>
           <section class="audio-section audio-crossfade-section" aria-label="Crossfade audio">
@@ -1746,6 +1747,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=202"></script>
+    <script src="app.js?v=203"></script>
   </body>
 </html>

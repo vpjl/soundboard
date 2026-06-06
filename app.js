@@ -273,7 +273,8 @@ const els = {
   audioEqMidValue: document.querySelector("#audioEqMidValue"),
   audioEqHighValue: document.querySelector("#audioEqHighValue"),
   audioTextLang: document.querySelector("#audioTextLang"),
-  audioTextGender: document.querySelector("#audioTextGender"),
+  audioTextGenderFemale: document.querySelector("#audioTextGenderFemale"),
+  audioTextGenderMale: document.querySelector("#audioTextGenderMale"),
   audioTextRate: document.querySelector("#audioTextRate"),
   audioTextRateValue: document.querySelector("#audioTextRateValue"),
   audioTextEditorFrame: document.querySelector("#audioTextEditorFrame"),
@@ -866,6 +867,18 @@ function updatePadType(pad) {
 function normalizedTextRate(value, fallback = DEFAULT_TEXT_RATE) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(MAX_TEXT_RATE, Math.max(MIN_TEXT_RATE, number)) : fallback;
+}
+
+function audioTextGenderValue(fallback = "female") {
+  if (els.audioTextGenderMale?.checked) return "male";
+  if (els.audioTextGenderFemale?.checked) return "female";
+  return fallback === "male" ? "male" : "female";
+}
+
+function setAudioTextGenderControls(gender = "female") {
+  const normalized = gender === "male" ? "male" : "female";
+  if (els.audioTextGenderFemale) els.audioTextGenderFemale.checked = normalized === "female";
+  if (els.audioTextGenderMale) els.audioTextGenderMale.checked = normalized === "male";
 }
 
 function setPadTextSettings(pad, settings = {}) {
@@ -3827,8 +3840,7 @@ function pruneVersionHistory(history = []) {
 
 function versionOptionLabel(snapshot, index) {
   const label = String(snapshot?.label || "").trim() || formatVersionLabel(snapshot?.savedAt);
-  const notes = String(snapshot?.notes || "").trim() ? " · notes" : "";
-  return `${index + 1}. ${snapshot?.archived ? "[archive] " : ""}${label}${notes}`;
+  return `${index + 1}. ${snapshot?.archived ? "[archive] " : ""}${label}`;
 }
 
 async function serializeBoardSnapshotForExport(snapshot, includeAudio = true) {
@@ -5868,7 +5880,7 @@ async function previewTextCue(pad) {
     ? {
         textContent: els.audioTextInlineEditor?.value ?? pad.textContent,
         textLang: els.audioTextLang?.value || pad.textLang || "fr-FR",
-        textGender: els.audioTextGender?.value || pad.textGender || "female",
+        textGender: audioTextGenderValue(pad.textGender || "female"),
         textRate: els.audioTextRate?.value || pad.textRate || DEFAULT_TEXT_RATE,
       }
     : pad;
@@ -5881,6 +5893,7 @@ async function previewTextCue(pad) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = liveSettings.textLang || "fr-FR";
   utterance.rate = normalizedTextRate(liveSettings.textRate);
+  utterance.pitch = speechPitchForPad(liveSettings);
   utterance.volume = Math.min(1, Math.max(0, cueVolumeValue()));
   const voice = speechVoiceForPad(liveSettings);
   if (voice) utterance.voice = voice;
@@ -7160,7 +7173,7 @@ function syncAudioDialog(pad = state.audioPad) {
   if (els.audioEqHigh) els.audioEqHigh.value = String(pad.eqHigh);
   updateAudioEqValues(pad);
   if (els.audioTextLang) els.audioTextLang.value = pad.textLang || "fr-FR";
-  if (els.audioTextGender) els.audioTextGender.value = pad.textGender || "female";
+  setAudioTextGenderControls(pad.textGender || "female");
   if (els.audioTextRate) els.audioTextRate.value = String(normalizedTextRate(pad.textRate));
   if (els.audioTextRateValue) els.audioTextRateValue.textContent = `${normalizedTextRate(pad.textRate).toFixed(2)}x`;
   if (els.audioTextInlineEditor && document.activeElement !== els.audioTextInlineEditor) {
@@ -7350,7 +7363,7 @@ function setPadAsTextFromControls(pad, text) {
     textMode: true,
     textName: String(text || "").trim() ? (pad.textName || "Texte saisi") : "",
     textLang: els.audioTextLang?.value || pad.textLang,
-    textGender: els.audioTextGender?.value || pad.textGender,
+    textGender: audioTextGenderValue(pad.textGender),
     textRate: els.audioTextRate?.value || pad.textRate,
   });
   setPadDuration(pad, pad.textDuration);
@@ -8605,6 +8618,10 @@ function speechVoiceForPad(pad) {
     || null;
 }
 
+function speechPitchForPad(pad) {
+  return pad?.textGender === "male" ? 0.72 : 1.04;
+}
+
 function showPadNoteOverlay(pad, phase = "start") {
   const shouldShow = phase === "end" ? pad?.noteShowOnEnd : pad?.noteShowOnStart;
   if (!pad?.noteText || !shouldShow || !els.padNoteOverlay) return;
@@ -8673,6 +8690,7 @@ function speakPadTextFromOffset(pad, offset = 0) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = pad.textLang || "fr-FR";
   utterance.rate = normalizedTextRate(pad.textRate);
+  utterance.pitch = speechPitchForPad(pad);
   utterance.volume = speechTargetVolume(pad);
   const voice = speechVoiceForPad(pad);
   if (voice) utterance.voice = voice;
@@ -8741,6 +8759,7 @@ async function playPadText(pad, options = {}) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = pad.textLang || "fr-FR";
   utterance.rate = normalizedTextRate(pad.textRate);
+  utterance.pitch = speechPitchForPad(pad);
   const targetVolume = speechTargetVolume(pad);
   utterance.volume = targetVolume;
   const voice = speechVoiceForPad(pad);
@@ -10032,13 +10051,13 @@ async function init() {
     if (!state.audioPad) return;
     setPadTextSettings(state.audioPad, {
       textLang: els.audioTextLang?.value,
-      textGender: els.audioTextGender?.value,
+      textGender: audioTextGenderValue(state.audioPad.textGender),
       textRate: els.audioTextRate?.value,
     });
     syncAudioDialog(state.audioPad);
     saveAudioPadFromDialog();
   };
-  [els.audioTextLang, els.audioTextGender, els.audioTextRate].forEach((element) => {
+  [els.audioTextLang, els.audioTextGenderFemale, els.audioTextGenderMale, els.audioTextRate].forEach((element) => {
     element?.addEventListener("input", saveAudioTextControlSettings);
     element?.addEventListener("change", saveAudioTextControlSettings);
   });

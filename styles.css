@@ -610,7 +610,7 @@ body.show-cables .cable-legend-panel {
 
 .board-action-grid {
   display: grid;
-  grid-template-columns: 42px max-content minmax(0, 1fr) 42px 42px;
+  grid-template-columns: 42px max-content minmax(0, 1fr) 42px 42px 42px;
   gap: 8px;
   align-items: center;
 }
@@ -644,13 +644,18 @@ body.stage-mode #stageLock {
   grid-row: 1;
 }
 
-.board-action-grid .board-help-button {
+.board-action-grid .version-notes-button {
   grid-column: 4;
   grid-row: 1;
 }
 
-#editPads {
+.board-action-grid .board-help-button {
   grid-column: 5;
+  grid-row: 1;
+}
+
+#editPads {
+  grid-column: 6;
   grid-row: 1;
   align-self: start;
 }
@@ -661,11 +666,15 @@ body.board-edit-mode #editPads {
 
 body.board-edit-mode .board-action-grid {
   gap: 7px;
-  grid-template-columns: minmax(0, 1fr) 42px 42px;
+  grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
   grid-template-areas:
-    "layout help close"
-    "actions actions actions";
+    "layout notes help close"
+    "actions actions actions actions";
   align-items: start;
+}
+
+body.board-edit-mode .board-action-grid .version-notes-button {
+  grid-area: notes;
 }
 
 body.board-edit-mode .board-action-grid .board-help-button {
@@ -996,6 +1005,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .version-notes-button {
   background: color-mix(in srgb, var(--accent) 18%, var(--button));
+  align-self: start;
 }
 
 .version-notes-dialog {
@@ -1015,6 +1025,32 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 .version-notes-panel textarea[readonly] {
   color: var(--text);
   opacity: 0.9;
+}
+
+.audio-text-gender {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+}
+
+.audio-text-gender legend {
+  width: 100%;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.audio-text-gender label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  font-size: 0.84rem;
 }
 
 .pad-note-overlay {
@@ -5650,10 +5686,10 @@ body.stage-mode .secondary-live-group {
 
 @media (max-width: 950px), (pointer: coarse) {
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: minmax(0, 1fr) 42px 42px !important;
+    grid-template-columns: minmax(0, 1fr) 42px 42px 42px !important;
     grid-template-areas:
-      "layout help close"
-      "actions actions actions" !important;
+      "layout notes help close"
+      "actions actions actions actions" !important;
     gap: 7px !important;
     align-items: start !important;
   }
@@ -5668,6 +5704,12 @@ body.stage-mode .secondary-live-group {
   body.board-edit-mode .board-action-grid #editPads {
     display: grid !important;
     grid-area: close !important;
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  body.board-edit-mode .board-action-grid .version-notes-button {
+    grid-area: notes !important;
     width: 42px !important;
     height: 42px !important;
   }
