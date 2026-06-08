@@ -6437,23 +6437,28 @@ body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
 .master-help-button,
 .master-audio-help-button,
 .cues-help-button {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
   border-color: rgba(73, 211, 160, 0.5);
   background: rgba(73, 211, 160, 0.11);
   color: var(--accent);
+  z-index: 3;
 }
 
 .master-help-button {
   position: absolute;
   right: 8px;
   bottom: 8px;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
 }
 
 .xfade-live-row {
   grid-template-columns: repeat(4, 42px);
+}
+
+.cues-help-button {
+  position: relative;
 }
 
 body.stage-mode .cues-help-button {

@@ -9919,7 +9919,7 @@ async function init() {
     }
   });
   const openContextHelp = (sectionKeys, title = "Aide") => {
-    if (!els.helpDialog?.showModal) return;
+    if (!els.helpDialog) return;
     const allowed = new Set(sectionKeys);
     els.helpSections?.forEach((section) => {
       section.hidden = !allowed.has(section.dataset.helpSection);
@@ -9929,7 +9929,12 @@ async function init() {
       column.hidden = !hasVisibleSection;
     });
     if (els.helpTitle) els.helpTitle.textContent = title;
-    els.helpDialog.showModal();
+    if (els.helpDialog.open) return;
+    if (typeof els.helpDialog.showModal === "function") {
+      els.helpDialog.showModal();
+    } else if (typeof els.helpDialog.show === "function") {
+      els.helpDialog.show();
+    }
   };
 
   els.helpButton?.addEventListener("click", () => {
