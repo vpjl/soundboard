@@ -205,7 +205,7 @@ body[data-skin="studio"] {
   --danger: #f46d62;
 }
 
-body[data-skin="visual"] {
+body[data-skin="basic"] {
   --bg: #080b0f;
   --bg-glow: rgba(130, 207, 255, 0.1);
   --bg-end: #0d1013;
@@ -1538,8 +1538,8 @@ body[data-skin="contrast"] .pad.has-color {
   border-color: var(--line);
 }
 
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image),
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image),
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) {
   background-image:
     linear-gradient(145deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0)),
     var(--pad-image);
@@ -1547,30 +1547,30 @@ body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) {
   background-size: var(--pad-image-size, cover);
 }
 
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) {
   background-image: none;
   background-color: var(--pad-color);
 }
 
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   background: transparent;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
   overflow: hidden;
   background: transparent;
 }
 
-body[data-skin="visual"] .pad.has-color .pad-trigger {
+body[data-skin="basic"] .pad.has-color .pad-trigger {
   box-shadow: none;
 }
 
-body[data-skin="visual"] .pad.has-visual-image.is-visual-hidden {
+body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
 
-body[data-skin="visual"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
-body[data-skin="visual"] .pad.has-visual-image.is-editing .pad-trigger {
+body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
+body[data-skin="basic"] .pad.has-visual-image.is-editing .pad-trigger {
   background-image: linear-gradient(145deg, #252a32, #1c1f27);
 }
 
@@ -1594,49 +1594,49 @@ body[data-skin="visual"] .pad.has-visual-image.is-editing .pad-trigger {
   height: 17px;
 }
 
-body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button,
-body[data-skin="visual"] .pad.has-color .visual-toggle-button {
+body[data-skin="basic"] .pad.has-visual-image .visual-toggle-button,
+body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0;
   pointer-events: none;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
   min-height: clamp(150px, 18vw, 260px);
   padding: 0;
   overflow: hidden;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-head,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-head,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
   height: 100%;
   min-height: inherit;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
   display: none;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -1648,8 +1648,8 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   text-align: center;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   grid-column: 1 / -1;
   box-sizing: border-box;
   width: 100%;
@@ -1662,13 +1662,13 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   -webkit-line-clamp: unset;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing),
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
   cursor: pointer;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   grid-template-columns: 1fr;
   align-items: center;
   justify-items: stretch;
@@ -1689,7 +1689,7 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   background-size: cover;
 }
 
-body[data-skin="visual"] .pad.is-editing.has-visual-image .visual-preview {
+body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
   display: block;
   grid-column: 1 / -1;
   margin-bottom: 4px;
@@ -5492,29 +5492,29 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 }
 
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls {
   display: none !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   grid-template-columns: 1fr !important;
   align-items: center !important;
   justify-items: stretch !important;
@@ -5524,18 +5524,18 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   padding: 34px 12px 18px !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   justify-self: stretch;
   position: static;
   min-height: 100%;
   padding-left: 0;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-shortcut,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-shortcut,
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-type,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-shortcut,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-shortcut,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-type,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
   position: absolute;
   z-index: 3;
   top: 3px;
@@ -5550,15 +5550,15 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   font-size: 0.76rem;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-type,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-type,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
   top: 35px;
   border-color: rgba(130, 207, 255, 0.42);
   color: #82cfff;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   justify-self: stretch;
   align-self: stretch;
   max-width: 100%;
@@ -5570,8 +5570,8 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
   text-align: center;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
   grid-column: 1 / -1;
   justify-self: center;
   max-width: 100%;
@@ -5586,8 +5586,8 @@ body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):
 }
 
 @media (max-width: 950px), (pointer: coarse) {
-  body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-  body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+  body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
     font-size: 1.18rem !important;
   }
 }
@@ -6285,7 +6285,7 @@ body[data-skin="candy"] .pad:not(.is-editing).is-playing .pad-trigger {
   background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
 }
 
-body[data-skin="visual"] .pad:not(.is-editing) .pad-alerts,
+body[data-skin="basic"] .pad:not(.is-editing) .pad-alerts,
 .pad-alert-missing {
   display: none !important;
 }
@@ -6321,7 +6321,7 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
   justify-items: center;
 }
 
-body[data-skin="visual"] .visual-toggle-button {
+body[data-skin="basic"] .visual-toggle-button {
   display: none;
   grid-area: eye !important;
   position: static !important;
@@ -6333,40 +6333,40 @@ body[data-skin="visual"] .visual-toggle-button {
   transform: none !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image .visual-toggle-button,
-body[data-skin="visual"] .pad.has-color .visual-toggle-button {
+body[data-skin="basic"] .pad.has-visual-image .visual-toggle-button,
+body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
-body[data-skin="visual"] .pad.has-visual-image .pad-note-button,
-body[data-skin="visual"] .pad.has-color .pad-note-button {
+body[data-skin="basic"] .pad.has-visual-image .pad-note-button,
+body[data-skin="basic"] .pad.has-color .pad-note-button {
   grid-area: note;
 }
 
-body[data-skin="visual"] .pad:not(.is-editing) .pad-play-row {
+body[data-skin="basic"] .pad:not(.is-editing) .pad-play-row {
   grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
   padding: 8px;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   place-items: center;
   padding: 8px !important;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   display: grid !important;
   place-items: center;
   height: 100%;
 }
 
-body[data-skin="visual"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="visual"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   display: flex !important;
   align-items: center;
   justify-content: center;
@@ -6416,8 +6416,8 @@ body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags {
   display: block;
 }
 
-body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
-body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
   border: 0 !important;
   border-radius: 0 !important;
   padding: 0 !important;

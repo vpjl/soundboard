@@ -1769,7 +1769,7 @@ function makePad(index) {
 
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
-    if (document.body.dataset.skin !== "visual" || pad.node.classList.contains("is-editing")) return;
+    if (document.body.dataset.skin !== "basic" || pad.node.classList.contains("is-editing")) return;
     if (!pad.visualImage && !pad.color) return;
     if (pad.visualImageHidden) return;
     if (event.target.closest("input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
@@ -3614,14 +3614,14 @@ function updateSkinOptions() {
 }
 
 function applySkin(skin) {
-  const migratedSkin = skin === "scene" ? "candy" : skin === "minimal" ? "classic" : skin;
-  const requestedSkin = ["candy", "classic", "contrast", "neon", "studio", "visual"].includes(migratedSkin) ? migratedSkin : "classic";
+  const migratedSkin = skin === "scene" ? "candy" : skin === "minimal" ? "classic" : skin === "visual" ? "basic" : skin;
+  const requestedSkin = ["basic", "candy", "classic", "contrast", "neon", "studio"].includes(migratedSkin) ? migratedSkin : "classic";
   const skinName = requestedSkin;
   updateSkinOptions();
   document.body.dataset.skin = skinName;
   if (els.skinSelect) els.skinSelect.value = skinName;
   localStorage.setItem(SKIN_STORAGE, skinName);
-  if (skinName === "visual") revealGalleryPads();
+  if (skinName === "basic") revealGalleryPads();
 }
 
 function revealGalleryPads(save = true) {
@@ -5752,7 +5752,7 @@ async function restorePad(pad) {
     setPadDuration(pad, pad.videoDuration);
     pad.node.classList.remove("is-empty", "is-missing-audio");
     if (!meta?.uid && !rawSaved.uid) await savePadMeta(pad);
-    if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    if (document.body.dataset.skin === "basic") revealGalleryPads(false);
     updatePadType(pad);
     return;
   }
@@ -5784,7 +5784,7 @@ async function restorePad(pad) {
       renderWaveform(pad);
     }
     if (!meta?.uid) await savePadMeta(pad);
-    if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+    if (document.body.dataset.skin === "basic") revealGalleryPads(false);
     updatePadType(pad);
     return;
   }
@@ -5866,7 +5866,7 @@ async function restorePad(pad) {
   pad.node.classList.remove("is-empty");
   pad.node.classList.remove("is-missing-audio");
   if (!meta?.uid && !saved.uid) await savePadMeta(pad);
-  if (document.body.dataset.skin === "visual") revealGalleryPads(false);
+  if (document.body.dataset.skin === "basic") revealGalleryPads(false);
   updatePadType(pad);
 }
 
@@ -7743,7 +7743,7 @@ function restoreMasterAudioDraft() {
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
   const livePadRect = pad.node?.getBoundingClientRect();
-  if (document.body.dataset.skin === "visual") {
+  if (document.body.dataset.skin === "basic") {
     els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
   } else if (livePadRect?.width && livePadRect?.height) {
     els.imageDialog?.style.setProperty("--image-pad-aspect", `${livePadRect.width} / ${livePadRect.height}`);
