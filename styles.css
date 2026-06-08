@@ -6406,8 +6406,10 @@ body.stage-mode .board-action-grid .version-notes-button {
   display: none !important;
 }
 
-body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
+body[data-skin="basic"] .pad-tags {
   display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags {
