@@ -861,7 +861,8 @@ function formatBoardCreatedAt(createdAt) {
 
 function updateMasterInputLabel() {
   if (!els.masterInputName) return;
-  const label = String(state.selectedMicrophoneLabel || "").trim();
+  const hasMicrophone = Boolean(state.selectedMicrophoneId);
+  const label = hasMicrophone ? String(state.selectedMicrophoneLabel || "").trim() : "";
   els.masterInputName.textContent = `Entrée : ${label || "aucune"}`;
 }
 
@@ -1346,7 +1347,13 @@ async function selectMicrophoneFromDialog() {
   const select = els.microphoneSelect;
   const option = select?.selectedOptions?.[0];
   if (!select?.value) {
-    setStatus("Choisir un micro");
+    state.selectedMicrophoneId = "";
+    state.selectedMicrophoneLabel = "";
+    persistMicrophoneSelection();
+    syncMicrophoneSelectValues();
+    updateMasterInputLabel();
+    updateRecordingUi();
+    setStatus("Micro non sélectionné");
     return;
   }
   state.selectedMicrophoneId = select.value;

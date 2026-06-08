@@ -374,8 +374,8 @@ h1 {
 .board-layout-controls {
   display: grid;
   grid-template-columns: 42px auto;
-  grid-template-rows: repeat(2, 1fr);
-  gap: 4px 7px;
+  grid-template-rows: auto auto;
+  gap: 2px 7px;
   align-items: center;
 }
 
@@ -392,16 +392,23 @@ body.board-edit-mode .board-layout-controls {
 }
 
 .board-layout-controls .layout-rows-output {
-  display: inline-grid;
-  place-items: center;
-  width: 42px;
-  height: 20px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: #111319;
+  display: inline;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.board-layout-controls .layout-rows-line {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
 }
 
 .board-layout-controls select,
@@ -494,8 +501,14 @@ body.board-edit-mode .board-edit-actions {
   margin-bottom: 5px;
 }
 
+.master-volume-stack .master-input-group {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+}
+
 .master-volume-stack .master-input-line {
-  margin-top: -2px;
+  margin-top: 0;
 }
 
 body.no-cue-output .cue-volume-control,
@@ -5986,7 +5999,10 @@ body.stage-mode .pad-title {
 
 .pad-tags,
 .pad-shortcut.is-number ~ .pad-tags {
-  grid-column: 3 !important;
+  grid-column: 1 / -1 !important;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
 }
 
 .pad-time,

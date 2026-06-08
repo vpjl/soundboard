@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=206">
+    <link rel="stylesheet" href="styles.css?v=207">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v206</p>
+            <p id="audioStatus">Pret pour la scene · v207</p>
           </div>
         </div>
 
@@ -114,8 +114,10 @@
                   <option value="8">8</option>
                 </select>
                 <span class="layout-control-label">Colonnes</span>
-                <output id="padRows" class="layout-rows-output" aria-label="Nombre de lignes">3</output>
-                <span class="layout-control-label layout-rows-label">Lignes</span>
+                <span class="layout-rows-line">
+                  <output id="padRows" class="layout-rows-output" aria-label="Nombre de lignes">3</output>
+                  <span class="layout-control-label layout-rows-label">Lignes</span>
+                </span>
               </div>
               <div class="board-center-actions">
               <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
@@ -281,6 +283,8 @@
                 <span id="cueVu" class="vu-fill"></span>
               </div>
               <span id="cueOutputName" class="master-output-name cue-output-line">Cue : par défaut</span>
+            </div>
+            <div class="master-output-group master-input-group">
               <span id="masterInputName" class="master-output-name master-input-line">Entrée : aucune</span>
             </div>
           </div>
@@ -1755,6 +1759,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=206"></script>
+    <script src="app.js?v=207"></script>
   </body>
 </html>
