@@ -862,8 +862,9 @@ function formatBoardCreatedAt(createdAt) {
 function updateMasterInputLabel() {
   if (!els.masterInputName) return;
   const id = String(state.selectedMicrophoneId || "").trim();
-  const label = id ? String(state.selectedMicrophoneLabel || "").trim() : "";
-  els.masterInputName.textContent = `Entrée : ${id && label ? label : "aucune"}`;
+  const hasExplicitMicrophone = Boolean(id && id !== "__default__");
+  const label = hasExplicitMicrophone ? String(state.selectedMicrophoneLabel || "").trim() : "";
+  els.masterInputName.textContent = `Entrée : ${hasExplicitMicrophone && label ? label : "aucune"}`;
 }
 
 function setPadTitle(pad, title, options = {}) {

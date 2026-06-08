@@ -543,7 +543,7 @@ body.no-cue-output.no-output-choice .master-outputs-section {
 }
 
 body.no-cue-output.no-output-choice .master-volume-stack {
-  display: none !important;
+  display: grid !important;
 }
 
 .board-area {
@@ -1094,11 +1094,11 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 
 .version-notes-meta {
   margin: 0;
-  line-height: 1.08;
+  line-height: 1;
 }
 
 .version-notes-meta + .version-notes-meta {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .version-notes-panel textarea[readonly] {
@@ -6412,4 +6412,13 @@ body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
 
 body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags {
   display: block;
+}
+
+body[data-skin="visual"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="visual"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
