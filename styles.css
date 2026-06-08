@@ -6411,11 +6411,20 @@ body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
   display: block;
 }
 
-body[data-skin="basic"].stage-mode .pad-tags {
+/* Skin Basic, mode scène :
+   les tags restent visibles hors visuel plein pad.
+   Si une image/dessin/couleur est affiché(e), ils sont masqués comme les boutons.
+   Quand le bouton œil masque le visuel (.is-visual-hidden), les tags redeviennent visibles. */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
   display: none !important;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
+  display: block;
 }
