@@ -1061,7 +1061,80 @@ function startPerfMeasure(label) {
     previous = now;
   };
   log("start");
-  return { log };
+  return { log, start };
+}
+
+function perfElapsedMs(start) {
+  return Number((performance.now() - start).toFixed(2));
+}
+
+function approximateMediaSize(value) {
+  if (!value) return 0;
+  if (typeof value === "string") return value.length;
+  if (typeof value.byteLength === "number") return value.byteLength;
+  if (typeof value.size === "number") return value.size;
+  if (value.buffer && typeof value.buffer.byteLength === "number") return value.buffer.byteLength;
+  return 0;
+}
+
+function restorePadMediaSize(...records) {
+  return records.reduce((largest, record) => {
+    if (!record) return largest;
+    return Math.max(
+      largest,
+      approximateMediaSize(record.audio),
+      approximateMediaSize(record.video),
+      approximateMediaSize(record.visualImage),
+      approximateMediaSize(record.textContent)
+    );
+  }, 0);
+}
+
+function restorePadBaseInfo(pad, summary = {}) {
+  return {
+    padIndex: pad.index,
+    padNumber: pad.index + 1,
+    title: pad.title,
+    detectedType: summary.detectedType || "empty",
+    mediaSizeBytes: summary.mediaSizeBytes || 0,
+    duration: summary.duration || 0,
+    audioLink: summary.audioLink || "none",
+  };
+}
+
+function restorePadResultSummary(results, restoreWallMs) {
+  const valid = results.filter(Boolean);
+  const top3 = [...valid]
+    .sort((left, right) => (right.totalMs || 0) - (left.totalMs || 0))
+    .slice(0, 3)
+    .map((item) => ({
+      padIndex: item.padIndex,
+      padNumber: item.padNumber,
+      title: item.title,
+      detectedType: item.detectedType,
+      totalMs: item.totalMs,
+      mediaSizeBytes: item.mediaSizeBytes,
+      duration: item.duration,
+      audioLink: item.audioLink,
+    }));
+  const counts = valid.reduce((acc, item) => {
+    const type = item.detectedType || "empty";
+    if (type === "audio") acc.audio += 1;
+    else if (type === "video") acc.video += 1;
+    else if (type === "text") acc.text += 1;
+    else acc.empty += 1;
+    return acc;
+  }, { audio: 0, video: 0, text: 0, empty: 0 });
+  return {
+    restoreWallMs,
+    sumPadRestoreMs: Number(valid.reduce((sum, item) => sum + (item.totalMs || 0), 0).toFixed(2)),
+    slowestPad: top3[0] || null,
+    top3SlowestPads: top3,
+    audioPads: counts.audio,
+    videoPads: counts.video,
+    textPads: counts.text,
+    emptyPads: counts.empty,
+  };
 }
 
 function bindSafeActionButton(button, action) {
@@ -3162,14 +3235,35 @@ async function renderPads() {
     els.pads.append(pad.node);
     bindButtonFeedback(pad.node);
     restoreJobs.push(
-      restorePad(pad).catch(() => {
+      restorePad(pad).catch((error) => {
         pad.node.classList.add("is-empty");
+        console.debug("[perf]", "restorePad", "error", {
+          padIndex: pad.index,
+          padNumber: pad.index + 1,
+          title: pad.title,
+          error: error?.message || String(error),
+        });
+        return {
+          padIndex: pad.index,
+          padNumber: pad.index + 1,
+          title: pad.title,
+          detectedType: "empty",
+          totalMs: 0,
+          mediaSizeBytes: 0,
+          duration: 0,
+          audioLink: "none",
+          error: true,
+        };
       })
     );
   }
   perf.log("restore queued", { padCount: restoreJobs.length });
-  await Promise.all(restoreJobs);
-  perf.log("restore complete", { padCount: restoreJobs.length });
+  const restoreStartedAt = performance.now();
+  const restoreResults = await Promise.all(restoreJobs);
+  perf.log("restore complete", {
+    padCount: restoreJobs.length,
+    ...restorePadResultSummary(restoreResults, Number((performance.now() - restoreStartedAt).toFixed(2))),
+  });
   refreshStopGroupOptions();
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
@@ -5740,7 +5834,31 @@ function resetRecordingState() {
 }
 
 async function restorePad(pad) {
+  const perf = startPerfMeasure("restorePad");
+  const summary = {
+    padIndex: pad.index,
+    padNumber: pad.index + 1,
+    title: pad.title,
+    detectedType: "empty",
+    mediaSizeBytes: 0,
+    duration: 0,
+    audioLink: "none",
+    totalMs: 0,
+  };
+  const log = (step, extra = {}) => {
+    perf.log(step, { ...restorePadBaseInfo(pad, summary), ...extra });
+  };
+  const finish = (step = "complete") => {
+    summary.title = pad.title;
+    summary.duration = pad.duration || pad.videoDuration || summary.duration || 0;
+    summary.totalMs = perfElapsedMs(perf.start);
+    log(step, { totalPadMs: summary.totalMs });
+    return { ...summary };
+  };
+
   const meta = await dbGet(padMetaKey(pad));
+  summary.mediaSizeBytes = restorePadMediaSize(meta);
+  log("indexedDB meta read", { hasMeta: Boolean(meta) });
   if (meta) {
     pad.uid = meta.uid || pad.uid;
     setPadTitle(pad, meta.title || pad.title);
@@ -5754,14 +5872,18 @@ async function restorePad(pad) {
     setPadLiveFade(pad, Boolean(meta.fadeInEnabled), Boolean(meta.fadeOutEnabled));
     setPadAudioSettings(pad, meta);
     setPadNormalization(pad, meta.normalizeEnabled ?? true, meta.normalizedGain ?? 1);
+    log("normalization audio applied", { source: "meta" });
     setPadVisualImage(pad, meta.visualImage || "", Boolean(meta.visualImageHidden), meta);
+    log("image restored", { source: "meta", hasImage: Boolean(meta.visualImage) });
     setPadCrossfade(pad, {
       startStopMode: meta.startStopMode,
       startStopTag: meta.startStopTag,
       endStartMode: meta.endStartMode,
       endStartTarget: meta.endStartTarget,
     });
+    const metaTrimStartedAt = performance.now();
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
+    log("renderWaveform", { source: "setPadTrim/meta", measuredMs: perfElapsedMs(metaTrimStartedAt) });
     setPadTextSettings(pad, {
       textContent: meta.textContent,
       textMode: meta.textMode,
@@ -5778,15 +5900,28 @@ async function restorePad(pad) {
     updatePadVolumeValue(pad);
     pad.panEl.value = pad.panValue;
     updatePadPanValue(pad);
+    log("pad settings applied", { source: "meta" });
   }
 
   const rawSaved = await dbGet(padAudioKey(pad));
+  summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved);
+  log("indexedDB audio read", {
+    hasAudioRecord: Boolean(rawSaved),
+    hasDirectAudio: Boolean(rawSaved?.audio),
+    hasVideo: Boolean(rawSaved?.video),
+    audioRefIndex: rawSaved?.audioRefIndex ?? meta?.audioRefIndex ?? null,
+  });
   if (rawSaved?.video) {
+    summary.detectedType = "video";
+    summary.audioLink = "video";
+    summary.mediaSizeBytes = restorePadMediaSize(rawSaved, meta);
+    log("video restore start");
     pad.audioUid = ensureAudioRecordUid(rawSaved, pad.uid);
     pad.videoName = rawSaved.videoName || rawSaved.name || "";
     pad.videoPath = meta?.videoPath || rawSaved.videoPath || rawSaved.path || pad.videoName;
     pad.videoType = rawSaved.videoType || rawSaved.type || "video/mp4";
     pad.videoDuration = Number(rawSaved.videoDuration || meta?.videoDuration) || 0;
+    summary.duration = pad.videoDuration;
     pad.buffer = null;
     pad.hasDirectAudio = false;
     pad.audioName = "";
@@ -5794,13 +5929,27 @@ async function restorePad(pad) {
     pad.audioType = "";
     setPadTitle(pad, meta?.title || rawSaved.title || cleanName(pad.videoName || `Pad ${pad.index + 1}`));
     setPadDuration(pad, pad.videoDuration);
+    log("updatePadTime", { duration: pad.videoDuration });
     pad.node.classList.remove("is-empty", "is-missing-audio");
-    if (!meta?.uid && !rawSaved.uid) await savePadMeta(pad);
+    if (!meta?.uid && !rawSaved.uid) {
+      await savePadMeta(pad);
+      log("savePadMeta", { reason: "missing uid" });
+    }
     if (document.body.dataset.skin === "basic") revealGalleryPads(false);
     updatePadType(pad);
-    return;
+    log("updatePadType");
+    return finish("video restore complete");
   }
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+  summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved, saved);
+  summary.audioLink = saved?.audio
+    ? (rawSaved?.audio ? "direct" : "referenced")
+    : "none";
+  log("audio linked/ref resolved", {
+    hasResolvedAudio: Boolean(saved?.audio),
+    hasDirectAudio: Boolean(rawSaved?.audio),
+    audioRefIndex: saved?.audioRefIndex ?? rawSaved?.audioRefIndex ?? meta?.audioRefIndex ?? null,
+  });
   if (!saved?.audio) {
     pad.buffer = null;
     pad.hasDirectAudio = false;
@@ -5818,23 +5967,41 @@ async function restorePad(pad) {
     pad.audioType = rawSaved?.type || pad.audioType || "";
     pad.node.classList.toggle("is-missing-audio", missingAudio);
     if (pad.textMode || pad.textContent) {
+      summary.detectedType = "text";
       pad.node.classList.remove("is-empty", "is-missing-audio");
       setPadDuration(pad, pad.textDuration || estimateSpeechDuration(pad.textContent, pad.textRate));
+      summary.duration = pad.duration;
+      log("updatePadTime", { duration: pad.duration, source: "text" });
     }
     if (missingAudio) setStatus(`Son manquant: ${pad.title}`);
     if (!missingAudio && !pad.textMode && !pad.textContent) {
+      summary.detectedType = meta?.visualImage || rawSaved?.visualImage ? "image" : "empty";
       pad.node.classList.add("is-empty");
       setPadDuration(pad, 0);
+      log("updatePadTime", { duration: 0, source: "empty" });
       renderWaveform(pad);
+      log("renderWaveform", { source: "empty" });
     }
-    if (!meta?.uid) await savePadMeta(pad);
+    if (!meta?.uid) {
+      await savePadMeta(pad);
+      log("savePadMeta", { reason: "missing uid" });
+    }
     if (document.body.dataset.skin === "basic") revealGalleryPads(false);
     updatePadType(pad);
-    return;
+    log("updatePadType");
+    return finish("empty/text restore complete");
   }
 
   prepareAudio();
+  log("audio decode start", { audioBytes: approximateMediaSize(saved.audio) });
   pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  summary.detectedType = "audio";
+  summary.duration = pad.buffer.duration;
+  log("audio decoded", {
+    duration: pad.buffer.duration,
+    sampleRate: pad.buffer.sampleRate,
+    channels: pad.buffer.numberOfChannels,
+  });
   pad.hasDirectAudio = Boolean(rawSaved?.audio);
   pad.uid = meta?.uid || saved.uid || pad.uid;
   pad.audioUid = ensureAudioRecordUid(saved, pad.uid);
@@ -5843,6 +6010,7 @@ async function restorePad(pad) {
   pad.audioType = saved.type || "";
   pad.audioPathTrusted = Boolean(meta?.audioPathTrusted || saved.pathTrusted);
   pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
+  log("waveform calculated", { peakCount: pad.waveformPeaks.length });
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
   pad.panValue = saved.panValue ?? pad.panValue;
@@ -5871,19 +6039,23 @@ async function restorePad(pad) {
     reverse: meta?.reverse ?? saved.reverse,
   });
   setPadNormalization(pad, meta?.normalizeEnabled ?? saved.normalizeEnabled ?? true, meta?.normalizedGain ?? saved.normalizedGain ?? 1);
+  log("normalization audio applied", { source: "audio" });
   setPadVisualImage(pad, meta?.visualImage ?? saved.visualImage ?? "", Boolean(meta?.visualImageHidden ?? saved.visualImageHidden), {
     visualPositionX: meta?.visualPositionX ?? saved.visualPositionX,
     visualPositionY: meta?.visualPositionY ?? saved.visualPositionY,
     visualZoom: meta?.visualZoom ?? saved.visualZoom,
     visualKind: meta?.visualKind ?? saved.visualKind,
   });
+  log("image restored", { source: "audio", hasImage: Boolean(meta?.visualImage ?? saved.visualImage) });
   setPadCrossfade(pad, {
     startStopMode: meta?.startStopMode ?? saved.startStopMode,
     startStopTag: meta?.startStopTag ?? saved.startStopTag,
     endStartMode: meta?.endStartMode ?? saved.endStartMode,
     endStartTarget: meta?.endStartTarget ?? saved.endStartTarget,
   });
+  const audioTrimStartedAt = performance.now();
   setPadTrim(pad, meta?.trimStart ?? saved.trimStart ?? 0, meta?.trimEnd ?? saved.trimEnd ?? 0);
+  log("renderWaveform", { source: "setPadTrim/audio", measuredMs: perfElapsedMs(audioTrimStartedAt) });
   setPadTextSettings(pad, {
     textContent: meta?.textContent ?? saved.textContent,
     textMode: meta?.textMode ?? saved.textMode,
@@ -5901,17 +6073,25 @@ async function restorePad(pad) {
     : Number.isInteger(restoredRef)
       ? restoredRef
       : null;
+  log("pad settings applied", { source: "audio" });
   setPadDuration(pad, pad.buffer.duration);
+  log("updatePadTime", { duration: pad.buffer.duration });
   renderWaveform(pad);
+  log("renderWaveform", { peakCount: pad.waveformPeaks.length });
   pad.volumeEl.value = pad.volume;
   updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
   updatePadPanValue(pad);
   pad.node.classList.remove("is-empty");
   pad.node.classList.remove("is-missing-audio");
-  if (!meta?.uid && !saved.uid) await savePadMeta(pad);
+  if (!meta?.uid && !saved.uid) {
+    await savePadMeta(pad);
+    log("savePadMeta", { reason: "missing uid" });
+  }
   if (document.body.dataset.skin === "basic") revealGalleryPads(false);
   updatePadType(pad);
+  log("updatePadType");
+  return finish("audio restore complete");
 }
 
 async function resolvePadAudioRecord(pad, meta, saved) {
