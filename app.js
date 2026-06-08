@@ -5833,6 +5833,26 @@ function resetRecordingState() {
   updateRecordingUi();
 }
 
+function restoreVideoPadFromMeta(pad, meta) {
+  if (!meta || (!meta.videoName && !meta.videoPath)) return false;
+  pad.audioUid = meta.audioUid || pad.audioUid;
+  pad.videoName = meta.videoName || fileBaseName(meta.videoPath) || "";
+  pad.videoPath = meta.videoPath || pad.videoName;
+  pad.videoType = meta.videoType || "video/mp4";
+  pad.videoDuration = Number(meta.videoDuration) || 0;
+  pad.buffer = null;
+  pad.hasDirectAudio = false;
+  pad.audioName = "";
+  pad.audioPath = "";
+  pad.audioType = "";
+  setPadTitle(pad, meta.title || cleanName(pad.videoName || `Pad ${pad.index + 1}`));
+  setPadDuration(pad, pad.videoDuration);
+  pad.node.classList.remove("is-empty", "is-missing-audio");
+  if (document.body.dataset.skin === "basic") revealGalleryPads(false);
+  updatePadType(pad);
+  return true;
+}
+
 async function restorePad(pad) {
   const perf = startPerfMeasure("restorePad");
   const summary = {
@@ -5901,6 +5921,15 @@ async function restorePad(pad) {
     pad.panEl.value = pad.panValue;
     updatePadPanValue(pad);
     log("pad settings applied", { source: "meta" });
+  }
+
+  if (restoreVideoPadFromMeta(pad, meta)) {
+    summary.detectedType = "video";
+    summary.audioLink = "metadata";
+    summary.duration = pad.videoDuration;
+    log("video metadata restored", { skippedAudioRead: true });
+    log("updatePadType");
+    return finish("video metadata restore complete");
   }
 
   const rawSaved = await dbGet(padAudioKey(pad));
