@@ -861,9 +861,9 @@ function formatBoardCreatedAt(createdAt) {
 
 function updateMasterInputLabel() {
   if (!els.masterInputName) return;
-  const hasMicrophone = Boolean(state.selectedMicrophoneId);
-  const label = hasMicrophone ? String(state.selectedMicrophoneLabel || "").trim() : "";
-  els.masterInputName.textContent = `Entrée : ${label || "aucune"}`;
+  const id = String(state.selectedMicrophoneId || "").trim();
+  const label = id ? String(state.selectedMicrophoneLabel || "").trim() : "";
+  els.masterInputName.textContent = `Entrée : ${id && label ? label : "aucune"}`;
 }
 
 function setPadTitle(pad, title, options = {}) {
@@ -1299,6 +1299,7 @@ async function refreshMicrophoneDevices(requestPermission = false) {
       ? await navigator.mediaDevices.enumerateDevices()
       : [];
     const inputs = devices.filter((device) => device.kind === "audioinput");
+    const availableInputIds = new Set();
     microphoneSelects().forEach((select) => {
       const current = state.selectedMicrophoneId || select.value || "";
       select.innerHTML = '<option value="">Aucun micro sélectionné</option>';
@@ -1306,10 +1307,19 @@ async function refreshMicrophoneDevices(requestPermission = false) {
         const option = document.createElement("option");
         option.value = device.deviceId || "__default__";
         option.textContent = microphoneLabel(device, index);
+        availableInputIds.add(option.value);
         select.append(option);
       });
       select.value = [...select.options].some((option) => option.value === current) ? current : "";
     });
+    if (state.selectedMicrophoneId && !availableInputIds.has(state.selectedMicrophoneId)) {
+      state.selectedMicrophoneId = "";
+      state.selectedMicrophoneLabel = "";
+      persistMicrophoneSelection();
+      syncMicrophoneSelectValues();
+      updateMasterInputLabel();
+      updateRecordingUi();
+    }
     if (els.microphoneSummary) {
       els.microphoneSummary.textContent = inputs.length
         ? "Choisir une source, puis cliquer sur Sélectionner. L’enregistrement démarrera au prochain clic sur l’icône micro."
