@@ -165,6 +165,7 @@ const els = {
   masterAudio: document.querySelector("#masterAudio"),
   masterOutputName: document.querySelector("#masterOutputName"),
   cueOutputName: document.querySelector("#cueOutputName"),
+  masterInputName: document.querySelector("#masterInputName"),
   masterAudioDialog: document.querySelector("#masterAudioDialog"),
   closeMasterAudio: document.querySelector("#closeMasterAudio"),
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
@@ -430,6 +431,8 @@ const els = {
   cancelNote: document.querySelector("#cancelNote"),
   versionNotesDialog: document.querySelector("#versionNotesDialog"),
   versionNotesLabel: document.querySelector("#versionNotesLabel"),
+  versionNotesBoard: document.querySelector("#versionNotesBoard"),
+  versionNotesBoardCreated: document.querySelector("#versionNotesBoardCreated"),
   versionNotesEditor: document.querySelector("#versionNotesEditor"),
   closeVersionNotes: document.querySelector("#closeVersionNotes"),
   padNoteOverlay: document.querySelector("#padNoteOverlay"),
@@ -516,6 +519,7 @@ function updateOutputLabels() {
   if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
   if (els.masterOutputName) els.masterOutputName.textContent = masterLiveText;
   if (els.cueOutputName) els.cueOutputName.textContent = cueText;
+  updateMasterInputLabel();
   syncOutputSelectValues();
 }
 
@@ -841,6 +845,24 @@ function formatVersionLabel(savedAt) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatBoardCreatedAt(createdAt) {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "non renseignée";
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function updateMasterInputLabel() {
+  if (!els.masterInputName) return;
+  const label = String(state.selectedMicrophoneLabel || "").trim();
+  els.masterInputName.textContent = `Entrée : ${label || "aucune"}`;
 }
 
 function setPadTitle(pad, title, options = {}) {
@@ -1258,6 +1280,7 @@ function loadMicrophoneSelection() {
     state.selectedMicrophoneLabel = "";
   }
   syncMicrophoneSelectValues();
+  updateMasterInputLabel();
   updateRecordingUi();
 }
 
@@ -1330,6 +1353,7 @@ async function selectMicrophoneFromDialog() {
   state.selectedMicrophoneLabel = option?.textContent || "micro sélectionné";
   persistMicrophoneSelection();
   syncMicrophoneSelectValues();
+  updateMasterInputLabel();
   els.microphoneDialog?.close();
   window.setTimeout(() => els.microphoneDialog?.close(), 0);
   updateRecordingUi();
@@ -1343,6 +1367,7 @@ function selectMicrophoneFromMaster() {
   state.selectedMicrophoneLabel = state.selectedMicrophoneId ? (option?.textContent || "micro sélectionné") : "";
   persistMicrophoneSelection();
   syncMicrophoneSelectValues();
+  updateMasterInputLabel();
   updateRecordingUi();
   setStatus(state.selectedMicrophoneId ? `Micro sélectionné: ${state.selectedMicrophoneLabel}` : "Micro non sélectionné");
 }
@@ -1978,6 +2003,7 @@ function normalizeBoard(board, fallbackName = "Projet") {
   return {
     id: board?.id || createId(),
     name: board?.name || fallbackName,
+    createdAt: board?.createdAt || new Date().toISOString(),
     padCount: Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT),
     masterVolume: clamp01(board?.masterVolume),
     layoutMode: mode,
@@ -3116,6 +3142,7 @@ async function addBoard() {
   const board = {
     id: createId(),
     name,
+    createdAt: new Date().toISOString(),
     padCount: DEFAULT_PAD_COUNT,
     masterVolume: DEFAULT_MASTER_VOLUME,
     layoutMode: "auto",
@@ -3163,6 +3190,7 @@ async function duplicateCurrentBoard() {
     ...normalizeBoard(sourceBoard),
     id: createId(),
     name: duplicateBoardName(sourceBoard.name),
+    createdAt: new Date().toISOString(),
   };
   state.boards.push(newBoard);
 
@@ -4014,13 +4042,19 @@ async function selectedVersionSnapshot() {
 }
 
 async function openVersionNotesDialog() {
-  const { snapshot } = await selectedVersionSnapshot();
+  const { board, snapshot } = await selectedVersionSnapshot();
   if (!snapshot) {
     setStatus("Choisir une version");
     return;
   }
   state.versionNotesDraft = String(snapshot.notes || "");
   const label = String(snapshot.label || "").trim() || formatVersionLabel(snapshot.savedAt);
+  if (els.versionNotesBoard) {
+    els.versionNotesBoard.textContent = `Board : ${board?.name || "—"}`;
+  }
+  if (els.versionNotesBoardCreated) {
+    els.versionNotesBoardCreated.textContent = `Board créé le : ${formatBoardCreatedAt(board?.createdAt)}`;
+  }
   if (els.versionNotesLabel) {
     els.versionNotesLabel.textContent = `${snapshot.archived ? "Archive" : "Version"} · ${label}`;
   }

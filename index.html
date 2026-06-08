@@ -11,7 +11,7 @@
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=205">
+    <link rel="stylesheet" href="styles.css?v=206">
   </head>
   <body>
     <div class="app">
@@ -28,7 +28,7 @@
           <div>
             <h1>Soundboard Live</h1>
             <p class="brand-credit">vincent lainé (c) 2026</p>
-            <p id="audioStatus">Pret pour la scene · v205</p>
+            <p id="audioStatus">Pret pour la scene · v206</p>
           </div>
         </div>
 
@@ -103,20 +103,19 @@
                 </svg>
               </button>
               <div class="board-layout-controls" aria-label="Disposition des pads">
-                <label>
-                  <span>Colonnes</span>
-                  <select id="padColumns">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                  </select>
-                </label>
-                <span class="layout-rows-display">Lignes <output id="padRows">3</output></span>
+                <select id="padColumns" aria-label="Nombre de colonnes">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                </select>
+                <span class="layout-control-label">Colonnes</span>
+                <output id="padRows" class="layout-rows-output" aria-label="Nombre de lignes">3</output>
+                <span class="layout-control-label layout-rows-label">Lignes</span>
               </div>
               <div class="board-center-actions">
               <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
@@ -282,6 +281,7 @@
                 <span id="cueVu" class="vu-fill"></span>
               </div>
               <span id="cueOutputName" class="master-output-name cue-output-line">Cue : par défaut</span>
+              <span id="masterInputName" class="master-output-name master-input-line">Entrée : aucune</span>
             </div>
           </div>
           <button id="masterAudio" class="icon-button master-audio-button" type="button" aria-label="Audio master">
@@ -1338,14 +1338,14 @@
 
     <dialog id="versionNotesDialog" class="note-dialog version-notes-dialog" aria-labelledby="versionNotesTitle">
       <div class="note-panel version-notes-panel">
-        <div class="help-head">
+        <div class="help-head version-notes-head">
           <h2 id="versionNotesTitle">Notes de version</h2>
+          <button id="closeVersionNotes" class="icon-button dialog-close-button" type="button" aria-label="Fermer les notes de version">×</button>
         </div>
-        <p id="versionNotesLabel" class="dialog-note">Choisir une version.</p>
+        <p id="versionNotesBoard" class="dialog-note version-notes-meta">Board : —</p>
+        <p id="versionNotesBoardCreated" class="dialog-note version-notes-meta">Board créé le : —</p>
+        <p id="versionNotesLabel" class="dialog-note version-notes-meta">Choisir une version.</p>
         <textarea id="versionNotesEditor" rows="6" maxlength="1200" placeholder="Notes attachées à cette version..."></textarea>
-        <div class="dialog-actions">
-          <button id="closeVersionNotes" class="small-button ghost" type="button">Fermer</button>
-        </div>
       </div>
     </dialog>
 
@@ -1755,6 +1755,6 @@
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,text/plain,text/markdown">
 
-    <script src="app.js?v=205"></script>
+    <script src="app.js?v=206"></script>
   </body>
 </html>

@@ -374,7 +374,8 @@ h1 {
 .board-layout-controls {
   display: grid;
   grid-template-columns: 42px auto;
-  gap: 6px;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 4px 7px;
   align-items: center;
 }
 
@@ -382,16 +383,25 @@ body.board-edit-mode .board-layout-controls {
   display: none;
 }
 
-.board-layout-controls label {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.board-layout-controls span {
+.board-layout-controls .layout-control-label,
+.board-layout-controls .layout-rows-output {
   color: var(--muted);
   font-size: 0.68rem;
+  line-height: 1;
   text-transform: uppercase;
+}
+
+.board-layout-controls .layout-rows-output {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111319;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .board-layout-controls select,
@@ -479,14 +489,18 @@ body.board-edit-mode .board-edit-actions {
   align-self: start;
 }
 
-.master-volume-stack .master-output-line {
+.master-volume-stack .master-output-line,
+.master-volume-stack .cue-output-line {
   margin-bottom: 5px;
+}
+
+.master-volume-stack .master-input-line {
+  margin-top: -2px;
 }
 
 body.no-cue-output .cue-volume-control,
 body.no-cue-output .cue-vu,
 body.no-cue-output .cue-output-line,
-body.no-cue-output .cue-output-group,
 body.no-cue-output .cue-output-field,
 body.no-cue-output #audioCueOutputName {
   display: none !important;
@@ -1030,6 +1044,24 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   width: min(560px, calc(100vw - 24px));
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.version-notes-head {
+  align-items: start;
+  gap: 12px;
+}
+
+.dialog-close-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.version-notes-meta {
+  margin: 0;
 }
 
 .version-notes-panel textarea[readonly] {
@@ -6069,7 +6101,7 @@ body.stage-mode .pad:not(.is-editing) .pad-title {
   text-align: center;
 }
 
-.pad:not(.is-editing) .pad-tags {
+.pad-tags:empty {
   display: none;
 }
 
