@@ -6464,3 +6464,12 @@ body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
 body.stage-mode .cues-help-button {
   display: none !important;
 }
+
+
+#helpDialog.single-help-column .help-sections{
+  grid-template-columns: minmax(0,1fr);
+}
+
+#helpDialog.single-help-column .help-column{
+  justify-self: stretch;
+}

@@ -9924,10 +9924,13 @@ async function init() {
     els.helpSections?.forEach((section) => {
       section.hidden = !allowed.has(section.dataset.helpSection);
     });
+    let visibleColumns = 0;
     els.helpColumns?.forEach((column) => {
       const hasVisibleSection = [...column.querySelectorAll("[data-help-section]")].some((section) => !section.hidden);
       column.hidden = !hasVisibleSection;
+      if (hasVisibleSection) visibleColumns += 1;
     });
+    els.helpDialog.classList.toggle("single-help-column", visibleColumns <= 1);
     if (els.helpTitle) els.helpTitle.textContent = title;
     if (els.helpDialog.open) return;
     if (typeof els.helpDialog.showModal === "function") {
