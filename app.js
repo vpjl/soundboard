@@ -1048,6 +1048,22 @@ function stopButtonEvent(event) {
   event?.stopImmediatePropagation?.();
 }
 
+function startPerfMeasure(label) {
+  const start = performance.now();
+  let previous = start;
+  const log = (step, extra = {}) => {
+    const now = performance.now();
+    console.debug("[perf]", label, step, {
+      totalMs: Number((now - start).toFixed(2)),
+      stepMs: Number((now - previous).toFixed(2)),
+      ...extra,
+    });
+    previous = now;
+  };
+  log("start");
+  return { log };
+}
+
 function bindSafeActionButton(button, action) {
   if (!button) return;
   const run = (event) => {
@@ -1079,7 +1095,11 @@ function setShortcut(rowIndex, key, padIndex) {
 }
 
 function renderShortcutRows() {
-  if (!els.shortcutRows) return;
+  const perf = startPerfMeasure("renderShortcutRows");
+  if (!els.shortcutRows) {
+    perf.log("missing container");
+    return;
+  }
   if (els.shortcutEnabled) els.shortcutEnabled.checked = state.shortcutsEnabled;
   if (!state.shortcuts.length) loadShortcutsForCurrentBoard();
   const shortcuts = state.shortcuts.filter((item) => state.pads[item.padIndex]);
@@ -1132,6 +1152,7 @@ function renderShortcutRows() {
     row.append(keyInput, padSelect);
     els.shortcutRows.append(row);
   });
+  perf.log("complete", { rows: state.shortcuts.length });
 }
 
 function updateShortcutIndicators() {
@@ -2367,8 +2388,12 @@ function syncAddAllCuePadsButton(draft = cueDraft()) {
 }
 
 function renderCueRows() {
+  const perf = startPerfMeasure("renderCueRows");
   const draft = cueDraft();
-  if (!els.cueRows) return;
+  if (!els.cueRows) {
+    perf.log("missing container", { cueCount: draft.length });
+    return;
+  }
   els.cueRows.innerHTML = "";
   syncAddAllCuePadsButton(draft);
   if (!draft.length) {
@@ -2377,6 +2402,7 @@ function renderCueRows() {
     empty.textContent = "Aucune étape. Ajouter une étape pour créer la séquence.";
     els.cueRows.append(empty);
     renderCueTimeline(draft);
+    perf.log("complete", { cueCount: 0 });
     return;
   }
   draft.forEach((step, index) => {
@@ -2535,6 +2561,7 @@ function renderCueRows() {
     els.cueRows.append(row);
   });
   renderCueTimeline(draft);
+  perf.log("complete", { cueCount: draft.length });
 }
 
 function renderCueTimeline(cues = cueDraft()) {
@@ -3116,6 +3143,7 @@ function startPadDrag(pad, event) {
 }
 
 async function renderPads() {
+  const perf = startPerfMeasure("renderPads");
   stopAll();
   resetRecordingState();
   state.boardEditMode = false;
@@ -3126,6 +3154,7 @@ async function renderPads() {
   state.pads = [];
   els.pads.innerHTML = "";
   const board = currentBoard();
+  perf.log("preparation complete", { padCount: board.padCount });
   const restoreJobs = [];
   for (let index = 0; index < board.padCount; index += 1) {
     const pad = makePad(index);
@@ -3138,7 +3167,9 @@ async function renderPads() {
       })
     );
   }
+  perf.log("restore queued", { padCount: restoreJobs.length });
   await Promise.all(restoreJobs);
+  perf.log("restore complete", { padCount: restoreJobs.length });
   refreshStopGroupOptions();
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
@@ -3148,6 +3179,7 @@ async function renderPads() {
   updateRecordingUi();
   syncCueControls();
   setStatus(`${board.name} charge`);
+  perf.log("complete", { padCount: state.pads.length });
 }
 
 async function switchBoard(boardId) {
@@ -7400,6 +7432,7 @@ function selectedOptionValue(select) {
 }
 
 async function openAudioDialog(pad) {
+  const perf = startPerfMeasure("openAudioDialog");
   state.audioPad = pad;
   await ensureSpeechVoices();
   state.audioDraft = audioDraftFromPad(pad);
@@ -7415,11 +7448,18 @@ async function openAudioDialog(pad) {
   };
   if (els.applyAudio) els.applyAudio.disabled = false;
   syncAudioDialog(pad);
+  perf.log("preparation complete", { padIndex: pad.index, padType: padType(pad) });
   if (els.audioDialog?.showModal) {
+    perf.log("before showModal");
     els.audioDialog.showModal();
-    requestAnimationFrame(() => renderAudioDialogWaveform(pad));
+    perf.log("after showModal");
+    requestAnimationFrame(() => {
+      renderAudioDialogWaveform(pad);
+      perf.log("deferred render complete");
+    });
   } else {
     setStatus("Réglages audio");
+    perf.log("showModal unavailable");
   }
 }
 
@@ -7782,14 +7822,20 @@ function syncImageDialog(pad = state.imagePad) {
 }
 
 function openImageDialog(pad) {
+  const perf = startPerfMeasure("openImageDialog");
   state.imagePad = pad;
   state.imageDraft = imageDraftFromPad(pad);
   state.imageDialogMode = "color";
   syncImageDialog(pad);
+  perf.log("preparation complete", { padIndex: pad.index });
   if (els.imageDialog?.showModal) {
+    perf.log("before showModal");
     els.imageDialog.showModal();
+    perf.log("after showModal");
+    perf.log("deferred render complete");
   } else {
     pad.imageInput?.click();
+    perf.log("showModal unavailable");
   }
 }
 
@@ -8406,10 +8452,19 @@ function renderPatchBay() {
 }
 
 function openPatchBayDialog() {
+  const perf = startPerfMeasure("openPatchBayDialog");
   renderPatchBay();
+  perf.log("preparation complete");
   if (els.patchBayDialog?.showModal) {
+    perf.log("before showModal");
     els.patchBayDialog.showModal();
-    requestAnimationFrame(drawPatchBayOverlay);
+    perf.log("after showModal");
+    requestAnimationFrame(() => {
+      drawPatchBayOverlay();
+      perf.log("deferred render complete");
+    });
+  } else {
+    perf.log("showModal unavailable");
   }
 }
 
