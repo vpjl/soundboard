@@ -1090,6 +1090,15 @@ function restorePadMediaSize(...records) {
   }, 0);
 }
 
+function setPadDecodedAudioMetadata(pad, buffer, audioSource = null) {
+  pad.audioDuration = Number(buffer?.duration) || 0;
+  pad.audioSampleRate = Number(buffer?.sampleRate) || 0;
+  pad.audioChannels = Number(buffer?.numberOfChannels) || 0;
+  const byteLength = approximateMediaSize(audioSource);
+  pad.audioByteLength = byteLength || pad.audioByteLength || 0;
+  pad.waveformPeaks = buildWaveformPeaks(buffer);
+}
+
 function restorePadBaseInfo(pad, summary = {}) {
   return {
     padIndex: pad.index,
@@ -1644,8 +1653,13 @@ function makePad(index) {
     meterData: null,
     audioName: "",
     audioUid: "",
+    audioType: "",
     audioPath: "",
     audioPathTrusted: false,
+    audioDuration: 0,
+    audioSampleRate: 0,
+    audioChannels: 0,
+    audioByteLength: 0,
     videoName: "",
     videoPath: "",
     videoType: "",
@@ -5293,6 +5307,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.audioType = type || "";
   pad.audioPath = path || name;
   pad.audioPathTrusted = Boolean(pathTrusted && path);
+  setPadDecodedAudioMetadata(pad, buffer, arrayBuffer);
   pad.videoName = "";
   pad.videoPath = "";
   pad.videoType = "";
@@ -5301,7 +5316,6 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   pad.textMode = false;
   pad.textName = "";
   pad.audioRefIndex = null;
-  pad.waveformPeaks = buildWaveformPeaks(buffer);
   setPadNormalization(pad, true, normalizedGainForBuffer(buffer));
   setPadTitle(pad, nextTitle);
   setPadDuration(pad, buffer.duration);
@@ -5318,6 +5332,11 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
     title: pad.title,
     type,
     audio: arrayBuffer,
+    audioDuration: pad.audioDuration,
+    audioSampleRate: pad.audioSampleRate,
+    audioChannels: pad.audioChannels,
+    audioByteLength: pad.audioByteLength,
+    waveformPeaks: pad.waveformPeaks,
     volume: pad.volume,
     panValue: pad.panValue,
     loop: pad.loop,
@@ -6009,7 +6028,11 @@ async function restorePad(pad) {
   pad.audioPath = meta?.audioPath || saved.path || saved.name || "";
   pad.audioType = saved.type || "";
   pad.audioPathTrusted = Boolean(meta?.audioPathTrusted || saved.pathTrusted);
-  pad.waveformPeaks = buildWaveformPeaks(pad.buffer);
+  pad.audioDuration = Number(meta?.audioDuration ?? saved.audioDuration) || 0;
+  pad.audioSampleRate = Number(meta?.audioSampleRate ?? saved.audioSampleRate) || 0;
+  pad.audioChannels = Number(meta?.audioChannels ?? saved.audioChannels) || 0;
+  pad.audioByteLength = Number(meta?.audioByteLength ?? saved.audioByteLength) || 0;
+  setPadDecodedAudioMetadata(pad, pad.buffer, saved.audio);
   log("waveform calculated", { peakCount: pad.waveformPeaks.length });
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
@@ -6500,6 +6523,11 @@ async function savePadMeta(pad) {
     audioUid: pad.audioUid,
     audioPath: pad.audioPath,
     audioPathTrusted: pad.audioPathTrusted,
+    audioDuration: pad.audioDuration,
+    audioSampleRate: pad.audioSampleRate,
+    audioChannels: pad.audioChannels,
+    audioByteLength: pad.audioByteLength,
+    waveformPeaks: pad.waveformPeaks,
     videoName: pad.videoName,
     videoPath: pad.videoPath,
     videoType: pad.videoType,
