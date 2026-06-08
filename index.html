@@ -678,12 +678,7 @@
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Ouvre les réglages audio master.</dd>
-                <dt aria-label="Volume Cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Règle le volume de pré-écoute Cue.</dd>
+                
                 <dt aria-label="Arrêter un groupe">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
@@ -919,55 +914,21 @@
 
             <section class="help-section" data-help-section="cues-crossfade" aria-label="Cues crossfade">
               <h3>Cues/Crossfade</h3>
+
+              <h4>Cues</h4>
               <dl class="help-grid">
-                <dt aria-label="Cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Active ou désactive les cues.</dd>
-                <dt aria-label="Cue suivante">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
-                    <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Affiche le cue suivant sans le lancer.</dd>
-                <dt aria-label="Lancer le cue courant">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Lance le cue courant.</dd>
-                <dt aria-label="Revenir au début des cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Replace la séquence cue au début.</dd>
-                <dt aria-label="Réglage des cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Réglage des cues.</dd>
-                <dt aria-label="Ajouter une étape cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Ajoute une étape à la ligne de temps.</dd>
-                <dt aria-label="Afficher le câblage crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Affiche les câbles crossfade du board.</dd>
-                <dt aria-label="Patch bay crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
+                <dt aria-label="Cues">Cues</dt><dd>Active ou désactive les cues.</dd>
+                <dt aria-label="Cue suivante">▶︎</dt><dd>Affiche le cue suivant sans le lancer.</dd>
+                <dt aria-label="Lancer le cue courant">▶</dt><dd>Lance le cue courant.</dd>
+                <dt aria-label="Revenir au début des cues">⏮</dt><dd>Replace la séquence cue au début.</dd>
+                <dt aria-label="Réglage des cues">⚙</dt><dd>Réglage des cues.</dd>
+                <dt aria-label="Ajouter une étape cue">＋</dt><dd>Ajoute une étape à la ligne de temps.</dd>
+              </dl>
+
+              <h4>Crossfade</h4>
+              <dl class="help-grid">
+                <dt aria-label="Afficher le câblage crossfade">⇄</dt><dd>Affiche les câbles crossfade du board.</dd>
+                <dt aria-label="Patch bay crossfade">⟷</dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
               </dl>
             </section>
 
