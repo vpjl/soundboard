@@ -3613,13 +3613,20 @@ function updateSkinOptions() {
   minimalOption.hidden = !canUseMinimalSkin();
 }
 
+function normalizeSkinName(skin) {
+  const rawSkin = String(skin || "").trim().toLowerCase();
+  const migratedSkin = rawSkin === "scene" ? "candy" : rawSkin === "minimal" ? "classic" : rawSkin === "visual" ? "basic" : rawSkin;
+  return ["basic", "candy", "classic", "contrast", "neon", "studio"].includes(migratedSkin) ? migratedSkin : "classic";
+}
+
 function applySkin(skin) {
-  const migratedSkin = skin === "scene" ? "candy" : skin === "minimal" ? "classic" : skin === "visual" ? "basic" : skin;
-  const requestedSkin = ["basic", "candy", "classic", "contrast", "neon", "studio"].includes(migratedSkin) ? migratedSkin : "classic";
-  const skinName = requestedSkin;
+  const skinName = normalizeSkinName(skin);
   updateSkinOptions();
   document.body.dataset.skin = skinName;
-  if (els.skinSelect) els.skinSelect.value = skinName;
+  if (els.skinSelect) {
+    const hasOption = Boolean(els.skinSelect.querySelector(`option[value="${skinName}"]`));
+    if (hasOption) els.skinSelect.value = skinName;
+  }
   localStorage.setItem(SKIN_STORAGE, skinName);
   if (skinName === "basic") revealGalleryPads();
 }
@@ -9574,6 +9581,7 @@ async function init() {
   els.cueVolume?.addEventListener("input", () => {
     setCueVolume(els.cueVolume.value);
   });
+  els.skinSelect?.addEventListener("input", () => applySkin(els.skinSelect.value));
   els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);

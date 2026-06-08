@@ -6406,21 +6406,16 @@ body.stage-mode .board-action-grid .version-notes-button {
   display: none !important;
 }
 
-body[data-skin="basic"] .pad-tags {
-  display: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags {
+body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags,
+body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
   display: block;
 }
 
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
-  border: 0 !important;
-  border-radius: 0 !important;
+body[data-skin="basic"].stage-mode .pad-tags {
+  display: none !important;
+  margin: 0 !important;
   padding: 0 !important;
+  border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
