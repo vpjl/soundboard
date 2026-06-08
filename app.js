@@ -306,6 +306,11 @@ const els = {
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
   helpTitle: document.querySelector("#helpTitle"),
+  helpSections: [...document.querySelectorAll("[data-help-section]")],
+  helpColumns: [...document.querySelectorAll(".help-sections .help-column")],
+  masterHelp: document.querySelector("#masterHelp"),
+  masterAudioHelp: document.querySelector("#masterAudioHelp"),
+  cuesHelp: document.querySelector("#cuesHelp"),
   closeHelp: document.querySelector("#closeHelp"),
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
@@ -9913,12 +9918,30 @@ async function init() {
       els.audioCleanupDialog.close();
     }
   });
+  const openContextHelp = (sectionKeys, title = "Aide") => {
+    if (!els.helpDialog?.showModal) return;
+    const allowed = new Set(sectionKeys);
+    els.helpSections?.forEach((section) => {
+      section.hidden = !allowed.has(section.dataset.helpSection);
+    });
+    els.helpColumns?.forEach((column) => {
+      const hasVisibleSection = [...column.querySelectorAll("[data-help-section]")].some((section) => !section.hidden);
+      column.hidden = !hasVisibleSection;
+    });
+    if (els.helpTitle) els.helpTitle.textContent = title;
+    els.helpDialog.showModal();
+  };
+
   els.helpButton?.addEventListener("click", () => {
-    if (els.helpDialog?.showModal) {
-      if (els.helpTitle) els.helpTitle.textContent = state.boardEditMode ? "Aide (mode edit)" : "Aide (mode live)";
-      els.helpDialog.showModal();
+    if (state.boardEditMode) {
+      openContextHelp(["board-edit", "pad-edit"], "Aide Board / Pad (Edit)");
+    } else {
+      openContextHelp(["board-live", "pad-live"], "Aide Board / Pad (Live)");
     }
   });
+  els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));
+  els.masterHelp?.addEventListener("click", () => openContextHelp(["master"], "Aide Master"));
+  els.cuesHelp?.addEventListener("click", () => openContextHelp(["cues-crossfade"], "Aide Cues / Crossfade"));
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
   els.helpDialog?.addEventListener("click", (event) => {
     if (event.target === els.helpDialog) els.helpDialog.close();

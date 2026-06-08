@@ -6428,3 +6428,34 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
 body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
   display: block;
 }
+
+/* Aides contextuelles */
+.master-strip {
+  position: relative;
+}
+
+.master-help-button,
+.master-audio-help-button,
+.cues-help-button {
+  border-color: rgba(73, 211, 160, 0.5);
+  background: rgba(73, 211, 160, 0.11);
+  color: var(--accent);
+}
+
+.master-help-button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.xfade-live-row {
+  grid-template-columns: repeat(4, 42px);
+}
+
+body.stage-mode .cues-help-button {
+  display: none !important;
+}

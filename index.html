@@ -295,6 +295,12 @@
               <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
             </svg>
           </button>
+          <button id="masterHelp" class="icon-button help-button master-help-button" type="button" aria-label="Aide Master">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
           <label class="master-control group-stop-control">
             <span>Stop groupé</span>
             <span class="group-stop-row">
@@ -367,6 +373,12 @@
                 <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                 <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                 <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button id="cuesHelp" class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
@@ -651,7 +663,7 @@
         </div>
         <div class="help-sections">
           <div class="help-column">
-            <section class="help-section" aria-label="Master">
+            <section class="help-section" data-help-section="master" aria-label="Master">
               <h3>Master</h3>
               <dl class="help-grid">
                 <dt aria-label="Tout arrêter">
@@ -681,7 +693,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Audio master">
+            <section class="help-section" data-help-section="audio-master" aria-label="Audio master">
               <h3>Audio (master)</h3>
               <dl class="help-grid">
                 <dt aria-label="Fade in global">
@@ -719,7 +731,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Board live">
+            <section class="help-section" data-help-section="board-live" aria-label="Board live">
               <h3>Board (live)</h3>
               <dl class="help-grid">
                 <dt aria-label="Mode plein écran scène">
@@ -786,7 +798,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Board edit">
+            <section class="help-section" data-help-section="board-edit" aria-label="Board edit">
               <h3>Board (edit)</h3>
               <dl class="help-grid">
                 <dt aria-label="Ajouter un pad">
@@ -860,7 +872,7 @@
           </div>
 
           <div class="help-column">
-            <section class="help-section" aria-label="Pad live">
+            <section class="help-section" data-help-section="pad-live" aria-label="Pad live">
               <h3>Pad (live)</h3>
               <dl class="help-grid">
                 <dt aria-label="One shot">
@@ -905,7 +917,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Cues crossfade">
+            <section class="help-section" data-help-section="cues-crossfade" aria-label="Cues crossfade">
               <h3>Cues/Crossfade</h3>
               <dl class="help-grid">
                 <dt aria-label="Cues">
@@ -959,7 +971,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Pad edit">
+            <section class="help-section" data-help-section="pad-edit" aria-label="Pad edit">
               <h3>Pad (edit)</h3>
               <dl class="help-grid">
                 <dt aria-label="Image du pad">
@@ -999,7 +1011,7 @@
               </dl>
             </section>
 
-            <section class="help-section" aria-label="Audio pad">
+            <section class="help-section" data-help-section="audio-pad" aria-label="Audio pad">
               <h3>Audio (pad)</h3>
               <dl class="help-grid">
                 <dt aria-label="Play audio">
@@ -1360,6 +1372,12 @@
             <h2 id="masterAudioTitle">audio (master)</h2>
           </div>
           <div class="audio-head-actions">
+            <button id="masterAudioHelp" class="icon-button help-button master-audio-help-button" type="button" aria-label="Aide Audio Master">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
