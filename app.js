@@ -9483,11 +9483,33 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     return;
   }
   if (!pad.buffer) {
+    let saved = null;
+    let rawSaved = null;
+    let meta = null;
+    if (!pad.audioStored) {
+      rawSaved = await dbGet(padAudioKey(pad));
+      meta = await dbGet(padMetaKey(pad));
+      const hasLocalIndicator = Boolean(
+        rawSaved?.audio
+        || rawSaved?.audioRefIndex != null
+        || meta?.audioRefIndex != null
+        || meta?.audioPath
+        || meta?.audioName
+        || meta?.audioUid
+      );
+      if (hasLocalIndicator) {
+        saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+        if (saved?.audio || rawSaved?.audio) {
+          pad.audioStored = true;
+        }
+      }
+    }
+
     if (pad.audioStored) {
       pad.node.classList.remove("is-missing-audio");
       setStatus(`Préparation audio : ${pad.title}`);
       try {
-        await ensurePadAudioDecoded(pad);
+        await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
       } catch (error) {
         console.error(error);
         pad.audioStored = false;
