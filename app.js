@@ -6151,25 +6151,9 @@ async function restorePad(pad) {
 
 async function resolvePadAudioRecord(pad, meta, saved) {
   if (saved?.audio) return saved;
-  const wantedUid = null;
-  if (wantedUid) {
-    const board = currentBoard();
-    for (let index = 0; index < board.padCount; index += 1) {
-      if (index === pad.index) continue;
-      const candidate = await dbGet(padAudioKeyFor(state.currentBoardId, index));
-      if (audioRecordUid(candidate) === wantedUid && candidate?.audio) {
-        return {
-          ...candidate,
-          ...(saved || {}),
-          audioUid: wantedUid,
-          audio: candidate.audio,
-          video: candidate.video,
-          audioRefIndex: index,
-        };
-      }
-    }
-  }
-const refIndex = Number(saved?.audioRefIndex);
+  // Résolution par audioUid désactivée :
+  // un pad vide ne doit jamais récupérer automatiquement l'audio d'un autre pad.
+  const refIndex = Number(saved?.audioRefIndex);
   if (!Number.isInteger(refIndex) || refIndex < 0 || refIndex === pad.index) return saved;
   const referenced = await dbGet(padAudioKeyFor(state.currentBoardId, refIndex));
   if (!referenced?.audio) return saved;
