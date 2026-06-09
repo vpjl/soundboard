@@ -1,0 +1,8 @@
+Objectif :
+- Mode edit/live : métadonnées seulement
+- Mode scène : préchargement complet
+
+Questions :
+- Où restorePad déclenche-t-il le décodage ?
+- Où playPad déclenche-t-il ensurePadAudioDecoded ?
+- Existe-t-il déjà un indicateur global de chargement ?

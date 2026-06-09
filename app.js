@@ -1090,6 +1090,10 @@ function restorePadMediaSize(...records) {
   }, 0);
 }
 
+function shouldPreloadAudioOnRestore() {
+  return false;
+}
+
 function setPadDecodedAudioMetadata(pad, buffer, audioSource = null) {
   pad.audioDuration = Number(buffer?.duration) || 0;
   pad.audioSampleRate = Number(buffer?.sampleRate) || 0;
@@ -6045,15 +6049,19 @@ async function restorePad(pad) {
     return finish("empty/text restore complete");
   }
 
-  log("audio decode start", { audioBytes: approximateMediaSize(saved.audio) });
-  pad.buffer = await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
+  if (shouldPreloadAudioOnRestore()) {
+    log("audio decode start", { audioBytes: approximateMediaSize(saved.audio) });
+    pad.buffer = await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
+    summary.duration = pad.buffer.duration;
+    log("audio decoded", {
+      duration: pad.buffer.duration,
+      sampleRate: pad.buffer.sampleRate,
+      channels: pad.buffer.numberOfChannels,
+    });
+  } else {
+    pad.buffer = null;
+  }
   summary.detectedType = "audio";
-  summary.duration = pad.buffer.duration;
-  log("audio decoded", {
-    duration: pad.buffer.duration,
-    sampleRate: pad.buffer.sampleRate,
-    channels: pad.buffer.numberOfChannels,
-  });
   pad.hasDirectAudio = Boolean(rawSaved?.audio);
   pad.uid = meta?.uid || saved.uid || pad.uid;
   pad.audioUid = ensureAudioRecordUid(saved, pad.uid);
@@ -6129,10 +6137,17 @@ async function restorePad(pad) {
       ? restoredRef
       : null;
   log("pad settings applied", { source: "audio" });
-  setPadDuration(pad, pad.buffer.duration);
-  log("updatePadTime", { duration: pad.buffer.duration });
-  renderWaveform(pad);
-  log("renderWaveform", { peakCount: pad.waveformPeaks.length });
+  if (pad.buffer) {
+    setPadDuration(pad, pad.buffer.duration);
+    log("updatePadTime", { duration: pad.buffer.duration });
+    renderWaveform(pad);
+    log("renderWaveform", { peakCount: pad.waveformPeaks.length });
+  } else {
+    setPadDuration(pad, pad.audioDuration || 0);
+    log("updatePadTime", { duration: pad.audioDuration || 0, source: "metadata-only" });
+    renderWaveform(pad);
+    log("renderWaveform", { source: "metadata-only" });
+  }
   pad.volumeEl.value = pad.volume;
   updatePadVolumeValue(pad);
   pad.panEl.value = pad.panValue;
@@ -9471,7 +9486,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
       pad.node.classList.remove("is-missing-audio");
       setStatus(`Préparation audio : ${pad.title}`);
       try {
-        await ensurePadAudioDecoded(pad);
+        pad.buffer = await ensurePadAudioDecoded(pad);
       } catch (error) {
         console.error(error);
         pad.audioStored = false;
