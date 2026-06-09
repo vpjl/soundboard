@@ -1103,30 +1103,10 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
   if (pad.buffer) return pad.buffer;
   if (pad.audioDecodePromise) return await pad.audioDecodePromise;
 
-  async function resolveSavedAudio() {
-    if (saved?.audio) return saved;
-    meta = meta || await dbGet(padMetaKey(pad));
-    rawSaved = rawSaved || await dbGet(padAudioKey(pad));
-    const resolved = await resolvePadAudioRecord(pad, meta, rawSaved);
-    if (resolved?.audio) {
-      pad.audioName = pad.audioName || resolved.name || pad.audioName;
-      pad.audioPath = pad.audioPath || meta?.audioPath || resolved.path || resolved.name || pad.audioPath;
-      pad.audioType = pad.audioType || resolved.type || pad.audioType;
-      pad.audioUid = pad.audioUid || ensureAudioRecordUid(resolved, pad.uid);
-      pad.audioRefIndex = pad.audioRefIndex ?? (Number.isInteger(Number(resolved.audioRefIndex)) ? Number(resolved.audioRefIndex) : null);
-      pad.audioPathTrusted = Boolean(pad.audioPathTrusted || meta?.audioPathTrusted || resolved.pathTrusted);
-    }
-    return resolved;
-  }
-
   pad.audioDecodePromise = (async () => {
-    const data = await resolveSavedAudio();
-    if (!data?.audio) throw new Error("No audio to decode");
-
     prepareAudio();
-    const buffer = await state.audioContext.decodeAudioData(data.audio.slice(0));
-    setPadDecodedAudioMetadata(pad, buffer, data.audio);
-    pad.audioPending = false;
+    const buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+    setPadDecodedAudioMetadata(pad, buffer, saved.audio);
     return buffer;
   })();
 
@@ -1134,7 +1114,6 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
     return await pad.audioDecodePromise;
   } finally {
     delete pad.audioDecodePromise;
-    pad.audioPending = false;
   }
 }
 
@@ -1695,7 +1674,6 @@ function makePad(index) {
     audioType: "",
     audioPath: "",
     audioPathTrusted: false,
-    audioPending: false,
     audioDuration: 0,
     audioSampleRate: 0,
     audioChannels: 0,
@@ -6000,16 +5978,6 @@ async function restorePad(pad) {
     return finish("video restore complete");
   }
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
-  if (saved?.audio) {
-    pad.audioPending = true;
-    pad.audioName = pad.audioName || saved.name || "";
-    pad.audioPath = pad.audioPath || meta?.audioPath || saved.path || saved.name || "";
-    pad.audioType = pad.audioType || saved.type || "";
-    pad.audioUid = pad.audioUid || ensureAudioRecordUid(saved, pad.uid);
-    pad.audioRefIndex = pad.audioRefIndex ?? (Number.isInteger(Number(saved.audioRefIndex)) ? Number(saved.audioRefIndex) : null);
-    pad.audioPathTrusted = Boolean(pad.audioPathTrusted || meta?.audioPathTrusted || saved.pathTrusted);
-    pad.audioDecodePromise = ensurePadAudioDecoded(pad, saved, rawSaved, meta);
-  }
   summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved, saved);
   summary.audioLink = saved?.audio
     ? (rawSaved?.audio ? "direct" : "referenced")
@@ -6062,10 +6030,7 @@ async function restorePad(pad) {
   }
 
   log("audio decode start", { audioBytes: approximateMediaSize(saved.audio) });
-  if (!pad.audioDecodePromise) {
-    pad.audioDecodePromise = ensurePadAudioDecoded(pad, saved, rawSaved, meta);
-  }
-  pad.buffer = await pad.audioDecodePromise;
+  pad.buffer = await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
   summary.detectedType = "audio";
   summary.duration = pad.buffer.duration;
   log("audio decoded", {
@@ -9478,31 +9443,14 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     return;
   }
   if (!pad.buffer) {
-    const isAudioPending = Boolean(pad.audioDecodePromise || pad.audioPending);
-    if (isAudioPending) {
-      setStatus(`Préparation audio : ${pad.title}`);
-      try {
-        await ensurePadAudioDecoded(pad);
-      } catch (error) {
-        if (pad.audioName || pad.audioPath) {
-          pad.node.classList.add("is-missing-audio");
-          setStatus(`Son manquant: ${pad.title}`);
-        } else {
-          setStatus(`Réglages audio: ${pad.title}`);
-        }
-        openAudioDialog(pad);
-        return;
-      }
+    if (pad.audioName || pad.audioPath) {
+      pad.node.classList.add("is-missing-audio");
+      setStatus(`Son manquant: ${pad.title}`);
     } else {
-      if (pad.audioName || pad.audioPath) {
-        pad.node.classList.add("is-missing-audio");
-        setStatus(`Son manquant: ${pad.title}`);
-      } else {
-        setStatus(`Réglages audio: ${pad.title}`);
-      }
-      openAudioDialog(pad);
-      return;
+      setStatus(`Réglages audio: ${pad.title}`);
     }
+    openAudioDialog(pad);
+    return;
   }
 
   await ensureAudio();
