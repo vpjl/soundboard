@@ -6169,7 +6169,7 @@ async function resolvePadAudioRecord(pad, meta, saved) {
       }
     }
   }
-  const refIndex = Number(saved?.audioRefIndex ?? meta?.audioRefIndex);
+const refIndex = Number(saved?.audioRefIndex);
   if (!Number.isInteger(refIndex) || refIndex < 0 || refIndex === pad.index) return saved;
   const referenced = await dbGet(padAudioKeyFor(state.currentBoardId, refIndex));
   if (!referenced?.audio) return saved;
