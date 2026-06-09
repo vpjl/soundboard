@@ -5969,7 +5969,7 @@ async function restorePad(pad) {
     log("updatePadTime", { duration: pad.videoDuration });
     pad.node.classList.remove("is-empty", "is-missing-audio");
     if (!meta?.uid && !rawSaved.uid) {
-      await savePadMeta(pad);
+      await safeSaveRestoredPadMeta(pad, meta);
       log("savePadMeta", { reason: "missing uid" });
     }
     if (document.body.dataset.skin === "basic") revealGalleryPads(false);
@@ -6020,7 +6020,7 @@ async function restorePad(pad) {
       log("renderWaveform", { source: "empty" });
     }
     if (!meta?.uid) {
-      await savePadMeta(pad);
+      await safeSaveRestoredPadMeta(pad, meta);
       log("savePadMeta", { reason: "missing uid" });
     }
     if (document.body.dataset.skin === "basic") revealGalleryPads(false);
@@ -6124,7 +6124,7 @@ async function restorePad(pad) {
   pad.node.classList.remove("is-empty");
   pad.node.classList.remove("is-missing-audio");
   if (!meta?.uid && !saved.uid) {
-    await savePadMeta(pad);
+    await safeSaveRestoredPadMeta(pad, meta);
     log("savePadMeta", { reason: "missing uid" });
   }
   if (document.body.dataset.skin === "basic") revealGalleryPads(false);
@@ -6581,6 +6581,30 @@ async function savePadMeta(pad) {
       audioUid,
     });
   }
+}
+
+async function safeSaveRestoredPadMeta(pad, meta) {
+  if (!meta) return savePadMeta(pad);
+
+  if (!pad.uid) pad.uid = meta.uid || createId();
+  pad.audioUid = pad.audioUid || ensureAudioRecordUid(meta, pad.uid);
+
+  if ((!pad.title || isDefaultPadTitle(pad.title)) && meta.title && !isDefaultPadTitle(meta.title)) {
+    pad.title = meta.title;
+  }
+  if ((pad.tags == null || pad.tags === "") && meta.tags != null) pad.tags = meta.tags;
+  if ((pad.color == null || pad.color === "") && meta.color != null) pad.color = meta.color;
+  if ((pad.noteText == null || pad.noteText === "") && meta.noteText != null) pad.noteText = meta.noteText;
+  if (pad.noteShowOnStart == null && meta.noteShowOnStart != null) pad.noteShowOnStart = meta.noteShowOnStart;
+  if (pad.noteShowOnEnd == null && meta.noteShowOnEnd != null) pad.noteShowOnEnd = meta.noteShowOnEnd;
+  if ((pad.visualImage == null || pad.visualImage === "") && meta.visualImage != null) pad.visualImage = meta.visualImage;
+  if (pad.visualImageHidden == null && meta.visualImageHidden != null) pad.visualImageHidden = meta.visualImageHidden;
+  if (pad.visualKind == null && meta.visualKind != null) pad.visualKind = meta.visualKind;
+  if (pad.visualPositionX == null && meta.visualPositionX != null) pad.visualPositionX = meta.visualPositionX;
+  if (pad.visualPositionY == null && meta.visualPositionY != null) pad.visualPositionY = meta.visualPositionY;
+  if (pad.visualZoom == null && meta.visualZoom != null) pad.visualZoom = meta.visualZoom;
+
+  return savePadMeta(pad);
 }
 
 function setStatus(text) {
