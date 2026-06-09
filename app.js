@@ -568,7 +568,7 @@ async function refreshOutputSelectOptions() {
   const selects = [els.masterOutputSelect, els.masterCueOutputSelect].filter(Boolean);
   selects.forEach((select) => {
     select.innerHTML = "";
-    select.dataset.outputPicker = "";
+    select.dataset.outputPicker = outputSelectionSupported() ? "available" : "";
     select.append(outputSelectOption("Par défaut", ""));
   });
 
