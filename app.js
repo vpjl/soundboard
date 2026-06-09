@@ -1099,6 +1099,24 @@ function setPadDecodedAudioMetadata(pad, buffer, audioSource = null) {
   pad.waveformPeaks = buildWaveformPeaks(buffer);
 }
 
+async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
+  if (pad.buffer) return pad.buffer;
+  if (pad.audioDecodePromise) return await pad.audioDecodePromise;
+
+  pad.audioDecodePromise = (async () => {
+    prepareAudio();
+    const buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+    setPadDecodedAudioMetadata(pad, buffer, saved.audio);
+    return buffer;
+  })();
+
+  try {
+    return await pad.audioDecodePromise;
+  } finally {
+    delete pad.audioDecodePromise;
+  }
+}
+
 function restorePadBaseInfo(pad, summary = {}) {
   return {
     padIndex: pad.index,
@@ -6011,9 +6029,8 @@ async function restorePad(pad) {
     return finish("empty/text restore complete");
   }
 
-  prepareAudio();
   log("audio decode start", { audioBytes: approximateMediaSize(saved.audio) });
-  pad.buffer = await state.audioContext.decodeAudioData(saved.audio.slice(0));
+  pad.buffer = await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
   summary.detectedType = "audio";
   summary.duration = pad.buffer.duration;
   log("audio decoded", {
@@ -6032,7 +6049,6 @@ async function restorePad(pad) {
   pad.audioSampleRate = Number(meta?.audioSampleRate ?? saved.audioSampleRate) || 0;
   pad.audioChannels = Number(meta?.audioChannels ?? saved.audioChannels) || 0;
   pad.audioByteLength = Number(meta?.audioByteLength ?? saved.audioByteLength) || 0;
-  setPadDecodedAudioMetadata(pad, pad.buffer, saved.audio);
   log("waveform calculated", { peakCount: pad.waveformPeaks.length });
   setPadTitle(pad, meta?.title || saved.title || cleanName(saved.name || `Pad ${pad.index + 1}`));
   pad.volume = saved.volume ?? pad.volume;
