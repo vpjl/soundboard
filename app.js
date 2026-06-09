@@ -6151,7 +6151,7 @@ async function restorePad(pad) {
 
 async function resolvePadAudioRecord(pad, meta, saved) {
   if (saved?.audio) return saved;
-  const wantedUid = audioRecordUid(saved);
+  const wantedUid = null;
   if (wantedUid) {
     const board = currentBoard();
     for (let index = 0; index < board.padCount; index += 1) {
