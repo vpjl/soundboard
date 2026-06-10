@@ -575,9 +575,9 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   height: 42px;
   align-self: start;
   justify-self: end;
-  border-color: rgba(73, 211, 160, 0.5);
-  background: rgba(73, 211, 160, 0.11);
-  color: var(--accent);
+  border-color: rgba(255, 206, 92, 0.7);
+  background: rgba(255, 206, 92, 0.12);
+  color: #ffd87a;
 }
 
 .cable-legend-panel {
@@ -592,7 +592,7 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   background: rgba(17, 19, 25, 0.92);
   color: #f3f4f0;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -2047,7 +2047,7 @@ body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
   overflow: hidden;
   color: var(--accent-2);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2095,7 +2095,7 @@ select:disabled,
 }
 
 .pad.is-playing .pad-time {
-  color: var(--accent);
+  color: #ffd87a;
 }
 
 .pad-note-button {
@@ -2189,9 +2189,9 @@ select:disabled,
 }
 
 .board-action-grid .board-help-button {
-  border-color: rgba(73, 211, 160, 0.5);
-  background: rgba(73, 211, 160, 0.11);
-  color: var(--accent);
+  border-color: rgba(255, 206, 92, 0.7);
+  background: rgba(255, 206, 92, 0.12);
+  color: #ffd87a;
 }
 
 .board-action-grid #addPad,
@@ -2524,7 +2524,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--accent);
+  color: #ffd87a;
   cursor: ew-resize;
   transform: translateX(-50%);
   touch-action: none;
@@ -6441,9 +6441,9 @@ body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
   height: 42px;
   min-width: 42px;
   min-height: 42px;
-  border-color: rgba(73, 211, 160, 0.5);
-  background: rgba(73, 211, 160, 0.11);
-  color: var(--accent);
+  border-color: rgba(255, 206, 92, 0.7);
+  background: rgba(255, 206, 92, 0.12);
+  color: #ffd87a;
   z-index: 3;
 }
 
@@ -6472,4 +6472,63 @@ body.stage-mode .cues-help-button {
 
 #helpDialog.single-help-column .help-column{
   justify-self: stretch;
+}
+
+#audioStatus.is-success {
+  color: var(--accent);
+  font-weight: 700;
+  text-shadow: 0 0 18px rgba(73, 211, 160, 0.34);
+}
+
+.stage-button {
+  border-color: rgba(73, 211, 160, 0.58);
+  background: rgba(73, 211, 160, 0.12);
+  color: var(--accent);
+}
+
+.stage-button:hover,
+.stage-button:focus-visible {
+  border-color: rgba(73, 211, 160, 0.86);
+  background: rgba(73, 211, 160, 0.22);
+  color: #d8fff0;
+}
+
+.stage-button.is-active {
+  border-color: rgba(73, 211, 160, 0.95);
+  background: rgba(73, 211, 160, 0.30);
+  color: #eafff6;
+}
+
+body.stage-mode #audioStatus {
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.2;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.72);
+}
+
+body.stage-mode #audioStatus.is-success {
+  color: var(--accent);
+  background: rgba(73, 211, 160, 0.08);
+  box-shadow: none;
+}
+
+body.stage-mode .pad.is-stage-hidden {
+  display: none !important;
+}
+
+body.stage-mode .pads {
+  justify-content: center;
+}
+
+body.stage-mode .pad:not(.is-stage-hidden) {
+  max-width: 420px;
+  justify-self: center;
+}
+
+body.stage-mode .pads.has-pad-layout {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 420px));
+  justify-content: center;
 }
