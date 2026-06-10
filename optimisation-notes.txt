@@ -68,3 +68,10 @@ Tests :
 
 Hypothèse :
 videoRecordForExport() ou audioSourceToBase64(record.video)
+BUG À TRAITER PLUS TARD
+
+VU Cue :
+- actuellement le VU cue affiche cueVolumeValue()
+- il ne mesure pas le signal audio réel
+- résultat : niveau fixe dès le départ, pas de variation selon le son
+- correction future : brancher la préécoute cue sur un AnalyserNode ou calculer un niveau depuis l'élément audio
