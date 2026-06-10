@@ -104,6 +104,7 @@
               </button>
               <div class="board-layout-controls" aria-label="Disposition des pads">
                 <select id="padColumns" aria-label="Nombre de colonnes">
+                  <option value="auto">Auto</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
@@ -113,7 +114,7 @@
                   <option value="7">7</option>
                   <option value="8">8</option>
                 </select>
-                <span class="layout-control-label">Colonnes</span>
+                <span id="padColumnsComputed" class="layout-control-label">Colonnes</span>
                 <span class="layout-rows-line">
                   <output id="padRows" class="layout-rows-output" aria-label="Nombre de lignes">3</output>
                   <span class="layout-control-label layout-rows-label">Lignes</span>
