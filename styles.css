@@ -6523,12 +6523,47 @@ body.stage-mode .pads {
   justify-content: center;
 }
 
-body.stage-mode .pad:not(.is-stage-hidden) {
-  max-width: 420px;
-  justify-self: center;
-}
-
 body.stage-mode .pads.has-pad-layout {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 420px));
+  grid-template-columns: repeat(var(--pad-columns), minmax(0, 420px)) !important;
   justify-content: center;
 }
+
+body.stage-mode .board-select {
+  display: none !important;
+}
+
+body.stage-mode .board-name {
+  display: block !important;
+}
+
+body.stage-mode #boardName {
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: clamp(1.35rem, 3vw, 2.4rem);
+  font-weight: 400;
+  text-align: center;
+}
+
+body.stage-mode .board-name > span {
+  display: none !important;
+}
+
+body.stage-mode #boardName {
+  color: var(--accent);
+  font-size: clamp(1rem, 2vw, 1.45rem);
+  text-align: left;
+  padding: 0;
+  box-shadow: none;
+}
+
+body.stage-mode #boardName {
+  color: var(--accent);
+}
+
+body.stage-mode #boardName:focus {
+  outline: none;
+  box-shadow: none;
+}
+

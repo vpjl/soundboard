@@ -410,6 +410,7 @@ const els = {
   cancelMicrophone: document.querySelector("#cancelMicrophone"),
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
+  padColumnsComputed: document.querySelector("#padColumnsComputed"),
   padRows: document.querySelector("#padRows"),
   cueEditor: document.querySelector("#cueEditor"),
   openCueDialog: document.querySelector("#openCueDialog"),
@@ -813,12 +814,21 @@ function normalizeLayoutNumber(value, fallback = 0) {
 
 function layoutForBoard(board) {
   const mode = normalizeLayoutMode(board?.layoutMode);
+  const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
+  if (mode === "auto") {
+    const columns = Math.max(1, Math.floor(Math.sqrt(padCount)));
+    return {
+      mode,
+      columns,
+      rows: Math.ceil(padCount / columns),
+    };
+  }
   if (mode !== "custom") return { mode, ...PAD_LAYOUTS[mode] };
   const columns = normalizeLayoutNumber(board?.padColumns, 4);
   return {
     mode,
     columns,
-    rows: Math.max(1, Math.ceil((Number(board?.padCount) || DEFAULT_PAD_COUNT) / columns)),
+    rows: Math.max(1, Math.ceil(padCount / columns)),
   };
 }
 
@@ -3090,9 +3100,13 @@ function renderBoardLayoutControls() {
   const layout = layoutForBoard(board);
   const portraitLocked = isPortablePortrait();
   if (els.padColumns) {
-    els.padColumns.value = portraitLocked ? 2 : layout.columns || 4;
+    els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
     els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
+  }
+  const displayedColumns = portraitLocked ? 2 : layout.columns || 4;
+  if (els.padColumnsComputed) {
+    els.padColumnsComputed.textContent = `${displayedColumns} colonne${displayedColumns > 1 ? "s" : ""}`;
   }
   if (els.padRows) {
     const rows = portraitLocked
@@ -3112,9 +3126,15 @@ function updateBoardLayout() {
     setStatus("Portrait smartphone: 2 colonnes fixes");
     return;
   }
-  board.layoutMode = "custom";
-  board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
-  board.padRows = Math.max(1, Math.ceil(board.padCount / board.padColumns));
+  if (els.padColumns?.value === "auto") {
+    board.layoutMode = "auto";
+    board.padColumns = 0;
+    board.padRows = 0;
+  } else {
+    board.layoutMode = "custom";
+    board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
+    board.padRows = Math.max(1, Math.ceil(board.padCount / board.padColumns));
+  }
   saveBoards();
   renderBoardLayoutControls();
   applyPadLayout(board);
@@ -3333,6 +3353,11 @@ async function renderPads() {
 }
 
 async function switchBoard(boardId) {
+  if (state.stageMode) {
+    if (els.boardSelect) els.boardSelect.value = state.currentBoardId;
+    setStatus("Mode scène : changement de board désactivé");
+    return;
+  }
   clearCueWaitTimer();
   setBoardPadEditing(false);
   state.currentBoardId = boardId;
@@ -6904,6 +6929,10 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   document.body.classList.toggle("stage-mode", state.stageMode);
   els.stageMode?.classList.toggle("is-active", state.stageMode);
   els.stageMode?.setAttribute("aria-pressed", String(state.stageMode));
+  if (els.boardSelect) {
+    els.boardSelect.disabled = state.stageMode;
+    els.boardSelect.setAttribute("aria-disabled", String(state.stageMode));
+  }
   localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
 
   if (state.stageMode) {
