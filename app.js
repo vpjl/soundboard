@@ -8312,6 +8312,14 @@ function seekPadToRatio(pad, ratio) {
   const offset = Math.min(duration, Math.max(0, ratio * duration));
   pad.resumeOffset = offset;
   updatePadProgress(pad);
+  if (state.cuePreviewPad === pad && state.cuePreviewAudio) {
+    try {
+      state.cuePreviewAudio.currentTime = offset;
+    } catch {}
+    updatePadProgress(pad);
+    updatePadTime(pad);
+    return;
+  }
   if (pad.videoName) {
     const video = videoElementForPad(pad);
     if (video) video.currentTime = offset;
