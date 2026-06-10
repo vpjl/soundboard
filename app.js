@@ -383,13 +383,14 @@ const els = {
   duplicateBoard: document.querySelector("#duplicateBoard"),
   boardNotice: document.querySelector("#boardNotice"),
   addPad: document.querySelector("#addPad"),
-  exportBoard: document.querySelector("#exportBoard"),
   exportBoardAudioOnly: document.querySelector("#exportBoardAudioOnly"),
   exportBoardLite: document.querySelector("#exportBoardLite"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
   relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
+  relinkVideoFolder: document.querySelector("#relinkVideoFolder"),
+  relinkVideoFolderInput: document.querySelector("#relinkVideoFolderInput"),
   folderImportDialog: document.querySelector("#folderImportDialog"),
   folderImportList: document.querySelector("#folderImportList"),
   folderImportSummary: document.querySelector("#folderImportSummary"),
@@ -4370,10 +4371,11 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     const pad = orderedPadByIndex.get(index) || state.pads.find((item) => item.index === index) || makePad(index);
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
-    const audioInfo = await resolvePadAudioRecord(pad, meta, saved);
-    const exportAudio = includeAudio ? await audioRecordForExport(audioInfo, "data") : null;
+    const hasVideoPad = Boolean(saved?.video || saved?.videoName || meta?.videoName || meta?.videoPath);
+    const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
+    const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
-    const audioRef = Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
+    const audioRef = hasVideoPad ? NaN : Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
     const audioUid = ensureAudioRecordUid(audioInfo || saved || meta, meta?.uid || saved?.uid || pad.uid);
     pads.push({
       index,
@@ -4665,6 +4667,17 @@ async function importBoardFile(file) {
       } catch {
         audioFailures += 1;
       }
+    } else if (item.video?.name || item.video?.path) {
+      await dbSet(padAudioKey(transientPad), {
+        ...(await dbGet(padAudioKey(transientPad)) || {}),
+        uid: meta.uid,
+        audioUid: meta.audioUid || item.video?.audioUid || createId(),
+        title: meta.title,
+        videoName: item.video.name || meta.videoName || meta.title,
+        videoPath: item.video.path || meta.videoPath || item.video.name || meta.title,
+        videoType: item.video.type || meta.videoType || "video/mp4",
+        videoDuration: Number(item.video.duration || meta.videoDuration) || 0,
+      });
     }
   }
 
@@ -5309,8 +5322,8 @@ async function repairAccidentalPadTitles() {
   for (const pad of state.pads) {
     const accidentalTitle = KEYS[pad.index];
     const title = `Pad ${pad.index + 1}`;
-    const meta = await dbGet(padMetaKey(pad));
-    const saved = await dbGet(padAudioKey(pad));
+    const meta = await dbGet(padMetaKeyFor(boardId, pad.index));
+    const saved = await dbGet(padAudioKeyFor(boardId, pad.index));
     const currentTitle = meta?.title || saved?.title;
 
     if (currentTitle && currentTitle !== accidentalTitle) continue;
@@ -5536,6 +5549,83 @@ function audioFileIdentity(file) {
     normalizedFileName(file?.name),
     normalizedFileStem(file?.name),
   ].filter(Boolean);
+}
+
+function videoFilesFromSelection(files) {
+  return [...(files || [])].filter((file) => (
+    file?.type?.startsWith("video/")
+    || /\.(mp4|mov|m4v|webm)$/i.test(file?.name || "")
+  )).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
+}
+
+function videoFileIdentity(file) {
+  return [
+    normalizedFileName(file?.webkitRelativePath || file?.name),
+    normalizedFileName(file?.name),
+    normalizedFileStem(file?.name),
+  ].filter(Boolean);
+}
+
+function missingVideoCandidateNames(pad, meta = null, saved = null) {
+  return [
+    pad.videoName,
+    pad.videoPath,
+    pad.title,
+    meta?.videoPath,
+    meta?.videoName,
+    meta?.title,
+    saved?.videoName,
+    saved?.videoPath,
+    saved?.title,
+  ]
+    .flatMap((value) => [normalizedFileName(value), normalizedFileStem(value)])
+    .filter(Boolean);
+}
+
+async function relinkMissingVideoFromFolder(files, boardId = state.currentBoardId) {
+  const videoFiles = videoFilesFromSelection(files);
+  if (!videoFiles.length) {
+    setStatus("Aucun fichier vidéo trouvé dans ce dossier");
+    return;
+  }
+
+  const byName = new Map();
+  videoFiles.forEach((file) => {
+    videoFileIdentity(file).forEach((key) => {
+      if (key && !byName.has(key)) byName.set(key, file);
+    });
+  });
+
+  let linked = 0;
+  let missing = 0;
+  const usedFiles = new Set();
+
+  for (const pad of state.pads) {
+    const meta = await dbGet(padMetaKey(pad));
+    const saved = await dbGet(padAudioKey(pad));
+    const expectsVideo = Boolean(pad.videoName || pad.videoPath || meta?.videoName || meta?.videoPath || saved?.videoName || saved?.videoPath);
+
+
+    if (!expectsVideo || saved?.video) continue;
+
+    const candidates = missingVideoCandidateNames(pad, meta, saved);
+    const file = candidates
+      .map((name) => byName.get(name))
+      .find((item) => item && !usedFiles.has(item));
+
+    if (!file) {
+      missing += 1;
+      pad.node?.classList.add("is-missing-audio");
+      continue;
+    }
+
+    await loadVideoIntoPad(pad, file);
+    usedFiles.add(file);
+    linked += 1;
+  }
+
+  setBoardPadEditing(false);
+  setStatus(linked ? `${linked} vidéo${linked > 1 ? "s" : ""} retrouvée${linked > 1 ? "s" : ""}` : `${missing || "Aucune"} vidéo manquante retrouvée`);
 }
 
 async function boardHasAnyMedia(board = currentBoard()) {
@@ -6004,6 +6094,29 @@ async function restorePad(pad) {
     log("updatePadType");
     return finish("video restore complete");
   }
+  if (!rawSaved?.video && (meta?.videoName || meta?.videoPath || rawSaved?.videoName || rawSaved?.videoPath)) {
+    summary.detectedType = "video";
+    summary.audioLink = "video-missing";
+    pad.audioUid = ensureAudioRecordUid(rawSaved || meta, pad.uid);
+    pad.videoName = meta?.videoName || rawSaved?.videoName || "";
+    pad.videoPath = meta?.videoPath || rawSaved?.videoPath || pad.videoName;
+    pad.videoType = meta?.videoType || rawSaved?.videoType || "video/mp4";
+    pad.videoDuration = Number(meta?.videoDuration || rawSaved?.videoDuration) || 0;
+    summary.duration = pad.videoDuration;
+    pad.buffer = null;
+    pad.hasDirectAudio = false;
+    pad.audioName = "";
+    pad.audioPath = "";
+    pad.audioType = "";
+    setPadTitle(pad, meta?.title || rawSaved?.title || cleanName(pad.videoName || `Pad ${pad.index + 1}`));
+    setPadDuration(pad, pad.videoDuration);
+    pad.node.classList.remove("is-empty");
+    pad.node.classList.add("is-missing-audio");
+    updatePadType(pad);
+    log("updatePadType");
+    return finish("video metadata restore complete");
+  }
+
   const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
   pad.audioStored = Boolean(saved?.audio || rawSaved?.audio);
   summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved, saved);
@@ -6554,6 +6667,12 @@ async function playAudioDialogTest() {
 
 async function savePadMeta(pad) {
   if (!pad.uid) pad.uid = createId();
+  const previousMeta = await dbGet(padMetaKey(pad));
+  const previousSaved = await dbGet(padAudioKey(pad));
+  const preservedVideoName = pad.videoName || previousMeta?.videoName || previousSaved?.videoName || "";
+  const preservedVideoPath = pad.videoPath || previousMeta?.videoPath || previousSaved?.videoPath || "";
+  const preservedVideoType = pad.videoType || previousMeta?.videoType || previousSaved?.videoType || "";
+  const preservedVideoDuration = pad.videoDuration || previousMeta?.videoDuration || previousSaved?.videoDuration || 0;
   const meta = {
     uid: pad.uid || createId(),
     title: pad.title,
@@ -10250,15 +10369,10 @@ async function init() {
     exportBoardNotice().catch(() => setStatus("Notice impossible"));
   });
   els.addPad?.addEventListener("click", addPad);
-  els.exportBoard?.addEventListener("click", () => {
-    exportCurrentBoard("full")
-      .then(() => setBoardPadEditing(false))
-      .catch(() => setStatus("Export impossible"));
-  });
   els.exportBoardAudioOnly?.addEventListener("click", () => {
     exportCurrentBoard("audioOnly")
       .then(() => setBoardPadEditing(false))
-      .catch(() => setStatus("Export sons sans vidéo impossible"));
+      .catch(() => setStatus("Export sons et réglages impossible"));
   });
   els.exportBoardLite?.addEventListener("click", () => {
     exportCurrentBoard("settings")
@@ -10285,6 +10399,19 @@ async function init() {
     if (files?.length) {
       relinkMissingAudioFromFolder(files).catch(() => setStatus("Relocalisation impossible"));
       els.relinkAudioFolderInput.value = "";
+    }
+  });
+  els.relinkVideoFolder?.addEventListener("click", () => {
+    if (!els.relinkVideoFolderInput) return;
+    setStatus("Choisir le dossier contenant les vidéos");
+    els.relinkVideoFolderInput.click();
+  });
+  els.relinkVideoFolderInput?.addEventListener("change", () => {
+    const files = els.relinkVideoFolderInput.files;
+    if (files?.length) {
+      const boardId = state.currentBoardId;
+      relinkMissingVideoFromFolder(files, boardId).catch(() => setStatus("Relocalisation vidéo impossible"));
+      els.relinkVideoFolderInput.value = "";
     }
   });
   els.applyFolderImport?.addEventListener("click", () => {
