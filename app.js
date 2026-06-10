@@ -1121,6 +1121,7 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
     prepareAudio();
     const buffer = await state.audioContext.decodeAudioData(audioSource.slice(0));
     setPadDecodedAudioMetadata(pad, buffer, audioSource);
+    setPadDuration(pad, buffer.duration);
     return buffer;
   })();
 
@@ -4582,6 +4583,10 @@ async function importBoardFile(file) {
       audioName: item.audio?.name || item.audioName || "",
       audioPath: item.audio?.path || item.audioPath || item.audio?.name || "",
       audioPathTrusted: Boolean(item.audio?.pathTrusted || item.audioPathTrusted),
+      audioDuration: Number(item.audioDuration ?? item.audio?.duration) || 0,
+      audioSampleRate: Number(item.audioSampleRate) || 0,
+      audioChannels: Number(item.audioChannels) || 0,
+      audioByteLength: Number(item.audioByteLength) || 0,
       videoName: item.video?.name || item.videoName || "",
       videoPath: item.video?.path || item.videoPath || item.video?.name || "",
       videoType: item.video?.type || item.videoType || "",
