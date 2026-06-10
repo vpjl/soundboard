@@ -6667,6 +6667,35 @@ function toggleStageLock() {
   setStatus("Mode scène déverrouillé");
 }
 
+async function prepareBoardForStage() {
+  const pads = orderedPadsForCurrentBoard()
+    .filter((pad) => pad.audioStored && !pad.buffer);
+
+  const total = pads.length;
+  if (!total) {
+    setStatus("Board prêt scène");
+    return true;
+  }
+
+  for (let index = 0; index < pads.length; index += 1) {
+    const pad = pads[index];
+    setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`);
+    try {
+      pad.buffer = await ensurePadAudioDecoded(pad);
+      setPadDuration(pad, pad.buffer.duration);
+      renderWaveform(pad);
+    } catch (error) {
+      console.error(error);
+      pad.node?.classList.add("is-missing-audio");
+      setStatus(`Préparation scène impossible : ${pad.title}`);
+      return false;
+    }
+  }
+
+  setStatus("Board prêt scène");
+  return true;
+}
+
 function syncHoverLabels(root = document) {
   root.querySelectorAll("button[aria-label], [role='button'][aria-label]").forEach((button) => {
     if (!button.getAttribute("title")) {
@@ -6675,7 +6704,7 @@ function syncHoverLabels(root = document) {
   });
 }
 
-function setStageMode(enabled, requestFullscreen = false, options = {}) {
+async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   const lock = stageLockSettings();
   if (!enabled && state.stageMode && lock.enabled && !options.skipLock) {
     const password = window.prompt("Mot de passe mode scène");
@@ -6684,6 +6713,11 @@ function setStageMode(enabled, requestFullscreen = false, options = {}) {
       return;
     }
   }
+  if (enabled) {
+    const ready = await prepareBoardForStage();
+    if (!ready) return;
+  }
+
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
   els.stageMode?.classList.toggle("is-active", state.stageMode);
