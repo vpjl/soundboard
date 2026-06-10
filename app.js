@@ -129,6 +129,9 @@ const state = {
   cueRunning: false,
   cuePreviewAudio: null,
   cuePreviewUtterance: null,
+  cuePreviewAnalyser: null,
+  cuePreviewMeterData: null,
+  cuePreviewMeterSource: null,
   cuePreviewPad: null,
   cuePreviewUrl: "",
   cuePreviewTrimHandler: null,
@@ -6255,6 +6258,10 @@ function stopCuePreview() {
     URL.revokeObjectURL(state.cuePreviewUrl);
     state.cuePreviewUrl = "";
   }
+  state.cuePreviewMeterSource?.disconnect?.();
+  state.cuePreviewMeterSource = null;
+  state.cuePreviewAnalyser = null;
+  state.cuePreviewMeterData = null;
   setMeterLevel(els.cueVu, 0);
   state.audioDialogStartedCue = null;
 }
@@ -6390,6 +6397,27 @@ async function handleOutputSelectKeydown(event, type) {
   }
 }
 
+function connectCuePreviewMeter(media) {
+  if (!state.audioContext || !media?.captureStream) return false;
+  try {
+    const stream = media.captureStream();
+    const source = state.audioContext.createMediaStreamSource(stream);
+    const analyser = state.audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    state.cuePreviewMeterSource = source;
+    state.cuePreviewAnalyser = analyser;
+    state.cuePreviewMeterData = new Uint8Array(analyser.fftSize);
+    return true;
+  } catch (error) {
+    console.warn("VU Cue indisponible", error);
+    state.cuePreviewMeterSource = null;
+    state.cuePreviewAnalyser = null;
+    state.cuePreviewMeterData = null;
+    return false;
+  }
+}
+
 async function previewPadCue(pad, options = {}) {
   if ((state.cuePreviewAudio || state.cuePreviewUtterance) && state.cuePreviewPad === pad) {
     stopCuePreview();
@@ -6485,6 +6513,8 @@ async function previewPadCue(pad, options = {}) {
     pad.node?.classList.add("is-cue-previewing");
     pad.cueButton?.classList.add("is-active");
     pad.cueButton?.setAttribute("aria-pressed", "true");
+    prepareAudio();
+    connectCuePreviewMeter(audio);
     await audio.play();
     if (!pad.loop && segment.duration > 0) {
       state.cuePreviewTrimTimer = window.setTimeout(() => {
@@ -9787,7 +9817,12 @@ function setMeterLevel(element, level) {
 function updateMeters() {
   const hasPlayingPad = state.pads.some((pad) => pad.source);
   setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
-  setMeterLevel(els.cueVu, (state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance ? cueVolumeValue() : 0);
+  setMeterLevel(
+    els.cueVu,
+    state.cuePreviewAnalyser
+      ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData)
+      : ((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance ? cueVolumeValue() : 0)
+  );
   state.pads.forEach((pad) => {
     setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
   });
