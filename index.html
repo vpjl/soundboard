@@ -168,12 +168,13 @@
                   <path d="m17.3 16.3 2.7 2.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
-              <button id="exportBoard" class="icon-button board-transfer-button" type="button" aria-label="Exporter le board">
+              <button id="relinkVideoFolder" class="icon-button board-transfer-button" type="button" aria-label="Sélectionner un dossier de vidéos">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M10 11v6l6-3-6-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <button id="exportBoardAudioOnly" class="icon-button board-transfer-button" type="button" aria-label="Exporter réglages et sons sans vidéo">
+              <button id="exportBoardAudioOnly" class="icon-button board-transfer-button" type="button" aria-label="Exporter sons et réglages">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M8 8h3l2 2h3v5H8V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -258,6 +259,7 @@
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
           <input id="relinkAudioFolderInput" class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac,audio/*" webkitdirectory directory multiple>
+          <input id="relinkVideoFolderInput" class="file-input" type="file" accept=".mp4,.mov,.m4v,.webm,video/*" webkitdirectory directory multiple>
         </div>
         </div>
 
@@ -825,18 +827,13 @@
                     <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Importe un board au format json, avec ou sans audio.</dd>
-                <dt aria-label="Exporter un board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </dt><dd>Exporte le board courant avec les sons.</dd>
-                <dt aria-label="Exporter réglages et sons sans vidéo">
+                <dt aria-label="Exporter sons et réglages">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <path d="M8 8h3l2 2h3v5H8V8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <path d="M5 5l14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Exporte les réglages et les sons audio, sans intégrer les vidéos.</dd>
+                </dt><dd>Exporte les réglages et les sons audio. Les vidéos ne sont pas intégrées : conservez-les séparément dans leur dossier d’origine, puis reliez-les après import si nécessaire.</dd>
                 <dt aria-label="Exporter les réglages seuls">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
