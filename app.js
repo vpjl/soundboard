@@ -6451,6 +6451,9 @@ async function previewPadCue(pad, options = {}) {
     try {
       audio.currentTime = segment.start;
     } catch {}
+    pad.resumeOffset = segment.start;
+    updatePadProgress(pad);
+    updatePadTime(pad);
     const restartCueSegment = () => {
       try {
         audio.currentTime = segment.start;
