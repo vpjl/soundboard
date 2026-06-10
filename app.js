@@ -1313,7 +1313,9 @@ function setBoardPadEditing(editing) {
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
-  setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
+  if (!state.stageMode) {
+    setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
+  }
 }
 
 async function beginBoardEdit() {
@@ -3326,7 +3328,7 @@ async function renderPads() {
   updateShortcutIndicators();
   updateRecordingUi();
   syncCueControls();
-  setStatus(`${board.name} charge`);
+  setStatus("Board prêt pour l’édition : interface restaurée");
   perf.log("complete", { padCount: state.pads.length });
 }
 
@@ -6781,6 +6783,7 @@ async function safeSaveRestoredPadMeta(pad, meta) {
 
 function setStatus(text) {
   els.status.textContent = text;
+  els.status.classList.toggle("is-success", String(text || "").startsWith("Board prêt"));
 }
 
 function stageLockSettings() {
@@ -6826,11 +6829,23 @@ function toggleStageLock() {
 
 async function prepareBoardForStage() {
   const pads = orderedPadsForCurrentBoard()
-    .filter((pad) => pad.audioStored && !pad.buffer);
+    .filter((pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer);
 
   const total = pads.length;
   if (!total) {
-    setStatus("Board prêt scène");
+    const hasAnyMedia = orderedPadsForCurrentBoard().some((pad) => (
+      pad.audioStored
+      || pad.buffer
+      || pad.videoName
+      || pad.videoPath
+      || pad.textMode
+      || String(pad.textContent || "").trim()
+    ));
+    if (!hasAnyMedia) {
+      setStatus("Mode scène impossible : aucun média sur ce board");
+      return false;
+    }
+    setStatus("Board prêt pour la scène : aucun média à précharger");
     return true;
   }
 
@@ -6849,7 +6864,7 @@ async function prepareBoardForStage() {
     }
   }
 
-  setStatus("Board prêt scène");
+  setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`);
   return true;
 }
 
@@ -6859,6 +6874,16 @@ function syncHoverLabels(root = document) {
       button.setAttribute("title", button.getAttribute("aria-label"));
     }
   });
+}
+
+function syncStageVisiblePads() {
+  let activeCount = 0;
+  state.pads.forEach((pad) => {
+    const active = cuePlayablePad(pad);
+    pad.node?.classList.toggle("is-stage-hidden", state.stageMode && !active);
+    if (state.stageMode && active) activeCount += 1;
+  });
+  return activeCount;
 }
 
 async function setStageMode(enabled, requestFullscreen = false, options = {}) {
@@ -6883,16 +6908,21 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   if (state.stageMode) {
     setBoardPadEditing(false);
+    const activeCount = syncStageVisiblePads();
+    setStatus(`Board prêt pour la scène : ${activeCount} pad${activeCount > 1 ? "s" : ""} actif${activeCount > 1 ? "s" : ""}`);
     const canRequestFullscreen = Boolean(document.documentElement.requestFullscreen) && !isPortableDevice();
     if (requestFullscreen && !document.fullscreenElement && canRequestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
-    setStatus(requestFullscreen && !canRequestFullscreen ? "Mode scene: plein ecran via icone smartphone" : "Mode scene");
+    if (requestFullscreen && !canRequestFullscreen) {
+      setStatus("Board prêt pour la scène : plein écran via icône smartphone");
+    }
   } else {
+    syncStageVisiblePads();
     if (requestFullscreen && document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});
     }
-    setStatus("Mode scene quitte");
+    setStatus("Mode édition");
   }
 }
 
