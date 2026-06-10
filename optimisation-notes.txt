@@ -1,8 +1,77 @@
 Objectif :
-- Mode edit/live : métadonnées seulement
+- Mode edit/live : métadonnées seulement - réalisé
 - Mode scène : préchargement complet
+Pour l’instant, le mode scène n’a pas encore été modifié pour :
+
+précharger tous les sons ;
+attendre la fin du décodage ;
+afficher Board prêt scène.
+
+
 
 Questions :
 - Où restorePad déclenche-t-il le décodage ?
 - Où playPad déclenche-t-il ensurePadAudioDecoded ?
 - Existe-t-il déjà un indicateur global de chargement ?
+
+Où restorePad() déclenche-t-il le décodage ?
+
+Avant, ici :
+
+pad.buffer = await ensurePadAudioDecoded(pad, saved, rawSaved, meta);
+
+Maintenant, ce décodage est désactivé au chargement par :
+
+function shouldPreloadAudioOnRestore() {
+  return false;
+}
+Où playPad() déclenche-t-il ensurePadAudioDecoded() ?
+
+Dans playPad(), quand :
+
+!pad.buffer && pad.audioStored
+
+Correction validée :
+
+pad.buffer = await ensurePadAudioDecoded(pad);
+Existe-t-il déjà un indicateur global de chargement ?
+
+Pas encore pour le mode scène.
+
+Il existe déjà setStatus(...), utilisable pour afficher :
+
+Préparation scène : 3 / 19
+Board prêt scène
+
+mais ce préchargement scène n’est pas encore implémenté.
+
+État recommandé
+
+Vous pouvez commiter cette étape comme :
+
+git add app.js
+git commit -m "perf: defer audio decoding until playback"
+git push origin optimize-loading-by-mode
+
+Puis PR suivante : préchargement obligatoire au passage en mode scène.
+
+
+BUG À TRAITER PLUS TARD
+
+Export complet impossible avec pad vidéo seul.
+
+Tests :
+- Export réglages seuls : OK
+- Export audio seul : OK
+- Export board sans vidéo : OK
+- Export board avec uniquement un pad vidéo : ECHEC
+
+Hypothèse :
+videoRecordForExport() ou audioSourceToBase64(record.video)
+BUG À TRAITER PLUS TARD
+
+VU Cue :
+- actuellement le VU cue affiche cueVolumeValue()
+- il ne mesure pas le signal audio réel
+- résultat : niveau fixe dès le départ, pas de variation selon le son
+- correction future : brancher la préécoute cue sur un AnalyserNode ou calculer un niveau depuis l'élément audio

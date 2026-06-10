@@ -1121,6 +1121,7 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
     prepareAudio();
     const buffer = await state.audioContext.decodeAudioData(audioSource.slice(0));
     setPadDecodedAudioMetadata(pad, buffer, audioSource);
+    setPadDuration(pad, buffer.duration);
     return buffer;
   })();
 
@@ -4582,6 +4583,10 @@ async function importBoardFile(file) {
       audioName: item.audio?.name || item.audioName || "",
       audioPath: item.audio?.path || item.audioPath || item.audio?.name || "",
       audioPathTrusted: Boolean(item.audio?.pathTrusted || item.audioPathTrusted),
+      audioDuration: Number(item.audioDuration ?? item.audio?.duration) || 0,
+      audioSampleRate: Number(item.audioSampleRate) || 0,
+      audioChannels: Number(item.audioChannels) || 0,
+      audioByteLength: Number(item.audioByteLength) || 0,
       videoName: item.video?.name || item.videoName || "",
       videoPath: item.video?.path || item.videoPath || item.video?.name || "",
       videoType: item.video?.type || item.videoType || "",
@@ -6446,6 +6451,9 @@ async function previewPadCue(pad, options = {}) {
     try {
       audio.currentTime = segment.start;
     } catch {}
+    pad.resumeOffset = segment.start;
+    updatePadProgress(pad);
+    updatePadTime(pad);
     const restartCueSegment = () => {
       try {
         audio.currentTime = segment.start;
@@ -6667,6 +6675,35 @@ function toggleStageLock() {
   setStatus("Mode scène déverrouillé");
 }
 
+async function prepareBoardForStage() {
+  const pads = orderedPadsForCurrentBoard()
+    .filter((pad) => pad.audioStored && !pad.buffer);
+
+  const total = pads.length;
+  if (!total) {
+    setStatus("Board prêt scène");
+    return true;
+  }
+
+  for (let index = 0; index < pads.length; index += 1) {
+    const pad = pads[index];
+    setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`);
+    try {
+      pad.buffer = await ensurePadAudioDecoded(pad);
+      setPadDuration(pad, pad.buffer.duration);
+      renderWaveform(pad);
+    } catch (error) {
+      console.error(error);
+      pad.node?.classList.add("is-missing-audio");
+      setStatus(`Préparation scène impossible : ${pad.title}`);
+      return false;
+    }
+  }
+
+  setStatus("Board prêt scène");
+  return true;
+}
+
 function syncHoverLabels(root = document) {
   root.querySelectorAll("button[aria-label], [role='button'][aria-label]").forEach((button) => {
     if (!button.getAttribute("title")) {
@@ -6675,7 +6712,7 @@ function syncHoverLabels(root = document) {
   });
 }
 
-function setStageMode(enabled, requestFullscreen = false, options = {}) {
+async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   const lock = stageLockSettings();
   if (!enabled && state.stageMode && lock.enabled && !options.skipLock) {
     const password = window.prompt("Mot de passe mode scène");
@@ -6684,6 +6721,11 @@ function setStageMode(enabled, requestFullscreen = false, options = {}) {
       return;
     }
   }
+  if (enabled) {
+    const ready = await prepareBoardForStage();
+    if (!ready) return;
+  }
+
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
   els.stageMode?.classList.toggle("is-active", state.stageMode);
@@ -8278,6 +8320,14 @@ function seekPadToRatio(pad, ratio) {
   const offset = Math.min(duration, Math.max(0, ratio * duration));
   pad.resumeOffset = offset;
   updatePadProgress(pad);
+  if (state.cuePreviewPad === pad && state.cuePreviewAudio) {
+    try {
+      state.cuePreviewAudio.currentTime = offset;
+    } catch {}
+    updatePadProgress(pad);
+    updatePadTime(pad);
+    return;
+  }
   if (pad.videoName) {
     const video = videoElementForPad(pad);
     if (video) video.currentTime = offset;
