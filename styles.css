@@ -2039,6 +2039,27 @@ body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
   font-size: 0.72rem;
 }
 
+body.crossfade-armed,
+body.crossfade-armed .pad.is-crossfade-target {
+  cursor: crosshair;
+}
+
+body.crossfade-armed .pad.is-crossfade-source {
+  outline: 2px solid var(--color_status_warning);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color_status_warning) 20%, transparent);
+}
+
+body.crossfade-armed .pad.is-crossfade-target {
+  outline: 2px solid var(--color_status_progress);
+  outline-offset: 3px;
+}
+
+body.crossfade-armed .pad.is-crossfade-target:hover,
+body.crossfade-armed .pad.is-crossfade-target:focus-within {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color_status_progress) 24%, transparent);
+}
+
 .option-badges {
   display: flex;
   flex-wrap: wrap;

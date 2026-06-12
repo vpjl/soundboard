@@ -179,6 +179,8 @@ const state = {
   cuePreviewTrimHandler: null,
   cuePreviewEndedHandler: null,
   cuePreviewTrimTimer: null,
+  crossfadeArmed: false,
+  crossfadeSourcePad: null,
   folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "par défaut",
@@ -2025,6 +2027,9 @@ function makePad(index) {
 
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
+    handleManualCrossfadePadClick(pad, event);
+  }, { capture: true });
+  node.addEventListener("click", (event) => {
     if (document.body.dataset.skin !== "basic" || pad.node.classList.contains("is-editing")) return;
     if (!pad.visualImage && !pad.color) return;
     if (pad.visualImageHidden) return;
@@ -2470,7 +2475,7 @@ function syncCueControls() {
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
   const hasCrossfade = patchBayRows().length > 0;
-  if (els.showCables) els.showCables.disabled = !hasCrossfade;
+  if (els.showCables) els.showCables.disabled = false;
   if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
   if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
   if (els.cueStatus) {
@@ -3451,6 +3456,7 @@ function startPadDrag(pad, event) {
 
 async function renderPads() {
   const perf = startPerfMeasure("renderPads");
+  cancelManualCrossfade({ silent: true });
   stopAll();
   resetRecordingState();
   state.boardEditMode = false;
@@ -9524,6 +9530,121 @@ function executeEndCrossfade(pad) {
   executeCrossfadeAction(pad.endStartMode, pad.endStartTarget, pad, { pulse: true });
 }
 
+function audioPadsCurrentlyPlaying() {
+  return state.pads.filter((pad) => pad?.source && isPadPlaying(pad));
+}
+
+function isManualCrossfadeAudioTarget(pad) {
+  return Boolean(
+    pad
+    && padType(pad) === "audio"
+    && (pad.buffer || pad.audioStored || pad.audioName || pad.audioPath)
+  );
+}
+
+function syncManualCrossfadeUi() {
+  const armed = Boolean(state.crossfadeArmed && state.crossfadeSourcePad);
+  document.body.classList.toggle("crossfade-armed", armed);
+  const buttonActive = armed || document.body.classList.contains("show-cables");
+  els.showCables?.classList.toggle("is-active", buttonActive);
+  els.showCables?.setAttribute("aria-pressed", String(buttonActive));
+  els.showCables?.setAttribute("aria-label", armed ? "Annuler crossfade armé" : "Armer crossfade manuel");
+  els.showCables?.setAttribute("title", armed ? "Annuler crossfade armé" : "Armer crossfade manuel");
+  state.pads.forEach((pad) => {
+    const isSource = armed && pad === state.crossfadeSourcePad;
+    const isTarget = armed && pad !== state.crossfadeSourcePad && isManualCrossfadeAudioTarget(pad);
+    pad.node?.classList.toggle("is-crossfade-source", isSource);
+    pad.node?.classList.toggle("is-crossfade-target", isTarget);
+  });
+}
+
+function cancelManualCrossfade(options = {}) {
+  const wasArmed = Boolean(state.crossfadeArmed);
+  state.crossfadeArmed = false;
+  state.crossfadeSourcePad = null;
+  syncManualCrossfadeUi();
+  if (wasArmed && !options.silent) {
+    setStatus(options.message || "Crossfade annulé");
+  }
+}
+
+function armManualCrossfade() {
+  if (state.crossfadeArmed) {
+    cancelManualCrossfade();
+    return;
+  }
+
+  const activePads = state.pads.filter((pad) => isPadPlaying(pad));
+  if (!activePads.length) {
+    setStatus("Aucun pad actif : crossfade manuel indisponible.");
+    return;
+  }
+  if (activePads.length > 1) {
+    setStatus("Plusieurs pads actifs : crossfade manuel indisponible.");
+    return;
+  }
+
+  const [sourcePad] = audioPadsCurrentlyPlaying();
+  if (!sourcePad || padType(sourcePad) !== "audio") {
+    setStatus("Aucun pad audio en lecture : crossfade manuel indisponible.");
+    return;
+  }
+
+  setCableOverlayVisible(false);
+  state.crossfadeArmed = true;
+  state.crossfadeSourcePad = sourcePad;
+  syncManualCrossfadeUi();
+  setStatus("Choisissez le pad cible", "progress");
+}
+
+async function executeManualCrossfade(targetPad) {
+  const sourcePad = state.crossfadeSourcePad;
+  if (!state.crossfadeArmed || !sourcePad) return;
+
+  if (!isPadPlaying(sourcePad) || !sourcePad.source) {
+    cancelManualCrossfade({ message: "Crossfade annulé : source arrêtée" });
+    return;
+  }
+
+  if (state.pads.some((pad) => pad !== sourcePad && isPadPlaying(pad))) {
+    cancelManualCrossfade({ message: "Plusieurs pads actifs : crossfade manuel indisponible." });
+    return;
+  }
+
+  if (targetPad === sourcePad) {
+    cancelManualCrossfade();
+    return;
+  }
+
+  if (!isManualCrossfadeAudioTarget(targetPad)) {
+    setStatus(padType(targetPad) === "audio"
+      ? "Pad cible sans audio : crossfade manuel indisponible."
+      : "Cible non audio : crossfade manuel indisponible.");
+    return;
+  }
+
+  cancelManualCrossfade({ silent: true });
+  flashCrossfadeTarget(targetPad, "start");
+  flashCrossfadeTarget(sourcePad, "stop");
+  try {
+    await playPad(targetPad, true, 0, { skipStartCrossfade: true });
+    stopPad(sourcePad, true, false, { triggerEnd: false });
+    setStatus(`Crossfade : ${sourcePad.title} → ${targetPad.title}`, "success");
+  } catch {
+    setStatus("Crossfade impossible", "danger");
+  }
+}
+
+function handleManualCrossfadePadClick(pad, event) {
+  if (!state.crossfadeArmed) return false;
+  if (event.target.closest("input, select, textarea, dialog, .pad-progress")) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+  executeManualCrossfade(pad);
+  return true;
+}
+
 function cableColor(action) {
   if (action === "play") return "#49d3a0";
   if (action === "stop") return "#ff5f56";
@@ -9777,8 +9898,6 @@ function positionCableLegend() {
 
 function setCableOverlayVisible(visible) {
   document.body.classList.toggle("show-cables", Boolean(visible));
-  els.showCables?.classList.toggle("is-active", Boolean(visible));
-  els.showCables?.setAttribute("aria-pressed", String(Boolean(visible)));
   if (visible) drawCableOverlay();
   if (!visible) {
     els.pads?.closest(".deck")?.style.removeProperty("--cable-extra-bottom");
@@ -9787,6 +9906,7 @@ function setCableOverlayVisible(visible) {
       els.cableLegend.style.top = "";
     }
   }
+  syncManualCrossfadeUi();
 }
 
 function reverbImpulse(preset) {
@@ -10404,6 +10524,7 @@ async function playPadVideo(pad, options = {}) {
 function clearPlayingPad(pad, source, triggerEnd = false) {
   if (source && pad.source !== source) return;
   const stoppedManually = Boolean(pad.stopAt);
+  const wasManualCrossfadeSource = state.crossfadeArmed && state.crossfadeSourcePad === pad;
   pad.source = null;
   pad.gain = null;
   pad.pan = null;
@@ -10421,6 +10542,9 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   updatePadTime(pad);
   applyDucking();
   updateAllPadAlerts();
+  if (wasManualCrossfadeSource) {
+    cancelManualCrossfade({ message: "Crossfade annulé : source arrêtée" });
+  }
   if (triggerEnd) {
     if (!stoppedManually) showPadNoteOverlay(pad, "end");
     executeEndCrossfade(pad);
@@ -10833,6 +10957,10 @@ function bindKeyboard() {
     const index = padIndexForShortcutKey(key);
     if (index >= 0 && state.pads[index]) {
       event.preventDefault();
+      if (state.crossfadeArmed) {
+        executeManualCrossfade(state.pads[index]);
+        return;
+      }
       flashButton(state.pads[index].node.querySelector('[data-action="play"]'));
       if (state.pads[index].playMode === "hold") {
         state.heldKeys.add(key);
@@ -10844,6 +10972,10 @@ function bindKeyboard() {
 
     if (key === "ESCAPE") {
       event.preventDefault();
+      if (state.crossfadeArmed) {
+        cancelManualCrossfade();
+        return;
+      }
       stopAll();
     }
   });
@@ -10917,7 +11049,7 @@ async function init() {
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
-  bindSafeActionButton(els.showCables, () => setCableOverlayVisible(!document.body.classList.contains("show-cables")));
+  bindSafeActionButton(els.showCables, () => armManualCrossfade());
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
     updateShortcutIndicators();
