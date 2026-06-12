@@ -42,10 +42,17 @@
           </div>
         <div class="board-strip" aria-label="Boards">
           <div class="board-main">
-            <label class="board-select">
-              <span>Board</span>
-              <select id="boardSelect"></select>
-            </label>
+            <div class="board-select">
+              <label for="boardSelect">Board</label>
+              <div class="board-select-control">
+                <select id="boardSelect"></select>
+                <button id="deleteBoard" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
             <label class="board-name">
               <span>Nom</span>
               <input id="boardName" type="text" maxlength="48">
@@ -186,11 +193,6 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
-              <button id="deleteBoard" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
               </div>
