@@ -8312,7 +8312,7 @@ function bindAudioDialogTrim() {
   els.audioWaveform.addEventListener("pointercancel", stopDrag);
 }
 
-function syncAudioDialog(pad = state.audioPad) {
+function syncAudioDialog(pad = state.audioPad, options = {}) {
   if (!pad) return;
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
   if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
@@ -8385,7 +8385,7 @@ function syncAudioDialog(pad = state.audioPad) {
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   syncAudioDialogMediaAvailability(pad);
-  renderAudioDialogWaveform(pad);
+  if (options.renderWaveform !== false) renderAudioDialogWaveform(pad);
 }
 
 function fillAudioTextVoiceOptions(pad = state.audioPad) {
@@ -8393,18 +8393,23 @@ function fillAudioTextVoiceOptions(pad = state.audioPad) {
   const currentValue = pad?.textVoiceURI || "";
   const voices = window.speechSynthesis?.getVoices?.() || [];
   const langRoot = String(pad?.textLang || els.audioTextLang?.value || "fr-FR").toLowerCase().split("-")[0];
-  const sortedVoices = [...voices].sort((a, b) => {
-    const aLang = String(a.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
-    const bLang = String(b.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
-    return aLang - bLang || String(a.name || "").localeCompare(String(b.name || ""));
-  });
-  els.audioTextVoice.innerHTML = '<option value="">Automatique</option>';
-  sortedVoices.forEach((voice) => {
-    const option = document.createElement("option");
-    option.value = voice.voiceURI || voice.name || "";
-    option.textContent = `${voice.name || "Voix"}${voice.lang ? ` · ${voice.lang}` : ""}${voice.localService ? " · système" : " · navigateur"}`;
-    els.audioTextVoice.append(option);
-  });
+  const voicesKey = voices.map((voice) => `${voice.voiceURI || ""}:${voice.name || ""}:${voice.lang || ""}:${voice.localService ? "1" : "0"}`).join("|");
+  const optionsKey = `${langRoot}|${voicesKey}`;
+  if (els.audioTextVoice.dataset.voiceOptionsKey !== optionsKey) {
+    const sortedVoices = [...voices].sort((a, b) => {
+      const aLang = String(a.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
+      const bLang = String(b.lang || "").toLowerCase().startsWith(langRoot) ? 0 : 1;
+      return aLang - bLang || String(a.name || "").localeCompare(String(b.name || ""));
+    });
+    els.audioTextVoice.innerHTML = '<option value="">Automatique</option>';
+    sortedVoices.forEach((voice) => {
+      const option = document.createElement("option");
+      option.value = voice.voiceURI || voice.name || "";
+      option.textContent = `${voice.name || "Voix"}${voice.lang ? ` · ${voice.lang}` : ""}${voice.localService ? " · système" : " · navigateur"}`;
+      els.audioTextVoice.append(option);
+    });
+    els.audioTextVoice.dataset.voiceOptionsKey = optionsKey;
+  }
   els.audioTextVoice.value = [...els.audioTextVoice.options].some((option) => option.value === currentValue) ? currentValue : "";
 }
 
@@ -8483,13 +8488,14 @@ async function openAudioDialog(pad) {
     endStartTarget: pad.endStartTarget,
   };
   if (els.applyAudio) els.applyAudio.disabled = false;
-  syncAudioDialog(pad);
+  syncAudioDialog(pad, { renderWaveform: false });
   perf.log("preparation complete", { padIndex: pad.index, padType: padType(pad) });
   if (els.audioDialog?.showModal) {
     perf.log("before showModal");
     els.audioDialog.showModal();
     perf.log("after showModal");
     requestAnimationFrame(() => {
+      if (state.audioPad !== pad || !els.audioDialog?.open) return;
       renderAudioDialogWaveform(pad);
       perf.log("deferred render complete");
     });
