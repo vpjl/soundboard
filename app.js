@@ -12,6 +12,8 @@ const FADE_IN_STORAGE = "soundboard-live-fade-in-seconds";
 const MASTER_FADE_IN_ENABLED_STORAGE = "soundboard-live-fade-in-enabled";
 const MASTER_FADE_OUT_ENABLED_STORAGE = "soundboard-live-fade-out-enabled";
 const FADE_OUT_STORAGE = "soundboard-live-fade-out-seconds";
+const ARMED_CROSSFADE_ENABLED_STORAGE = "soundboard-live-armed-crossfade-enabled";
+const ARMED_CROSSFADE_SECONDS_STORAGE = "soundboard-live-armed-crossfade-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
@@ -244,6 +246,8 @@ const els = {
   masterFadeInEnabled: document.querySelector("#masterFadeInEnabled"),
   masterFadeOutEnabled: document.querySelector("#masterFadeOutEnabled"),
   masterDuckEnabled: document.querySelector("#masterDuckEnabled"),
+  armedCrossfadeEnabled: document.querySelector("#armedCrossfadeEnabled"),
+  armedCrossfadeSeconds: document.querySelector("#armedCrossfadeSeconds"),
   masterAudioReset: document.querySelector("#masterAudioReset"),
   fadeInSeconds: document.querySelector("#fadeInSeconds"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
@@ -2475,7 +2479,10 @@ function syncCueControls() {
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
   const hasCrossfade = patchBayRows().length > 0;
-  if (els.showCables) els.showCables.disabled = false;
+  if (els.showCables) {
+    els.showCables.disabled = !armedCrossfadeEnabled();
+    els.showCables.setAttribute("aria-disabled", String(!armedCrossfadeEnabled()));
+  }
   if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
   if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
   if (els.cueStatus) {
@@ -3689,6 +3696,7 @@ function boardAudioNotice() {
   const items = [`Volume master ${Math.round((currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME) * 100)}%`];
   if (masterFadeEnabled("in") && Number(els.fadeInSeconds?.value) > 0) items.push(`Fade in ${Number(els.fadeInSeconds.value)}s`);
   if (masterFadeEnabled("out") && Number(els.fadeSeconds?.value) > 0) items.push(`Fade out ${Number(els.fadeSeconds.value)}s`);
+  if (armedCrossfadeEnabled() && armedCrossfadeSeconds() > 0) items.push(`Crossfade armé ${armedCrossfadeSeconds()}s`);
   if (masterDuckEnabled() && duckAmount() > 0) items.push(`Ducking ${duckPercentValue()}%`);
   if (reverb.preset !== "none" && reverb.wet > 0) items.push(`Reverb ${reverb.preset} ${Math.round(reverb.wet * 100)}%`);
   const eq = masterEqSettings();
@@ -7583,6 +7591,31 @@ function setMasterFadeEnabled(type, enabled) {
   updateAllPadAlerts();
 }
 
+function armedCrossfadeEnabled() {
+  return Boolean(els.armedCrossfadeEnabled?.checked);
+}
+
+function armedCrossfadeSeconds() {
+  return Math.max(0, Number(els.armedCrossfadeSeconds?.value) || 0);
+}
+
+function syncArmedCrossfadeControls() {
+  const enabled = armedCrossfadeEnabled();
+  if (els.armedCrossfadeSeconds) {
+    els.armedCrossfadeSeconds.disabled = !enabled;
+    els.armedCrossfadeSeconds.closest("label")?.classList.toggle("is-disabled", !enabled);
+  }
+  if (els.showCables) {
+    els.showCables.disabled = !enabled;
+    els.showCables.setAttribute("aria-disabled", String(!enabled));
+  }
+  if (!enabled && state.crossfadeArmed) {
+    cancelManualCrossfade({ message: "Crossfade armé désactivé" });
+  } else {
+    syncManualCrossfadeUi();
+  }
+}
+
 function masterDuckEnabled() {
   return Boolean(els.masterDuckEnabled?.checked);
 }
@@ -8944,8 +8977,10 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = false;
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = true;
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = true;
+  if (els.armedCrossfadeEnabled) els.armedCrossfadeEnabled.checked = true;
   if (els.fadeInSeconds) els.fadeInSeconds.value = "2";
   if (els.fadeSeconds) els.fadeSeconds.value = "2";
+  if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = "2";
   if (els.duckPercent) els.duckPercent.value = "60";
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
@@ -8955,8 +8990,10 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
   localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "on");
+  localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, "on");
   localStorage.setItem(FADE_IN_STORAGE, "2");
   localStorage.setItem(FADE_OUT_STORAGE, "2");
+  localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, "2");
   localStorage.setItem(DUCKING_STORAGE, "60");
   if (includeVolumes) {
     setMasterVolume(DEFAULT_MASTER_VOLUME, true);
@@ -8968,6 +9005,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   applyMasterReverb();
   applyMasterEq();
   applyDucking();
+  syncArmedCrossfadeControls();
   updateMasterOptionBadges();
   if (showStatus) setStatus("Audio master réinitialisé");
 }
@@ -8981,8 +9019,10 @@ function masterAudioDraftFromControls() {
     fadeInEnabled: Boolean(els.masterFadeInEnabled?.checked),
     fadeOutEnabled: Boolean(els.masterFadeOutEnabled?.checked),
     duckEnabled: Boolean(els.masterDuckEnabled?.checked),
+    armedCrossfadeEnabled: Boolean(els.armedCrossfadeEnabled?.checked),
     fadeInSeconds: els.fadeInSeconds?.value ?? "2",
     fadeOutSeconds: els.fadeSeconds?.value ?? "2",
+    armedCrossfadeSeconds: els.armedCrossfadeSeconds?.value ?? "2",
     duckPercent: els.duckPercent?.value ?? "60",
     reverbPreset: els.masterReverbPreset?.value || "none",
     reverbWet: els.masterReverbWet?.value ?? "0.5",
@@ -8996,8 +9036,10 @@ function persistMasterAudioControls() {
   localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled?.checked ? "on" : "off");
   localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled?.checked ? "on" : "off");
   localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled?.checked ? "on" : "off");
+  localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled?.checked ? "on" : "off");
   localStorage.setItem(FADE_IN_STORAGE, String(els.fadeInSeconds?.value ?? "2"));
   localStorage.setItem(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
+  localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(els.armedCrossfadeSeconds?.value ?? "2"));
   localStorage.setItem(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
   saveMasterReverbSettings();
   saveMasterEqSettings();
@@ -9005,6 +9047,7 @@ function persistMasterAudioControls() {
   applyMasterReverb();
   applyMasterEq();
   applyDucking();
+  syncArmedCrossfadeControls();
   updateMasterOptionBadges();
   updateAllPadAlerts();
 }
@@ -9015,8 +9058,10 @@ function restoreMasterAudioDraft() {
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = draft.fadeInEnabled;
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = draft.fadeOutEnabled;
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = draft.duckEnabled;
+  if (els.armedCrossfadeEnabled) els.armedCrossfadeEnabled.checked = draft.armedCrossfadeEnabled;
   if (els.fadeInSeconds) els.fadeInSeconds.value = draft.fadeInSeconds;
   if (els.fadeSeconds) els.fadeSeconds.value = draft.fadeOutSeconds;
+  if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = draft.armedCrossfadeSeconds;
   if (els.duckPercent) els.duckPercent.value = draft.duckPercent;
   if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
@@ -9353,28 +9398,9 @@ function fadeDurationForPad(pad, type = "out") {
   return Math.max(0, Number(globalInput?.value) || 0);
 }
 
-function rawFadeDurationForPad(pad, type = "out") {
-  if (!pad || padType(pad) === "text" || pad.fadeMode === "none") return 0;
-  const padValue = type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds;
-  if (pad.fadeMode === "pad") {
-    if (padValue !== "" && Number.isFinite(Number(padValue))) return Math.max(0, Number(padValue));
-    if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) return Math.max(0, Number(pad.fadeSeconds));
-    return 0;
-  }
-  const globalInput = type === "in" ? els.fadeInSeconds : els.fadeSeconds;
-  return Math.max(0, Number(globalInput?.value) || 0);
-}
-
-function manualCrossfadeDuration(sourcePad, targetPad) {
-  const candidates = [
-    fadeDurationForPad(sourcePad, "out"),
-    fadeDurationForPad(targetPad, "in"),
-    rawFadeDurationForPad(sourcePad, "out"),
-    rawFadeDurationForPad(targetPad, "in"),
-    Number(els.fadeSeconds?.value) || 0,
-    Number(els.fadeInSeconds?.value) || 0,
-  ].filter((value) => Number.isFinite(value) && value > 0);
-  return Math.max(0.05, candidates[0] || 2);
+function manualCrossfadeDuration() {
+  const value = Number(els.armedCrossfadeSeconds?.value);
+  return Number.isFinite(value) ? Math.max(0, value) : 2;
 }
 
 function applyDucking(exceptPad = null) {
@@ -9593,6 +9619,10 @@ function cancelManualCrossfade(options = {}) {
 }
 
 function armManualCrossfade() {
+  if (!armedCrossfadeEnabled()) {
+    setStatus("Crossfade armé désactivé");
+    return;
+  }
   if (state.crossfadeArmed) {
     cancelManualCrossfade();
     return;
@@ -9648,7 +9678,7 @@ async function executeManualCrossfade(targetPad) {
   }
 
   cancelManualCrossfade({ silent: true });
-  const duration = manualCrossfadeDuration(sourcePad, targetPad);
+  const duration = manualCrossfadeDuration();
   flashCrossfadeTarget(targetPad, "start");
   flashCrossfadeTarget(sourcePad, "stop");
   try {
@@ -9974,9 +10004,13 @@ function loadMasterReverbSettings() {
   const savedFadeInEnabled = localStorage.getItem(MASTER_FADE_IN_ENABLED_STORAGE);
   const savedFadeOutEnabled = localStorage.getItem(MASTER_FADE_OUT_ENABLED_STORAGE);
   const savedDuckEnabled = localStorage.getItem(MASTER_DUCK_ENABLED_STORAGE);
+  const savedArmedCrossfadeEnabled = localStorage.getItem(ARMED_CROSSFADE_ENABLED_STORAGE);
   if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = savedFadeInEnabled == null ? false : savedFadeInEnabled === "on";
   if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = savedFadeOutEnabled == null ? true : savedFadeOutEnabled === "on";
   if (els.masterDuckEnabled) els.masterDuckEnabled.checked = savedDuckEnabled == null ? true : savedDuckEnabled === "on";
+  if (els.armedCrossfadeEnabled) els.armedCrossfadeEnabled.checked = savedArmedCrossfadeEnabled == null ? true : savedArmedCrossfadeEnabled === "on";
+  if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = localStorage.getItem(ARMED_CROSSFADE_SECONDS_STORAGE) || els.armedCrossfadeSeconds.value || "2";
+  syncArmedCrossfadeControls();
   updateMasterReverbValue();
 }
 
@@ -11555,6 +11589,23 @@ async function init() {
   els.masterDuckEnabled?.addEventListener("change", () => {
     localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled.checked ? "on" : "off");
     applyDucking();
+    updateMasterOptionBadges();
+  });
+  els.armedCrossfadeEnabled?.addEventListener("change", () => {
+    localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled.checked ? "on" : "off");
+    syncArmedCrossfadeControls();
+    updateMasterOptionBadges();
+  });
+  els.armedCrossfadeSeconds?.addEventListener("input", () => {
+    const value = Math.max(0, Number(els.armedCrossfadeSeconds.value) || 0);
+    els.armedCrossfadeSeconds.value = String(value);
+    localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
+    updateMasterOptionBadges();
+  });
+  els.armedCrossfadeSeconds?.addEventListener("change", () => {
+    const value = Math.max(0, Number(els.armedCrossfadeSeconds.value) || 0);
+    els.armedCrossfadeSeconds.value = String(value);
+    localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
     updateMasterOptionBadges();
   });
   [els.masterReverbPreset, els.masterReverbWet].forEach((element) => {

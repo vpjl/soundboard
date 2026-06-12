@@ -4038,6 +4038,14 @@ body[data-skin="contrast"] .color-field {
   accent-color: var(--accent);
 }
 
+.master-audio-control.is-disabled {
+  opacity: 0.55;
+}
+
+.master-audio-control.is-disabled input[type="number"] {
+  cursor: not-allowed;
+}
+
 .audio-section .field-title {
   display: inline-flex;
   align-items: center;
