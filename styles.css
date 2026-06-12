@@ -7867,11 +7867,32 @@ body.stage-mode #boardName:focus {
 @media (max-width: 1120px) {
   .skin-editor-layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "preview"
+      "controls";
   }
 
-  .skin-editor-controls,
+  .skin-editor-controls {
+    grid-area: controls;
+  }
+
   .skin-editor-preview {
+    grid-area: preview;
     max-height: none;
+  }
+
+  .skin-editor-controls {
+    max-height: none;
+  }
+
+  .skin-editor-preview {
+    max-height: min(56vh, 620px);
+  }
+}
+
+@media (max-width: 1120px) and (orientation: landscape) {
+  .skin-editor-preview {
+    max-height: min(50vh, 520px);
   }
 }
 
