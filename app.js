@@ -579,7 +579,7 @@ function escapeText(value) {
 function updateOutputLabels() {
   const cueAvailable = outputSelectionSupported();
   const cueLabel = cueAvailable ? outputLabel(state.cueOutputLabel) : "indisponible";
-  const audioCueText = `Cue : ${cueLabel}`;
+  const audioCueText = `Sortie cue : ${cueLabel}`;
   const masterCueText = `Sortie cue : ${cueLabel}`;
   const masterLiveText = `Sortie sono : ${outputLabel(state.masterOutputLabel)}`;
   if (els.audioCueOutputName) els.audioCueOutputName.textContent = audioCueText;
