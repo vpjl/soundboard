@@ -6686,10 +6686,20 @@ body.stage-mode .cues-help-button {
   display: none !important;
 }
 
+body.stage-mode .pad:not(.is-editing) .pad-actions {
+  container-type: inline-size;
+}
+
 body.stage-mode .pad:not(.is-editing) .pad-live-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 8px;
+}
+
+@container (min-width: 220px) {
+  body.stage-mode .pad:not(.is-editing) .pad-live-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
 }
 
 body.stage-mode .pad:not(.is-editing) .pad-live-row .control-group {
