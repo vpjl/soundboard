@@ -275,7 +275,7 @@
               <div class="vu-meter master-vu" aria-label="VU-mètre master">
                 <span id="masterVu" class="vu-fill"></span>
               </div>
-              <span id="masterOutputName" class="master-output-name master-output-line">Sortie : par défaut</span>
+              <span id="masterOutputName" class="master-output-name master-output-line">Sortie sono : par défaut</span>
             </div>
             <div class="master-output-group cue-output-group">
               <label class="master-control cue-volume-control">
@@ -285,7 +285,7 @@
               <div class="vu-meter cue-vu" aria-label="VU-mètre Cue">
                 <span id="cueVu" class="vu-fill"></span>
               </div>
-              <span id="cueOutputName" class="master-output-name cue-output-line">Cue : par défaut</span>
+              <span id="cueOutputName" class="master-output-name cue-output-line">Sortie cue : par défaut</span>
             </div>
             <div class="master-output-group master-input-group">
               <span id="masterInputName" class="master-output-name master-input-line">Entrée : aucune</span>
@@ -684,6 +684,12 @@
                     <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Arrête tous les pads en cours.</dd>
+                <dt aria-label="Arrêter un groupe">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Stop groupé : arrête seulement les pads sélectionnés.</dd>
                 <dt aria-label="Audio master">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -691,13 +697,6 @@
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Ouvre les réglages audio master.</dd>
-                
-                <dt aria-label="Arrêter un groupe">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </dt><dd>Stop groupé : arrête seulement les pads sélectionnés.</dd>
               </dl>
             </section>
 
@@ -1868,7 +1867,7 @@
                       <div class="vu-meter master-vu" aria-label="VU-mètre master" data-skin-variable="--color_pad_progress_background">
                         <span class="vu-fill skin-preview-vu-fill-high"></span>
                       </div>
-                      <span class="master-output-name master-output-line" data-skin-variable="--color_ui_text_muted">Sortie : par défaut</span>
+                      <span class="master-output-name master-output-line" data-skin-variable="--color_ui_text_muted">Sortie sono : par défaut</span>
                     </div>
                   </div>
                   <button class="icon-button master-audio-button" type="button" aria-label="Audio master" data-skin-variable="--color_ui_panel_secondary">

@@ -577,11 +577,14 @@ function escapeText(value) {
 }
 
 function updateOutputLabels() {
-  const cueText = `Cue : ${outputLabel(state.cueOutputLabel)}`;
-  const masterLiveText = `Sortie : ${outputLabel(state.masterOutputLabel)}`;
-  if (els.audioCueOutputName) els.audioCueOutputName.textContent = cueText;
+  const cueAvailable = outputSelectionSupported();
+  const cueLabel = cueAvailable ? outputLabel(state.cueOutputLabel) : "indisponible";
+  const audioCueText = `Cue : ${cueLabel}`;
+  const masterCueText = `Sortie cue : ${cueLabel}`;
+  const masterLiveText = `Sortie sono : ${outputLabel(state.masterOutputLabel)}`;
+  if (els.audioCueOutputName) els.audioCueOutputName.textContent = audioCueText;
   if (els.masterOutputName) els.masterOutputName.textContent = masterLiveText;
-  if (els.cueOutputName) els.cueOutputName.textContent = cueText;
+  if (els.cueOutputName) els.cueOutputName.textContent = masterCueText;
   updateMasterInputLabel();
   syncOutputSelectValues();
 }
