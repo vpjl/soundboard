@@ -9353,6 +9353,30 @@ function fadeDurationForPad(pad, type = "out") {
   return Math.max(0, Number(globalInput?.value) || 0);
 }
 
+function rawFadeDurationForPad(pad, type = "out") {
+  if (!pad || padType(pad) === "text" || pad.fadeMode === "none") return 0;
+  const padValue = type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds;
+  if (pad.fadeMode === "pad") {
+    if (padValue !== "" && Number.isFinite(Number(padValue))) return Math.max(0, Number(padValue));
+    if (pad.fadeSeconds !== "" && Number.isFinite(Number(pad.fadeSeconds))) return Math.max(0, Number(pad.fadeSeconds));
+    return 0;
+  }
+  const globalInput = type === "in" ? els.fadeInSeconds : els.fadeSeconds;
+  return Math.max(0, Number(globalInput?.value) || 0);
+}
+
+function manualCrossfadeDuration(sourcePad, targetPad) {
+  const candidates = [
+    fadeDurationForPad(sourcePad, "out"),
+    fadeDurationForPad(targetPad, "in"),
+    rawFadeDurationForPad(sourcePad, "out"),
+    rawFadeDurationForPad(targetPad, "in"),
+    Number(els.fadeSeconds?.value) || 0,
+    Number(els.fadeInSeconds?.value) || 0,
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  return Math.max(0.05, candidates[0] || 2);
+}
+
 function applyDucking(exceptPad = null) {
   const now = state.audioContext?.currentTime || 0;
   state.pads.forEach((pad) => {
@@ -9624,11 +9648,12 @@ async function executeManualCrossfade(targetPad) {
   }
 
   cancelManualCrossfade({ silent: true });
+  const duration = manualCrossfadeDuration(sourcePad, targetPad);
   flashCrossfadeTarget(targetPad, "start");
   flashCrossfadeTarget(sourcePad, "stop");
   try {
-    await playPad(targetPad, true, 0, { skipStartCrossfade: true });
-    stopPad(sourcePad, true, false, { triggerEnd: false });
+    await playPad(targetPad, true, 0, { skipStartCrossfade: true, fadeInSecondsOverride: duration });
+    stopPad(sourcePad, true, false, { triggerEnd: false, fadeOutSecondsOverride: duration });
     setStatus(`Crossfade : ${sourcePad.title} → ${targetPad.title}`, "success");
   } catch {
     setStatus("Crossfade impossible", "danger");
@@ -10622,7 +10647,9 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const pan = ctx.createStereoPanner();
   const analyser = ctx.createAnalyser();
   const now = ctx.currentTime;
-  const fadeTime = fadeDurationForPad(pad, "in");
+  const fadeTime = options.fadeInSecondsOverride != null
+    ? Math.max(0, Number(options.fadeInSecondsOverride) || 0)
+    : fadeDurationForPad(pad, "in");
   const naturalDuration = Math.max(0.01, segmentEnd - startOffset);
   const naturalStopAt = now + naturalDuration;
   const naturalFadeOutTime = !pad.loop ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
@@ -10752,21 +10779,25 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
     pad.isPaused = false;
   }
 
-  if (!wasMuted && fade && fadeTime > 0 && gain) {
+  const effectiveFadeTime = options.fadeOutSecondsOverride != null
+    ? Math.max(0, Number(options.fadeOutSecondsOverride) || 0)
+    : fadeTime;
+
+  if (!wasMuted && fade && effectiveFadeTime > 0 && gain) {
     if (typeof gain.gain.cancelAndHoldAtTime === "function") {
       gain.gain.cancelAndHoldAtTime(now);
     } else {
       gain.gain.cancelScheduledValues(now);
       gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value || targetPadGain(pad)), now);
     }
-    gain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
+    gain.gain.linearRampToValueAtTime(0.0001, now + effectiveFadeTime);
     try {
-      source.stop(now + fadeTime + 0.02);
+      source.stop(now + effectiveFadeTime + 0.02);
     } catch {
       clearPlayingPad(pad, source, options.triggerEnd ?? true);
       return;
     }
-    pad.stopAt = now + fadeTime + 0.02;
+    pad.stopAt = now + effectiveFadeTime + 0.02;
     setStatus(`${pad.title} fade out`);
   } else {
     try {
