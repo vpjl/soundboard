@@ -409,6 +409,7 @@ const els = {
   bulkApplyAudioFlags: document.querySelector("#bulkApplyAudioFlags"),
   bulkLoop: document.querySelector("#bulkLoop"),
   bulkDuck: document.querySelector("#bulkDuck"),
+  bulkApplyAutoTrim: document.querySelector("#bulkApplyAutoTrim"),
   bulkAutoTrim: document.querySelector("#bulkAutoTrim"),
   bulkAutoTrimStatus: document.querySelector("#bulkAutoTrimStatus"),
   bulkApplyReverb: document.querySelector("#bulkApplyReverb"),
@@ -3106,6 +3107,7 @@ function fillBulkCrossfadeControls(pad) {
 
 function resetBulkAutoTrimUi() {
   state.bulkAutoTrimResults = null;
+  if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = false;
   if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
 }
 
@@ -3137,6 +3139,7 @@ async function prepareBulkAutoTrim() {
       }
     }
     state.bulkAutoTrimResults = results.size ? results : null;
+    if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = Boolean(results.size);
     const summary = results.size
       ? `${detectedCount} prêt${detectedCount > 1 ? "s" : ""}${skippedCount ? `, ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""}` : ""}`
       : "Aucun silence détecté";
@@ -3178,7 +3181,7 @@ function openBulkEditDialog() {
     });
     els.bulkTemplatePad.value = String(pads[0].index);
   }
-  [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyColor, els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyReverb, els.bulkApplyCrossfade]
+  [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyColor, els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyAutoTrim, els.bulkApplyReverb, els.bulkApplyCrossfade]
     .forEach((checkbox) => { if (checkbox) checkbox.checked = false; });
   syncBulkTemplateFields(pads[0]);
   if (els.bulkEditDialog?.showModal) {
@@ -3234,7 +3237,7 @@ async function applyBulkEdit() {
         endStartTarget: els.bulkEndStartTarget?.value || "",
       });
     }
-    const bulkTrim = state.bulkAutoTrimResults?.get(pad.index);
+    const bulkTrim = els.bulkApplyAutoTrim?.checked ? state.bulkAutoTrimResults?.get(pad.index) : null;
     if (bulkTrim) {
       setPadTrim(pad, bulkTrim.start, bulkTrim.end);
       updatePadTime(pad);
