@@ -245,6 +245,7 @@ const els = {
   fadeInSeconds: document.querySelector("#fadeInSeconds"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
   stopAll: document.querySelector("#stopAll"),
+  cueStopAll: document.querySelector("#cueStopAll"),
   stopGroup: document.querySelector("#stopGroup"),
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
   stageMode: document.querySelector("#stageMode"),
@@ -2467,7 +2468,8 @@ function syncFloatingCueFrame(resetAnchor = false) {
     return;
   }
   const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
-  if (resetAnchor || state.cueFloatAnchorTop == null || !document.body.classList.contains("cues-stuck")) {
+  const isStuck = document.body.classList.contains("cues-stuck");
+  if ((resetAnchor && !isStuck) || state.cueFloatAnchorTop == null || !isStuck) {
     state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
   }
   const stuck = window.scrollY > Math.max(0, state.cueFloatAnchorTop - topOffset);
@@ -2479,11 +2481,7 @@ function cueSelectablePads() {
 }
 
 function cueAutoAddablePads() {
-  return state.pads.filter((pad) => (
-    cuePlayablePad(pad)
-    && pad.hasDirectAudio === true
-    && !isDefaultPadTitle(pad.title)
-  ));
+  return cueSelectablePads();
 }
 
 function fillCueTargetSelect(select, action, selectedValue = "") {
@@ -2540,7 +2538,7 @@ function fillCueConditionTargetSelect(select, condition, selectedValue = "") {
     select.disabled = true;
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "Manuel";
+    option.textContent = "Manuel par défaut";
     select.append(option);
     return;
   }
@@ -2587,8 +2585,8 @@ function syncAddAllCuePadsButton(draft = cueDraft()) {
   els.addAllCuePads.title = hasCueSteps
     ? "Disponible seulement quand la liste de cues est vide"
     : playableCount
-      ? `Ajouter ${playableCount} pad${playableCount > 1 ? "s" : ""} avec son direct`
-      : "Aucun pad avec son";
+      ? `Ajouter ${playableCount} pad${playableCount > 1 ? "s" : ""} non vide${playableCount > 1 ? "s" : ""}`
+      : "Aucun pad non vide";
 }
 
 function renderCueRows() {
@@ -2663,7 +2661,7 @@ function renderCueRows() {
     waitField.className = "cue-field cue-wait-field";
     const waitTitle = document.createElement("span");
     waitTitle.className = "cue-field-title";
-    waitTitle.textContent = "Durée";
+    waitTitle.textContent = "Durée de l'attente";
     const waitUnit = document.createElement("span");
     waitUnit.textContent = "secondes";
     waitField.append(waitTitle, wait, waitUnit);
@@ -2700,6 +2698,8 @@ function renderCueRows() {
       target.disabled = isWait;
       waitField.hidden = false;
       wait.disabled = !isWait;
+      waitField.classList.toggle("is-disabled", !isWait);
+      waitField.setAttribute("aria-disabled", String(!isWait));
     };
     syncCueRowFields();
 
@@ -2856,7 +2856,7 @@ function addAllPadsToCueDraft() {
   const playablePads = cueAutoAddablePads();
   if (!playablePads.length) {
     renderCueRows();
-    setStatus("Aucun pad avec son");
+    setStatus("Aucun pad non vide");
     return;
   }
   state.cueDraft = playablePads.map((pad) => (
@@ -2866,7 +2866,7 @@ function addAllPadsToCueDraft() {
     })
   ));
   renderCueRows();
-  setStatus(`${playablePads.length} pad${playablePads.length > 1 ? "s" : ""} avec son ajouté${playablePads.length > 1 ? "s" : ""}`);
+  setStatus(`${playablePads.length} pad${playablePads.length > 1 ? "s" : ""} ajouté${playablePads.length > 1 ? "s" : ""}`);
 }
 
 function saveCueDraft() {
@@ -2914,6 +2914,19 @@ function cueConditionMet(step, endedPad = null) {
     return Boolean(pads.length && (!endedPad || padTagList(endedPad).includes(tag)) && pads.every((pad) => !pad.source));
   }
   return false;
+}
+
+function cueConditionWaitLabel(step) {
+  const normalized = normalizeCueStep(step);
+  if (normalized.condition === "padEnd") {
+    const pad = padFromTarget(normalized.conditionTarget);
+    return `En attente de fin de pad : ${pad?.title || "cible condition"}`;
+  }
+  if (normalized.condition === "tagEnd") {
+    const tag = normalized.conditionTarget.replace(/^tag:/, "");
+    return `En attente de fin du tag : ${tag || "cible condition"}`;
+  }
+  return "Cue en attente de condition";
 }
 
 function checkCueConditions(endedPad = null) {
@@ -2988,6 +3001,10 @@ async function runCurrentCue(options = {}) {
   const index = cueIndexForBoard(board);
   const step = normalizeCueStep(board.cues[index]);
   try {
+    if (!options.automatic && step.condition !== "manual") {
+      setStatus(cueConditionWaitLabel(step));
+      return;
+    }
     if (options.automatic) setStatus("Cue condition");
     await executeCueStep(step);
     if (options.advance !== false) {
@@ -10770,6 +10787,7 @@ async function init() {
     localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
   });
   bindSafeActionButton(els.stopAll, () => stopAll());
+  bindSafeActionButton(els.cueStopAll, () => stopAll());
   bindSafeActionButton(els.stopGroup, () => stopGroup());
   bindSafeActionButton(els.stageMode, () => {
     setStageMode(!state.stageMode, true);

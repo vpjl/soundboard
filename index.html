@@ -384,6 +384,11 @@
                 <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
+            <button id="cueStopAll" class="danger-button icon-button cue-stop-all-button" type="button" aria-label="Stop global">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+              </svg>
+            </button>
           </div>
         </section>
       </header>
@@ -951,6 +956,11 @@
                 </dt><dd>Réglage des cues.</dd>
                 <dt aria-label="Ajouter une étape cue">＋</dt><dd>Ajoute une étape à la ligne de temps.</dd>
               </dl>
+              <h4>Conditions</h4>
+              <p><strong>Manuel</strong> est le mode par défaut : le cue courant se lance uniquement avec le bouton Lecture des cues. La cible de condition affiche alors <strong>Manuel par défaut</strong>, car aucune cible de condition n'est utilisée.</p>
+              <p><strong>Quand pad finit</strong> et <strong>Quand tag finit</strong> arment le cue courant. Le bouton Lecture ne force pas ce cue : il reste en attente jusqu'à la fin réelle du pad ou du tag choisi.</p>
+              <p>Exemple : si l'étape 1 indique <strong>Lance pad : Pad 1</strong> avec <strong>Condition : Quand pad finit / Pad 3</strong>, Pad 1 ne démarre pas au clic sur Lecture. Pad 1 démarre seulement quand Pad 3 arrive à sa fin naturelle.</p>
+              <p>Exemple : si l'étape 2 indique <strong>Stoppe tag : Ambiance</strong> avec <strong>Condition : Manuel</strong>, elle s'exécute dès que vous appuyez sur Lecture des cues.</p>
 
               <h4>Crossfade</h4>
               <dl class="help-grid">
