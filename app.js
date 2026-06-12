@@ -888,6 +888,23 @@ function layoutForBoard(board) {
   };
 }
 
+function stagePortablePortraitLayoutForBoard(board) {
+  const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
+  return {
+    mode: "custom",
+    columns: 2,
+    rows: Math.max(1, Math.ceil(padCount / 2)),
+  };
+}
+
+function shouldForceStagePortraitLayout() {
+  return Boolean(state.stageMode && isPortablePortrait());
+}
+
+function effectiveLayoutForBoard(board) {
+  return shouldForceStagePortraitLayout() ? stagePortablePortraitLayoutForBoard(board) : layoutForBoard(board);
+}
+
 function normalizeCueAction(action) {
   return CUE_ACTIONS.includes(action) ? action : "playPad";
 }
@@ -2321,7 +2338,7 @@ function updatePadPanValue(pad) {
 
 function applyPadLayout(board = currentBoard()) {
   if (!els.pads) return;
-  const layout = layoutForBoard(board);
+  const layout = effectiveLayoutForBoard(board);
   const enabled = layout.columns > 0 && layout.rows > 0;
   els.pads.classList.toggle("has-pad-layout", enabled);
   if (enabled) {
@@ -3182,8 +3199,8 @@ async function applyBulkEdit() {
 function renderBoardLayoutControls() {
   const board = currentBoard();
   if (!board) return;
-  const layout = layoutForBoard(board);
-  const portraitLocked = isPortablePortrait();
+  const layout = effectiveLayoutForBoard(board);
+  const portraitLocked = shouldForceStagePortraitLayout();
   if (els.padColumns) {
     els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
@@ -3205,10 +3222,10 @@ function renderBoardLayoutControls() {
 function updateBoardLayout() {
   const board = currentBoard();
   if (!board) return;
-  if (isPortablePortrait()) {
+  if (shouldForceStagePortraitLayout()) {
     renderBoardLayoutControls();
     applyPadLayout(board);
-    setStatus("Portrait smartphone: 2 colonnes fixes");
+    setStatus("Mode scène portrait : 2 colonnes fixes");
     return;
   }
   if (els.padColumns?.value === "auto") {
@@ -7460,6 +7477,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     els.boardSelect.setAttribute("aria-disabled", String(state.stageMode));
   }
   localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
+  renderBoardLayoutControls();
+  applyPadLayout(currentBoard());
 
   if (state.stageMode) {
     setBoardPadEditing(false);
@@ -7470,7 +7489,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
     if (requestFullscreen && !canRequestFullscreen) {
-      setStatus("Board prêt pour la scène : plein écran via icône smartphone", "success");
+      setStatus("Mode scène actif : activez le plein écran depuis les contrôles du navigateur sur smartphone", "success");
     }
   } else {
     syncStageVisiblePads();

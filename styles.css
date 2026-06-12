@@ -6668,6 +6668,42 @@ body.stage-mode .cues-help-button {
   display: none !important;
 }
 
+body.stage-mode .pad:not(.is-editing) .pad-live-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
+  gap: 8px;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-live-row .control-group {
+  display: contents;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-cue-button,
+body.stage-mode .pad:not(.is-editing) .pad-audio-button {
+  display: none !important;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-live-row [data-mode="oneshot"] {
+  order: 1;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-stop-button {
+  order: 2;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-live-row [data-mode="toggle"] {
+  order: 3;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-mute-button {
+  order: 4;
+}
+
+body.stage-mode .pad:not(.is-editing) .pad-live-row button {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
 
 #helpDialog.single-help-column .help-sections{
   grid-template-columns: minmax(0,1fr);
