@@ -530,7 +530,7 @@ body.board-edit-mode .board-layout-controls {
   background: transparent;
   color: var(--text);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .board-layout-controls > .layout-control-label:not(.layout-rows-label) {
@@ -851,6 +851,10 @@ body.board-edit-mode .board-action-grid .version-notes-button {
 
 body.board-edit-mode .board-action-grid .board-help-button {
   grid-area: help;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
 }
 
 .board-action-grid .board-layout-controls {
@@ -1016,6 +1020,16 @@ body.board-edit-mode .live-tools {
   min-height: 42px;
 }
 
+.cue-window-button svg,
+.show-cables-button svg,
+.cues-help-button svg,
+.cue-stop-all-button svg {
+  display: block;
+  justify-self: center;
+  align-self: center;
+  margin: 0;
+}
+
 .cue-run-button {
   width: 42px;
   height: 42px;
@@ -1054,6 +1068,7 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 }
 
 .board-select > span,
+.board-select > label,
 .master-title {
   color: var(--color_ui_text);
   font-size: 0.78rem;
@@ -1079,6 +1094,27 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   padding: 0 10px;
   background: #111319;
   color: var(--text);
+}
+
+.board-select-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+body.board-edit-mode .board-select-control {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.board-select-control .board-delete-button {
+  display: none;
+  width: 42px;
+  height: 42px;
+}
+
+body.board-edit-mode .board-select-control .board-delete-button {
+  display: grid;
 }
 
 .board-filter-row .board-tag-filter select {
@@ -2237,8 +2273,8 @@ select:disabled,
 
 .pad-note-button {
   position: absolute;
-  top: 3px;
-  right: 35px;
+  top: 6px;
+  right: 40px;
   z-index: 4;
   display: grid;
   place-items: center;
@@ -5692,8 +5728,8 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hi
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
   position: absolute;
   z-index: 3;
-  top: 3px;
-  left: 3px;
+  top: 6px;
+  left: 6px;
   min-width: 28px;
   width: 28px;
   height: 28px;
@@ -5706,7 +5742,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-type,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-type {
-  top: 35px;
+  top: 38px;
+  left: 10px;
   border-color: var(--color_ui_border);
   color: var(--color_ui_text_muted);
 }
@@ -5726,17 +5763,11 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
-  grid-column: 1 / -1;
-  justify-self: center;
-  max-width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: rgba(0, 0, 0, 0.64);
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
@@ -6044,6 +6075,14 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .xfade-li
 }
 
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
+  .board-action-grid .board-help-button {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    aspect-ratio: 1;
+  }
+
   .cue-live-row,
   body.stage-mode .cue-live-row {
     grid-template-columns: repeat(4, minmax(44px, 1fr)) minmax(140px, 1.6fr) !important;
@@ -6208,7 +6247,7 @@ body.stage-mode .pad-time {
 }
 
 .pad-note-button {
-  grid-area: eye;
+  grid-area: note;
   position: static !important;
   justify-self: center;
   align-self: center;
@@ -6491,8 +6530,8 @@ body[data-skin="basic"] .visual-toggle-button {
   display: none;
   grid-area: eye !important;
   position: static !important;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   margin: 0 !important;
   justify-self: end;
   align-self: center;
