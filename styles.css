@@ -535,8 +535,16 @@ body.board-edit-mode .board-layout-controls {
 
 .board-layout-controls .layout-rows-line,
 .board-layout-controls .layout-rows-label,
-.board-layout-controls .layout-rows-output {
+.board-layout-controls .layout-rows-output,
+.board-layout-controls select,
+.board-layout-controls option,
+.board-layout-controls input {
+  font-family: inherit;
   font-weight: 400 !important;
+  font-variation-settings: "wght" 400;
+  font-synthesis-weight: none;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
 }
 
 .board-layout-controls > .layout-control-label:not(.layout-rows-label) {
