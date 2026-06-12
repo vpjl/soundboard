@@ -533,6 +533,12 @@ body.board-edit-mode .board-layout-controls {
   font-weight: 400;
 }
 
+.board-layout-controls .layout-rows-line,
+.board-layout-controls .layout-rows-label,
+.board-layout-controls .layout-rows-output {
+  font-weight: 400 !important;
+}
+
 .board-layout-controls > .layout-control-label:not(.layout-rows-label) {
   grid-column: 2;
   grid-row: 1;
@@ -905,7 +911,7 @@ body.board-edit-mode .board-action-grid .icon-button {
 
 .board-version-row {
   display: grid;
-  grid-template-columns: 42px 42px 42px 42px 42px minmax(160px, 1fr);
+  grid-template-columns: 42px 42px 42px 42px minmax(160px, 1fr) 42px;
   gap: 8px;
   align-items: center;
 }
@@ -1068,7 +1074,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
 }
 
 .board-select > span,
-.board-select > label,
 .master-title {
   color: var(--color_ui_text);
   font-size: 0.78rem;
@@ -1094,27 +1099,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   padding: 0 10px;
   background: #111319;
   color: var(--text);
-}
-
-.board-select-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-}
-
-body.board-edit-mode .board-select-control {
-  grid-template-columns: minmax(0, 1fr) 42px;
-}
-
-.board-select-control .board-delete-button {
-  display: none;
-  width: 42px;
-  height: 42px;
-}
-
-body.board-edit-mode .board-select-control .board-delete-button {
-  display: grid;
 }
 
 .board-filter-row .board-tag-filter select {
@@ -4902,7 +4886,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: 30px 30px 30px 30px 30px minmax(150px, 1fr);
+    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr) 30px;
   }
 
   .board-layout-controls {
@@ -5078,7 +5062,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: 30px 30px 30px 30px 30px minmax(150px, 1fr);
+    grid-template-columns: 30px 30px 30px 30px minmax(150px, 1fr) 30px;
   }
 
   .board-layout-controls {
@@ -5762,12 +5746,19 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   display: none !important;
   height: 0 !important;
+  min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
