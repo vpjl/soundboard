@@ -160,6 +160,7 @@ const state = {
   imageDraft: null,
   imageDialogMode: "color",
   bulkEditPads: [],
+  bulkAutoTrimResults: null,
   sketchDrawing: false,
   stageMode: false,
   boardEditMode: false,
@@ -288,6 +289,7 @@ const els = {
   audioTrimEndHandle: document.querySelector("#audioTrimEndHandle"),
   audioTrimStartValue: document.querySelector("#audioTrimStartValue"),
   audioTrimEndValue: document.querySelector("#audioTrimEndValue"),
+  audioAutoTrim: document.querySelector("#audioAutoTrim"),
   audioNormalize: document.querySelector("#audioNormalize"),
   audioNormalizeValue: document.querySelector("#audioNormalizeValue"),
   audioMono: document.querySelector("#audioMono"),
@@ -407,6 +409,8 @@ const els = {
   bulkApplyAudioFlags: document.querySelector("#bulkApplyAudioFlags"),
   bulkLoop: document.querySelector("#bulkLoop"),
   bulkDuck: document.querySelector("#bulkDuck"),
+  bulkAutoTrim: document.querySelector("#bulkAutoTrim"),
+  bulkAutoTrimStatus: document.querySelector("#bulkAutoTrimStatus"),
   bulkApplyReverb: document.querySelector("#bulkApplyReverb"),
   bulkReverbNone: document.querySelector("#bulkReverbNone"),
   bulkReverbGlobal: document.querySelector("#bulkReverbGlobal"),
@@ -3100,6 +3104,49 @@ function fillBulkCrossfadeControls(pad) {
   fillCrossfadeTargetSelect(els.bulkEndStartTarget, pad?.endStartTarget || "");
 }
 
+function resetBulkAutoTrimUi() {
+  state.bulkAutoTrimResults = null;
+  if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
+}
+
+async function prepareBulkAutoTrim() {
+  const pads = state.bulkEditPads.filter((pad) => pad && padType(pad) === "audio");
+  if (!pads.length) {
+    resetBulkAutoTrimUi();
+    setStatus("Trim auto groupé : aucun pad audio");
+    return;
+  }
+  if (els.bulkAutoTrim) els.bulkAutoTrim.disabled = true;
+  if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Calcul...";
+  const results = new Map();
+  let detectedCount = 0;
+  let skippedCount = 0;
+  try {
+    for (const pad of pads) {
+      try {
+        const result = await calculateAutoTrimForPad(pad);
+        if (result?.detected) {
+          results.set(pad.index, result);
+          detectedCount += 1;
+        } else {
+          skippedCount += 1;
+        }
+      } catch (error) {
+        console.error(error);
+        skippedCount += 1;
+      }
+    }
+    state.bulkAutoTrimResults = results.size ? results : null;
+    const summary = results.size
+      ? `${detectedCount} prêt${detectedCount > 1 ? "s" : ""}${skippedCount ? `, ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""}` : ""}`
+      : "Aucun silence détecté";
+    if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = summary;
+    setStatus(`Trim auto groupé : ${summary}`);
+  } finally {
+    if (els.bulkAutoTrim) els.bulkAutoTrim.disabled = false;
+  }
+}
+
 function openBulkEditDialog() {
   let pads = padsForBoardTagSelection();
   const selectedTag = String(els.boardTagFilter?.value || "").trim();
@@ -3117,6 +3164,7 @@ function openBulkEditDialog() {
   }
 
   state.bulkEditPads = pads;
+  resetBulkAutoTrimUi();
   if (els.bulkEditCount) {
     els.bulkEditCount.textContent = `${pads.length} pad${pads.length > 1 ? "s" : ""} sélectionné${pads.length > 1 ? "s" : ""}`;
   }
@@ -3185,6 +3233,11 @@ async function applyBulkEdit() {
         endStartMode: els.bulkEndStartMode?.value || "none",
         endStartTarget: els.bulkEndStartTarget?.value || "",
       });
+    }
+    const bulkTrim = state.bulkAutoTrimResults?.get(pad.index);
+    if (bulkTrim) {
+      setPadTrim(pad, bulkTrim.start, bulkTrim.end);
+      updatePadTime(pad);
     }
     await savePadMeta(pad);
   }
@@ -8015,6 +8068,72 @@ function formatSecondsTenths(seconds) {
   return `${(Math.round(Math.max(0, seconds) * 10) / 10).toFixed(1)}s`;
 }
 
+function formatTrimAutoSummary(result) {
+  if (!result) return "aucun trim";
+  const startText = formatSecondsTenths(result.start);
+  const endText = result.end ? formatSecondsTenths(result.end) : "fin";
+  return `${startText} → ${endText}`;
+}
+
+function autoTrimForBuffer(buffer) {
+  if (!buffer?.length || !buffer.sampleRate || !buffer.duration) return null;
+  const channels = Math.max(1, Math.min(buffer.numberOfChannels || 1, 2));
+  const sampleRate = buffer.sampleRate;
+  const blockSize = Math.max(1, Math.floor(sampleRate * 0.01));
+  const stride = Math.max(1, Math.floor(blockSize / 24));
+  const blockCount = Math.ceil(buffer.length / blockSize);
+  const blockPeaks = new Float32Array(blockCount);
+  let globalPeak = 0;
+
+  for (let blockIndex = 0; blockIndex < blockCount; blockIndex += 1) {
+    const start = blockIndex * blockSize;
+    const end = Math.min(buffer.length, start + blockSize);
+    let peak = 0;
+    for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
+      const data = buffer.getChannelData(channelIndex);
+      for (let frame = start; frame < end; frame += stride) {
+        peak = Math.max(peak, Math.abs(data[frame] || 0));
+      }
+    }
+    blockPeaks[blockIndex] = peak;
+    globalPeak = Math.max(globalPeak, peak);
+  }
+
+  if (globalPeak < 0.0005) return null;
+
+  const threshold = Math.max(0.0015, Math.min(0.02, globalPeak * 0.005));
+  let firstActive = -1;
+  let lastActive = -1;
+  for (let index = 0; index < blockPeaks.length; index += 1) {
+    if (blockPeaks[index] >= threshold) {
+      firstActive = index;
+      break;
+    }
+  }
+  for (let index = blockPeaks.length - 1; index >= 0; index -= 1) {
+    if (blockPeaks[index] >= threshold) {
+      lastActive = index;
+      break;
+    }
+  }
+
+  if (firstActive < 0 || lastActive < firstActive) return null;
+
+  const padding = 0.02;
+  const minSilence = 0.06;
+  const rawStart = Math.max(0, (firstActive * blockSize) / sampleRate - padding);
+  const rawEnd = Math.min(buffer.duration, ((lastActive + 1) * blockSize) / sampleRate + padding);
+  const start = rawStart >= minSilence ? Math.round(rawStart * 100) / 100 : 0;
+  const end = buffer.duration - rawEnd >= minSilence ? Math.round(rawEnd * 100) / 100 : 0;
+
+  return {
+    start,
+    end,
+    threshold,
+    detected: Boolean(start || end),
+  };
+}
+
 function trimDisplayEnd(pad) {
   if (!pad.duration) return 0;
   return pad.trimEnd ? trimEnd(pad) : pad.duration;
@@ -8040,6 +8159,43 @@ function setPadTrim(pad, start, end) {
   updateTrimHandles(pad);
   renderWaveform(pad);
   if (state.audioPad === pad) renderAudioDialogWaveform(pad);
+}
+
+async function calculateAutoTrimForPad(pad) {
+  if (!pad || padType(pad) !== "audio") return null;
+  const buffer = await ensurePadAudioDecoded(pad);
+  return autoTrimForBuffer(buffer);
+}
+
+async function applyAutoTrimToAudioDialog() {
+  const pad = state.audioPad;
+  if (!pad) return;
+  if (padType(pad) !== "audio") {
+    setStatus("Trim auto disponible uniquement pour un pad audio");
+    return;
+  }
+  const button = els.audioAutoTrim;
+  if (button) button.disabled = true;
+  try {
+    const result = await calculateAutoTrimForPad(pad);
+    if (!result) {
+      setStatus("Trim auto impossible : audio silencieux ou indisponible");
+      return;
+    }
+    if (!result.detected) {
+      setStatus("Trim auto : aucun silence détecté");
+      return;
+    }
+    setPadTrim(pad, result.start, result.end);
+    updatePadTime(pad);
+    renderAudioDialogWaveform(pad);
+    setStatus(`Trim auto : ${formatTrimAutoSummary(result)}`);
+  } catch (error) {
+    console.error(error);
+    setStatus("Trim auto impossible");
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function trimStart(pad) {
@@ -8336,6 +8492,7 @@ function bindAudioDialogTrim() {
 
 function syncAudioDialog(pad = state.audioPad, options = {}) {
   if (!pad) return;
+  const isAudio = padType(pad) === "audio";
   if (els.audioPadName) els.audioPadName.textContent = pad.title;
   if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
   updateOutputLabels();
@@ -8403,6 +8560,10 @@ function syncAudioDialog(pad = state.audioPad, options = {}) {
   if (els.audioTextRateValue) els.audioTextRateValue.textContent = `${normalizedTextRate(pad.textRate).toFixed(2)}x`;
   if (els.audioTextInlineEditor && document.activeElement !== els.audioTextInlineEditor) {
     els.audioTextInlineEditor.value = pad.textContent || "";
+  }
+  if (els.audioAutoTrim) {
+    els.audioAutoTrim.disabled = !isAudio;
+    els.audioAutoTrim.classList.toggle("is-disabled", !isAudio);
   }
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
@@ -10911,12 +11072,16 @@ async function init() {
   els.bulkEditDialog?.addEventListener("click", (event) => {
     if (event.target === els.bulkEditDialog) els.bulkEditDialog.close();
   });
+  els.bulkEditDialog?.addEventListener("close", resetBulkAutoTrimUi);
   els.bulkTemplatePad?.addEventListener("change", () => {
     const pad = state.bulkEditPads.find((item) => String(item.index) === els.bulkTemplatePad.value);
     syncBulkTemplateFields(pad);
   });
   els.bulkColorButtons?.forEach((button) => {
     button.addEventListener("click", () => setBulkColorValue(button.dataset.bulkColor || ""));
+  });
+  els.bulkAutoTrim?.addEventListener("click", () => {
+    prepareBulkAutoTrim().catch(() => setStatus("Trim auto groupé impossible"));
   });
   els.applyBulkEdit?.addEventListener("click", () => {
     applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
@@ -11253,6 +11418,9 @@ async function init() {
     }
   });
   bindAudioDialogTrim();
+  els.audioAutoTrim?.addEventListener("click", () => {
+    applyAutoTrimToAudioDialog().catch(() => setStatus("Trim auto impossible"));
+  });
   els.audioTestPlay?.addEventListener("click", () => {
     playAudioDialogTest().catch(() => setStatus("Test audio impossible"));
   });
