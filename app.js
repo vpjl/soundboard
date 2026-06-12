@@ -16,6 +16,47 @@ const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const SKIN_STORAGE = "soundboard-live-skin";
+const CUSTOM_SKINS_STORAGE = "soundboard-live-custom-skins";
+const CUSTOM_SKIN_PREFIX = "custom:";
+
+const CUSTOM_SKIN_VARIABLES = [
+  "--color_ui_background",
+  "--color_ui_background_glow",
+  "--color_ui_background_secondary",
+  "--color_ui_panel",
+  "--color_ui_panel_secondary",
+  "--color_ui_text",
+  "--color_ui_text_muted",
+  "--color_ui_border",
+  "--color_ui_shadow",
+  "--color_status_success",
+  "--color_status_progress",
+  "--color_status_warning",
+  "--color_status_danger",
+  "--color_status_stop",
+  "--color_status_neutral",
+  "--color_ui_help",
+  "--color_ui_help_border",
+  "--color_ui_help_background",
+  "--color_pad_background",
+  "--color_pad_border",
+  "--color_pad_actions_background",
+  "--color_pad_button_background",
+  "--color_pad_button_border",
+  "--color_pad_button_text",
+  "--color_pad_title_background",
+  "--color_pad_trigger_background",
+  "--color_pad_trigger_playing_background",
+  "--color_pad_progress_background",
+  "--color_pad_progress_fill",
+  "--color_pad_alert_background",
+  "--color_pad_note_background",
+  "--color_pad_note_overlay_background",
+  "--color_pad_note_overlay_border",
+  "--color_pad_note_overlay_text",
+  "--color_pad_tag_background",
+  "--color_pad_missing_background",
+];
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
@@ -152,6 +193,7 @@ const state = {
   versionNotesDraft: null,
   audioCleanupCandidates: [],
   cueFloatAnchorTop: null,
+  skinEditorVariables: {},
 };
 
 const els = {
@@ -159,6 +201,16 @@ const els = {
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
   skinSelect: document.querySelector("#skinSelect"),
+
+  skinEditorDialog: document.querySelector("#skinEditorDialog"),
+  skinEditorFields: document.querySelector("#skinEditorFields"),
+  skinEditorName: document.querySelector("#skinEditorName"),
+  saveSkinEditor: document.querySelector("#saveSkinEditor"),
+  saveSkinEditorAs: document.querySelector("#saveSkinEditorAs"),
+  deleteSkinEditor: document.querySelector("#deleteSkinEditor"),
+  cancelSkinEditor: document.querySelector("#cancelSkinEditor"),
+  closeSkinEditor: document.querySelector("#closeSkinEditor"),
+
   masterVolume: document.querySelector("#masterVolume"),
   masterVolumeValue: document.querySelector("#masterVolumeValue"),
   masterVu: document.querySelector("#masterVu"),
@@ -901,17 +953,30 @@ function padType(pad) {
   return "audio";
 }
 
-function padTypeLetter(pad) {
-  const type = padType(pad);
-  if (type === "video") return "V";
-  if (type === "text") return "T";
-  return "A";
+function padTypeLabel(type) {
+  if (type === "video") return "Vidéo";
+  if (type === "text") return "Texte";
+  return "Audio";
+}
+
+function padTypeIconMarkup(type) {
+  if (type === "video") {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 10 4-2v8l-4-2V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+  }
+  if (type === "text") {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c3-6 6-10 14-14-2 8-6 11-14 14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 16c2-1 4-3 6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 }
 
 function updatePadType(pad) {
   if (!pad) return;
   const type = padType(pad);
-  if (pad.typeEl) pad.typeEl.textContent = padTypeLetter(pad);
+  if (pad.typeEl) {
+    pad.typeEl.innerHTML = padTypeIconMarkup(type);
+    pad.typeEl.title = padTypeLabel(type);
+    pad.typeEl.setAttribute("aria-label", padTypeLabel(type));
+  }
   pad.node?.classList.toggle("is-text-pad", type === "text");
   pad.node?.classList.toggle("is-video-pad", type === "video");
   pad.node?.classList.toggle("is-audio-pad", type === "audio");
@@ -3348,7 +3413,7 @@ async function renderPads() {
   updateShortcutIndicators();
   updateRecordingUi();
   syncCueControls();
-  setStatus("Board prêt pour l’édition : interface restaurée");
+  setStatus("Board prêt pour l’édition : interface restaurée", "success");
   perf.log("complete", { padCount: state.pads.length });
 }
 
@@ -3819,10 +3884,40 @@ function isPortablePortrait() {
 }
 
 function updateSkinOptions() {
-  const minimalOption = els.skinSelect?.querySelector('option[value="minimal"]');
-  if (!minimalOption) return;
-  minimalOption.disabled = !canUseMinimalSkin();
-  minimalOption.hidden = !canUseMinimalSkin();
+  if (!els.skinSelect) return;
+
+  const minimalOption = els.skinSelect.querySelector('option[value="minimal"]');
+  if (minimalOption) {
+    minimalOption.disabled = !canUseMinimalSkin();
+    minimalOption.hidden = !canUseMinimalSkin();
+  }
+
+  const previousGroup = els.skinSelect.querySelector('optgroup[data-custom-skins="true"]');
+  if (previousGroup) previousGroup.remove();
+
+  const customSkins = readCustomSkins();
+
+  const group = document.createElement("optgroup");
+  group.dataset.customSkins = "true";
+  group.label = "Skins utilisateur";
+  els.skinSelect.append(group);
+
+  const newOption = document.createElement("option");
+  newOption.value = "__edit_current_skin__";
+  newOption.textContent = "Éditeur de skin…";
+  newOption.dataset.customSkin = "true";
+  group.append(newOption);
+
+  customSkins
+    .slice()
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { sensitivity: "base" }))
+    .forEach((skin) => {
+      const option = document.createElement("option");
+      option.value = `${CUSTOM_SKIN_PREFIX}${skin.id}`;
+      option.textContent = skin.name;
+      option.dataset.customSkin = "true";
+      group.append(option);
+    });
 }
 
 function normalizeSkinName(skin) {
@@ -3831,15 +3926,415 @@ function normalizeSkinName(skin) {
   return ["basic", "candy", "classic", "contrast", "neon", "studio"].includes(migratedSkin) ? migratedSkin : "classic";
 }
 
+function readCustomSkins() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CUSTOM_SKINS_STORAGE) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((skin) => skin && skin.id && skin.name && skin.variables) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCustomSkins(skins) {
+  localStorage.setItem(CUSTOM_SKINS_STORAGE, JSON.stringify(Array.isArray(skins) ? skins : []));
+}
+
+function customSkinById(id) {
+  return readCustomSkins().find((skin) => skin.id === id) || null;
+}
+
+function clearCustomSkinVariables() {
+  CUSTOM_SKIN_VARIABLES.forEach((name) => {
+    document.documentElement.style.removeProperty(name);
+    document.body?.style.removeProperty(name);
+  });
+}
+
+function applyCustomSkinVariables(skin) {
+  clearCustomSkinVariables();
+  const variables = skin?.variables || {};
+  CUSTOM_SKIN_VARIABLES.forEach((name) => {
+    const value = String(variables[name] || "").trim();
+    if (value) {
+      document.documentElement.style.setProperty(name, value);
+      document.body?.style.setProperty(name, value);
+    }
+  });
+}
+
+function snapshotCurrentSkinVariables(source = document.body) {
+  const computed = getComputedStyle(source);
+  const variables = {};
+  CUSTOM_SKIN_VARIABLES.forEach((name) => {
+    const value = computed.getPropertyValue(name).trim();
+    if (value) variables[name] = value;
+  });
+  return variables;
+}
+
+function saveCurrentSkinAsCustom() {
+  const name = window.prompt("Nom du skin utilisateur");
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return;
+
+  const skins = readCustomSkins();
+  const id = createId();
+  const skin = {
+    id,
+    name: cleanName,
+    createdAt: new Date().toISOString(),
+    variables: snapshotCurrentSkinVariables(document.querySelector(".skin-editor-preview") || document.body),
+  };
+
+  skins.push(skin);
+  writeCustomSkins(skins);
+  updateSkinOptions();
+  applySkin(`${CUSTOM_SKIN_PREFIX}${id}`);
+  setStatus(`Skin utilisateur enregistré: ${cleanName}`, "success");
+}
+
+const CUSTOM_SKIN_FIELD_GROUPS = [
+  {
+    title: "Board",
+    fields: [
+      ["--color_ui_border", "Bordures"],
+      ["--color_ui_background", "Fond général"],
+      ["--color_ui_panel", "Fond blocs"],
+      ["--color_ui_panel_secondary", "Fond boutons"],
+      ["--color_ui_text", "Texte"],
+      ["--color_ui_text_muted", "Texte secondaire"],
+    ],
+  },
+  {
+    title: "Pads",
+    fields: [
+      ["--color_pad_button_border", "Bordure bouton pad"],
+      ["--color_pad_border", "Bordure pad"],
+      ["--color_pad_actions_background", "Fond zone boutons pad"],
+      ["--color_pad_button_background", "Fond bouton pad"],
+      ["--color_pad_background", "Fond pad"],
+      ["--color_pad_trigger_background", "Fond déclencheur pad"],
+      ["--color_pad_trigger_playing_background", "Fond pad en lecture"],
+      ["--color_pad_note_background", "Fond pense-bête"],
+      ["--color_pad_progress_background", "Fond progression"],
+      ["--color_pad_tag_background", "Fond tag"],
+      ["--color_pad_title_background", "Fond titre pad"],
+      ["--color_pad_progress_fill", "Progression"],
+      ["--color_pad_button_text", "Texte bouton pad"],
+      ["--color_pad_note_overlay_text", "Texte pense-bête"],
+    ],
+  },
+  {
+    title: "Messages",
+    fields: [
+      ["--color_status_success", "Succès"],
+      ["--color_status_progress", "Progression"],
+      ["--color_status_warning", "Avertissement"],
+      ["--color_status_danger", "Danger"],
+      ["--color_status_stop", "Stop"],
+    ],
+  },
+  {
+    title: "Aide",
+    fields: [
+      ["--color_ui_help_border", "Bordure aide"],
+      ["--color_ui_help_background", "Fond aide"],
+      ["--color_ui_help", "Texte aide"],
+    ],
+  },
+];
+
+function normalizeColorInputValue(value) {
+  const text = String(value || "").trim();
+
+  if (/^#[0-9a-fA-F]{6}$/.test(text)) return text;
+
+  const rgba = text.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgba) {
+    return "#" + [rgba[1], rgba[2], rgba[3]]
+      .map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  return "";
+}
+
+function renderSkinEditorFields() {
+  if (!els.skinEditorFields) return;
+  els.skinEditorFields.innerHTML = "";
+  const computed = getComputedStyle(document.body);
+
+  CUSTOM_SKIN_FIELD_GROUPS.forEach((group) => {
+    const title = document.createElement("h3");
+    title.className = "skin-editor-group-title";
+    title.textContent = group.title;
+    els.skinEditorFields.append(title);
+
+    group.fields.forEach(([name, label]) => {
+      const value = normalizeColorInputValue(computed.getPropertyValue(name));
+      const row = document.createElement("div");
+      const inputId = `skin-color-${name.replace(/[^a-z0-9_-]/gi, "-")}`;
+      row.className = "skin-editor-field";
+      row.dataset.skinVariable = name;
+      row.innerHTML = `
+        <label for="${inputId}">${label}</label>
+        <input id="${inputId}" type="color" data-skin-variable="${name}" value="${value || "#ffffff"}">
+      `;
+      const input = row.querySelector("input");
+      const preview = document.querySelector(".skin-editor-preview");
+      if (value) {
+        preview?.style.setProperty(name, value);
+        state.skinEditorVariables[name] = value;
+      }
+      input.addEventListener("input", () => {
+        state.skinEditorVariables[name] = input.value;
+        preview?.style.setProperty(name, input.value);
+      });
+      els.skinEditorFields.append(row);
+    });
+  });
+}
+
+function skinVariableSelector(variable) {
+  return `[data-skin-variable="${CSS.escape(variable)}"]`;
+}
+
+function clearSkinEditorVariableHighlight() {
+  document
+    .querySelectorAll(".skin-variable-highlight, .skin-editor-field.is-linked-variable")
+    .forEach((node) => node.classList.remove("skin-variable-highlight", "is-linked-variable"));
+}
+
+function highlightSkinEditorVariable(variable, options = {}) {
+  if (!variable) return;
+  clearSkinEditorVariableHighlight();
+
+  const selector = skinVariableSelector(variable);
+  document.querySelectorAll(`.skin-editor-preview ${selector}`).forEach((node) => {
+    node.classList.add("skin-variable-highlight");
+  });
+
+  const field = els.skinEditorFields?.querySelector(`.skin-editor-field${selector}`);
+  if (!field) return;
+
+  field.classList.add("is-linked-variable");
+  if (options.scrollField) {
+    field.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+function handleSkinPreviewVariableClick(event) {
+  const previewTarget = event.target.closest?.("[data-skin-variable]");
+  if (!previewTarget || !previewTarget.closest(".skin-editor-preview") || !els.skinEditorFields) return;
+
+  const variable = previewTarget.dataset.skinVariable;
+  if (!variable) return;
+
+  const input = els.skinEditorFields.querySelector(`input[type="color"][data-skin-variable="${CSS.escape(variable)}"]`);
+  if (!input) return;
+
+  event.preventDefault();
+  highlightSkinEditorVariable(variable, { scrollField: true });
+  const row = input.closest(".skin-editor-field");
+  row?.classList.add("is-targeted");
+  window.setTimeout(() => row?.classList.remove("is-targeted"), 900);
+  input.focus({ preventScroll: false });
+  input.click();
+}
+
+function handleSkinVariablePointerOver(event) {
+  const target = event.target.closest?.("[data-skin-variable]");
+  if (!target) return;
+
+  if (target.closest(".skin-editor-preview") || target.closest("#skinEditorFields")) {
+    highlightSkinEditorVariable(target.dataset.skinVariable);
+  }
+}
+
+function handleSkinVariablePointerOut(event) {
+  const related = event.relatedTarget;
+  if (related?.closest?.(".skin-editor-preview [data-skin-variable], #skinEditorFields [data-skin-variable]")) return;
+  clearSkinEditorVariableHighlight();
+}
+
+function openSkinEditor() {
+  state.skinEditorVariables = {};
+  renderSkinEditorFields();
+
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const customSkin = currentId ? customSkinById(currentId) : null;
+  const selectedOption = els.skinSelect?.querySelector(`option[value="${current}"]`);
+  const fallbackName = selectedOption?.textContent || current || "Mon skin";
+
+  if (els.skinEditorName) {
+    els.skinEditorName.value = customSkin?.name || fallbackName;
+    els.skinEditorName.placeholder = fallbackName;
+  }
+
+  if (els.deleteSkinEditor) {
+    els.deleteSkinEditor.disabled = !customSkin;
+  }
+
+  if (els.saveSkinEditorAs) {
+    els.saveSkinEditorAs.hidden = true;
+  }
+
+  if (els.skinEditorDialog?.showModal) {
+    els.skinEditorDialog.showModal();
+  }
+}
+
+function clearSkinEditorPreviewVariables() {
+  CUSTOM_SKIN_VARIABLES.forEach((name) => {
+    document.querySelector(".skin-editor-preview")?.style.removeProperty(name);
+  });
+}
+
+function closeSkinEditor() {
+  clearSkinEditorVariableHighlight();
+  clearSkinEditorPreviewVariables();
+  els.skinEditorDialog?.close();
+  applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+}
+
+function handleSkinSelectChange() {
+  const value = String(els.skinSelect?.value || "classic");
+  if (value === "__edit_current_skin__") {
+    applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+    openSkinEditor();
+    return;
+  }
+  applySkin(value);
+}
+
+
+const BUILT_IN_SKIN_NAMES = [
+  "Basic/Custom",
+  "Candy",
+  "Classic Dark",
+  "High Contrast",
+  "Neon Stage",
+  "Studio Grey",
+];
+
+function isBuiltInSkinDisplayName(name) {
+  const normalized = String(name || "").trim().toLowerCase();
+  return BUILT_IN_SKIN_NAMES.some((skinName) => skinName.toLowerCase() === normalized);
+}
+
+function saveSkinEditorCurrent() {
+  const name = String(els.skinEditorName?.value || "").trim();
+
+  if (!name) {
+    window.alert("Nom du skin obligatoire");
+    return;
+  }
+
+  if (isBuiltInSkinDisplayName(name)) {
+    window.alert("Ce nom est réservé à un skin intégré");
+    return;
+  }
+
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const skins = readCustomSkins();
+  const existingSameName = skins.find((skin) => String(skin.name || "").trim().toLowerCase() === name.toLowerCase());
+
+  if (existingSameName && existingSameName.id !== currentId) {
+    window.alert("Nom de skin déjà utilisé");
+    return;
+  }
+
+  const preview = document.querySelector(".skin-editor-preview");
+  const variables = {
+    ...snapshotCurrentSkinVariables(preview || document.body),
+    ...state.skinEditorVariables,
+  };
+
+  if (currentId) {
+    const index = skins.findIndex((skin) => skin.id === currentId);
+    if (index !== -1) {
+      skins[index] = {
+        ...skins[index],
+        name,
+        updatedAt: new Date().toISOString(),
+        variables,
+      };
+
+      writeCustomSkins(skins);
+      updateSkinOptions();
+      applySkin(`${CUSTOM_SKIN_PREFIX}${currentId}`);
+      closeSkinEditor();
+      return;
+    }
+  }
+
+  const skin = {
+    id: createId(),
+    name,
+    createdAt: new Date().toISOString(),
+    variables,
+  };
+
+  skins.push(skin);
+  writeCustomSkins(skins);
+  updateSkinOptions();
+  applySkin(`${CUSTOM_SKIN_PREFIX}${skin.id}`);
+  closeSkinEditor();
+}
+
+function deleteCurrentCustomSkin() {
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "");
+
+  if (!current.startsWith(CUSTOM_SKIN_PREFIX)) {
+    window.alert("Aucun skin utilisateur sélectionné");
+    return;
+  }
+
+  const id = current.slice(CUSTOM_SKIN_PREFIX.length);
+  const skin = customSkinById(id);
+
+  if (!skin) {
+    window.alert("Skin utilisateur introuvable");
+    return;
+  }
+
+  const confirmed = window.confirm(`Supprimer le skin utilisateur « ${skin.name} » ?`);
+  if (!confirmed) return;
+
+  const skins = readCustomSkins().filter((candidate) => candidate.id !== id);
+  writeCustomSkins(skins);
+
+  updateSkinOptions();
+  applySkin("classic");
+  closeSkinEditor();
+  setStatus(`Skin utilisateur supprimé: ${skin.name}`, "success");
+}
+
 function applySkin(skin) {
-  const skinName = normalizeSkinName(skin);
+  const requestedSkin = String(skin || "classic");
+  const isCustomSkin = requestedSkin.startsWith(CUSTOM_SKIN_PREFIX);
+  const customSkinId = isCustomSkin ? requestedSkin.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const customSkin = isCustomSkin ? customSkinById(customSkinId) : null;
+  const skinName = customSkin ? "classic" : normalizeSkinName(requestedSkin);
+
   updateSkinOptions();
   document.body.dataset.skin = skinName;
-  if (els.skinSelect) {
-    const hasOption = Boolean(els.skinSelect.querySelector(`option[value="${skinName}"]`));
-    if (hasOption) els.skinSelect.value = skinName;
+
+  if (customSkin) {
+    applyCustomSkinVariables(customSkin);
+  } else {
+    clearCustomSkinVariables();
   }
-  localStorage.setItem(SKIN_STORAGE, skinName);
+
+  if (els.skinSelect) {
+    const selectedValue = customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName;
+    const hasOption = Boolean(els.skinSelect.querySelector(`option[value="${selectedValue}"]`));
+    if (hasOption) els.skinSelect.value = selectedValue;
+  }
+
+  localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
 }
 
@@ -5346,6 +5841,8 @@ async function repairAccidentalPadTitles() {
   if (state.currentBoardId !== DEFAULT_BOARD_ID) return;
   if (localStorage.getItem(PAD_NAME_REPAIR) === "done") return;
 
+  const boardId = state.currentBoardId;
+
   for (const pad of state.pads) {
     const accidentalTitle = KEYS[pad.index];
     const title = `Pad ${pad.index + 1}`;
@@ -6806,9 +7303,18 @@ async function safeSaveRestoredPadMeta(pad, meta) {
   return savePadMeta(pad);
 }
 
-function setStatus(text) {
+function setStatus(text, type = "") {
+  const normalizedType = type || "neutral";
   els.status.textContent = text;
-  els.status.classList.toggle("is-success", String(text || "").startsWith("Board prêt"));
+  els.status.classList.toggle("is-success", normalizedType === "success");
+  els.status.classList.toggle("is-progress", normalizedType === "progress");
+  els.status.classList.toggle("is-warning", normalizedType === "warning");
+  els.status.classList.toggle("is-danger", normalizedType === "danger");
+  els.status.classList.toggle("is-stop", normalizedType === "stop");
+
+  if (!state.stageMode && ["warning", "danger", "stop"].includes(normalizedType)) {
+    window.alert(text);
+  }
 }
 
 function stageLockSettings() {
@@ -6867,16 +7373,16 @@ async function prepareBoardForStage() {
       || String(pad.textContent || "").trim()
     ));
     if (!hasAnyMedia) {
-      setStatus("Mode scène impossible : aucun média sur ce board");
+      setStatus("Mode scène impossible : aucun média sur ce board", "danger");
       return false;
     }
-    setStatus("Board prêt pour la scène : aucun média à précharger");
+    setStatus("Board prêt pour la scène : aucun média à précharger", "success");
     return true;
   }
 
   for (let index = 0; index < pads.length; index += 1) {
     const pad = pads[index];
-    setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`);
+    setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`, "progress");
     try {
       pad.buffer = await ensurePadAudioDecoded(pad);
       setPadDuration(pad, pad.buffer.duration);
@@ -6884,12 +7390,12 @@ async function prepareBoardForStage() {
     } catch (error) {
       console.error(error);
       pad.node?.classList.add("is-missing-audio");
-      setStatus(`Préparation scène impossible : ${pad.title}`);
+      setStatus(`Préparation scène impossible : ${pad.title}`, "danger");
       return false;
     }
   }
 
-  setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`);
+  setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
   return true;
 }
 
@@ -6938,13 +7444,13 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   if (state.stageMode) {
     setBoardPadEditing(false);
     const activeCount = syncStageVisiblePads();
-    setStatus(`Board prêt pour la scène : ${activeCount} pad${activeCount > 1 ? "s" : ""} actif${activeCount > 1 ? "s" : ""}`);
+    setStatus(`Board prêt pour la scène : ${activeCount} pad${activeCount > 1 ? "s" : ""} actif${activeCount > 1 ? "s" : ""}`, "success");
     const canRequestFullscreen = Boolean(document.documentElement.requestFullscreen) && !isPortableDevice();
     if (requestFullscreen && !document.fullscreenElement && canRequestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
     if (requestFullscreen && !canRequestFullscreen) {
-      setStatus("Board prêt pour la scène : plein écran via icône smartphone");
+      setStatus("Board prêt pour la scène : plein écran via icône smartphone", "success");
     }
   } else {
     syncStageVisiblePads();
@@ -10182,8 +10688,23 @@ async function init() {
   els.cueVolume?.addEventListener("input", () => {
     setCueVolume(els.cueVolume.value);
   });
-  els.skinSelect?.addEventListener("input", () => applySkin(els.skinSelect.value));
-  els.skinSelect?.addEventListener("change", () => applySkin(els.skinSelect.value));
+  els.skinSelect?.addEventListener("input", handleSkinSelectChange);
+  els.skinSelect?.addEventListener("change", handleSkinSelectChange);
+  els.closeSkinEditor?.addEventListener("click", closeSkinEditor);
+  els.cancelSkinEditor?.addEventListener("click", closeSkinEditor);
+
+  els.saveSkinEditor?.addEventListener("click", saveSkinEditorCurrent);
+  els.saveSkinEditorAs?.remove();
+  els.deleteSkinEditor?.addEventListener("click", deleteCurrentCustomSkin);
+  document.querySelector(".skin-editor-preview")?.addEventListener("click", handleSkinPreviewVariableClick);
+  document.querySelector(".skin-editor-preview")?.addEventListener("mouseover", handleSkinVariablePointerOver);
+  document.querySelector(".skin-editor-preview")?.addEventListener("mouseout", handleSkinVariablePointerOut);
+  els.skinEditorFields?.addEventListener("mouseover", handleSkinVariablePointerOver);
+  els.skinEditorFields?.addEventListener("mouseout", handleSkinVariablePointerOut);
+  els.skinEditorFields?.addEventListener("focusin", handleSkinVariablePointerOver);
+  els.skinEditorFields?.addEventListener("focusout", handleSkinVariablePointerOut);
+  els.skinEditorFields?.addEventListener("click", handleSkinVariablePointerOver);
+  els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
