@@ -9733,6 +9733,11 @@ async function executeManualCrossfade(targetPad) {
     return;
   }
 
+  if (isManualCrossfadeSourceCandidate(targetPad)) {
+    setStatus("Un pad audio en lecture ne peut pas être cible du crossfade armé.");
+    return;
+  }
+
   if (!isManualCrossfadeAudioTarget(targetPad, sourcePad)) {
     setStatus(padType(targetPad) === "audio"
       ? "Pad cible indisponible : crossfade manuel impossible."
