@@ -4614,6 +4614,11 @@ body[data-skin="contrast"] .color-field {
   opacity: 0.52;
 }
 
+.pad.is-empty.is-tag-match .pad-actions,
+.pad.is-empty.is-tag-match .controls {
+  opacity: 1;
+}
+
 @keyframes endingPulse {
   0%,
   100% {

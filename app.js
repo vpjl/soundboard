@@ -3064,7 +3064,9 @@ async function runCurrentCue(options = {}) {
 
 function padsForBoardTagSelection() {
   const value = String(els.boardTagFilter?.value || "").trim();
-  return padsForBoardFilterValue(value);
+  const pads = padsForBoardFilterValue(value);
+  if (pads.length || !value) return pads;
+  return state.pads.filter((pad) => pad.node?.classList.contains("is-tag-match"));
 }
 
 function padsForBoardFilterValue(value) {
@@ -3116,46 +3118,6 @@ function padHasCueReference(pad) {
   });
 }
 
-function padHasSignificantUserSettings(pad) {
-  return [
-    pad.loop,
-    pad.duckTrigger,
-    pad.reverse,
-    pad.muted,
-    pad.mono,
-    pad.fadeInEnabled,
-    pad.fadeOutEnabled,
-    pad.keepResumeOffsetOnEnd,
-    pad.normalizeEnabled === false,
-    hasStringChanged(pad.color),
-    hasStringChanged(pad.fadeSeconds),
-    hasStringChanged(pad.fadeInSeconds),
-    hasStringChanged(pad.fadeOutSeconds),
-    hasStringChanged(pad.duckMode, "none"),
-    hasStringChanged(pad.playMode, "oneshot"),
-    hasStringChanged(pad.reverbPreset, "none"),
-    hasStringChanged(pad.reverbMode, "global"),
-    hasStringChanged(pad.eqMode, "global"),
-    hasStringChanged(pad.textLang, "fr-FR"),
-    hasStringChanged(pad.textGender, "female"),
-    hasStringChanged(pad.textVoiceURI),
-    hasNumberChanged(pad.volume, 0.85),
-    hasNumberChanged(pad.panValue, 0),
-    hasNumberChanged(pad.duckPercent, 60),
-    hasNumberChanged(pad.pitchSemitones, 0),
-    hasNumberChanged(pad.pitchFine, 0),
-    hasNumberChanged(pad.speedRate, 1),
-    hasNumberChanged(pad.reverbWet, 0.5),
-    hasNumberChanged(pad.eqLow, 0),
-    hasNumberChanged(pad.eqMid, 0),
-    hasNumberChanged(pad.eqHigh, 0),
-    hasNumberChanged(pad.normalizedGain, 1),
-    hasNumberChanged(pad.trimStart, 0),
-    hasNumberChanged(pad.trimEnd, 0),
-    hasNumberChanged(pad.textRate, DEFAULT_TEXT_RATE),
-  ].some(Boolean);
-}
-
 function isEmptyPad(pad) {
   if (!pad) return false;
   const hasAudioRef = pad.audioRefIndex !== null && pad.audioRefIndex !== "" && Number.isInteger(Number(pad.audioRefIndex));
@@ -3187,7 +3149,7 @@ function isEmptyPad(pad) {
     || pad.endStartMode !== "none"
     || hasStringChanged(pad.startStopTag)
     || hasStringChanged(pad.endStartTarget)
-    || padHasSignificantUserSettings(pad)
+    || hasStringChanged(pad.color)
   );
 }
 
