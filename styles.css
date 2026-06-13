@@ -2587,7 +2587,9 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad.is-editing {
-  grid-template-columns: minmax(0, 1fr) 38px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
 }
 
 .pad.is-editing .pad-head {
@@ -2595,8 +2597,17 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad.is-editing .pad-play-row {
+  display: contents;
   order: 0;
   grid-column: 1 / -1;
+}
+
+.pad.is-editing .pad-trigger {
+  order: 0;
+  grid-column: 1 / -1;
+  min-height: 56px;
+  padding: 8px 72px 8px 60px;
+  align-items: center;
 }
 
 .pad.is-editing .pad-label {
@@ -2615,6 +2626,46 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   text-align: center;
 }
 
+.pad.is-editing .pad-shortcut.is-number {
+  top: 8px;
+  left: 8px;
+}
+
+.pad.is-editing .pad-type {
+  top: 8px;
+  left: 34px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--color_ui_text_muted);
+}
+
+.pad.is-editing .pad-type svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pad.is-editing .pad-time {
+  top: 9px;
+  right: 10px;
+}
+
+.pad.is-editing .pad-progress,
+.pad.is-editing .pad-vu {
+  display: none;
+}
+
+.pad.is-editing .pad-note-button {
+  position: static;
+  order: 11;
+  grid-column: 3;
+  justify-self: stretch;
+  width: 100%;
+  height: 38px;
+}
+
 .pad.is-editing .name-field > span {
   order: 10;
   grid-column: 1 / -1;
@@ -2622,16 +2673,19 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad.is-editing .name-field > input[data-name] {
   order: 11;
-  grid-column: 1;
+  grid-column: 1 / 3;
 }
 
 .pad.is-editing .drag-handle {
-  order: 11;
-  grid-column: 2;
+  order: 42;
+  grid-column: auto;
+  width: 100%;
+  min-height: 38px;
 }
 
 .pad.is-editing .tag-field {
   order: 20;
+  grid-column: 1 / -1;
 }
 
 .pad.is-editing .pad-fade-field {
@@ -2639,8 +2693,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad.is-editing .pad-actions {
-  order: 40;
-  grid-column: 1 / -1;
+  display: contents;
 }
 
 .pad.is-editing .controls {
@@ -2986,40 +3039,68 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad.is-editing .pad-live-row {
-  display: none;
+  display: contents;
 }
 
 .pad:not(.is-editing) .pad-action-line {
   display: none;
 }
 
+.pad.is-editing .pad-actions,
+.pad.is-editing .pad-action-line,
+.pad.is-editing .manage-group,
+.pad.is-editing .secondary-live-group {
+  display: contents;
+}
+
+.pad.is-editing .live-button-group,
+.pad.is-editing .secondary-live-group button:not(.pad-audio-button) {
+  display: none;
+}
+
 .pad.is-editing .manage-group {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: contents;
 }
 
 .pad.is-editing .manage-group button:not([data-action="visual-image"]):not([data-action="duplicate-pad"]):not([data-action="transfer-pad"]):not([data-action="delete-pad"]) {
   display: none;
 }
 
+.pad.is-editing .pad-audio-button,
+.pad.is-editing .manage-group [data-action="visual-image"],
+.pad.is-editing .manage-group [data-action="duplicate-pad"],
+.pad.is-editing .manage-group [data-action="transfer-pad"],
+.pad.is-editing .manage-group [data-action="delete-pad"],
+.pad.is-editing .drag-handle {
+  min-width: 0;
+  width: 100%;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 6px;
+}
+
 .pad.is-editing .manage-group [data-action="visual-image"] {
-  order: 1;
+  order: 40;
+}
+
+.pad.is-editing .pad-audio-button {
+  order: 41;
 }
 
 .pad.is-editing .manage-group [data-action="duplicate-pad"] {
-  order: 2;
+  order: 43;
 }
 
 .pad.is-editing .manage-group [data-action="transfer-pad"] {
-  order: 3;
+  order: 44;
 }
 
 .pad.is-editing .manage-group [data-action="delete-pad"] {
-  order: 4;
+  order: 45;
 }
 
 .pad.is-editing .pad-action-line {
-  grid-template-columns: 1fr;
+  display: contents;
 }
 
 .pad-transfer-panel {
@@ -6444,6 +6525,94 @@ body.stage-mode .pad-alerts {
   max-width: 100%;
 }
 
+body.board-edit-mode .pad.is-editing .pad-play-row {
+  display: contents !important;
+  min-height: 0;
+}
+
+body.board-edit-mode .pad.is-editing .pad-trigger {
+  grid-area: auto;
+  grid-column: 1 / -1;
+  min-height: 56px;
+  padding: 8px 72px 8px 60px !important;
+}
+
+body.board-edit-mode .pad.is-editing .pad-label {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+body.board-edit-mode .pad.is-editing .pad-title,
+body.board-edit-mode .pad.is-editing .pad-tags {
+  grid-column: 1 / -1 !important;
+  text-align: center;
+}
+
+body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
+  position: absolute !important;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+}
+
+body.board-edit-mode .pad.is-editing .pad-type {
+  grid-area: auto;
+  position: absolute !important;
+  top: 8px;
+  left: 34px;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  border-color: transparent;
+  background: transparent;
+}
+
+body.board-edit-mode .pad.is-editing .pad-type svg {
+  width: 18px;
+  height: 18px;
+}
+
+body.board-edit-mode .pad.is-editing .pad-time {
+  grid-area: auto;
+  position: absolute !important;
+  top: 9px;
+  right: 10px;
+}
+
+body.board-edit-mode .pad.is-editing .pad-note-button {
+  grid-area: auto;
+  position: static !important;
+  grid-column: 3;
+  justify-self: stretch;
+  width: 100%;
+  height: 38px;
+}
+
+body.board-edit-mode .pad.is-editing .visual-toggle-button {
+  grid-area: auto !important;
+  position: absolute !important;
+  top: 8px;
+  right: 42px;
+}
+
+body.board-edit-mode .pad.is-editing .pad-crossfade-flash {
+  grid-area: auto;
+  position: absolute !important;
+  top: 12px;
+  right: 64px;
+}
+
+body.board-edit-mode .pad.is-editing .pad-alerts {
+  display: none !important;
+  grid-area: auto;
+}
+
+body.board-edit-mode .pad.is-editing .pad-progress,
+body.board-edit-mode .pad.is-editing .pad-vu {
+  display: none !important;
+}
+
 .pad:not(.is-editing) .pad-head {
   order: 1;
 }
@@ -6699,6 +6868,55 @@ body[data-skin="basic"] .pad.has-color .visual-toggle-button {
 body[data-skin="basic"] .pad.has-visual-image .pad-note-button,
 body[data-skin="basic"] .pad.has-color .pad-note-button {
   grid-area: note;
+}
+
+body.board-edit-mode .pad.is-editing {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.board-edit-mode .pad.is-editing .pad-actions,
+body.board-edit-mode .pad.is-editing .pad-live-row,
+body.board-edit-mode .pad.is-editing .pad-action-line,
+body.board-edit-mode .pad.is-editing .secondary-live-group,
+body.board-edit-mode .pad.is-editing .manage-group {
+  display: contents !important;
+}
+
+body.board-edit-mode .pad.is-editing .pad-audio-button,
+body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
+body.board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"],
+body.board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"],
+body.board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"],
+body.board-edit-mode .pad.is-editing .drag-handle {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  grid-area: auto;
+}
+
+body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"] {
+  grid-column: 1;
+}
+
+body.board-edit-mode .pad.is-editing .pad-audio-button {
+  grid-column: 2;
+}
+
+body.board-edit-mode .pad.is-editing .drag-handle {
+  grid-column: 3;
+}
+
+body.board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"] {
+  grid-column: 1;
+}
+
+body.board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"] {
+  grid-column: 2;
+}
+
+body.board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
+  grid-column: 3;
 }
 
 body[data-skin="basic"] .pad:not(.is-editing) .pad-play-row {
