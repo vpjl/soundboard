@@ -1017,7 +1017,7 @@ body.board-edit-mode .live-tools {
 
 .xfade-live-row {
   display: grid;
-  grid-template-columns: repeat(2, 42px);
+  grid-template-columns: repeat(3, 42px);
   gap: 8px;
 }
 
@@ -1026,9 +1026,20 @@ body.board-edit-mode .live-tools {
 }
 
 .xfade-live-row .cue-window-button,
-.xfade-live-row .patch-bay-button,
-.xfade-live-row .cues-help-button {
+.xfade-live-row .patch-bay-button {
   display: none;
+}
+
+.xfade-live-row .show-cables-button {
+  order: 1;
+}
+
+.xfade-live-row .cue-stop-all-button {
+  order: 2;
+}
+
+.xfade-live-row .cues-help-button {
+  order: 3;
 }
 
 .cue-live-row .icon-button,
@@ -6779,7 +6790,7 @@ body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
 }
 
 .xfade-live-row {
-  grid-template-columns: repeat(2, 42px);
+  grid-template-columns: repeat(3, 42px);
 }
 
 .cues-help-button {
