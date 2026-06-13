@@ -201,8 +201,6 @@ const state = {
   versionNotesDraft: null,
   audioCleanupCandidates: [],
   cueFloatAnchorTop: null,
-  cueFixedViewportTop: null,
-  cueFloatViewportTop: null,
   skinEditorVariables: {},
 };
 
@@ -2507,41 +2505,12 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
-  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
   const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
-    const existingFixedTop = Number.parseFloat(document.documentElement.style.getPropertyValue("--cue-live-fixed-top"));
-    if (Number.isFinite(existingFixedTop) && existingFixedTop > 0) {
-      state.cueFixedViewportTop = existingFixedTop;
-      state.cueFloatViewportTop = existingFixedTop;
-    } else {
-      const rect = els.liveTools.getBoundingClientRect();
-      state.cueFloatAnchorTop = rect.top + window.scrollY;
-      state.cueFixedViewportTop = Math.max(topOffset, rect.top);
-      state.cueFloatViewportTop = state.cueFixedViewportTop;
-    }
-    document.documentElement.style.setProperty("--cue-live-fixed-top", `${state.cueFixedViewportTop}px`);
-    document.documentElement.style.setProperty("--cue-live-float-top", `${state.cueFloatViewportTop}px`);
+    state.cueFloatAnchorTop = null;
     return;
   }
-  const savedTop = Number.parseFloat(document.documentElement.style.getPropertyValue("--cue-live-float-top"));
-  if (Number.isFinite(savedTop) && savedTop > 0) {
-    state.cueFixedViewportTop = savedTop;
-    state.cueFloatViewportTop = savedTop;
-    document.body.classList.add("cues-stuck");
-    return;
-  }
-  const wasStuck = document.body.classList.contains("cues-stuck");
-  if (state.cueFixedViewportTop != null) {
-    state.cueFloatViewportTop = state.cueFixedViewportTop;
-  } else if (state.cueFloatViewportTop == null || (resetAnchor && wasStuck)) {
-    if (wasStuck) document.body.classList.remove("cues-stuck");
-    const rect = els.liveTools.getBoundingClientRect();
-    state.cueFloatAnchorTop = rect.top + window.scrollY;
-    state.cueFloatViewportTop = Math.max(topOffset, rect.top);
-  }
-  document.documentElement.style.setProperty("--cue-live-float-top", `${state.cueFloatViewportTop}px`);
   document.body.classList.add("cues-stuck");
 }
 
@@ -11332,20 +11301,6 @@ async function init() {
     const board = currentBoard();
     if (!board) return;
     const nextEnabled = board.cuesEnabled === false;
-    if (nextEnabled && els.liveTools) {
-      const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
-      const existingFixedTop = Number.parseFloat(document.documentElement.style.getPropertyValue("--cue-live-fixed-top"));
-      if (Number.isFinite(existingFixedTop) && existingFixedTop > 0) {
-        state.cueFixedViewportTop = existingFixedTop;
-      } else {
-        const rect = els.liveTools.getBoundingClientRect();
-        state.cueFloatAnchorTop = rect.top + window.scrollY;
-        state.cueFixedViewportTop = Math.max(topOffset, rect.top);
-      }
-      state.cueFloatViewportTop = state.cueFixedViewportTop;
-      document.documentElement.style.setProperty("--cue-live-fixed-top", `${state.cueFixedViewportTop}px`);
-      document.documentElement.style.setProperty("--cue-live-float-top", `${state.cueFloatViewportTop}px`);
-    }
     board.cuesEnabled = nextEnabled;
     saveBoards();
     syncCueControls();

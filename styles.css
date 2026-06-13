@@ -6111,7 +6111,7 @@ body.stage-mode .secondary-live-group {
 @media (max-width: 950px), (pointer: coarse) {
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
     position: fixed;
-    top: var(--cue-live-fixed-top, var(--cue-live-float-top, max(6px, env(safe-area-inset-top))));
+    top: max(6px, env(safe-area-inset-top));
     left: 50%;
     transform: translateX(-50%);
     z-index: 70;
@@ -6154,7 +6154,7 @@ body.stage-mode .secondary-live-group {
 
 body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
   position: fixed;
-  top: var(--cue-live-fixed-top, var(--cue-live-float-top, max(8px, env(safe-area-inset-top))));
+  top: max(8px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 70;
