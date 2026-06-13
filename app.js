@@ -911,12 +911,23 @@ function stagePortablePortraitLayoutForBoard(board) {
   };
 }
 
-function shouldForceStagePortraitLayout() {
-  return Boolean(state.stageMode && isPortablePortrait());
+function shouldForcePortablePortraitLayout() {
+  return isPortablePortrait();
 }
 
 function effectiveLayoutForBoard(board) {
-  return shouldForceStagePortraitLayout() ? stagePortablePortraitLayoutForBoard(board) : layoutForBoard(board);
+  if (shouldForcePortablePortraitLayout()) return stagePortablePortraitLayoutForBoard(board);
+
+  const layout = layoutForBoard(board);
+  if (shouldLimitPortableLandscapeColumns() && layout.columns > 5) {
+    return {
+      ...layout,
+      columns: 5,
+      rows: Math.max(1, Math.ceil((Number(board?.padCount) || DEFAULT_PAD_COUNT) / 5)),
+    };
+  }
+
+  return layout;
 }
 
 function normalizeCueAction(action) {
@@ -3384,12 +3395,16 @@ function renderBoardLayoutControls() {
   const board = currentBoard();
   if (!board) return;
   const layout = effectiveLayoutForBoard(board);
-  const portraitLocked = shouldForceStagePortraitLayout();
+  const portraitLocked = shouldForcePortablePortraitLayout();
+  const landscapeLimited = shouldLimitPortableLandscapeColumns();
+
   if (els.padColumns) {
+    renderPadColumnOptions(landscapeLimited ? 5 : 8);
     els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
     els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
   }
+
   const displayedColumns = portraitLocked ? 2 : layout.columns || 4;
   if (els.padColumnsComputed) {
     els.padColumnsComputed.textContent = `${displayedColumns} colonne${displayedColumns > 1 ? "s" : ""}`;
@@ -3406,10 +3421,10 @@ function renderBoardLayoutControls() {
 function updateBoardLayout() {
   const board = currentBoard();
   if (!board) return;
-  if (shouldForceStagePortraitLayout()) {
+  if (shouldForcePortablePortraitLayout()) {
     renderBoardLayoutControls();
     applyPadLayout(board);
-    setStatus("Mode scène portrait : 2 colonnes fixes");
+    setStatus("Mode portrait portable : 2 colonnes fixes");
     return;
   }
   if (els.padColumns?.value === "auto") {
@@ -3418,7 +3433,8 @@ function updateBoardLayout() {
     board.padRows = 0;
   } else {
     board.layoutMode = "custom";
-    board.padColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
+    const selectedColumns = normalizeLayoutNumber(els.padColumns?.value, board.padColumns || 4);
+    board.padColumns = shouldLimitPortableLandscapeColumns() ? Math.min(selectedColumns, 5) : selectedColumns;
     board.padRows = Math.max(1, Math.ceil(board.padCount / board.padColumns));
   }
   saveBoards();
@@ -4119,6 +4135,36 @@ function isPortableDevice() {
 
 function isPortablePortrait() {
   return window.matchMedia("(orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse)").matches;
+}
+
+function isPortableLandscape() {
+  return window.matchMedia("(orientation: landscape)").matches && isPortableDevice();
+}
+
+function shouldLimitPortableLandscapeColumns() {
+  return isPortableLandscape();
+}
+
+function renderPadColumnOptions(limit = 8) {
+  if (!els.padColumns) return;
+  const currentValue = els.padColumns.value || "auto";
+  els.padColumns.innerHTML = "";
+
+  const autoOption = document.createElement("option");
+  autoOption.value = "auto";
+  autoOption.textContent = "Auto";
+  els.padColumns.append(autoOption);
+
+  for (let columns = 1; columns <= limit; columns += 1) {
+    const option = document.createElement("option");
+    option.value = String(columns);
+    option.textContent = String(columns);
+    els.padColumns.append(option);
+  }
+
+  if ([...els.padColumns.options].some((option) => option.value === currentValue)) {
+    els.padColumns.value = currentValue;
+  }
 }
 
 function updateSkinOptions() {
