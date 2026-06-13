@@ -3464,19 +3464,24 @@ function movePadInMemory(pad, toIndex) {
 }
 
 function padIndexFromPoint(clientX, clientY, draggedPad) {
+  const previousPointerEvents = draggedPad.node.style.pointerEvents;
+  draggedPad.node.style.pointerEvents = "none";
+
   const targetNode = document.elementFromPoint(clientX, clientY)?.closest("[data-pad]");
+
+  draggedPad.node.style.pointerEvents = previousPointerEvents;
+
   const targetPad = state.pads.find((pad) => pad.node === targetNode);
   if (!targetPad || targetPad === draggedPad) return -1;
 
-  const targetIndex = state.pads.indexOf(targetPad);
-  const draggedIndex = state.pads.indexOf(draggedPad);
+  const orderedPads = state.pads.filter((pad) => pad !== draggedPad);
+  const targetIndex = orderedPads.indexOf(targetPad);
+  if (targetIndex < 0) return -1;
+
   const rect = targetPad.node.getBoundingClientRect();
-  const horizontal = rect.width > rect.height * 1.2;
-  const after = horizontal
-    ? clientX > rect.left + rect.width / 2
-    : clientY > rect.top + rect.height / 2;
-  let toIndex = targetIndex + (after ? 1 : 0);
-  if (toIndex > draggedIndex) toIndex -= 1;
+  const after = clientX > rect.left + rect.width / 2;
+
+  const toIndex = targetIndex + (after ? 1 : 0);
   return Math.max(0, Math.min(state.pads.length - 1, toIndex));
 }
 
@@ -3549,12 +3554,17 @@ function startPadDrag(pad, event) {
 
     try {
       await persistPadOrder(drag.originalPads, state.pads.slice());
-      await renderPads();
+      syncPadIndexesFromDom();
+      refreshStopGroupOptions();
+      refreshBoardTagFilterOptions();
+      refreshCrossfadeTargetOptions();
+      updateShortcutIndicators();
       setBoardPadEditing(true);
       setStatus("Pads réordonnés");
     } catch {
       state.pads = drag.originalPads;
       state.pads.forEach((item) => els.pads.append(item.node));
+      setBoardPadEditing(true);
       setStatus("Réorganisation impossible");
     }
   };
@@ -3577,16 +3587,21 @@ function startPadDrag(pad, event) {
   window.addEventListener("pointercancel", cancelDrag);
 }
 
-async function renderPads() {
+async function renderPads(options = {}) {
   const perf = startPerfMeasure("renderPads");
+  const preserveEditMode = options.preserveEditMode === true && state.boardEditMode;
   cancelManualCrossfade({ silent: true });
   stopAll();
   resetRecordingState();
-  state.boardEditMode = false;
-  document.body.classList.remove("board-edit-mode");
-  setBoardEditing(false, false);
-  els.editPads?.classList.remove("is-active");
-  els.editPads?.setAttribute("aria-pressed", "false");
+  if (!preserveEditMode) {
+    state.boardEditMode = false;
+    document.body.classList.remove("board-edit-mode");
+    setBoardEditing(false, false);
+  }
+  if (!preserveEditMode) {
+    els.editPads?.classList.remove("is-active");
+    els.editPads?.setAttribute("aria-pressed", "false");
+  }
   state.pads = [];
   els.pads.innerHTML = "";
   const board = currentBoard();
