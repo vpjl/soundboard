@@ -3302,10 +3302,14 @@ async function confirmDeleteEmptyPads(pads) {
     if (currentBoard().padCount <= 1) break;
     const pad = state.pads[index];
     if (!pad || !isEmptyPad(pad)) continue;
-    const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: true, status: false });
+    const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: false, status: false });
     if (removed) deletedCount += 1;
   }
 
+  if (deletedCount) {
+    await renderPads();
+    setBoardPadEditing(true);
+  }
   refreshBoardTagFilterOptions();
   if (els.boardTagFilter) {
     els.boardTagFilter.value = "";
@@ -5817,6 +5821,12 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   await dbDelete(padMetaKeyFor(boardId, board.padCount - 1));
   await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
   board.padCount = remainingPads.length;
+  if (!shouldRender) {
+    state.pads = remainingPads;
+    state.pads.forEach((item, index) => {
+      item.index = index;
+    });
+  }
   saveBoards();
   if (shouldRender) {
     await renderPads();
