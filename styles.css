@@ -6583,6 +6583,7 @@ body.board-edit-mode .pad.is-editing .pad-time {
 body.board-edit-mode .pad.is-editing .pad-note-button {
   grid-area: auto;
   position: static !important;
+  order: 12;
   grid-column: 3;
   justify-self: stretch;
   width: 100%;
