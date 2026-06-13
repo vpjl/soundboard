@@ -2040,8 +2040,15 @@ body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
 }
 
 body.crossfade-armed,
+body.crossfade-source-choice .pad.is-crossfade-source-candidate,
 body.crossfade-armed .pad.is-crossfade-target {
   cursor: crosshair;
+}
+
+body.crossfade-source-choice .pad.is-crossfade-source-candidate {
+  outline: 2px solid var(--color_status_warning);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color_status_warning) 18%, transparent);
 }
 
 body.crossfade-armed .pad.is-crossfade-source {
@@ -2058,6 +2065,27 @@ body.crossfade-armed .pad.is-crossfade-target {
 body.crossfade-armed .pad.is-crossfade-target:hover,
 body.crossfade-armed .pad.is-crossfade-target:focus-within {
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--color_status_progress) 24%, transparent);
+}
+
+body.crossfade-armed .pad.is-crossfade-unavailable {
+  opacity: 0.58;
+}
+
+body:not(.board-edit-mode) #showCables.show-cables-button {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 120;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+}
+
+body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+body:not(.board-edit-mode) .deck {
+  padding-bottom: calc(var(--cable-extra-bottom) + 70px);
 }
 
 .option-badges {
@@ -6047,7 +6075,6 @@ body.stage-mode .secondary-live-group {
     backdrop-filter: blur(10px);
   }
 
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .show-cables-button,
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .patch-bay-button,
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-window-button,
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
@@ -6094,7 +6121,6 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
   padding-top: 92px;
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .show-cables-button,
 body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .patch-bay-button,
 body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-window-button,
 body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
