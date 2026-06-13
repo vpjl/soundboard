@@ -3120,22 +3120,23 @@ function padHasCueReference(pad) {
 
 function isEmptyPad(pad) {
   if (!pad) return false;
-  const hasAudioRef = pad.audioRefIndex !== null && pad.audioRefIndex !== "" && Number.isInteger(Number(pad.audioRefIndex));
+  const hasMissingMedia = pad.node?.classList.contains("is-missing-audio");
+  const hasAudioRef = !hasMissingMedia && pad.audioRefIndex !== null && pad.audioRefIndex !== "" && Number.isInteger(Number(pad.audioRefIndex));
   return !(
     pad.buffer
     || pad.hasDirectAudio
-    || hasStringChanged(pad.audioName)
-    || hasStringChanged(pad.audioUid)
-    || hasStringChanged(pad.audioPath)
-    || pad.audioStored
-    || pad.audioPending
-    || hasNumberChanged(pad.audioDuration, 0)
-    || hasNumberChanged(pad.audioByteLength, 0)
+    || (!hasMissingMedia && hasStringChanged(pad.audioName))
+    || (!hasMissingMedia && hasStringChanged(pad.audioUid))
+    || (!hasMissingMedia && hasStringChanged(pad.audioPath))
+    || (!hasMissingMedia && pad.audioStored)
+    || (!hasMissingMedia && pad.audioPending)
+    || (!hasMissingMedia && hasNumberChanged(pad.audioDuration, 0))
+    || (!hasMissingMedia && hasNumberChanged(pad.audioByteLength, 0))
     || hasAudioRef
-    || hasStringChanged(pad.videoName)
-    || hasStringChanged(pad.videoPath)
+    || (!hasMissingMedia && hasStringChanged(pad.videoName))
+    || (!hasMissingMedia && hasStringChanged(pad.videoPath))
     || hasStringChanged(pad.videoUrl)
-    || hasNumberChanged(pad.videoDuration, 0)
+    || (!hasMissingMedia && hasNumberChanged(pad.videoDuration, 0))
     || pad.textMode
     || hasStringChanged(pad.textContent)
     || hasStringChanged(pad.textName)

@@ -1886,6 +1886,12 @@ body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
   outline-offset: 2px;
 }
 
+.pad.is-missing-audio.is-tag-match {
+  outline-width: 3px;
+  outline-color: rgba(255, 245, 190, 0.95);
+  outline-offset: 4px;
+}
+
 .pad.is-tag-dimmed {
   opacity: 0.42;
 }
