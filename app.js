@@ -3238,10 +3238,17 @@ async function prepareBulkAutoTrim() {
 }
 
 function openBulkEditDialog() {
-  let pads = padsForBoardTagSelection();
   const selectedTag = String(els.boardTagFilter?.value || "").trim();
+  let pads = selectedTag === "state:empty"
+    ? state.pads.filter((pad) => pad.node?.classList.contains("is-tag-match"))
+    : padsForBoardTagSelection();
+  if (!pads.length && selectedTag === "state:empty") {
+    pads = padsForBoardFilterValue(selectedTag);
+  }
   if (!pads.length) {
-    window.alert("Sélectionner des pads avec le menu Modification groupée du cadre board");
+    window.alert(selectedTag === "state:empty"
+      ? "Aucun pad vide sélectionné"
+      : "Sélectionner des pads avec le menu Modification groupée du cadre board");
     return;
   }
   if (!selectedTag || pads.length === state.pads.length) {
