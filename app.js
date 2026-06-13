@@ -9608,7 +9608,7 @@ function isManualCrossfadeAudioTarget(pad, sourcePad = manualCrossfadeSourcePad(
     && pad !== sourcePad
     && padType(pad) === "audio"
     && !isPadPlaying(pad)
-    && (pad.buffer || pad.audioStored)
+    && (pad.buffer || pad.audioStored || pad.audioName || pad.audioPath)
   );
 }
 
@@ -9623,6 +9623,9 @@ function syncManualCrossfadeUi() {
   document.body.classList.toggle("crossfade-armed", armed);
   document.body.classList.toggle("crossfade-source-choice", armed && phase === "source");
   document.body.classList.toggle("crossfade-target-choice", armed && phase === "target");
+  document.body.dataset.crossfadePrompt = armed
+    ? (phase === "source" ? "Étape 1/2 : choisissez la source à fondre" : "Étape 2/2 : choisissez la cible audio")
+    : "";
   const buttonActive = armed || document.body.classList.contains("show-cables");
   els.showCables?.classList.toggle("is-active", buttonActive);
   els.showCables?.setAttribute("aria-pressed", String(buttonActive));
@@ -9637,7 +9640,7 @@ function syncManualCrossfadeUi() {
     pad.node?.classList.toggle("is-crossfade-source", isSource);
     pad.node?.classList.toggle("is-crossfade-source-candidate", isSourceCandidate);
     pad.node?.classList.toggle("is-crossfade-target", isTarget);
-    pad.node?.classList.toggle("is-crossfade-unavailable", armed && !isSourceCandidate && !isSource && !isTarget);
+    pad.node?.classList.toggle("is-crossfade-unavailable", armed && phase === "target" && !isSource && !isTarget);
   });
 }
 
@@ -9678,7 +9681,7 @@ function armManualCrossfade() {
       sourcePadUid: null,
     };
     syncManualCrossfadeUi();
-    setStatus("Choisissez le pad source à fondre.", "progress");
+    setStatus("Étape 1/2 : choisissez le pad source à fondre parmi les pads en lecture.", "progress");
     return;
   }
 
@@ -9693,7 +9696,7 @@ function armManualCrossfade() {
     sourcePadUid: sourcePad.uid,
   };
   syncManualCrossfadeUi();
-  setStatus("Choisissez le pad cible", "progress");
+  setStatus("Étape 2/2 : choisissez le pad cible audio.", "progress");
 }
 
 function chooseManualCrossfadeSource(sourcePad) {
@@ -9712,7 +9715,7 @@ function chooseManualCrossfadeSource(sourcePad) {
     sourcePadUid: sourcePad.uid,
   };
   syncManualCrossfadeUi();
-  setStatus(`Source sélectionnée : ${sourcePad.title}. Choisissez le pad cible.`, "progress");
+  setStatus(`Source sélectionnée : ${sourcePad.title}. Étape 2/2 : choisissez le pad cible audio.`, "progress");
   return true;
 }
 
