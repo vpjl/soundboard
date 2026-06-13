@@ -3120,23 +3120,12 @@ function padHasCueReference(pad) {
 
 function isEmptyPad(pad) {
   if (!pad) return false;
-  const hasMissingMedia = pad.node?.classList.contains("is-missing-audio");
-  const hasAudioRef = !hasMissingMedia && pad.audioRefIndex !== null && pad.audioRefIndex !== "" && Number.isInteger(Number(pad.audioRefIndex));
+  const isVisiblyEmpty = pad.node?.classList.contains("is-empty") || pad.node?.classList.contains("is-missing-audio");
+  if (!isVisiblyEmpty) return false;
   return !(
     pad.buffer
     || pad.hasDirectAudio
-    || (!hasMissingMedia && hasStringChanged(pad.audioName))
-    || (!hasMissingMedia && hasStringChanged(pad.audioUid))
-    || (!hasMissingMedia && hasStringChanged(pad.audioPath))
-    || (!hasMissingMedia && pad.audioStored)
-    || (!hasMissingMedia && pad.audioPending)
-    || (!hasMissingMedia && hasNumberChanged(pad.audioDuration, 0))
-    || (!hasMissingMedia && hasNumberChanged(pad.audioByteLength, 0))
-    || hasAudioRef
-    || (!hasMissingMedia && hasStringChanged(pad.videoName))
-    || (!hasMissingMedia && hasStringChanged(pad.videoPath))
     || hasStringChanged(pad.videoUrl)
-    || (!hasMissingMedia && hasNumberChanged(pad.videoDuration, 0))
     || pad.textMode
     || hasStringChanged(pad.textContent)
     || hasStringChanged(pad.textName)
@@ -3252,6 +3241,10 @@ function openBulkEditDialog() {
       : "Sélectionner des pads avec le menu Modification groupée du cadre board");
     return;
   }
+  if (selectedTag === "state:empty") {
+    confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible"));
+    return;
+  }
   if (!selectedTag || pads.length === state.pads.length) {
     const shouldEditAll = window.confirm("Modifier tous les pads ?");
     if (!shouldEditAll) {
@@ -3284,6 +3277,42 @@ function openBulkEditDialog() {
   } else {
     setStatus("Modification groupée prête");
   }
+}
+
+async function confirmDeleteEmptyPads(pads) {
+  const uniquePads = [...new Set(pads)].filter(Boolean);
+  if (!uniquePads.length) {
+    window.alert("Aucun pad vide sélectionné");
+    return;
+  }
+  const count = uniquePads.length;
+  const label = `${count} pad${count > 1 ? "s" : ""} vide${count > 1 ? "s" : ""}`;
+  const remainingCount = Math.max(1, currentBoard().padCount - count);
+  const suffix = count >= currentBoard().padCount
+    ? "\n\nLe dernier pad du board sera conservé."
+    : "";
+  if (!window.confirm(`Supprimer ${label} ?${suffix}`)) return;
+
+  const indexes = uniquePads
+    .map((pad) => pad.index)
+    .filter((index) => Number.isInteger(index))
+    .sort((a, b) => b - a);
+  let deletedCount = 0;
+  for (const index of indexes) {
+    if (currentBoard().padCount <= 1) break;
+    const pad = state.pads[index];
+    if (!pad || !isEmptyPad(pad)) continue;
+    const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: true, status: false });
+    if (removed) deletedCount += 1;
+  }
+
+  refreshBoardTagFilterOptions();
+  if (els.boardTagFilter) {
+    els.boardTagFilter.value = "state:empty";
+    applyBoardTagFilter();
+  }
+  const keptLast = count > deletedCount && remainingCount === 1;
+  setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""} vide${deletedCount > 1 ? "s" : ""} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
 }
 
 async function applyBulkEdit() {
