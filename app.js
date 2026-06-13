@@ -3071,6 +3071,7 @@ function padsForBoardFilterValue(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return [];
   if (normalized === "all") return [...state.pads];
+  if (normalized === "state:empty") return state.pads.filter(isEmptyPad);
   if (normalized.startsWith("type:")) {
     const type = normalized.slice(5);
     return state.pads.filter((pad) => padType(pad) === type);
@@ -3084,6 +3085,110 @@ function padsForBoardFilterValue(value) {
     return state.pads.filter((pad) => padMatchesAudioOption(pad, option));
   }
   return state.pads.filter((pad) => padTagList(pad).includes(normalized));
+}
+
+function hasNumberChanged(value, defaultValue, epsilon = 0.0001) {
+  return Math.abs((Number(value) || 0) - defaultValue) > epsilon;
+}
+
+function hasStringChanged(value, defaultValue = "") {
+  return String(value ?? "").trim() !== defaultValue;
+}
+
+function isDefaultTitleForPad(pad) {
+  const title = String(pad?.title || "").trim().toLowerCase();
+  return !title || title === `pad ${Number(pad?.index) + 1}`;
+}
+
+function padHasCustomShortcut(pad) {
+  const shortcut = state.shortcuts.find((item) => Number(item.padIndex) === pad.index);
+  if (!shortcut) return false;
+  return normalizeShortcutKey(shortcut.key) !== normalizeShortcutKey(KEYS[pad.index] || "");
+}
+
+function padHasCueReference(pad) {
+  const cues = normalizeCues(currentBoard()?.cues);
+  return cues.some((step) => {
+    if (padsFromCueTarget(step).includes(pad)) return true;
+    if (step.condition === "padEnd" && padFromTarget(step.conditionTarget) === pad) return true;
+    if (step.condition === "tagEnd") return padsWithTag(step.conditionTarget.replace(/^tag:/, "")).includes(pad);
+    return false;
+  });
+}
+
+function padHasSignificantUserSettings(pad) {
+  return [
+    pad.loop,
+    pad.duckTrigger,
+    pad.reverse,
+    pad.muted,
+    pad.mono,
+    pad.fadeInEnabled,
+    pad.fadeOutEnabled,
+    pad.keepResumeOffsetOnEnd,
+    pad.normalizeEnabled === false,
+    hasStringChanged(pad.color),
+    hasStringChanged(pad.fadeSeconds),
+    hasStringChanged(pad.fadeInSeconds),
+    hasStringChanged(pad.fadeOutSeconds),
+    hasStringChanged(pad.duckMode, "none"),
+    hasStringChanged(pad.playMode, "oneshot"),
+    hasStringChanged(pad.reverbPreset, "none"),
+    hasStringChanged(pad.reverbMode, "global"),
+    hasStringChanged(pad.eqMode, "global"),
+    hasStringChanged(pad.textLang, "fr-FR"),
+    hasStringChanged(pad.textGender, "female"),
+    hasStringChanged(pad.textVoiceURI),
+    hasNumberChanged(pad.volume, 0.85),
+    hasNumberChanged(pad.panValue, 0),
+    hasNumberChanged(pad.duckPercent, 60),
+    hasNumberChanged(pad.pitchSemitones, 0),
+    hasNumberChanged(pad.pitchFine, 0),
+    hasNumberChanged(pad.speedRate, 1),
+    hasNumberChanged(pad.reverbWet, 0.5),
+    hasNumberChanged(pad.eqLow, 0),
+    hasNumberChanged(pad.eqMid, 0),
+    hasNumberChanged(pad.eqHigh, 0),
+    hasNumberChanged(pad.normalizedGain, 1),
+    hasNumberChanged(pad.trimStart, 0),
+    hasNumberChanged(pad.trimEnd, 0),
+    hasNumberChanged(pad.textRate, DEFAULT_TEXT_RATE),
+  ].some(Boolean);
+}
+
+function isEmptyPad(pad) {
+  if (!pad) return false;
+  const hasAudioRef = pad.audioRefIndex !== null && pad.audioRefIndex !== "" && Number.isInteger(Number(pad.audioRefIndex));
+  return !(
+    pad.buffer
+    || pad.hasDirectAudio
+    || hasStringChanged(pad.audioName)
+    || hasStringChanged(pad.audioUid)
+    || hasStringChanged(pad.audioPath)
+    || pad.audioStored
+    || pad.audioPending
+    || hasNumberChanged(pad.audioDuration, 0)
+    || hasNumberChanged(pad.audioByteLength, 0)
+    || hasAudioRef
+    || hasStringChanged(pad.videoName)
+    || hasStringChanged(pad.videoPath)
+    || hasStringChanged(pad.videoUrl)
+    || hasNumberChanged(pad.videoDuration, 0)
+    || pad.textMode
+    || hasStringChanged(pad.textContent)
+    || hasStringChanged(pad.textName)
+    || hasStringChanged(pad.visualImage)
+    || hasStringChanged(pad.noteText)
+    || padTagList(pad).length
+    || !isDefaultTitleForPad(pad)
+    || padHasCustomShortcut(pad)
+    || padHasCueReference(pad)
+    || pad.startStopMode !== "none"
+    || pad.endStartMode !== "none"
+    || hasStringChanged(pad.startStopTag)
+    || hasStringChanged(pad.endStartTarget)
+    || padHasSignificantUserSettings(pad)
+  );
 }
 
 function syncBulkTemplateFields(pad) {
@@ -7867,6 +7972,15 @@ function refreshBoardTagFilterOptions() {
     typeGroup.append(option);
   });
   els.boardTagFilter.append(typeGroup);
+  if (state.boardEditMode) {
+    const stateGroup = document.createElement("optgroup");
+    stateGroup.label = "État";
+    const emptyPadsOption = document.createElement("option");
+    emptyPadsOption.value = "state:empty";
+    emptyPadsOption.textContent = "Pads vides";
+    stateGroup.append(emptyPadsOption);
+    els.boardTagFilter.append(stateGroup);
+  }
   const audioOptions = audioOptionFilterOptions();
   if (audioOptions.length) {
     const audioGroup = document.createElement("optgroup");

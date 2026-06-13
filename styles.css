@@ -2593,6 +2593,22 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   grid-column: 1 / -1;
 }
 
+.pad.is-editing .pad-label {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+  justify-items: center;
+  text-align: center;
+}
+
+.pad.is-editing .pad-title,
+.pad.is-editing .pad-tags {
+  grid-column: 1 / -1 !important;
+  width: 100%;
+  text-align: center;
+}
+
 .pad.is-editing .name-field > span {
   order: 10;
   grid-column: 1 / -1;
