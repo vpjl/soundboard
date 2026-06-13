@@ -2468,11 +2468,11 @@ function syncCueControls() {
   if (board) {
     board.cues = cues;
     board.cueIndex = cueIndexForBoard(board);
-    if (board.cuesEnabled == null) board.cuesEnabled = true;
+    if (board.cuesEnabled == null) board.cuesEnabled = false;
   }
   const hasCues = cues.length > 0;
-  const cuesEnabled = board?.cuesEnabled !== false;
-  document.body.classList.toggle("cues-enabled", Boolean(cuesEnabled && hasCues));
+  const cuesEnabled = board?.cuesEnabled === true;
+  document.body.classList.toggle("cues-enabled", Boolean(cuesEnabled));
   els.cueEditor?.classList.toggle("is-active", cuesEnabled);
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
@@ -2486,6 +2486,9 @@ function syncCueControls() {
     const available = armedCrossfadeAvailable();
     els.showCables.disabled = !available;
     els.showCables.setAttribute("aria-disabled", String(!available));
+  }
+  if (!armedCrossfadeAvailable() && state.crossfadeArm.active) {
+    cancelManualCrossfade({ message: "Crossfade armé désactivé" });
   }
   if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
   if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
@@ -2502,21 +2505,13 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
-  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
-  const liveTop = els.liveTools.getBoundingClientRect().top;
-  document.documentElement.style.setProperty("--xfade-live-top", `${Math.max(topOffset, liveTop)}px`);
   const shouldFloat = document.body.classList.contains("cues-enabled") && !state.boardEditMode;
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
     return;
   }
-  const isStuck = document.body.classList.contains("cues-stuck");
-  if ((resetAnchor && !isStuck) || state.cueFloatAnchorTop == null || !isStuck) {
-    state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
-  }
-  const stuck = window.scrollY > Math.max(0, state.cueFloatAnchorTop - topOffset);
-  document.body.classList.toggle("cues-stuck", stuck);
+  document.body.classList.add("cues-stuck");
 }
 
 function cueSelectablePads() {
@@ -7605,8 +7600,12 @@ function armedCrossfadeSeconds() {
   return Math.max(0, Number(els.armedCrossfadeSeconds?.value) || 0);
 }
 
+function cuesEnabledForManualCrossfade() {
+  return currentBoard()?.cuesEnabled === true;
+}
+
 function armedCrossfadeAvailable() {
-  return armedCrossfadeEnabled() && manualCrossfadeDuration() > 0;
+  return cuesEnabledForManualCrossfade() && armedCrossfadeEnabled() && manualCrossfadeDuration() > 0;
 }
 
 function syncArmedCrossfadeControls() {
@@ -9660,6 +9659,10 @@ function cancelManualCrossfade(options = {}) {
 }
 
 function armManualCrossfade() {
+  if (!cuesEnabledForManualCrossfade()) {
+    setStatus("Activer les cues pour armer le crossfade manuel.");
+    return;
+  }
   if (!armedCrossfadeAvailable()) {
     setStatus("Crossfade armé désactivé");
     return;
