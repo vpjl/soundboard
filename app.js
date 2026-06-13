@@ -2511,7 +2511,14 @@ function syncFloatingCueFrame(resetAnchor = false) {
     state.cueFloatAnchorTop = null;
     return;
   }
-  document.body.classList.add("cues-stuck");
+  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
+  const wasStuck = document.body.classList.contains("cues-stuck");
+  if (resetAnchor || state.cueFloatAnchorTop == null) {
+    if (wasStuck) document.body.classList.remove("cues-stuck");
+    state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
+  }
+  const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
+  document.body.classList.toggle("cues-stuck", shouldStick);
 }
 
 function cueSelectablePads() {
