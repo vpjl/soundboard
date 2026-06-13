@@ -2502,13 +2502,15 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
+  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
+  const liveTop = els.liveTools.getBoundingClientRect().top;
+  document.documentElement.style.setProperty("--xfade-live-top", `${Math.max(topOffset, liveTop)}px`);
   const shouldFloat = document.body.classList.contains("cues-enabled") && !state.boardEditMode;
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
     return;
   }
-  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
   const isStuck = document.body.classList.contains("cues-stuck");
   if ((resetAnchor && !isStuck) || state.cueFloatAnchorTop == null || !isStuck) {
     state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;

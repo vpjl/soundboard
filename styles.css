@@ -2063,6 +2063,13 @@ body.crossfade-armed .pad.is-crossfade-source {
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--color_status_warning) 20%, transparent);
 }
 
+body.crossfade-target-choice .pad.is-crossfade-source {
+  cursor: not-allowed;
+  outline: 2px dashed var(--color_status_stop);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
 body.crossfade-armed .pad.is-crossfade-target {
   outline: 2px solid var(--color_status_progress);
   outline-offset: 3px;
@@ -2098,7 +2105,7 @@ body.crossfade-armed::after {
 
 body:not(.board-edit-mode) .xfade-live-row {
   position: fixed;
-  top: max(10px, env(safe-area-inset-top));
+  top: var(--xfade-live-top, max(10px, env(safe-area-inset-top)));
   right: max(14px, env(safe-area-inset-right));
   z-index: 120;
   padding: 8px;
