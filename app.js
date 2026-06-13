@@ -3308,7 +3308,7 @@ async function confirmDeleteEmptyPads(pads) {
 
   refreshBoardTagFilterOptions();
   if (els.boardTagFilter) {
-    els.boardTagFilter.value = "state:empty";
+    els.boardTagFilter.value = "";
     applyBoardTagFilter();
   }
   const keptLast = count > deletedCount && remainingCount === 1;
