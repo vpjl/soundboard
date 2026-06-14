@@ -12320,3 +12320,263 @@ if ("serviceWorker" in navigator && window.isSecureContext && shouldUseServiceWo
     .then((registrations) => registrations.forEach((registration) => registration.unregister()))
     .catch(() => {});
 }
+
+/* Sélecteur de modes Garage / Studio / Scène */
+function boardModeSelectorCurrentMode() {
+  if (document.body.classList.contains("stage-mode") || state.stageMode) return "stage";
+  if (document.body.classList.contains("board-edit-mode") || state.boardEditMode) return "garage";
+  return "studio";
+}
+
+function boardModeSelectorAllowedModes(current = boardModeSelectorCurrentMode()) {
+  return {
+    stage: current === "studio" || current === "stage",
+    studio: true,
+    garage: current === "studio" || current === "garage",
+  };
+}
+
+function syncBoardModeSelector() {
+  const current = boardModeSelectorCurrentMode();
+  const allowed = boardModeSelectorAllowedModes(current);
+
+  if (document.body.dataset.boardMode !== current) {
+    document.body.dataset.boardMode = current;
+  }
+
+  if (current === "stage" && typeof setBoardModePending === "function") {
+    setBoardModePending("");
+  }
+
+  document.querySelectorAll("[data-board-mode-target]").forEach((button) => {
+    const mode = String(button.dataset.boardModeTarget || "");
+    const isCurrent = mode === current;
+    const isAllowed = Boolean(allowed[mode]);
+
+    button.classList.toggle("is-current", isCurrent);
+    button.classList.toggle("is-disabled", !isAllowed);
+
+    button.disabled = !isAllowed;
+    button.setAttribute("aria-disabled", String(!isAllowed));
+    button.setAttribute("aria-current", isCurrent ? "true" : "false");
+    button.setAttribute("aria-pressed", String(isCurrent));
+  });
+}
+
+function syncBoardModeSelectorSoon() {
+  syncBoardModeSelector();
+  window.requestAnimationFrame?.(syncBoardModeSelector);
+  window.setTimeout(syncBoardModeSelector, 0);
+  window.setTimeout(syncBoardModeSelector, 80);
+}
+
+function setBoardModePending(targetMode = "") {
+  document.querySelectorAll("[data-board-mode-target]").forEach((button) => {
+    const isPending = Boolean(targetMode) && button.dataset.boardModeTarget === targetMode;
+    button.classList.toggle("is-pending", isPending);
+    button.setAttribute("aria-busy", String(isPending));
+  });
+}
+
+function setBoardModeFromSelector(targetMode) {
+  const current = boardModeSelectorCurrentMode();
+  const allowed = boardModeSelectorAllowedModes(current);
+
+  if (!allowed[targetMode]) {
+    setStatus("Passer par le mode Studio");
+    syncBoardModeSelectorSoon();
+    return;
+  }
+
+  if (targetMode === current) {
+    syncBoardModeSelectorSoon();
+    return;
+  }
+
+  if (targetMode === "studio") {
+    if (state.stageMode || document.body.classList.contains("stage-mode")) {
+      setStageMode(false, false);
+    }
+    if (state.boardEditMode || document.body.classList.contains("board-edit-mode")) {
+      setBoardPadEditing(false);
+    }
+    setStatus("Mode Studio");
+    syncBoardModeSelectorSoon();
+    return;
+  }
+
+  if (targetMode === "garage") {
+    if (current !== "studio") {
+      setStatus("Passer par le mode Studio");
+      syncBoardModeSelectorSoon();
+      return;
+    }
+    setBoardPadEditing(true);
+    setStatus("Mode Garage");
+    syncBoardModeSelectorSoon();
+    return;
+  }
+
+  if (targetMode === "stage") {
+    if (current !== "studio") {
+      setStatus("Passer par le mode Studio");
+      syncBoardModeSelectorSoon();
+      return;
+    }
+    setBoardModePending("stage");
+    setStageMode(true, false);
+    setStatus("Mode Scène");
+    syncBoardModeSelectorSoon();
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("[data-board-mode-target]");
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  setBoardModeFromSelector(button.dataset.boardModeTarget);
+});
+
+const boardModeBodyObserver = new MutationObserver(syncBoardModeSelectorSoon);
+boardModeBodyObserver.observe(document.body, {
+  attributes: true,
+  attributeFilter: ["class"],
+});
+
+window.addEventListener("load", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
+window.addEventListener("resize", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
+
+
+/* Alignement dynamique Studio vers Scène */
+const stageStudioLayoutSnapshot = {
+  selectorRect: null,
+  topbarRect: null,
+  inlineStyles: [],
+};
+
+function stageStudioLayoutElements() {
+  return [
+    [document.querySelector(".topbar"), ["grid-template-columns", "align-items", "gap"]],
+    [document.querySelector(".brand"), ["display", "align-items", "gap", "min-height"]],
+    [document.querySelector(".mark"), ["width", "height", "min-width", "min-height"]],
+    [document.querySelector(".mark svg"), ["width", "height"]],
+    [document.querySelector(".brand h1"), ["font-size", "line-height", "margin", "font-weight"]],
+    [document.querySelector(".brand p"), ["font-size", "line-height", "margin", "display"]],
+    [document.querySelector("#audioStatus"), ["font-size", "line-height", "margin", "display"]],
+    [document.querySelector(".brand-tools"), ["display", "align-self", "grid-template-columns", "gap"]],
+  ].filter(([element]) => Boolean(element));
+}
+
+function captureStudioLayoutForStage() {
+  const selector = document.querySelector(".board-mode-selector");
+  const currentMode = typeof boardModeSelectorCurrentMode === "function"
+    ? boardModeSelectorCurrentMode()
+    : (document.body.classList.contains("stage-mode") ? "stage" : "studio");
+
+  if (!selector || currentMode !== "studio") return;
+
+  stageStudioLayoutSnapshot.selectorRect = selector.getBoundingClientRect();
+
+  const topbar = document.querySelector(".topbar");
+  stageStudioLayoutSnapshot.topbarRect = topbar ? topbar.getBoundingClientRect() : null;
+
+  stageStudioLayoutSnapshot.inlineStyles = stageStudioLayoutElements().map(([element, props]) => {
+    const computed = window.getComputedStyle(element);
+    return {
+      element,
+      props: props.map((prop) => [prop, computed.getPropertyValue(prop)]),
+    };
+  });
+}
+
+function clearStageStudioLayout() {
+  stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
+    props.forEach(([prop]) => element.style.removeProperty(prop));
+  });
+
+  const topbar = document.querySelector(".topbar");
+  if (topbar) {
+    topbar.style.removeProperty("position");
+    topbar.style.removeProperty("transform");
+    topbar.style.removeProperty("top");
+    topbar.style.removeProperty("left");
+  }
+
+  const boardStrip = document.querySelector(".board-strip");
+  if (boardStrip) {
+    boardStrip.style.removeProperty("position");
+    boardStrip.style.removeProperty("transform");
+    boardStrip.style.removeProperty("left");
+    boardStrip.style.removeProperty("top");
+  }
+}
+
+function applyStageStudioLayout() {
+  if (!document.body.classList.contains("stage-mode")) {
+    clearStageStudioLayout();
+    return;
+  }
+
+  stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
+    props.forEach(([prop, value]) => {
+      element.style.setProperty(prop, value, "important");
+    });
+  });
+
+  const topbar = document.querySelector(".topbar");
+  const studioTopbarRect = stageStudioLayoutSnapshot.topbarRect;
+
+  if (topbar && studioTopbarRect) {
+    topbar.style.setProperty("position", "relative", "important");
+    topbar.style.setProperty("left", "0", "important");
+
+    const stageTopbarRect = topbar.getBoundingClientRect();
+    const topbarDy = Math.round(studioTopbarRect.top - stageTopbarRect.top);
+
+    topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
+  }
+
+  const boardStrip = document.querySelector(".board-strip");
+  const selector = document.querySelector(".board-mode-selector");
+  const studioRect = stageStudioLayoutSnapshot.selectorRect;
+
+  if (!boardStrip || !selector || !studioRect) return;
+
+  boardStrip.style.setProperty("position", "relative", "important");
+  boardStrip.style.setProperty("transform", "none", "important");
+
+  const stageRect = selector.getBoundingClientRect();
+  const dx = Math.round(studioRect.left - stageRect.left);
+  const dy = Math.round(studioRect.top - stageRect.top);
+
+  boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
+}
+
+let stageStudioLayoutFrame = 0;
+
+function applyStageStudioLayoutSoon() {
+  if (stageStudioLayoutFrame) {
+    cancelAnimationFrame(stageStudioLayoutFrame);
+  }
+
+  stageStudioLayoutFrame = requestAnimationFrame(() => {
+    stageStudioLayoutFrame = 0;
+    applyStageStudioLayout();
+  });
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("[data-board-mode-target='stage']");
+  if (!button) return;
+  captureStudioLayoutForStage();
+}, true);
+
+const stageStudioLayoutObserver = new MutationObserver(applyStageStudioLayoutSoon);
+stageStudioLayoutObserver.observe(document.body, {
+  attributes: true,
+  attributeFilter: ["class"],
+});
+
+window.addEventListener("resize", applyStageStudioLayoutSoon);
+window.addEventListener("load", applyStageStudioLayoutSoon);
