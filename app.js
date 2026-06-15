@@ -12562,6 +12562,11 @@ function applyStageStudioLayout() {
     topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
   }
 
+  // On mobile the CSS grid already positions the board-strip correctly in stage
+  // mode (position: static; transform: none via skin CSS). Skip JS transforms
+  // so they don't fight the cascade and misplace the board.
+  if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) return;
+
   const boardStrip = document.querySelector(".board-strip");
   const selector = document.querySelector(".board-mode-selector");
   const studioRect = stageStudioLayoutSnapshot.selectorRect;
