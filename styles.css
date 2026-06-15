@@ -6252,6 +6252,25 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .xfade-li
 
 body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
   width: min(1280px, calc(100vw - 28px)) !important;
+  transform: translateX(-50%) !important;
+}
+
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row .icon-button,
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button,
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) #openCueDialog {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+}
+
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row .icon-button svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row {
+  grid-template-columns: repeat(4, 42px) minmax(0, 1fr) !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
