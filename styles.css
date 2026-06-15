@@ -6126,10 +6126,7 @@ body.stage-mode .secondary-live-group {
   }
 
   body.board-edit-mode .board-action-grid #editPads {
-    display: grid !important;
-    grid-area: close !important;
-    width: 42px !important;
-    height: 42px !important;
+    display: none !important;
   }
 
   body.board-edit-mode .board-action-grid .version-notes-button {
