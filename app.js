@@ -2518,7 +2518,8 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
-  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
+  const isPortable = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
+  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode && !(state.stageMode && isPortable);
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
@@ -12594,10 +12595,20 @@ document.addEventListener("click", (event) => {
   captureStudioLayoutForStage();
 }, true);
 
-const stageStudioLayoutObserver = new MutationObserver(applyStageStudioLayoutSoon);
+const stageStudioLayoutObserver = new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    const prev = (mutation.oldValue || "").replace(/\bcues-stuck\b/g, "").trim();
+    const next = document.body.className.replace(/\bcues-stuck\b/g, "").trim();
+    if (prev !== next) {
+      applyStageStudioLayoutSoon();
+      return;
+    }
+  }
+});
 stageStudioLayoutObserver.observe(document.body, {
   attributes: true,
   attributeFilter: ["class"],
+  attributeOldValue: true,
 });
 
 window.addEventListener("resize", applyStageStudioLayoutSoon);
