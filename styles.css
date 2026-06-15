@@ -722,6 +722,7 @@ body.no-cue-output.no-output-choice .master-volume-stack {
 
 .help-button {
   border-radius: 50% !important;
+  padding: 0 !important;
 }
 
 .cable-legend-panel {
