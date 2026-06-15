@@ -12498,6 +12498,9 @@ function captureStudioLayoutForStage() {
 
   if (!selector || currentMode !== "studio") return;
 
+  // Flush any pending stage transforms so positions are measured clean
+  clearStageStudioLayout();
+
   stageStudioLayoutSnapshot.selectorRect = selector.getBoundingClientRect();
 
   const topbar = document.querySelector(".topbar");
