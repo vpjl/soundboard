@@ -720,6 +720,10 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   border-radius: 50% !important;
 }
 
+.help-button {
+  border-radius: 50% !important;
+}
+
 .cable-legend-panel {
   display: none;
   position: fixed;
