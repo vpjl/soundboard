@@ -7717,8 +7717,18 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   if (enabled) {
+    // Appliquer l'état immédiatement pour éviter le flash UI pendant le chargement async
+    state.stageMode = true;
+    document.body.classList.add("stage-mode");
+    syncBoardModeSelector();
     const ready = await prepareBoardForStage();
-    if (!ready) return;
+    if (!ready) {
+      // Rollback si la préparation échoue
+      state.stageMode = false;
+      document.body.classList.remove("stage-mode");
+      syncBoardModeSelector();
+      return;
+    }
   }
 
   state.stageMode = Boolean(enabled);
@@ -12366,7 +12376,6 @@ function syncBoardModeSelector() {
 function syncBoardModeSelectorSoon() {
   syncBoardModeSelector();
   window.requestAnimationFrame?.(syncBoardModeSelector);
-  window.setTimeout(syncBoardModeSelector, 0);
   window.setTimeout(syncBoardModeSelector, 80);
 }
 
@@ -12394,12 +12403,15 @@ function setBoardModeFromSelector(targetMode) {
   }
 
   if (targetMode === "studio") {
+    // Suspendre l'observateur pendant la transition pour éviter les lectures d'état intermédiaire
+    boardModeBodyObserver.disconnect();
     if (state.stageMode || document.body.classList.contains("stage-mode")) {
       setStageMode(false, false);
     }
     if (state.boardEditMode || document.body.classList.contains("board-edit-mode")) {
       setBoardPadEditing(false);
     }
+    boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     setStatus("Mode Studio");
     syncBoardModeSelectorSoon();
     return;
@@ -12411,7 +12423,9 @@ function setBoardModeFromSelector(targetMode) {
       syncBoardModeSelectorSoon();
       return;
     }
+    boardModeBodyObserver.disconnect();
     setBoardPadEditing(true);
+    boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     setStatus("Mode Garage");
     syncBoardModeSelectorSoon();
     return;
