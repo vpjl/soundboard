@@ -11372,10 +11372,13 @@ async function init() {
     state.currentBoardId = state.boards[0].id;
   }
   renderBoardOptions();
-  await renderPads();
+  const savedStageMode = localStorage.getItem(STAGE_MODE_STORAGE) === "on";
+  const savedGarageMode = !savedStageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on";
+  if (savedGarageMode) state.boardEditMode = true;
+  await renderPads({ preserveEditMode: savedGarageMode });
   await repairAccidentalPadTitles();
-  setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
-  if (!state.stageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on") {
+  setStageMode(savedStageMode, false);
+  if (!state.stageMode && savedGarageMode) {
     setBoardPadEditing(true);
   }
   updateStageLockUi();

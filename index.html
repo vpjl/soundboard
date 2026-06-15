@@ -12,22 +12,8 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="stylesheet" href="styles.css?v=258">
-    <script>
-      // Applique stage-mode avant le premier paint pour éviter le flash studio→scène au refresh
-      if (localStorage.getItem("soundboard-live-stage-mode") === "on") {
-        document.addEventListener("DOMContentLoaded", function() {
-          document.body.classList.add("stage-mode");
-        });
-      }
-      // Applique board-edit-mode avant le premier paint pour éviter le flash studio→garage au refresh
-      if (localStorage.getItem("soundboard-live-board-edit-mode") === "on") {
-        document.addEventListener("DOMContentLoaded", function() {
-          document.body.classList.add("board-edit-mode");
-        });
-      }
-    </script>
   </head>
-  <body>
+  <body><script>(function(){var s=localStorage.getItem("soundboard-live-stage-mode")==="on";var g=localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
       <header class="topbar">
         <div class="brand">
