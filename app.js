@@ -60,6 +60,7 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_missing_background",
 ];
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
+const BOARD_EDIT_MODE_STORAGE = "soundboard-live-board-edit-mode";
 const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
@@ -1437,6 +1438,7 @@ function setBoardPadEditing(editing) {
   if (!state.stageMode) {
     setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
   }
+  localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
 async function beginBoardEdit() {
@@ -11373,6 +11375,9 @@ async function init() {
   await renderPads();
   await repairAccidentalPadTitles();
   setStageMode(localStorage.getItem(STAGE_MODE_STORAGE) === "on", false);
+  if (!state.stageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on") {
+    setBoardPadEditing(true);
+  }
   updateStageLockUi();
   updateMasterOptionBadges();
   syncHoverLabels();
