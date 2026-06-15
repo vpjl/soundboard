@@ -6250,6 +6250,16 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .xfade-li
   }
 }
 
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
+  width: min(1280px, calc(100vw - 28px)) !important;
+}
+
+@media (max-width: 950px), (pointer: coarse) {
+  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
+    width: calc(100vw - 14px) !important;
+  }
+}
+
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
   .board-action-grid .board-help-button {
     width: 42px !important;

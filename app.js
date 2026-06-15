@@ -2518,8 +2518,7 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
-  const isPortable = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches;
-  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode && !(state.stageMode && isPortable);
+  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
