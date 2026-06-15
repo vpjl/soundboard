@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="stylesheet" href="styles.css?v=258">
   </head>
-  <body><script>(function(){var s=localStorage.getItem("soundboard-live-stage-mode")==="on";var g=localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
+  <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
       <header class="topbar">
         <div class="brand">

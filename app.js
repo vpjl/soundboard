@@ -11372,8 +11372,10 @@ async function init() {
     state.currentBoardId = state.boards[0].id;
   }
   renderBoardOptions();
-  const savedStageMode = localStorage.getItem(STAGE_MODE_STORAGE) === "on";
-  const savedGarageMode = !savedStageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on";
+  const isReload = sessionStorage.getItem("soundboard-session-started") === "yes";
+  sessionStorage.setItem("soundboard-session-started", "yes");
+  const savedStageMode = isReload && localStorage.getItem(STAGE_MODE_STORAGE) === "on";
+  const savedGarageMode = isReload && !savedStageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on";
   if (savedGarageMode) state.boardEditMode = true;
   await renderPads({ preserveEditMode: savedGarageMode });
   await repairAccidentalPadTitles();
