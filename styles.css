@@ -8638,6 +8638,20 @@ body.stage-mode .live-tools {
   align-self: stretch !important;
 }
 
+@media (max-width: 950px), (pointer: coarse) {
+  body.stage-mode .cue-live-row .icon-button svg {
+    width: 26px !important;
+    height: 26px !important;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.stage-mode .cue-live-row .icon-button svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
 
 /* CORRECTIF FINAL : bouton Scène vert logo */
 :root {
