@@ -717,13 +717,8 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   border-color: var(--color_ui_help_border);
   background: var(--color_ui_help_background);
   color: var(--color_ui_help);
-  border-radius: 50% !important;
 }
 
-.help-button {
-  border-radius: 50% !important;
-  padding: 0 !important;
-}
 
 .cable-legend-panel {
   display: none;
@@ -8874,4 +8869,9 @@ body.stage-mode .brand h1,
 body.stage-mode .brand p,
 body.stage-mode #audioStatus {
   transition: none !important;
+}
+
+.help-button {
+  border-radius: 50% !important;
+  padding: 0 !important;
 }
