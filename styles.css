@@ -1840,7 +1840,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   padding: 14px 14px 16px;
   border-radius: 0;
   background: rgba(0, 0, 0, 0.55);
-  font-size: 1.35rem;
+  font-family: 'Barlow Condensed', var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
+  letter-spacing: 0.01em;
   line-height: 1.2;
   -webkit-line-clamp: unset;
 }
@@ -1852,6 +1855,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  container-type: inline-size;
   grid-template-columns: 1fr;
   align-items: center;
   justify-items: stretch;
