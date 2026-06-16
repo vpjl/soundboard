@@ -5013,16 +5013,16 @@ body.stage-mode .pad-alerts {
   }
 
   .board-area {
-    grid-row: 4;
+    grid-row: 2;
   }
 
   .live-tools {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .master-strip {
-    grid-row: 2;
+    grid-row: 3;
   }
 
   body.stage-mode .board-area,
@@ -8882,4 +8882,20 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 
 .stage-button.is-stage-pending {
   animation: stage-pending-blink 1s ease-in-out infinite;
+}
+
+@media (max-width: 560px) {
+  .board-area {
+    grid-row: 2;
+  }
+
+  .master-strip,
+  body.stage-mode .master-strip {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .live-tools {
+    grid-row: 4;
+  }
 }
