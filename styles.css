@@ -5013,7 +5013,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-area {
-    grid-row: 2;
+    grid-row: 4;
   }
 
   .live-tools {
@@ -5022,7 +5022,7 @@ body.stage-mode .pad-alerts {
   }
 
   .master-strip {
-    grid-row: 4;
+    grid-row: 2;
   }
 
   body.stage-mode .board-area,
@@ -5031,7 +5031,7 @@ body.stage-mode .pad-alerts {
   }
 
   body.stage-mode .master-strip {
-    grid-column: 2;
+    grid-column: 1;
   }
 
   .master-strip,
@@ -5111,6 +5111,11 @@ body.stage-mode .pad-alerts {
   .pads,
   body[data-skin="minimal"] .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.board-edit-mode .pads,
+  body.board-edit-mode .pads.has-pad-layout {
+    grid-template-columns: 1fr !important;
   }
 
   .pad-trigger {
