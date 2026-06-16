@@ -8880,3 +8880,16 @@ body.stage-mode #audioStatus {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
+
+/* Fix: grid-area:note from basic skin overrides grid-column:3 in garage edit mode */
+body[data-skin="basic"].board-edit-mode .pad.is-editing.has-visual-image .pad-note-button,
+body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-button {
+  grid-area: auto;
+  grid-column: 3;
+}
+
+.image-dialog.is-drop-target .image-preview,
+.image-dialog.is-drop-target .image-sketch-canvas {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}

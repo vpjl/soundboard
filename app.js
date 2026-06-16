@@ -12252,6 +12252,31 @@ async function init() {
     setImageDialogMode("image");
     state.imagePad?.cameraInput?.click();
   });
+  els.imageDialog?.addEventListener("dragover", (event) => {
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    els.imageDialog.classList.add("is-drop-target");
+  });
+  els.imageDialog?.addEventListener("dragleave", (event) => {
+    if (!els.imageDialog.contains(event.relatedTarget)) els.imageDialog.classList.remove("is-drop-target");
+  });
+  els.imageDialog?.addEventListener("drop", async (event) => {
+    els.imageDialog.classList.remove("is-drop-target");
+    event.preventDefault();
+    const pad = state.imagePad;
+    if (!pad) return;
+    const file = [...(event.dataTransfer?.files || [])].find((f) => /^image\//.test(f.type));
+    if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setPadVisualImage(pad, dataUrl, false, { visualKind: "image" });
+      state.imageDialogMode = "image";
+      syncImageDialog(pad);
+    } catch {
+      setStatus("Impossible de charger l'image");
+    }
+  });
   els.imageRemove?.addEventListener("click", () => {
     const pad = state.imagePad;
     if (!pad) return;
