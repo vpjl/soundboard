@@ -8875,3 +8875,8 @@ body.stage-mode #audioStatus {
   border-radius: 50% !important;
   padding: 0 !important;
 }
+
+.pad.is-drop-target {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}

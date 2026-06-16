@@ -2045,6 +2045,53 @@ function makePad(index) {
     pad.cameraInput.value = "";
   });
 
+  node.addEventListener("dragover", (event) => {
+    if (document.body.classList.contains("stage-mode")) return;
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    node.classList.add("is-drop-target");
+  });
+  node.addEventListener("dragleave", (event) => {
+    if (!node.contains(event.relatedTarget)) node.classList.remove("is-drop-target");
+  });
+  node.addEventListener("drop", async (event) => {
+    node.classList.remove("is-drop-target");
+    if (document.body.classList.contains("stage-mode")) return;
+    event.preventDefault();
+    const files = [...(event.dataTransfer?.files || [])];
+    if (!files.length) return;
+    const contentFile = files.find((f) => /^(audio|video|text)\//.test(f.type));
+    const imageFile = files.find((f) => /^image\//.test(f.type));
+    if (contentFile) {
+      if (/^video\//.test(contentFile.type)) {
+        await loadVideoIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger la vidéo"));
+      } else if (/^text\//.test(contentFile.type)) {
+        try {
+          const text = await contentFile.text();
+          pad.textName = contentFile.name;
+          setPadAsTextFromControls(pad, text);
+          if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(contentFile.name));
+          savePadMeta(pad);
+          setStatus("Texte importé");
+        } catch {
+          setStatus("Import texte impossible");
+        }
+      } else {
+        await loadFileIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger l'audio"));
+      }
+    }
+    if (imageFile) {
+      try {
+        const dataUrl = await fileToDataUrl(imageFile);
+        setPadVisualImage(pad, dataUrl, false, { visualKind: "image" });
+        savePadMeta(pad);
+      } catch {
+        setStatus("Impossible de charger l'illustration");
+      }
+    }
+  });
+
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
     handleManualCrossfadePadClick(pad, event);
