@@ -75,6 +75,7 @@ const DEFAULT_CUE_VOLUME = 0.6;
 const DEFAULT_TEXT_RATE = 0.85;
 const MIN_TEXT_RATE = 0.35;
 const MAX_TEXT_RATE = 1.6;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const ENDING_ALERT_SECONDS = 5;
 const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
@@ -2027,22 +2028,24 @@ function makePad(index) {
   pad.imageInput?.addEventListener("change", async () => {
     const file = pad.imageInput.files?.[0];
     if (!file) return;
-    const image = await fileToDataUrl(file);
+    pad.imageInput.value = "";
+    const image = await resizeImageForPad(file);
+    if (!image) return;
     state.imageDialogMode = "image";
     setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
-    pad.imageInput.value = "";
   });
   pad.cameraInput?.addEventListener("change", async () => {
     const file = pad.cameraInput.files?.[0];
     if (!file) return;
-    const image = await fileToDataUrl(file);
+    pad.cameraInput.value = "";
+    const image = await resizeImageForPad(file);
+    if (!image) return;
     state.imageDialogMode = "image";
     setPadVisualImage(pad, image, false, { visualKind: "image" });
     if (state.imagePad === pad) syncImageDialog(pad);
     savePadMeta(pad);
-    pad.cameraInput.value = "";
   });
 
   node.addEventListener("dragover", (event) => {
@@ -2083,9 +2086,11 @@ function makePad(index) {
     }
     if (imageFile) {
       try {
-        const dataUrl = await fileToDataUrl(imageFile);
-        setPadVisualImage(pad, dataUrl, false, { visualKind: "image" });
-        savePadMeta(pad);
+        const dataUrl = await resizeImageForPad(imageFile);
+        if (dataUrl) {
+          setPadVisualImage(pad, dataUrl, false, { visualKind: "image" });
+          savePadMeta(pad);
+        }
       } catch {
         setStatus("Impossible de charger l'illustration");
       }
@@ -4135,6 +4140,35 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
+  });
+}
+
+// Redimensionne et recompresse une image pour qu'elle tienne dans une propriété CSS custom.
+// Les data URL trop longues (~> 500 Ko de texte) sont ignorées silencieusement par Safari mobile.
+async function resizeImageForPad(file) {
+  if (file.size > MAX_IMAGE_SIZE) {
+    setStatus(`Image trop volumineuse (max ${Math.round(MAX_IMAGE_SIZE / 1024 / 1024)} Mo)`);
+    return null;
+  }
+  const dataUrl = await fileToDataUrl(file);
+  if (/^image\/svg/.test(file.type)) return dataUrl; // SVG : pas de canvas nécessaire
+  if (file.size <= 100 * 1024) return dataUrl; // Petite image : utiliser telle quelle
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_DIM = 1200;
+      const scale = Math.min(1, MAX_DIM / Math.max(img.width || 1, img.height || 1));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      const isPng = /^image\/(png|gif)/.test(file.type);
+      resolve(canvas.toDataURL(isPng ? "image/png" : "image/jpeg", 0.85));
+    };
+    img.onerror = () => resolve(dataUrl); // Fallback : data URL originale
+    img.src = dataUrl;
   });
 }
 
@@ -6220,6 +6254,7 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
+  syncStagePending();
   pad.hasDirectAudio = true;
   pad.audioName = name;
   pad.audioUid = createId();
@@ -7697,7 +7732,7 @@ function toggleStageLock() {
   setStatus("Mode scène déverrouillé");
 }
 
-async function prepareBoardForStage() {
+async function prepareBoardForStage(options = {}) {
   const pads = orderedPadsForCurrentBoard()
     .filter((pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer);
 
@@ -7716,6 +7751,13 @@ async function prepareBoardForStage() {
       return false;
     }
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
+    return true;
+  }
+
+  // Sur mobile, l'AudioContext ne peut pas démarrer sans geste utilisateur.
+  // On passe en mode scène sans préchargement : les sons se chargent au premier déclenchement.
+  if (options.skipDecode) {
+    setStatus(`Board prêt pour la scène : ${total} son${total > 1 ? "s" : ""} chargé${total > 1 ? "s" : ""} au premier déclenchement`, "success");
     return true;
   }
 
@@ -7770,12 +7812,13 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     state.stageMode = true;
     document.body.classList.add("stage-mode");
     syncBoardModeSelector();
-    const ready = await prepareBoardForStage();
+    const ready = await prepareBoardForStage(options);
     if (!ready) {
       // Rollback si la préparation échoue
       state.stageMode = false;
       document.body.classList.remove("stage-mode");
       syncBoardModeSelector();
+      localStorage.setItem(STAGE_MODE_STORAGE, "off");
       return;
     }
   }
@@ -7810,6 +7853,14 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
     setStatus("Mode édition");
   }
+  syncStagePending();
+}
+
+function syncStagePending() {
+  const pending = state.stageMode && orderedPadsForCurrentBoard().some(
+    (pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer
+  );
+  els.stageMode?.classList.toggle("is-stage-pending", pending);
 }
 
 function duckingActive() {
@@ -10978,10 +11029,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
       setStatus(`Préparation audio : ${pad.title}`);
       try {
         pad.buffer = await ensurePadAudioDecoded(pad);
+        syncStagePending();
       } catch (error) {
         console.error(error);
         pad.audioStored = false;
         pad.node.classList.add("is-missing-audio");
+        syncStagePending();
         setStatus(`Son manquant: ${pad.title}`);
         openAudioDialog(pad);
         return;
@@ -11426,7 +11479,7 @@ async function init() {
   if (savedGarageMode) state.boardEditMode = true;
   await renderPads({ preserveEditMode: savedGarageMode });
   await repairAccidentalPadTitles();
-  setStageMode(savedStageMode, false);
+  await setStageMode(savedStageMode, false, { skipDecode: true });
   if (!state.stageMode && savedGarageMode) {
     setBoardPadEditing(true);
   }
@@ -12269,7 +12322,8 @@ async function init() {
     const file = [...(event.dataTransfer?.files || [])].find((f) => /^image\//.test(f.type));
     if (!file) return;
     try {
-      const dataUrl = await fileToDataUrl(file);
+      const dataUrl = await resizeImageForPad(file);
+      if (!dataUrl) return;
       setPadVisualImage(pad, dataUrl, false, { visualKind: "image" });
       state.imageDialogMode = "image";
       syncImageDialog(pad);

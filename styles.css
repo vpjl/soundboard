@@ -8893,3 +8893,12 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
+
+@keyframes stage-pending-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.stage-button.is-stage-pending {
+  animation: stage-pending-blink 1s ease-in-out infinite;
+}
