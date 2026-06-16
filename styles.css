@@ -5923,18 +5923,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   color: var(--color_ui_text_muted);
 }
 
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  justify-self: stretch;
-  align-self: stretch;
-  max-width: 100%;
-  min-height: 100%;
-  height: 100%;
-  font-size: clamp(1rem, 4vw, 1.35rem) !important;
-  -webkit-line-clamp: 2;
-  -webkit-box-pack: center;
-  text-align: center;
-}
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags,
@@ -6928,19 +6916,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   height: 100%;
 }
 
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  height: auto;
-  max-height: 100%;
-  overflow: visible;
-  text-align: center;
-  -webkit-line-clamp: unset;
-  overflow-wrap: anywhere;
-}
 
 @media (max-width: 950px), (pointer: coarse) {
   .pad:not(.is-editing) .pad-play-row,
