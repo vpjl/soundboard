@@ -1837,7 +1837,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   box-sizing: border-box;
   width: 100%;
   min-height: 0;
-  padding: 14px 14px 16px;
+  padding: 10px 14px 12px;
   border-radius: 0;
   background: rgba(0, 0, 0, 0.55);
   font-family: 'Barlow Condensed', var(--font-sans);
