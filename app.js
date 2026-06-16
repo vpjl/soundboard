@@ -993,6 +993,22 @@ function setPadTitle(pad, title, options = {}) {
   pad.title = rawTitle.trim() ? displayTitle : `Pad ${pad.index + 1}`;
   pad.titleEl.textContent = pad.title;
   if (syncInput) pad.nameEl.value = pad.title;
+  fitPadTitle(pad);
+}
+
+function fitPadTitle(pad) {
+  const title = pad.titleEl;
+  const node = pad.node;
+  if (!title || !node) return;
+  title.style.fontSize = "";
+  if (document.body.dataset.skin !== "basic") return;
+  const hasVisual = node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
+  const hasColorOnly = node.classList.contains("has-color") && !node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
+  if ((!hasVisual && !hasColorOnly) || node.classList.contains("is-editing")) return;
+  if (title.scrollWidth <= title.clientWidth) return;
+  const currentSize = parseFloat(getComputedStyle(title).fontSize);
+  const fitted = Math.max(Math.floor(currentSize * (title.clientWidth / title.scrollWidth) * 10) / 10, 9);
+  title.style.fontSize = fitted + "px";
 }
 
 function padType(pad) {
@@ -3722,6 +3738,7 @@ async function renderPads(options = {}) {
   syncCueControls();
   setStatus("Board prêt pour l’édition : interface restaurée", "success");
   perf.log("complete", { padCount: state.pads.length });
+  state.pads.forEach(fitPadTitle);
 }
 
 async function switchBoard(boardId) {
@@ -4703,6 +4720,7 @@ function applySkin(skin) {
 
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
+  state.pads.forEach(fitPadTitle);
 }
 
 function revealGalleryPads(save = true) {
@@ -8339,6 +8357,7 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
     pad.node.style.removeProperty("--pad-image");
     pad.visualPreviewEl?.style.removeProperty("background-image");
   }
+  fitPadTitle(pad);
 }
 
 function setPadColor(pad, color) {
@@ -8353,6 +8372,7 @@ function setPadColor(pad, color) {
     button.classList.toggle("is-active", (button.dataset.color || "") === pad.color);
   });
   if (state.imagePad === pad) syncImageColorButtons(pad);
+  fitPadTitle(pad);
 }
 
 function syncImageColorButtons(pad = state.imagePad) {
@@ -11525,6 +11545,7 @@ async function init() {
     state.pads.forEach(renderWaveform);
     if (document.body.classList.contains("show-cables")) drawCableOverlay();
     syncFloatingCueFrame(true);
+    window.setTimeout(() => state.pads.forEach(fitPadTitle), 0);
   });
   window.addEventListener("scroll", () => syncFloatingCueFrame(false), { passive: true });
   els.duckPercent?.addEventListener("input", () => {
