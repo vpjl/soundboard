@@ -1822,7 +1822,7 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hi
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: end;
+  align-content: end;
   justify-content: center;
   width: 100%;
   height: 100%;
