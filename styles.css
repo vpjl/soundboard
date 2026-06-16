@@ -6052,14 +6052,14 @@ body.stage-mode .secondary-live-group {
   body.stage-mode .master-strip {
     --master-stop-size: 62px !important;
     grid-column: 1 !important;
-    grid-row: 4 !important;
+    grid-row: 3 !important;
     width: 100% !important;
     justify-self: stretch !important;
   }
 
   body.stage-mode .live-tools {
     grid-column: 1 !important;
-    grid-row: 3 !important;
+    grid-row: 4 !important;
     width: 100% !important;
     max-width: 100% !important;
     justify-self: stretch !important;
