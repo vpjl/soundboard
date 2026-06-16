@@ -11579,7 +11579,7 @@ async function init() {
   bindSafeActionButton(els.cueStopAll, () => stopAll());
   bindSafeActionButton(els.stopGroup, () => stopGroup());
   bindSafeActionButton(els.stageMode, () => {
-    setStageMode(!state.stageMode, true);
+    setStageMode(!state.stageMode, true, { skipDecode: true });
   });
   bindSafeActionButton(els.stageLock, () => toggleStageLock());
   els.editPads?.addEventListener("click", () => {
@@ -12574,7 +12574,7 @@ function setBoardModeFromSelector(targetMode) {
       return;
     }
     setBoardModePending("stage");
-    setStageMode(true, false);
+    setStageMode(true, false, { skipDecode: true });
     setStatus("Mode Scène");
     syncBoardModeSelectorSoon();
   }
