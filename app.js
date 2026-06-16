@@ -4290,6 +4290,7 @@ function updateSkinOptions() {
   newOption.value = "__edit_current_skin__";
   newOption.textContent = "Éditeur de skin…";
   newOption.dataset.customSkin = "true";
+  newOption.disabled = Boolean(state.stageMode);
   group.append(newOption);
 
   customSkins
@@ -7830,12 +7831,14 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     state.stageMode = true;
     document.body.classList.add("stage-mode");
     syncBoardModeSelector();
+    updateSkinOptions();
     const ready = await prepareBoardForStage(options);
     if (!ready) {
       // Rollback si la préparation échoue
       state.stageMode = false;
       document.body.classList.remove("stage-mode");
       syncBoardModeSelector();
+      updateSkinOptions();
       localStorage.setItem(STAGE_MODE_STORAGE, "off");
       return;
     }
@@ -7850,6 +7853,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     els.boardSelect.setAttribute("aria-disabled", String(state.stageMode));
   }
   localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
+  updateSkinOptions();
   renderBoardLayoutControls();
   applyPadLayout(currentBoard());
 
