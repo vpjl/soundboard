@@ -8045,6 +8045,17 @@ function flashPadPreEnd(pad, durationSeconds = 1.35) {
   window.setTimeout(() => pad.node?.classList.remove("is-preend-flash"), duration * 1000 + 40);
 }
 
+function flashPadStop(pad, fadeSeconds = 0) {
+  if (!pad?.crossfadeFlashEl) return;
+  const totalDuration = Math.max(2.5, fadeSeconds);
+  const iterations = Math.ceil(totalDuration / 0.72);
+  pad.node.classList.remove("is-stop-flash");
+  pad.node.style.setProperty("--stop-flash-iterations", String(iterations));
+  void pad.node.offsetWidth;
+  pad.node.classList.add("is-stop-flash");
+  window.setTimeout(() => pad.node?.classList.remove("is-stop-flash"), iterations * 720 + 100);
+}
+
 function setPadMode(pad, mode) {
   pad.playMode = ["oneshot", "hold", "toggle"].includes(mode) ? mode : "oneshot";
   updatePadModeButtons(pad);
@@ -11244,6 +11255,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
       return;
     }
     pad.stopAt = now + effectiveFadeTime + 0.02;
+    requestAnimationFrame(() => flashPadStop(pad, effectiveFadeTime));
     setStatus(`${pad.title} fade out`);
   } else {
     try {
@@ -11256,6 +11268,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
     pad.stopAt = now;
     clearPlayingPad(pad, source, options.triggerEnd ?? true);
     clearPadMuteState(pad);
+    requestAnimationFrame(() => flashPadStop(pad, 0));
     setStatus(`${pad.title} stop`);
   }
 }
@@ -11401,7 +11414,8 @@ function togglePad(pad) {
 }
 
 function stopAll() {
-  state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
+  const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
+  state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
   setStatus("Tout est stoppé");
 }
 

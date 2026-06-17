@@ -6734,6 +6734,30 @@ body.stage-mode .pad:not(.is-editing) .controls {
   animation: end-green-red-flash var(--preend-flash-duration, 1.05s) linear 1;
 }
 
+.pad.is-stop-flash .pad-crossfade-flash {
+  opacity: 1;
+  animation: pad-stop-blink 0.72s linear var(--stop-flash-iterations, 4) forwards;
+}
+
+@keyframes pad-stop-blink {
+  0%, 32%, 64% {
+    opacity: 1;
+    background: #ff5f56;
+    box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24);
+    transform: scale(1.08);
+  }
+  16%, 48%, 80% {
+    opacity: 0.22;
+    background: #ff5f56;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 0;
+    background: #ff5f56;
+    transform: scale(0.84);
+  }
+}
+
 @keyframes end-green-red-flash {
   0% {
     opacity: 1;
