@@ -11015,7 +11015,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.eqNodes = null;
   pad.stopAt = 0;
   clearCrossfadeDuck(pad, false);
-  pad.node.classList.remove("is-playing");
+  pad.node.classList.remove("is-playing", "is-stop-flash");
   hidePadNoteOverlay(pad);
   updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
