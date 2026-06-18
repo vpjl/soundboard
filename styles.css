@@ -1832,6 +1832,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   min-height: 100%;
   margin: auto;
   text-align: center;
+  background: transparent;
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
@@ -5821,6 +5822,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .pads.has-pad-layout,
   body.stage-mode .pads,
   body.stage-mode .pads.has-pad-layout,
+  body.board-edit-mode .pads,
+  body.board-edit-mode .pads.has-pad-layout,
   body[data-skin="minimal"] .pads,
   body[data-skin="minimal"] .pads.has-pad-layout,
   body[data-skin="minimal"].stage-mode .pads,
