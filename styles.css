@@ -6896,7 +6896,8 @@ body[data-skin="basic"] .pad.has-color .pad-note-button {
   grid-area: note;
 }
 
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-note-button {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-note-button,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-note-button {
   opacity: 0;
   pointer-events: none;
 }
