@@ -3477,7 +3477,7 @@ function renderBoardLayoutControls() {
 
   const displayedColumns = portraitLocked ? 2 : layout.columns || 4;
   if (els.padColumnsComputed) {
-    els.padColumnsComputed.textContent = `${displayedColumns} colonne${displayedColumns > 1 ? "s" : ""}`;
+    els.padColumnsComputed.textContent = String(displayedColumns);
   }
   if (els.padRows) {
     const rows = portraitLocked
