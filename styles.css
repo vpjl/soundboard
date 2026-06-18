@@ -2502,6 +2502,16 @@ body.board-edit-mode.shortcuts-disabled .board-action-grid .keyboard-shortcuts-b
   filter: grayscale(1);
 }
 
+.master-audio-panel .audio-head-actions .keyboard-shortcuts-button {
+  display: grid;
+}
+
+body.shortcuts-disabled .master-audio-panel .audio-head-actions .keyboard-shortcuts-button {
+  opacity: 0.42;
+  cursor: pointer;
+  filter: grayscale(1);
+}
+
 body.board-edit-mode .board-action-grid .show-cables-button,
 body.board-edit-mode .board-action-grid .patch-bay-button,
 body.board-edit-mode .board-action-grid .stage-button,
