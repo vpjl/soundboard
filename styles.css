@@ -6902,7 +6902,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   pointer-events: none;
 }
 
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time {
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time {
   opacity: 1;
   top: 36px;
   right: 6px;
