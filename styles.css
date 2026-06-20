@@ -4032,6 +4032,45 @@ body[data-skin="contrast"] .color-field {
   height: 28px;
 }
 
+.bulk-visual-picker {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 19, 25, 0.42);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bulk-visual-modes { display: flex; gap: 6px; }
+.bulk-visual-mode-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 28%, var(--control));
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+}
+.bulk-visual-panel { display: none; }
+.bulk-visual-panel.is-active { display: block; }
+.bulk-image-pick-label { display: inline-flex; cursor: pointer; }
+.bulk-image-pick-label input[type="file"] { display: none; }
+.bulk-image-canvas {
+  display: block;
+  margin-top: 8px;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 6px;
+  background: #111319;
+}
+.bulk-sketch-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #111319;
+  touch-action: none;
+  cursor: crosshair;
+  margin-bottom: 6px;
+}
+#bulkSketchClear { margin-top: 2px; }
+.bulk-visual-panel[data-bulk-visual-panel="sketch"] .sketch-tools { display: flex; margin-bottom: 8px; }
 .bulk-edit-grid input[type="checkbox"] {
   width: 20px;
   height: 20px;

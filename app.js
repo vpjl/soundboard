@@ -165,6 +165,12 @@ const state = {
   imageDialogMode: "color",
   bulkEditPads: [],
   bulkAutoTrimResults: null,
+  bulkVisualMode: "color",
+  bulkVisualImage: "",
+  bulkSketchDrawing: false,
+  bulkSketchColor: "#ffffff",
+  bulkSketchSize: 8,
+  bulkSketchEraser: false,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -417,7 +423,16 @@ const els = {
   bulkPan: document.querySelector("#bulkPan"),
   bulkApplyTags: document.querySelector("#bulkApplyTags"),
   bulkTags: document.querySelector("#bulkTags"),
-  bulkApplyColor: document.querySelector("#bulkApplyColor"),
+  bulkApplyVisual: document.querySelector("#bulkApplyVisual"),
+  bulkVisualModeBtns: [...document.querySelectorAll("[data-bulk-visual-mode]")],
+  bulkVisualPanels: [...document.querySelectorAll("[data-bulk-visual-panel]")],
+  bulkImageInput: document.querySelector("#bulkImageInput"),
+  bulkImageCanvas: document.querySelector("#bulkImageCanvas"),
+  bulkSketchCanvas: document.querySelector("#bulkSketchCanvas"),
+  bulkSketchColorBtns: [...document.querySelectorAll("[data-bulk-sketch-color]")],
+  bulkSketchSizeBtns: [...document.querySelectorAll("[data-bulk-sketch-size]")],
+  bulkSketchEraserBtn: document.querySelector("#bulkSketchEraser"),
+  bulkSketchClear: document.querySelector("#bulkSketchClear"),
   bulkColor: document.querySelector("#bulkColor"),
   bulkColorButtons: [...document.querySelectorAll("[data-bulk-color]")],
   bulkApplyLiveFade: document.querySelector("#bulkApplyLiveFade"),
@@ -3257,6 +3272,135 @@ function setBulkColorValue(color = "") {
   });
 }
 
+function syncBulkVisualMode(mode = state.bulkVisualMode) {
+  state.bulkVisualMode = ["color", "image", "sketch"].includes(mode) ? mode : "color";
+  els.bulkVisualModeBtns?.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.bulkVisualMode === state.bulkVisualMode));
+  els.bulkVisualPanels?.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.bulkVisualPanel === state.bulkVisualMode));
+}
+
+function syncBulkSketchTools() {
+  els.bulkSketchColorBtns?.forEach((btn) => {
+    btn.classList.toggle("is-active", !state.bulkSketchEraser && btn.dataset.bulkSketchColor === state.bulkSketchColor);
+  });
+  els.bulkSketchSizeBtns?.forEach((btn) => {
+    btn.classList.toggle("is-active", Number(btn.dataset.bulkSketchSize) === state.bulkSketchSize);
+  });
+  els.bulkSketchEraserBtn?.classList.toggle("is-active", state.bulkSketchEraser);
+  els.bulkSketchEraserBtn?.setAttribute("aria-pressed", String(state.bulkSketchEraser));
+}
+
+function initBulkSketchCanvas() {
+  const canvas = els.bulkSketchCanvas;
+  if (!canvas) return null;
+  canvas.width = 640;
+  canvas.height = 640;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#111319";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = "round";
+  return ctx;
+}
+
+function clearBulkSketchCanvas() {
+  const canvas = els.bulkSketchCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#111319";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function bindBulkSketchCanvas() {
+  const canvas = els.bulkSketchCanvas;
+  if (!canvas) return;
+
+  function sketchPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    const ctx = canvas.getContext("2d");
+    ctx.lineCap = "round";
+    ctx.lineWidth = state.bulkSketchEraser ? Math.max(state.bulkSketchSize * 2.5, 20) : state.bulkSketchSize;
+    ctx.strokeStyle = state.bulkSketchEraser ? "#111319" : state.bulkSketchColor;
+    state.bulkSketchDrawing = true;
+    canvas.setPointerCapture?.(event.pointerId);
+    const point = sketchPoint(event);
+    if (!point) return;
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!state.bulkSketchDrawing) return;
+    const ctx = canvas.getContext("2d");
+    const point = sketchPoint(event);
+    if (!point) return;
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  });
+
+  canvas.addEventListener("pointerup", () => { state.bulkSketchDrawing = false; });
+  canvas.addEventListener("pointercancel", () => { state.bulkSketchDrawing = false; });
+}
+
+function bindBulkSketchTools() {
+  els.bulkSketchColorBtns?.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.bulkSketchColor = btn.dataset.bulkSketchColor;
+      state.bulkSketchEraser = false;
+      syncBulkSketchTools();
+    });
+  });
+  els.bulkSketchSizeBtns?.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.bulkSketchSize = Number(btn.dataset.bulkSketchSize);
+      syncBulkSketchTools();
+    });
+  });
+  els.bulkSketchEraserBtn?.addEventListener("click", () => {
+    state.bulkSketchEraser = !state.bulkSketchEraser;
+    syncBulkSketchTools();
+  });
+  els.bulkSketchClear?.addEventListener("click", clearBulkSketchCanvas);
+}
+
+function bindBulkVisual() {
+  els.bulkVisualModeBtns?.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncBulkVisualMode(btn.dataset.bulkVisualMode);
+      if (state.bulkVisualMode === "sketch" && !state.bulkSketchInitialized) {
+        initBulkSketchCanvas();
+        syncBulkSketchTools();
+        state.bulkSketchInitialized = true;
+      }
+    });
+  });
+
+  els.bulkImageInput?.addEventListener("change", () => {
+    const file = els.bulkImageInput.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      state.bulkVisualImage = e.target.result;
+      const canvas = els.bulkImageCanvas;
+      if (!canvas) return;
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+      };
+      img.src = state.bulkVisualImage;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function fillActionSelect(select, selectedValue = "none") {
   if (!select) return;
   select.innerHTML = '<option value="none">Pas d’effet</option><option value="play">Lance pad ou tag</option><option value="duck">Duck pad ou tag</option><option value="mute">Mute/demute pad ou tag</option><option value="stop">Stoppe pad ou tag</option>';
@@ -3357,8 +3501,9 @@ function openBulkEditDialog() {
     });
     els.bulkTemplatePad.value = String(pads[0].index);
   }
-  [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyColor, els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyAutoTrim, els.bulkApplyReverb, els.bulkApplyCrossfade]
+  [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyVisual, els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyAutoTrim, els.bulkApplyReverb, els.bulkApplyCrossfade]
     .forEach((checkbox) => { if (checkbox) checkbox.checked = false; });
+  syncBulkVisualMode(state.bulkVisualMode);
   syncBulkTemplateFields(pads[0]);
   if (els.bulkEditDialog?.showModal) {
     els.bulkEditDialog.showModal();
@@ -3426,8 +3571,15 @@ async function applyBulkEdit() {
     if (els.bulkApplyTags?.checked) {
       setPadTags(pad, els.bulkTags?.value || "");
     }
-    if (els.bulkApplyColor?.checked) {
-      setPadColor(pad, els.bulkColor?.value || "");
+    if (els.bulkApplyVisual?.checked) {
+      if (state.bulkVisualMode === "color") {
+        setPadColor(pad, els.bulkColor?.value || "");
+      } else if (state.bulkVisualMode === "image" && state.bulkVisualImage) {
+        setPadVisualImage(pad, state.bulkVisualImage, false, { visualKind: "image" });
+      } else if (state.bulkVisualMode === "sketch") {
+        const dataUrl = els.bulkSketchCanvas?.toDataURL("image/png");
+        if (dataUrl) setPadVisualImage(pad, dataUrl, false, { visualKind: "sketch" });
+      }
     }
     if (els.bulkApplyLiveFade?.checked) {
       setPadLiveFade(pad, Boolean(els.bulkFadeInEnabled?.checked), Boolean(els.bulkFadeOutEnabled?.checked));
@@ -12470,6 +12622,11 @@ async function init() {
   });
   bindImageSketch();
   bindSketchTools();
+  bindBulkSketchCanvas();
+  bindBulkSketchTools();
+  bindBulkVisual();
+  syncBulkVisualMode("color");
+  syncBulkSketchTools();
   els.shortcutEnabled?.addEventListener("change", () => {
     state.shortcutsEnabled = els.shortcutEnabled.checked;
     updateShortcutIndicators();
