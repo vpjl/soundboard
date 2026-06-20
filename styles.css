@@ -5832,6 +5832,10 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
+  body.board-edit-mode .pad.is-editing .pad-trigger {
+    padding: 8px 34px 9px 30px !important;
+  }
+
   .pad-trigger,
   body.stage-mode .pad-trigger {
     min-height: 88px;
@@ -6527,6 +6531,12 @@ body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-column: 1 / -1;
   min-height: 56px;
   padding: 8px 72px 8px 60px !important;
+}
+
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.board-edit-mode .pad.is-editing .pad-trigger {
+    padding: 8px 34px 9px 30px !important;
+  }
 }
 
 body.board-edit-mode .pad.is-editing .pad-label {
