@@ -8365,7 +8365,7 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.node.classList.toggle("is-visual-hidden", pad.visualImageHidden);
   pad.visualToggleEl?.setAttribute("aria-pressed", String(pad.visualImageHidden));
   pad.node.style.setProperty("--pad-image-position", `${pad.visualPositionX}% ${pad.visualPositionY}%`);
-  pad.node.style.setProperty("--pad-image-size", pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`);
+  pad.node.style.setProperty("--pad-image-size", pad.visualKind === "sketch" ? "contain" : (pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`));
   if (pad.visualImage) {
     pad.node.style.setProperty("--pad-image", `url("${pad.visualImage}")`);
     pad.visualPreviewEl?.style.setProperty("background-image", `url("${pad.visualImage}")`);
@@ -12407,6 +12407,7 @@ async function init() {
   els.imageRemove?.addEventListener("click", () => {
     const pad = state.imagePad;
     if (!pad) return;
+    setPadColor(pad, "");
     setPadVisualImage(pad, "", false);
     if (state.imageDialogMode === "sketch") {
       initSketchCanvas();

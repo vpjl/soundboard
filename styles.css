@@ -1731,6 +1731,7 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) {
     var(--pad-image);
   background-position: var(--pad-image-position, center);
   background-size: var(--pad-image-size, cover);
+  background-repeat: no-repeat;
 }
 
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) {
@@ -2958,7 +2959,6 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .color-swatches button[data-color=""],
-.color-swatches button[data-image-color=""],
 .color-swatches button[data-bulk-color=""] {
   background:
     linear-gradient(135deg, transparent 44%, var(--danger) 45%, var(--danger) 55%, transparent 56%),
