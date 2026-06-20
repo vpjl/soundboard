@@ -6295,6 +6295,7 @@ body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row {
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
   body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
+    left: 0 !important;
     transform: none !important;
   }
 }
