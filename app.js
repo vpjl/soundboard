@@ -2480,7 +2480,12 @@ function applyBoardTagFilter() {
     pad.node.classList.toggle("is-tag-match", value ? matchingSet.has(pad) : false);
     pad.node.classList.toggle("is-tag-dimmed", value ? !matchingSet.has(pad) : false);
   });
-  if (value && matchingPads.length) {
+  if (!value) {
+    setStatus(state.boardEditMode ? "Mode Garage" : "Mode live");
+  } else if (!matchingPads.length) {
+    const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
+    setStatus(aspectMessages[value] ?? "Aucun pad sélectionné");
+  } else {
     const n = matchingPads.length;
     setStatus(`${n} pad${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""} sur ${state.pads.length}`);
   }
