@@ -2474,12 +2474,16 @@ function applyPadLayout(board = currentBoard()) {
 
 function applyBoardTagFilter() {
   const value = String(els.boardTagFilter?.value || "").trim();
+  const matchingPads = value ? padsForBoardFilterValue(value) : [];
+  const matchingSet = new Set(matchingPads);
   state.pads.forEach((pad) => {
-    const matches = !value ? false : padsForBoardFilterValue(value).includes(pad);
-    pad.node.classList.toggle("is-tag-match", Boolean(value && matches));
-    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !matches));
+    pad.node.classList.toggle("is-tag-match", value ? matchingSet.has(pad) : false);
+    pad.node.classList.toggle("is-tag-dimmed", value ? !matchingSet.has(pad) : false);
   });
-  if (value) setStatus(`Pads sélectionnés`);
+  if (value && matchingPads.length) {
+    const n = matchingPads.length;
+    setStatus(`${n} pad${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""} sur ${state.pads.length}`);
+  }
 }
 
 function cueActionLabel(action) {
