@@ -1002,6 +1002,7 @@ function fitPadTitle(pad) {
   if (!title || !node) return;
   title.style.fontSize = "";
   if (document.body.dataset.skin !== "basic") return;
+  if (document.body.classList.contains("board-edit-mode")) return;
   const hasVisual = node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
   const hasColorOnly = node.classList.contains("has-color") && !node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
   if ((!hasVisual && !hasColorOnly) || node.classList.contains("is-editing")) return;
