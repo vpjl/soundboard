@@ -6119,19 +6119,9 @@ body.stage-mode .secondary-live-group {
     min-width: 34px !important;
   }
 
-  /* En scène portrait, garder cues/crossfade dans le flux grid (ne pas passer en fixed) */
   body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    position: static !important;
-    top: auto !important;
-    left: auto !important;
-    transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    z-index: auto !important;
-  }
-
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) main {
-    padding-top: 0 !important;
   }
 }
 
