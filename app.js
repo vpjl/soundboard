@@ -3378,6 +3378,9 @@ function bindBulkVisual() {
         syncBulkSketchTools();
         state.bulkSketchInitialized = true;
       }
+      if (state.bulkVisualMode === "image") {
+        els.bulkImageInput?.click();
+      }
     });
   });
 
