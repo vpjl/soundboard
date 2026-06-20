@@ -9452,13 +9452,20 @@ function openImageDialog(pad) {
   const perf = startPerfMeasure("openImageDialog");
   state.imagePad = pad;
   state.imageDraft = imageDraftFromPad(pad);
-  state.imageDialogMode = "color";
+  if (pad.visualImage && pad.visualKind === "sketch") {
+    state.imageDialogMode = "sketch";
+  } else if (pad.visualImage && pad.visualKind === "image") {
+    state.imageDialogMode = "image";
+  } else {
+    state.imageDialogMode = "color";
+  }
   syncImageDialog(pad);
   perf.log("preparation complete", { padIndex: pad.index });
   if (els.imageDialog?.showModal) {
     perf.log("before showModal");
     els.imageDialog.showModal();
     perf.log("after showModal");
+    if (state.imageDialogMode === "sketch") openSketchMode(pad);
     perf.log("deferred render complete");
   } else {
     pad.imageInput?.click();
@@ -9527,6 +9534,25 @@ function clearSketchCanvas() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+function openSketchMode(pad) {
+  setImageDialogMode("sketch");
+  const canvas = els.imageSketchCanvas;
+  const ctx = initSketchCanvas();
+  if (!ctx || !canvas) return;
+  if (pad?.visualKind === "sketch" && pad.visualImage) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.src = pad.visualImage;
+  } else {
+    clearSketchCanvas();
+    if (pad) {
+      setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
+      syncImageDialog(pad);
+      savePadMeta(pad);
+    }
+  }
+}
+
 function bindImageSketch() {
   const canvas = els.imageSketchCanvas;
   if (!canvas) return;
@@ -9562,24 +9588,7 @@ function bindImageSketch() {
   };
   canvas.addEventListener("pointerup", finish);
   canvas.addEventListener("pointercancel", finish);
-  els.imageSketch?.addEventListener("click", () => {
-    setImageDialogMode("sketch");
-    const pad = state.imagePad;
-    const ctx = initSketchCanvas();
-    if (!ctx) return;
-    if (pad?.visualKind === "sketch" && pad.visualImage) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      img.src = pad.visualImage;
-    } else {
-      clearSketchCanvas();
-      if (pad) {
-        setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
-        syncImageDialog(pad);
-        savePadMeta(pad);
-      }
-    }
-  });
+  els.imageSketch?.addEventListener("click", () => openSketchMode(state.imagePad));
 }
 
 function playbackOffset(pad) {
