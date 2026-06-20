@@ -3474,9 +3474,8 @@ function openBulkEditDialog() {
     pads = padsForBoardFilterValue(selectedTag);
   }
   if (!pads.length) {
-    window.alert(selectedTag === "state:empty"
-      ? "Aucun pad vide sélectionné"
-      : "Sélectionner des pads avec le menu Modification groupée du cadre board");
+    const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
+    window.alert(aspectMessages[selectedTag] ?? (selectedTag === "state:empty" ? "Aucun pad vide sélectionné" : "Sélectionner des pads avec le menu Modification groupée du cadre board"));
     return;
   }
   if (selectedTag === "state:empty") {
