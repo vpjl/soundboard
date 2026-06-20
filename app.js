@@ -9498,18 +9498,42 @@ function sketchPoint(event) {
   };
 }
 
-function bindImageSketch() {
+function initSketchCanvas() {
   const canvas = els.imageSketchCanvas;
-  if (!canvas) return;
+  if (!canvas) return null;
+  const pad = state.imagePad;
+  const livePadRect = pad?.node?.getBoundingClientRect();
+  let w = 640, h = 360;
+  if (document.body.dataset.skin === "basic") {
+    w = h = 640;
+  } else if (livePadRect?.width && livePadRect?.height) {
+    w = 640;
+    h = Math.round(640 * livePadRect.height / livePadRect.width);
+  }
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d");
   ctx.lineWidth = 8;
   ctx.lineCap = "round";
   ctx.strokeStyle = "#ffffff";
+  return ctx;
+}
+
+function clearSketchCanvas() {
+  const canvas = els.imageSketchCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#111319";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function bindImageSketch() {
+  const canvas = els.imageSketchCanvas;
+  if (!canvas) return;
 
   canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    const ctx = canvas.getContext("2d");
     state.sketchDrawing = true;
     canvas.setPointerCapture?.(event.pointerId);
     const point = sketchPoint(event);
@@ -9520,6 +9544,7 @@ function bindImageSketch() {
   canvas.addEventListener("pointermove", (event) => {
     if (!state.sketchDrawing) return;
     event.preventDefault();
+    const ctx = canvas.getContext("2d");
     const point = sketchPoint(event);
     if (!point) return;
     ctx.lineTo(point.x, point.y);
@@ -9539,13 +9564,20 @@ function bindImageSketch() {
   canvas.addEventListener("pointercancel", finish);
   els.imageSketch?.addEventListener("click", () => {
     setImageDialogMode("sketch");
-    ctx.fillStyle = "#111319";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     const pad = state.imagePad;
-    if (pad) {
-      setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
-      syncImageDialog(pad);
-      savePadMeta(pad);
+    const ctx = initSketchCanvas();
+    if (!ctx) return;
+    if (pad?.visualKind === "sketch" && pad.visualImage) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.src = pad.visualImage;
+    } else {
+      clearSketchCanvas();
+      if (pad) {
+        setPadVisualImage(pad, canvas.toDataURL("image/png"), false, { visualKind: "sketch" });
+        syncImageDialog(pad);
+        savePadMeta(pad);
+      }
     }
   });
 }
@@ -12375,6 +12407,10 @@ async function init() {
     const pad = state.imagePad;
     if (!pad) return;
     setPadVisualImage(pad, "", false);
+    if (state.imageDialogMode === "sketch") {
+      initSketchCanvas();
+      clearSketchCanvas();
+    }
     syncImageDialog(pad);
     savePadMeta(pad);
   });
