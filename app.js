@@ -3189,6 +3189,7 @@ function padsForBoardFilterValue(value) {
     const option = normalized.slice(7);
     return state.pads.filter((pad) => padMatchesAudioOption(pad, option));
   }
+  if (normalized.startsWith("aspect:")) return [...state.pads];
   return state.pads.filter((pad) => padTagList(pad).includes(normalized));
 }
 
@@ -3480,7 +3481,9 @@ function openBulkEditDialog() {
     confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible"));
     return;
   }
-  if (!selectedTag || pads.length === state.pads.length) {
+
+  const isAspectPreset = selectedTag.startsWith("aspect:");
+  if (!isAspectPreset && (!selectedTag || pads.length === state.pads.length)) {
     const shouldEditAll = window.confirm("Modifier tous les pads ?");
     if (!shouldEditAll) {
       window.alert("Sélectionner des pads avec le menu Modification groupée du cadre board");
@@ -3506,10 +3509,24 @@ function openBulkEditDialog() {
   }
   [els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyVisual, els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyAutoTrim, els.bulkApplyReverb, els.bulkApplyCrossfade]
     .forEach((checkbox) => { if (checkbox) checkbox.checked = false; });
-  syncBulkVisualMode(state.bulkVisualMode);
+
+  if (isAspectPreset) {
+    const mode = selectedTag === "aspect:sketch" ? "sketch" : selectedTag === "aspect:image" ? "image" : "color";
+    syncBulkVisualMode(mode);
+    if (els.bulkApplyVisual) els.bulkApplyVisual.checked = true;
+    if (mode === "sketch" && !state.bulkSketchInitialized) {
+      initBulkSketchCanvas();
+      syncBulkSketchTools();
+      state.bulkSketchInitialized = true;
+    }
+  } else {
+    syncBulkVisualMode(state.bulkVisualMode);
+  }
+
   syncBulkTemplateFields(pads[0]);
   if (els.bulkEditDialog?.showModal) {
     els.bulkEditDialog.showModal();
+    if (isAspectPreset && state.bulkVisualMode === "image") els.bulkImageInput?.click();
   } else {
     setStatus("Modification groupée prête");
   }
@@ -8355,6 +8372,16 @@ function refreshBoardTagFilterOptions() {
     emptyPadsOption.textContent = "Pads vides";
     stateGroup.append(emptyPadsOption);
     els.boardTagFilter.append(stateGroup);
+
+    const aspectGroup = document.createElement("optgroup");
+    aspectGroup.label = "Aspect du pad";
+    [["aspect:sketch", "Dessin"], ["aspect:image", "Image"], ["aspect:color", "Couleur"]].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      aspectGroup.append(option);
+    });
+    els.boardTagFilter.append(aspectGroup);
   }
   const audioOptions = audioOptionFilterOptions();
   if (audioOptions.length) {
