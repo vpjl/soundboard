@@ -9508,17 +9508,9 @@ function sketchPoint(event) {
 function initSketchCanvas() {
   const canvas = els.imageSketchCanvas;
   if (!canvas) return null;
-  const pad = state.imagePad;
-  const livePadRect = pad?.node?.getBoundingClientRect();
-  let w = 640, h = 360;
-  if (document.body.dataset.skin === "basic") {
-    w = h = 640;
-  } else if (livePadRect?.width && livePadRect?.height) {
-    w = 640;
-    h = Math.round(640 * livePadRect.height / livePadRect.width);
-  }
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = 640;
+  canvas.height = 640;
+  els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
   const ctx = canvas.getContext("2d");
   ctx.lineWidth = 8;
   ctx.lineCap = "round";
