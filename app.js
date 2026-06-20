@@ -2474,12 +2474,13 @@ function applyPadLayout(board = currentBoard()) {
 
 function applyBoardTagFilter() {
   const value = String(els.boardTagFilter?.value || "").trim();
+  const isActionPreset = value.startsWith("aspect:");
   state.pads.forEach((pad) => {
-    const matches = !value ? false : padsForBoardFilterValue(value).includes(pad);
-    pad.node.classList.toggle("is-tag-match", Boolean(value && matches));
-    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !matches));
+    const matches = !value || isActionPreset ? false : padsForBoardFilterValue(value).includes(pad);
+    pad.node.classList.toggle("is-tag-match", Boolean(value && !isActionPreset && matches));
+    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !isActionPreset && !matches));
   });
-  if (value) setStatus(`Pads sélectionnés`);
+  if (value && !isActionPreset) setStatus(`Pads sélectionnés`);
 }
 
 function cueActionLabel(action) {
@@ -3636,6 +3637,7 @@ async function applyBulkEdit() {
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
   applyDucking();
+  if (els.boardTagFilter) { els.boardTagFilter.value = ""; applyBoardTagFilter(); }
   els.bulkEditDialog?.close();
   setStatus(`${pads.length} pad${pads.length > 1 ? "s" : ""} modifié${pads.length > 1 ? "s" : ""}`);
 }
