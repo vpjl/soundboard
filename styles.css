@@ -6303,6 +6303,12 @@ body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row {
   }
 }
 
+@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
+    transform: none !important;
+  }
+}
+
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
   .board-action-grid .board-help-button {
     width: 42px !important;
