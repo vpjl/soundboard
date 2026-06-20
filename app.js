@@ -2474,13 +2474,12 @@ function applyPadLayout(board = currentBoard()) {
 
 function applyBoardTagFilter() {
   const value = String(els.boardTagFilter?.value || "").trim();
-  const isActionPreset = value.startsWith("aspect:");
   state.pads.forEach((pad) => {
-    const matches = !value || isActionPreset ? false : padsForBoardFilterValue(value).includes(pad);
-    pad.node.classList.toggle("is-tag-match", Boolean(value && !isActionPreset && matches));
-    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !isActionPreset && !matches));
+    const matches = !value ? false : padsForBoardFilterValue(value).includes(pad);
+    pad.node.classList.toggle("is-tag-match", Boolean(value && matches));
+    pad.node.classList.toggle("is-tag-dimmed", Boolean(value && !matches));
   });
-  if (value && !isActionPreset) setStatus(`Pads sélectionnés`);
+  if (value) setStatus(`Pads sélectionnés`);
 }
 
 function cueActionLabel(action) {
@@ -3190,7 +3189,9 @@ function padsForBoardFilterValue(value) {
     const option = normalized.slice(7);
     return state.pads.filter((pad) => padMatchesAudioOption(pad, option));
   }
-  if (normalized.startsWith("aspect:")) return [...state.pads];
+  if (normalized === "aspect:sketch") return state.pads.filter((pad) => pad.visualKind === "sketch");
+  if (normalized === "aspect:image") return state.pads.filter((pad) => pad.visualKind === "image");
+  if (normalized === "aspect:color") return state.pads.filter((pad) => Boolean(pad.color));
   return state.pads.filter((pad) => padTagList(pad).includes(normalized));
 }
 
