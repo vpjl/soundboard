@@ -1739,7 +1739,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hid
   background-color: var(--pad-color);
 }
 
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) .pad-trigger {
   background: transparent;
 }
 
@@ -4539,11 +4539,77 @@ body[data-skin="contrast"] .color-field {
   touch-action: none;
 }
 
-.image-tools .icon-button.is-active {
+.image-tools .icon-button.is-active,
+#sketchEraser.is-active {
   background: color-mix(in srgb, var(--accent) 24%, var(--control));
   border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
   color: var(--text);
 }
+
+.sketch-tools {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.image-dialog.is-sketch-mode .sketch-tools {
+  display: flex;
+}
+
+.sketch-colors {
+  display: flex;
+  gap: 5px;
+}
+
+.sketch-color-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: var(--sketch-color, #888);
+  cursor: pointer;
+}
+
+.sketch-color-btn.is-active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
+}
+
+.sketch-sizes {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.sketch-size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--control);
+  cursor: pointer;
+}
+
+.sketch-size-btn.is-active {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+  background: color-mix(in srgb, var(--accent) 20%, var(--control));
+}
+
+.sketch-size-btn span {
+  border-radius: 50%;
+  background: currentColor;
+  display: block;
+}
+
+.sketch-size-btn[data-sketch-size="3"] span { width: 3px; height: 3px; }
+.sketch-size-btn[data-sketch-size="8"] span { width: 8px; height: 8px; }
+.sketch-size-btn[data-sketch-size="18"] span { width: 14px; height: 14px; }
 
 .image-dialog.is-color-mode .image-preview,
 .image-dialog.is-color-mode .image-sketch-canvas,
@@ -6603,10 +6669,7 @@ body.board-edit-mode .pad.is-editing .pad-note-button {
 }
 
 body.board-edit-mode .pad.is-editing .visual-toggle-button {
-  grid-area: auto !important;
-  position: absolute !important;
-  top: 8px;
-  right: 42px;
+  display: none;
 }
 
 body.board-edit-mode .pad.is-editing .pad-crossfade-flash {
@@ -6900,6 +6963,10 @@ body[data-skin="basic"] .visual-toggle-button {
 body[data-skin="basic"] .pad.has-visual-image .visual-toggle-button,
 body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
+}
+
+body[data-skin="basic"] .pad.is-editing .visual-toggle-button {
+  display: none;
 }
 
 body[data-skin="basic"] .pad.has-visual-image .pad-note-button,

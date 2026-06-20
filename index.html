@@ -1571,6 +1571,26 @@
             <button type="button" data-image-color="purple" aria-label="Violet"></button>
           </div>
         </div>
+        <div class="sketch-tools">
+          <div class="sketch-colors">
+            <button class="sketch-color-btn" data-sketch-color="#ffffff" style="--sketch-color:#ffffff" aria-label="Blanc"></button>
+            <button class="sketch-color-btn" data-sketch-color="#111319" style="--sketch-color:#111319" aria-label="Noir"></button>
+            <button class="sketch-color-btn" data-sketch-color="#ff3b3b" style="--sketch-color:#ff3b3b" aria-label="Rouge"></button>
+            <button class="sketch-color-btn" data-sketch-color="#ffd60a" style="--sketch-color:#ffd60a" aria-label="Jaune"></button>
+            <button class="sketch-color-btn" data-sketch-color="#30d158" style="--sketch-color:#30d158" aria-label="Vert"></button>
+            <button class="sketch-color-btn" data-sketch-color="#0a84ff" style="--sketch-color:#0a84ff" aria-label="Bleu"></button>
+          </div>
+          <div class="sketch-sizes">
+            <button class="sketch-size-btn" data-sketch-size="3" aria-label="Trait fin"><span></span></button>
+            <button class="sketch-size-btn" data-sketch-size="8" aria-label="Trait moyen"><span></span></button>
+            <button class="sketch-size-btn" data-sketch-size="18" aria-label="Trait épais"><span></span></button>
+          </div>
+          <button id="sketchEraser" class="icon-button" type="button" aria-label="Gomme" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 17l4 4h14M8.5 17.5l9.5-9.5-3-3-9.5 9.5 3 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
         <div id="imagePreview" class="image-preview" aria-label="Aperçu image"></div>
         <canvas id="imageSketchCanvas" class="image-sketch-canvas" width="640" height="360" aria-label="Croquis"></canvas>
         <div class="image-crop-controls">

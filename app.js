@@ -166,6 +166,9 @@ const state = {
   bulkEditPads: [],
   bulkAutoTrimResults: null,
   sketchDrawing: false,
+  sketchColor: "#ffffff",
+  sketchSize: 8,
+  sketchEraser: false,
   stageMode: false,
   boardEditMode: false,
   boardEditSnapshot: null,
@@ -368,6 +371,9 @@ const els = {
   imageRemove: document.querySelector("#imageRemove"),
   imagePreview: document.querySelector("#imagePreview"),
   imageSketchCanvas: document.querySelector("#imageSketchCanvas"),
+  sketchColorBtns: [...document.querySelectorAll("[data-sketch-color]")],
+  sketchSizeBtns: [...document.querySelectorAll("[data-sketch-size]")],
+  sketchEraserBtn: document.querySelector("#sketchEraser"),
   imagePosX: document.querySelector("#imagePosX"),
   imagePosY: document.querySelector("#imagePosY"),
   imageZoom: document.querySelector("#imageZoom"),
@@ -9512,10 +9518,39 @@ function initSketchCanvas() {
   canvas.height = 640;
   els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
   const ctx = canvas.getContext("2d");
-  ctx.lineWidth = 8;
   ctx.lineCap = "round";
-  ctx.strokeStyle = "#ffffff";
   return ctx;
+}
+
+function syncSketchTools() {
+  els.sketchColorBtns.forEach((btn) => {
+    btn.classList.toggle("is-active", !state.sketchEraser && btn.dataset.sketchColor === state.sketchColor);
+  });
+  els.sketchSizeBtns.forEach((btn) => {
+    btn.classList.toggle("is-active", Number(btn.dataset.sketchSize) === state.sketchSize);
+  });
+  els.sketchEraserBtn?.classList.toggle("is-active", state.sketchEraser);
+  els.sketchEraserBtn?.setAttribute("aria-pressed", String(state.sketchEraser));
+}
+
+function bindSketchTools() {
+  els.sketchColorBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.sketchColor = btn.dataset.sketchColor;
+      state.sketchEraser = false;
+      syncSketchTools();
+    });
+  });
+  els.sketchSizeBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.sketchSize = Number(btn.dataset.sketchSize);
+      syncSketchTools();
+    });
+  });
+  els.sketchEraserBtn?.addEventListener("click", () => {
+    state.sketchEraser = !state.sketchEraser;
+    syncSketchTools();
+  });
 }
 
 function clearSketchCanvas() {
@@ -9528,6 +9563,7 @@ function clearSketchCanvas() {
 
 function openSketchMode(pad) {
   setImageDialogMode("sketch");
+  syncSketchTools();
   const canvas = els.imageSketchCanvas;
   const ctx = initSketchCanvas();
   if (!ctx || !canvas) return;
@@ -9552,6 +9588,9 @@ function bindImageSketch() {
   canvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     const ctx = canvas.getContext("2d");
+    ctx.lineCap = "round";
+    ctx.lineWidth = state.sketchEraser ? Math.max(state.sketchSize * 2.5, 20) : state.sketchSize;
+    ctx.strokeStyle = state.sketchEraser ? "#111319" : state.sketchColor;
     state.sketchDrawing = true;
     canvas.setPointerCapture?.(event.pointerId);
     const point = sketchPoint(event);
@@ -12430,6 +12469,7 @@ async function init() {
     });
   });
   bindImageSketch();
+  bindSketchTools();
   els.shortcutEnabled?.addEventListener("change", () => {
     state.shortcutsEnabled = els.shortcutEnabled.checked;
     updateShortcutIndicators();
