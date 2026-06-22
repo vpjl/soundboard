@@ -429,8 +429,12 @@ const els = {
   keepBoardEdit: document.querySelector("#keepBoardEdit"),
   confirmCancelBoardEdit: document.querySelector("#confirmCancelBoardEdit"),
   stageMissingFilesDialog: document.querySelector("#stageMissingFilesDialog"),
+  stageMissingSection: document.querySelector("#stageMissingSection"),
   stageMissingFilesIntro: document.querySelector("#stageMissingFilesIntro"),
   stageMissingFilesList: document.querySelector("#stageMissingFilesList"),
+  stageEmptySection: document.querySelector("#stageEmptySection"),
+  stageEmptyPadsIntro: document.querySelector("#stageEmptyPadsIntro"),
+  stageEmptyPadsList: document.querySelector("#stageEmptyPadsList"),
   cancelStageMissing: document.querySelector("#cancelStageMissing"),
   confirmStageMissing: document.querySelector("#confirmStageMissing"),
   bulkEditPads: document.querySelector("#bulkEditPads"),
@@ -8156,38 +8160,56 @@ function toggleStageLock() {
 }
 
 async function prepareBoardForStage(options = {}) {
-  const pads = orderedPadsForCurrentBoard()
-    .filter((pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer);
+  const allPads = orderedPadsForCurrentBoard();
 
+  const hasAnyMedia = allPads.some((pad) => (
+    pad.audioStored || pad.buffer || pad.videoName || pad.videoPath
+    || pad.textMode || String(pad.textContent || "").trim()
+  ));
+  if (!hasAnyMedia) {
+    setStatus("Mode scène impossible : aucun média sur ce board", "danger");
+    return { ok: false, failures: [], emptyPads: [], noMedia: true };
+  }
+
+  const emptyPads = allPads.filter((pad) => pad.node?.classList.contains("is-empty"));
+  const audioCandidates = allPads.filter((pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer);
+
+  // Sur mobile : pas de préchargement, les sons se chargent au premier déclenchement.
+  if (options.skipDecode) {
+    const n = audioCandidates.length;
+    setStatus(`Board prêt pour la scène : ${n} son${n > 1 ? "s" : ""} chargé${n > 1 ? "s" : ""} au premier déclenchement`, "success");
+    return { ok: true, failures: [], emptyPads, validPads: [], skipPreload: true };
+  }
+
+  // Phase 1 — scan rapide (lecture DB, pas de décodage)
+  if (audioCandidates.length) {
+    setStatus(`Vérification des fichiers (${audioCandidates.length})…`, "progress");
+  }
+  const missingPads = [];
+  const validPads = [];
+  for (const pad of audioCandidates) {
+    const rawSaved = await dbGet(padAudioKey(pad));
+    const resolved = await resolvePadAudioRecord(pad, null, rawSaved);
+    if (!resolved?.audio && !rawSaved?.audio) {
+      pad.node?.classList.add("is-missing-audio");
+      missingPads.push(pad);
+    } else {
+      validPads.push(pad);
+    }
+  }
+
+  return { ok: missingPads.length === 0, failures: missingPads, emptyPads, validPads };
+}
+
+async function preloadStagePads(pads) {
   const total = pads.length;
   if (!total) {
-    const hasAnyMedia = orderedPadsForCurrentBoard().some((pad) => (
-      pad.audioStored
-      || pad.buffer
-      || pad.videoName
-      || pad.videoPath
-      || pad.textMode
-      || String(pad.textContent || "").trim()
-    ));
-    if (!hasAnyMedia) {
-      setStatus("Mode scène impossible : aucun média sur ce board", "danger");
-      return { ok: false, failures: [] };
-    }
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
-    return { ok: true, failures: [] };
+    return;
   }
-
-  // Sur mobile, l'AudioContext ne peut pas démarrer sans geste utilisateur.
-  // On passe en mode scène sans préchargement : les sons se chargent au premier déclenchement.
-  if (options.skipDecode) {
-    setStatus(`Board prêt pour la scène : ${total} son${total > 1 ? "s" : ""} chargé${total > 1 ? "s" : ""} au premier déclenchement`, "success");
-    return { ok: true, failures: [] };
-  }
-
-  const failures = [];
-  for (let index = 0; index < pads.length; index += 1) {
-    const pad = pads[index];
-    setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`, "progress");
+  for (let i = 0; i < total; i += 1) {
+    const pad = pads[i];
+    setStatus(`Préchargement : ${i + 1} / ${total} — ${pad.title}`, "progress");
     try {
       pad.buffer = await ensurePadAudioDecoded(pad);
       setPadDuration(pad, pad.buffer.duration);
@@ -8195,16 +8217,9 @@ async function prepareBoardForStage(options = {}) {
     } catch (error) {
       console.error(error);
       pad.node?.classList.add("is-missing-audio");
-      failures.push(pad);
     }
   }
-
-  if (failures.length) {
-    return { ok: false, failures };
-  }
-
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
-  return { ok: true, failures: [] };
 }
 
 function syncHoverLabels(root = document) {
@@ -8226,16 +8241,30 @@ function syncStageVisiblePads() {
   return activeCount;
 }
 
-function confirmStageDespiteMissing(failures) {
+function confirmStageDespiteMissing({ missingPads = [], emptyPads = [] }) {
   return new Promise((resolve) => {
-    const n = failures.length;
-    els.stageMissingFilesIntro.textContent = `${n} pad${n > 1 ? "s ont" : " a"} un fichier introuvable :`;
-    els.stageMissingFilesList.innerHTML = "";
-    failures.forEach((pad) => {
-      const li = document.createElement("li");
-      li.textContent = pad.title;
-      els.stageMissingFilesList.append(li);
-    });
+    const fillList = (section, intro, list, pads, label) => {
+      section.hidden = pads.length === 0;
+      if (!pads.length) return;
+      const n = pads.length;
+      intro.textContent = label(n);
+      list.innerHTML = "";
+      pads.forEach((pad) => {
+        const li = document.createElement("li");
+        li.textContent = pad.title || `Pad ${pad.index + 1}`;
+        list.append(li);
+      });
+    };
+    fillList(
+      els.stageMissingSection, els.stageMissingFilesIntro, els.stageMissingFilesList,
+      missingPads,
+      (n) => `${n} pad${n > 1 ? "s ont" : " a"} un fichier introuvable :`
+    );
+    fillList(
+      els.stageEmptySection, els.stageEmptyPadsIntro, els.stageEmptyPadsList,
+      emptyPads,
+      (n) => `${n} pad${n > 1 ? "s sont" : " est"} vide${n > 1 ? "s" : ""} et ${n > 1 ? "seront ignorés" : "sera ignoré"} :`
+    );
 
     function finish(result) {
       els.cancelStageMissing.removeEventListener("click", onCancel);
@@ -8267,17 +8296,16 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     state.stageMode = true;
     syncBoardModeSelector();
     syncStagePending();
-    const { ok, failures } = await prepareBoardForStage(options);
+    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = await prepareBoardForStage(options);
+    if (noMedia) {
+      state.stageMode = false;
+      syncBoardModeSelector();
+      syncStagePending();
+      localStorage.setItem(STAGE_MODE_STORAGE, "off");
+      return;
+    }
     if (!ok) {
-      if (failures.length === 0) {
-        // Aucun média sur le board — annulation directe
-        state.stageMode = false;
-        syncBoardModeSelector();
-        syncStagePending();
-        localStorage.setItem(STAGE_MODE_STORAGE, "off");
-        return;
-      }
-      const proceed = await confirmStageDespiteMissing(failures);
+      const proceed = await confirmStageDespiteMissing({ missingPads: failures, emptyPads });
       if (!proceed) {
         failures.forEach((pad) => pad.node?.classList.remove("is-missing-audio"));
         state.stageMode = false;
@@ -8286,8 +8314,14 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
         localStorage.setItem(STAGE_MODE_STORAGE, "off");
         return;
       }
+    }
+    if (!skipPreload) await preloadStagePads(validPads);
+    if (failures.length > 0) {
       const n = failures.length;
       setStatus(`Mode scène — ${n} pad${n > 1 ? "s" : ""} défectueux ignoré${n > 1 ? "s" : ""}`, "warning");
+    } else if (emptyPads.length > 0) {
+      const n = emptyPads.length;
+      setStatus(`Mode scène — ${n} pad${n > 1 ? "s" : ""} vide${n > 1 ? "s" : ""} ignoré${n > 1 ? "s" : ""}`, "warning");
     }
   }
 

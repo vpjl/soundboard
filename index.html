@@ -1853,10 +1853,16 @@
     <dialog id="stageMissingFilesDialog" class="confirm-dialog" aria-labelledby="stageMissingFilesTitle">
       <div class="confirm-panel">
         <div class="help-head">
-          <h2 id="stageMissingFilesTitle">Fichiers manquants</h2>
+          <h2 id="stageMissingFilesTitle">Problèmes détectés</h2>
         </div>
-        <p id="stageMissingFilesIntro"></p>
-        <ul id="stageMissingFilesList" class="missing-files-list"></ul>
+        <div id="stageMissingSection" hidden>
+          <p id="stageMissingFilesIntro"></p>
+          <ul id="stageMissingFilesList" class="missing-files-list"></ul>
+        </div>
+        <div id="stageEmptySection" hidden>
+          <p id="stageEmptyPadsIntro"></p>
+          <ul id="stageEmptyPadsList" class="missing-files-list"></ul>
+        </div>
         <div class="dialog-actions">
           <button id="cancelStageMissing" class="small-button" type="button">Annuler</button>
           <button id="confirmStageMissing" class="small-button" type="button">Passer quand même</button>
