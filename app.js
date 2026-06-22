@@ -4155,12 +4155,14 @@ async function switchBoard(boardId) {
     setStatus("Mode scène : changement de board désactivé");
     return;
   }
+  const wasEditing = state.boardEditMode;
   clearCueWaitTimer();
   setBoardPadEditing(false);
   state.currentBoardId = boardId;
   saveBoards();
   renderBoardOptions();
   await renderPads();
+  if (wasEditing) setBoardPadEditing(true);
 }
 
 async function addBoard() {
