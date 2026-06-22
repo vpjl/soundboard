@@ -9066,7 +9066,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   50% { opacity: 0.25; }
 }
 
-.stage-button.is-stage-pending {
+.stage-button.is-stage-pending,
+[data-board-mode-target="stage"].is-stage-pending {
   animation: stage-pending-blink 1s ease-in-out infinite;
 }
 

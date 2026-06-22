@@ -8073,6 +8073,9 @@ function syncStagePending() {
     (pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer
   );
   els.stageMode?.classList.toggle("is-stage-pending", pending);
+  document.querySelectorAll("[data-board-mode-target='stage']").forEach((b) =>
+    b.classList.toggle("is-stage-pending", pending)
+  );
 }
 
 function duckingActive() {
@@ -12891,8 +12894,6 @@ function setBoardModeFromSelector(targetMode) {
     }
     setBoardModePending("stage");
     setStageMode(true, false);
-    setStatus("Mode Scène");
-    syncBoardModeSelectorSoon();
   }
 }
 
