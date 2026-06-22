@@ -1888,39 +1888,37 @@ body.filter-compact .pad.is-tag-dimmed {
 
 .tag-filter-chips-row {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 0 2px;
-  flex-wrap: wrap;
 }
 
 .tag-filter-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
+  gap: 5px;
   min-width: 0;
   align-items: flex-start;
 }
 
 /* groupes encadrés */
 .chip-group {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  display: inline-block;
+  vertical-align: top;
   border: 1px solid var(--color_ui_border);
   border-radius: 8px;
   padding: 4px 6px 5px;
 }
 
 .chip-group-label {
+  display: block;
   font-size: 0.6rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0 2px;
   line-height: 1;
+  margin-bottom: 4px;
 }
 
 .chip-group-chips {
@@ -1959,8 +1957,6 @@ body.filter-compact .pad.is-tag-dimmed {
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
-  align-self: flex-end;
-  padding-bottom: 2px;
 }
 
 /* radio OU / ET */
