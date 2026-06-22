@@ -7563,6 +7563,23 @@ body.stage-mode .pad.is-stage-hidden {
   display: none !important;
 }
 
+body.stage-mode .pad.is-missing-audio {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+body.stage-mode .pad.is-missing-audio::after {
+  display: none;
+}
+
+.missing-files-list {
+  margin: 8px 0 12px 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--color_ui_text_muted, #aaa);
+  line-height: 1.6;
+}
+
 body.stage-mode .pads {
   justify-content: center;
 }

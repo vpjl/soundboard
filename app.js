@@ -428,6 +428,11 @@ const els = {
   cancelEditDialog: document.querySelector("#cancelEditDialog"),
   keepBoardEdit: document.querySelector("#keepBoardEdit"),
   confirmCancelBoardEdit: document.querySelector("#confirmCancelBoardEdit"),
+  stageMissingFilesDialog: document.querySelector("#stageMissingFilesDialog"),
+  stageMissingFilesIntro: document.querySelector("#stageMissingFilesIntro"),
+  stageMissingFilesList: document.querySelector("#stageMissingFilesList"),
+  cancelStageMissing: document.querySelector("#cancelStageMissing"),
+  confirmStageMissing: document.querySelector("#confirmStageMissing"),
   bulkEditPads: document.querySelector("#bulkEditPads"),
   bulkEditDialog: document.querySelector("#bulkEditDialog"),
   closeBulkEdit: document.querySelector("#closeBulkEdit"),
@@ -8166,17 +8171,17 @@ async function prepareBoardForStage(options = {}) {
     ));
     if (!hasAnyMedia) {
       setStatus("Mode scène impossible : aucun média sur ce board", "danger");
-      return false;
+      return { ok: false, failures: [] };
     }
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
-    return true;
+    return { ok: true, failures: [] };
   }
 
   // Sur mobile, l'AudioContext ne peut pas démarrer sans geste utilisateur.
   // On passe en mode scène sans préchargement : les sons se chargent au premier déclenchement.
   if (options.skipDecode) {
     setStatus(`Board prêt pour la scène : ${total} son${total > 1 ? "s" : ""} chargé${total > 1 ? "s" : ""} au premier déclenchement`, "success");
-    return true;
+    return { ok: true, failures: [] };
   }
 
   const failures = [];
@@ -8195,19 +8200,11 @@ async function prepareBoardForStage(options = {}) {
   }
 
   if (failures.length) {
-    const failSet = new Set(failures);
-    state.pads.forEach((pad) => {
-      pad.node.classList.toggle("is-tag-match", failSet.has(pad));
-      pad.node.classList.toggle("is-tag-dimmed", !failSet.has(pad));
-    });
-    const n = failures.length;
-    const names = failures.map((p) => p.title).join(", ");
-    setStatus(`Scène impossible — audio manquant (${n} pad${n > 1 ? "s" : ""}) : ${names}`, "danger");
-    return false;
+    return { ok: false, failures };
   }
 
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
-  return true;
+  return { ok: true, failures: [] };
 }
 
 function syncHoverLabels(root = document) {
@@ -8222,10 +8219,39 @@ function syncStageVisiblePads() {
   let activeCount = 0;
   state.pads.forEach((pad) => {
     const active = cuePlayablePad(pad);
-    pad.node?.classList.toggle("is-stage-hidden", state.stageMode && !active);
+    const missingButVisible = state.stageMode && !active && pad.node?.classList.contains("is-missing-audio");
+    pad.node?.classList.toggle("is-stage-hidden", state.stageMode && !active && !missingButVisible);
     if (state.stageMode && active) activeCount += 1;
   });
   return activeCount;
+}
+
+function confirmStageDespiteMissing(failures) {
+  return new Promise((resolve) => {
+    const n = failures.length;
+    els.stageMissingFilesIntro.textContent = `${n} pad${n > 1 ? "s ont" : " a"} un fichier introuvable :`;
+    els.stageMissingFilesList.innerHTML = "";
+    failures.forEach((pad) => {
+      const li = document.createElement("li");
+      li.textContent = pad.title;
+      els.stageMissingFilesList.append(li);
+    });
+
+    function finish(result) {
+      els.cancelStageMissing.removeEventListener("click", onCancel);
+      els.confirmStageMissing.removeEventListener("click", onConfirm);
+      els.stageMissingFilesDialog.removeEventListener("close", onCancel);
+      if (els.stageMissingFilesDialog.open) els.stageMissingFilesDialog.close();
+      resolve(result);
+    }
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+
+    els.cancelStageMissing.addEventListener("click", onCancel);
+    els.confirmStageMissing.addEventListener("click", onConfirm);
+    els.stageMissingFilesDialog.addEventListener("close", onCancel, { once: true });
+    els.stageMissingFilesDialog.showModal();
+  });
 }
 
 async function setStageMode(enabled, requestFullscreen = false, options = {}) {
@@ -8241,13 +8267,27 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     state.stageMode = true;
     syncBoardModeSelector();
     syncStagePending();
-    const ready = await prepareBoardForStage(options);
-    if (!ready) {
-      state.stageMode = false;
-      syncBoardModeSelector();
-      syncStagePending();
-      localStorage.setItem(STAGE_MODE_STORAGE, "off");
-      return;
+    const { ok, failures } = await prepareBoardForStage(options);
+    if (!ok) {
+      if (failures.length === 0) {
+        // Aucun média sur le board — annulation directe
+        state.stageMode = false;
+        syncBoardModeSelector();
+        syncStagePending();
+        localStorage.setItem(STAGE_MODE_STORAGE, "off");
+        return;
+      }
+      const proceed = await confirmStageDespiteMissing(failures);
+      if (!proceed) {
+        failures.forEach((pad) => pad.node?.classList.remove("is-missing-audio"));
+        state.stageMode = false;
+        syncBoardModeSelector();
+        syncStagePending();
+        localStorage.setItem(STAGE_MODE_STORAGE, "off");
+        return;
+      }
+      const n = failures.length;
+      setStatus(`Mode scène — ${n} pad${n > 1 ? "s" : ""} défectueux ignoré${n > 1 ? "s" : ""}`, "warning");
     }
   }
 
