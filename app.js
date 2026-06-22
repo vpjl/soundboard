@@ -2254,6 +2254,19 @@ function makePad(index) {
     syncCueControls();
     savePadMeta(pad);
   });
+  pad.tagsEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const sorted = padTagList(pad).sort((a, b) => a.localeCompare(b)).join(", ");
+      setPadTags(pad, sorted);
+      const field = pad.tagsEl.closest(".tag-field");
+      if (field) {
+        field.classList.remove("tags-input-open");
+        field.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
+      }
+      pad.tagsEl.blur();
+    }
+  });
   pad.fadeEl.addEventListener("input", () => {
     setPadFade(pad, pad.fadeEl.value, false);
     savePadMeta(pad);

@@ -1710,7 +1710,7 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
 }
 
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
-body[data-skin="basic"] .pad.has-visual-image.is-editing .pad-trigger {
+body[data-skin="basic"] .pad.is-editing .pad-trigger {
   background-image: linear-gradient(145deg, #252a32, #1c1f27);
 }
 
@@ -1839,9 +1839,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
-  display: block;
-  grid-column: 1 / -1;
-  margin-bottom: 4px;
+  display: none;
 }
 
 .pad.is-empty {
