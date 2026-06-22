@@ -8545,6 +8545,7 @@ body.stage-mode #boardName:focus {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
 .board-mode-button.is-current {
