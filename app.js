@@ -8021,11 +8021,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   if (enabled) {
-    // Appliquer l'état immédiatement pour éviter le flash UI pendant le chargement async
     state.stageMode = true;
     document.body.classList.add("stage-mode");
     syncBoardModeSelector();
     updateSkinOptions();
+    syncStagePending();
     const ready = await prepareBoardForStage(options);
     if (!ready) {
       // Rollback si la préparation échoue
@@ -11888,7 +11888,7 @@ async function init() {
   bindSafeActionButton(els.cueStopAll, () => stopAll());
   bindSafeActionButton(els.stopGroup, () => stopGroup());
   bindSafeActionButton(els.stageMode, () => {
-    setStageMode(!state.stageMode, true, { skipDecode: true });
+    setStageMode(!state.stageMode, true);
   });
   bindSafeActionButton(els.stageLock, () => toggleStageLock());
   els.editPads?.addEventListener("click", () => {
@@ -12894,7 +12894,7 @@ function setBoardModeFromSelector(targetMode) {
       return;
     }
     setBoardModePending("stage");
-    setStageMode(true, false, { skipDecode: true });
+    setStageMode(true, false);
     setStatus("Mode Scène");
     syncBoardModeSelectorSoon();
   }
