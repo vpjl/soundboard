@@ -709,6 +709,7 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   background: rgba(24, 26, 32, 0.88);
   box-shadow: 0 12px 34px var(--shadow);
   min-width: 0;
+  max-width: 360px;
   box-sizing: border-box;
 }
 
@@ -1002,7 +1003,7 @@ body.board-edit-mode .live-tools {
 
 .xfade-live-row {
   display: grid;
-  grid-template-columns: repeat(2, 42px);
+  grid-template-columns: repeat(3, 42px);
   gap: 8px;
 }
 
@@ -1010,7 +1011,6 @@ body.board-edit-mode .live-tools {
   display: none;
 }
 
-.xfade-live-row .cue-window-button,
 .xfade-live-row .patch-bay-button {
   display: none;
 }
@@ -1950,6 +1950,10 @@ body.filter-compact .pad.is-tag-dimmed {
   color: #000;
 }
 
+.tag-filter-chip.is-universal:not(.is-active) {
+  opacity: 0.35;
+}
+
 .tag-filter-chips-controls {
   display: flex;
   align-items: center;
@@ -1999,9 +2003,12 @@ body.filter-compact .pad.is-tag-dimmed {
 }
 
 .filter-tous-btn.is-empty {
-  opacity: 0.35;
   cursor: default;
   pointer-events: none;
+}
+
+.filter-tous-btn.is-empty svg {
+  opacity: 0.35;
 }
 
 .filter-compact-count {

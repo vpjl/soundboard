@@ -2504,15 +2504,16 @@ function applyBoardTagFilter() {
   });
   if (!active) {
     setStatus(state.boardEditMode ? "Mode Garage" : "Mode live");
-  } else if (!matchingPads.length) {
-    const labels = activeFilterLabels();
-    setStatus(`Aucun pad avec ${labels.join(", ")}`);
   } else {
-    const n = matchingPads.length;
     const labels = activeFilterLabels();
-    const totalActive = state.activeStructuralFilters.length + state.activeTagFilters.length;
-    const logicLabel = totalActive > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
-    setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labels.join(", ")}${logicLabel}`);
+    const sep = state.tagFilterLogic === "or" ? " OU " : " ET ";
+    const labelStr = labels.join(sep);
+    if (!matchingPads.length) {
+      setStatus(`Aucun pad avec ${labelStr}`);
+    } else {
+      const n = matchingPads.length;
+      setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labelStr}`);
+    }
   }
   if (els.bulkEditPads) {
     els.bulkEditPads.disabled = !active || matchingPads.length === 0;
@@ -3304,9 +3305,16 @@ function refreshTagFilterChips() {
   els.tagFilterChips.innerHTML = "";
   const hasActiveFilters = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
 
+  // Titre section : SÉLECTION en studio, SÉLECTION / MODIFICATION en garage
+  const sectionHeaderEl = document.querySelector(".tag-filter-section-header span");
+  if (sectionHeaderEl) {
+    sectionHeaderEl.textContent = state.boardEditMode ? "SÉLECTION / MODIFICATION" : "SÉLECTION";
+  }
+
   // Structural chips grouped by optgroup
+  const totalPads = state.pads.length;
   const options = [...(els.boardTagFilter?.options || [])].filter((o) => o.value && o.value !== "all");
-  const groupLabelMap = { "Types": "Type", "État": "État", "Aspect du pad": "Aspect", "Options audio": "Options" };
+  const groupLabelMap = { "Types": "Type", "État": "État", "Aspect du pad": "Aspect", "Options audio": "Audio" };
   let currentGroup = null;
   let currentChips = null;
   options.forEach((opt) => {
@@ -3325,6 +3333,7 @@ function refreshTagFilterChips() {
     chip.dataset.value = opt.value;
     chip.dataset.filterType = "structural";
     if (state.activeStructuralFilters.includes(opt.value)) chip.classList.add("is-active");
+    else if (totalPads > 0 && padsForBoardFilterValue(opt.value).length === totalPads) chip.classList.add("is-universal");
     currentChips.append(chip);
   });
 
@@ -3340,6 +3349,7 @@ function refreshTagFilterChips() {
       chip.dataset.tag = tag;
       chip.dataset.filterType = "tag";
       if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
+      else if (totalPads > 0 && state.pads.filter((p) => padTagList(p).includes(tag)).length === totalPads) chip.classList.add("is-universal");
       chips.append(chip);
     });
     els.tagFilterChips.append(group);
