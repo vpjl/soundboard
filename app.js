@@ -171,6 +171,9 @@ const state = {
   bulkSketchColor: "#ffffff",
   bulkSketchSize: 8,
   bulkSketchEraser: false,
+  activeTagFilters: [],
+  tagFilterLogic: "or",
+  filterCompact: false,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -273,6 +276,13 @@ const els = {
   stageLock: document.querySelector("#stageLock"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
+  tagFilterChipsRow: document.querySelector("#tagFilterChipsRow"),
+  tagFilterChips: document.querySelector("#tagFilterChips"),
+  tagFilterLogicToggle: document.querySelector("#tagFilterLogicToggle"),
+  filterCompactToggle: document.querySelector("#filterCompactToggle"),
+  filterCompactBanner: document.querySelector("#filterCompactBanner"),
+  filterCompactCount: document.querySelector("#filterCompactCount"),
+  filterCompactReset: document.querySelector("#filterCompactReset"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   showCables: document.querySelector("#showCables"),
   cableOverlay: document.querySelector("#cableOverlay"),
@@ -1470,6 +1480,8 @@ function setBoardPadEditing(editing) {
   if (!state.boardEditMode) {
     setCableOverlayVisible(false);
     if (els.boardTagFilter) els.boardTagFilter.value = "";
+    state.activeTagFilters = [];
+    state.filterCompact = false;
   }
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
@@ -2473,22 +2485,26 @@ function applyPadLayout(board = currentBoard()) {
 }
 
 function applyBoardTagFilter() {
-  const value = String(els.boardTagFilter?.value || "").trim();
-  const matchingPads = value ? padsForBoardFilterValue(value) : [];
+  const selectValue = String(els.boardTagFilter?.value || "").trim();
+  const active = Boolean(selectValue) || state.activeTagFilters.length > 0;
+  const matchingPads = active ? matchingPadsForCurrentFilter() : [];
   const matchingSet = new Set(matchingPads);
   state.pads.forEach((pad) => {
-    pad.node.classList.toggle("is-tag-match", value ? matchingSet.has(pad) : false);
-    pad.node.classList.toggle("is-tag-dimmed", value ? !matchingSet.has(pad) : false);
+    pad.node.classList.toggle("is-tag-match", active ? matchingSet.has(pad) : false);
+    pad.node.classList.toggle("is-tag-dimmed", active ? !matchingSet.has(pad) : false);
   });
-  if (!value) {
+  if (!active) {
     setStatus(state.boardEditMode ? "Mode Garage" : "Mode live");
   } else if (!matchingPads.length) {
     const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
-    setStatus(aspectMessages[value] ?? "Aucun pad sélectionné");
+    setStatus(aspectMessages[selectValue] ?? "Aucun pad sélectionné");
   } else {
     const n = matchingPads.length;
-    setStatus(`${n} pad${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""} sur ${state.pads.length}`);
+    const logicLabel = state.activeTagFilters.length > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
+    setStatus(`${n} pad${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""} sur ${state.pads.length}${logicLabel}`);
   }
+  syncFilterCompact();
+  syncCompactToggleVisibility();
 }
 
 function cueActionLabel(action) {
@@ -3204,6 +3220,67 @@ function padsForBoardFilterValue(value) {
   return state.pads.filter((pad) => padTagList(pad).includes(normalized));
 }
 
+function padsForTagFilters(tagFilters, logic = "or") {
+  if (!tagFilters.length) return [];
+  if (logic === "and") {
+    return state.pads.filter((pad) => tagFilters.every((tag) => padTagList(pad).includes(tag)));
+  }
+  return state.pads.filter((pad) => tagFilters.some((tag) => padTagList(pad).includes(tag)));
+}
+
+function matchingPadsForCurrentFilter() {
+  const selectValue = String(els.boardTagFilter?.value || "").trim();
+  const tagFilters = state.activeTagFilters;
+  if (!selectValue && !tagFilters.length) return [];
+  if (selectValue && !tagFilters.length) return padsForBoardFilterValue(selectValue);
+  if (!selectValue && tagFilters.length) return padsForTagFilters(tagFilters, state.tagFilterLogic);
+  const bySelect = new Set(padsForBoardFilterValue(selectValue));
+  return padsForTagFilters(tagFilters, state.tagFilterLogic).filter((p) => bySelect.has(p));
+}
+
+function syncFilterCompact() {
+  const active = state.filterCompact && state.boardEditMode;
+  document.body.classList.toggle("filter-compact", active);
+  if (els.filterCompactBanner) {
+    const hiddenCount = active
+      ? state.pads.filter((p) => p.node?.classList.contains("is-tag-dimmed")).length
+      : 0;
+    els.filterCompactBanner.hidden = !active || hiddenCount === 0;
+    if (els.filterCompactCount) {
+      els.filterCompactCount.textContent = `${hiddenCount} pad${hiddenCount > 1 ? "s" : ""} masqué${hiddenCount > 1 ? "s" : ""}`;
+    }
+  }
+}
+
+function syncCompactToggleVisibility() {
+  if (!els.filterCompactToggle) return;
+  const selectValue = String(els.boardTagFilter?.value || "").trim();
+  const hasFilter = Boolean(selectValue) || state.activeTagFilters.length > 0;
+  els.filterCompactToggle.hidden = !(state.boardEditMode && hasFilter);
+  els.filterCompactToggle.classList.toggle("is-active", state.filterCompact);
+}
+
+function refreshTagFilterChips() {
+  if (!els.tagFilterChips) return;
+  const tags = boardTags();
+  els.tagFilterChips.innerHTML = "";
+  tags.forEach((tag) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "tag-filter-chip";
+    chip.textContent = tag;
+    chip.dataset.tag = tag;
+    if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
+    els.tagFilterChips.append(chip);
+  });
+  if (els.tagFilterChipsRow) els.tagFilterChipsRow.hidden = tags.length === 0;
+  if (els.tagFilterLogicToggle) {
+    els.tagFilterLogicToggle.hidden = state.activeTagFilters.length < 2;
+    els.tagFilterLogicToggle.textContent = state.tagFilterLogic === "or" ? "OU" : "ET";
+  }
+  syncCompactToggleVisibility();
+}
+
 function hasNumberChanged(value, defaultValue, epsilon = 0.0001) {
   return Math.abs((Number(value) || 0) - defaultValue) > epsilon;
 }
@@ -3476,13 +3553,14 @@ async function prepareBulkAutoTrim() {
 
 function openBulkEditDialog() {
   const selectedTag = String(els.boardTagFilter?.value || "").trim();
-  let pads = selectedTag === "state:empty"
-    ? state.pads.filter((pad) => pad.node?.classList.contains("is-tag-match"))
-    : selectedTag.startsWith("aspect:")
-      ? padsForBoardFilterValue(selectedTag)
-      : padsForBoardTagSelection();
-  if (!pads.length && selectedTag === "state:empty") {
+  let pads;
+  if (selectedTag === "state:empty") {
     pads = padsForBoardFilterValue(selectedTag);
+  } else if (selectedTag.startsWith("aspect:")) {
+    pads = padsForBoardFilterValue(selectedTag);
+  } else {
+    pads = matchingPadsForCurrentFilter();
+    if (!pads.length && !state.activeTagFilters.length) pads = padsForBoardTagSelection();
   }
   if (!pads.length) {
     const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
@@ -3577,6 +3655,7 @@ async function confirmDeleteEmptyPads(pads) {
     await renderPads();
     setBoardPadEditing(true);
   }
+  state.activeTagFilters = [];
   refreshBoardTagFilterOptions();
   if (els.boardTagFilter) {
     els.boardTagFilter.value = "";
@@ -3650,7 +3729,10 @@ async function applyBulkEdit() {
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
   applyDucking();
-  if (els.boardTagFilter) { els.boardTagFilter.value = ""; applyBoardTagFilter(); }
+  if (els.boardTagFilter) els.boardTagFilter.value = "";
+  state.activeTagFilters = [];
+  refreshTagFilterChips();
+  applyBoardTagFilter();
   els.bulkEditDialog?.close();
   setStatus(`${pads.length} pad${pads.length > 1 ? "s" : ""} modifié${pads.length > 1 ? "s" : ""}`);
 }
@@ -8421,34 +8503,8 @@ function refreshBoardTagFilterOptions() {
     });
     els.boardTagFilter.append(audioGroup);
   }
-  if (state.boardEditMode) {
-    const tags = boardTags();
-    if (tags.length) {
-      const tagGroup = document.createElement("optgroup");
-      tagGroup.label = "Tags";
-      tags.forEach((tag) => {
-        const option = document.createElement("option");
-        option.value = tag;
-        option.textContent = tag;
-        tagGroup.append(option);
-      });
-      els.boardTagFilter.append(tagGroup);
-    }
-  } else {
-    const tags = boardTags();
-    if (tags.length) {
-      const tagGroup = document.createElement("optgroup");
-      tagGroup.label = "Tags";
-      tags.forEach((tag) => {
-        const option = document.createElement("option");
-        option.value = tag;
-        option.textContent = tag;
-        tagGroup.append(option);
-      });
-      els.boardTagFilter.append(tagGroup);
-    }
-  }
   els.boardTagFilter.value = [...els.boardTagFilter.options].some((option) => option.value === currentValue && !option.disabled) ? currentValue : "";
+  refreshTagFilterChips();
   applyBoardTagFilter();
 }
 
@@ -11831,6 +11887,33 @@ async function init() {
   els.skinEditorFields?.addEventListener("click", handleSkinVariablePointerOver);
   els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest?.(".tag-filter-chip");
+    if (!chip) return;
+    const tag = chip.dataset.tag;
+    const idx = state.activeTagFilters.indexOf(tag);
+    if (idx >= 0) state.activeTagFilters.splice(idx, 1);
+    else state.activeTagFilters.push(tag);
+    refreshTagFilterChips();
+    applyBoardTagFilter();
+  });
+  els.tagFilterLogicToggle?.addEventListener("click", () => {
+    state.tagFilterLogic = state.tagFilterLogic === "or" ? "and" : "or";
+    refreshTagFilterChips();
+    applyBoardTagFilter();
+  });
+  els.filterCompactToggle?.addEventListener("click", () => {
+    state.filterCompact = !state.filterCompact;
+    syncFilterCompact();
+    syncCompactToggleVisibility();
+  });
+  els.filterCompactReset?.addEventListener("click", () => {
+    if (els.boardTagFilter) els.boardTagFilter.value = "";
+    state.activeTagFilters = [];
+    state.filterCompact = false;
+    refreshTagFilterChips();
+    applyBoardTagFilter();
+  });
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);
   bindSafeActionButton(els.showCables, () => armManualCrossfade());

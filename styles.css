@@ -1910,6 +1910,102 @@ body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
   opacity: 0.42;
 }
 
+body.filter-compact .pad.is-tag-dimmed {
+  display: none;
+}
+
+.tag-filter-chips-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 0 2px;
+  flex-wrap: nowrap;
+}
+
+.tag-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tag-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.tag-filter-chip.is-active {
+  background: var(--accent, #f0b429);
+  border-color: var(--accent, #f0b429);
+  color: #000;
+}
+
+.tag-filter-chips-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tag-filter-logic-toggle {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.filter-compact-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.filter-compact-toggle.is-active {
+  background: var(--accent, #f0b429);
+  color: #000;
+  border-color: var(--accent, #f0b429);
+}
+
+.filter-compact-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent, #f0b429) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #f0b429) 40%, transparent);
+  font-size: 0.74rem;
+  color: var(--color_ui_text);
+  margin-top: 4px;
+}
+
+.filter-compact-reset {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
 .pad.is-dragging {
   opacity: 0.5;
   outline: 2px solid var(--accent);

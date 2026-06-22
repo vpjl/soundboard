@@ -255,6 +255,22 @@
                 </svg>
               </button>
             </div>
+            <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
+              <div id="tagFilterChips" class="tag-filter-chips"></div>
+              <div class="tag-filter-chips-controls">
+                <button id="tagFilterLogicToggle" class="tag-filter-logic-toggle" type="button" hidden>OU</button>
+                <button id="filterCompactToggle" class="icon-button filter-compact-toggle" type="button" aria-label="Masquer les pads non sélectionnés" hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="filterCompactBanner" class="filter-compact-banner" hidden>
+              <span id="filterCompactCount"></span>
+              <button id="filterCompactReset" class="filter-compact-reset" type="button">Tout afficher</button>
+            </div>
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
           <input id="relinkAudioFolderInput" class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac,audio/*" webkitdirectory directory multiple>
