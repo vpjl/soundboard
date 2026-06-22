@@ -4158,10 +4158,14 @@ async function switchBoard(boardId) {
   const wasEditing = state.boardEditMode;
   clearCueWaitTimer();
   setBoardPadEditing(false);
+  if (wasEditing) {
+    state.boardEditMode = true;
+    document.body.classList.add("board-edit-mode");
+  }
   state.currentBoardId = boardId;
   saveBoards();
   renderBoardOptions();
-  await renderPads();
+  await renderPads({ preserveEditMode: wasEditing });
   if (wasEditing) setBoardPadEditing(true);
 }
 
