@@ -1687,12 +1687,12 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) {
   background-repeat: no-repeat;
 }
 
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden):not(.is-editing) {
   background-image: none;
   background-color: var(--pad-color);
 }
 
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden) .pad-trigger {
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden):not(.is-editing) .pad-trigger {
   background: transparent;
 }
 
@@ -1838,14 +1838,43 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background-size: cover;
 }
 
-body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
+body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
   display: block;
-  grid-column: 1 / -1;
-  margin-bottom: 4px;
+  width: 44px;
+  height: 30px;
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
-body[data-skin="basic"] .pad.is-editing .pad-trigger {
+body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color:not(.has-visual-image) .visual-preview {
+  background-color: var(--pad-color);
+  background-image: none;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing:not(.has-visual-image):not(.has-color) .visual-preview {
+  background-color: rgba(255, 255, 255, 0.04);
+  background-image: repeating-linear-gradient(-45deg, transparent 0, transparent 3px, rgba(255,255,255,0.07) 3px, rgba(255,255,255,0.07) 4px);
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+  grid-template-columns: 44px 1fr !important;
+  column-gap: 8px;
+  align-items: center;
+  padding: 28px 8px 8px 8px !important;
   min-height: 80px;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label {
+  grid-column: 2;
+  justify-items: start;
+  text-align: left;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-title,
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags {
+  text-align: left !important;
 }
 
 .pad.is-empty {
@@ -2876,6 +2905,10 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad.is-editing .name-field > span {
   order: 10;
   grid-column: 1 / -1;
+}
+
+body.board-edit-mode .pad.is-editing .name-field > span {
+  display: none;
 }
 
 .pad.is-editing .name-field > input[data-name] {
@@ -7268,6 +7301,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body.board-edit-mode .pad.is-editing {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing {
+  grid-template-columns: 1fr 1fr 38px !important;
 }
 
 body.board-edit-mode .pad.is-editing .pad-actions,
