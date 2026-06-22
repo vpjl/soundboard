@@ -509,9 +509,6 @@ h1 {
   min-height: 42px;
 }
 
-body.board-edit-mode .board-layout-controls {
-  display: none;
-}
 
 .board-layout-controls .layout-control-label,
 .board-layout-controls .layout-rows-output {
@@ -799,25 +796,32 @@ body.show-cables .cable-legend-panel {
 }
 
 .board-action-grid {
-  display: grid;
-  grid-template-columns: 42px max-content minmax(0, 1fr) 42px 42px 42px;
+  display: flex;
   gap: 8px;
   align-items: center;
 }
 
-#stageMode {
-  grid-column: 1;
-  grid-row: 1;
+.board-action-grid > .icon-button {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.board-action-grid .board-help-button {
+  margin-left: auto;
 }
 
 #stageLock {
   display: none;
-  grid-column: 2;
-  grid-row: 1;
 }
 
 body.stage-mode #stageLock {
-  display: grid;
+  display: flex;
+}
+
+body.board-edit-mode .board-action-grid .stage-button,
+body.board-edit-mode .board-action-grid .stage-lock-button {
+  display: none;
 }
 
 .stage-lock-button .lock-closed-icon,
@@ -829,85 +833,67 @@ body.stage-mode #stageLock {
   display: block;
 }
 
-.board-center-actions {
-  grid-column: 3;
-  grid-row: 1;
+.board-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 0 2px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.board-action-grid .version-notes-button {
-  grid-column: 4;
-  grid-row: 1;
+.board-section-toggle span:first-of-type {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  flex: 1;
 }
 
-.board-action-grid .board-help-button {
-  grid-column: 5;
-  grid-row: 1;
+.board-section-toggle[aria-expanded="false"] .filter-section-chevron {
+  transform: rotate(-90deg);
 }
 
-#editPads {
-  grid-column: 6;
-  grid-row: 1;
-  align-self: start;
+.versions-section-toggle {
+  display: none;
 }
 
-body.board-edit-mode #editPads {
-  grid-area: close;
+body:not(.stage-mode):not(.board-edit-mode) .versions-section-toggle {
+  display: flex;
 }
 
-body.board-edit-mode .board-action-grid {
-  gap: 7px;
-  grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
-  grid-template-areas:
-    "layout notes help close"
-    "actions actions actions actions";
-  align-items: start;
+.board-manage-section-toggle {
+  display: none;
 }
 
-body.board-edit-mode .board-action-grid .version-notes-button {
-  grid-area: notes;
+body.board-edit-mode .board-manage-section-toggle {
+  display: flex;
 }
 
-body.board-edit-mode .board-action-grid .board-help-button {
-  grid-area: help;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-}
-
-.board-action-grid .board-layout-controls {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-body.board-edit-mode .board-action-grid .board-layout-controls {
-  display: grid;
-  grid-area: layout;
-  justify-self: start;
+.board-version-row[hidden],
+#boardManageSectionBody[hidden] {
+  display: none;
 }
 
 .board-center-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(34px, 42px));
-  gap: 8px;
-  justify-content: center;
-}
-
-body.board-edit-mode .board-center-actions {
-  grid-area: actions;
-  justify-self: center;
   grid-template-columns: repeat(5, minmax(34px, 42px));
+  gap: 8px;
   grid-auto-rows: 38px;
 }
 
-.board-action-grid > .icon-button,
 .board-center-actions .icon-button {
   width: 100%;
+  height: 38px;
+  display: grid;
 }
 
-body.board-edit-mode .board-action-grid .icon-button {
-  width: 100%;
-  height: 38px;
+.board-center-actions .duplicate-board-button,
+.board-center-actions .board-notice-button,
+.board-center-actions .board-cancel-edit-button {
+  display: grid;
 }
 
 .version-select {
@@ -923,13 +909,9 @@ body.board-edit-mode .board-action-grid .icon-button {
 
 .board-version-row {
   display: grid;
-  grid-template-columns: 42px 42px 42px 42px minmax(160px, 1fr) 42px;
+  grid-template-columns: 42px 42px 42px 42px minmax(0, 1fr) 42px;
   gap: 8px;
   align-items: center;
-}
-
-body.board-edit-mode .board-version-row {
-  display: none;
 }
 
 .board-select,
@@ -960,17 +942,10 @@ body.board-edit-mode .board-version-row {
   width: 100%;
 }
 
-.cue-live-row {
-  display: grid;
-  grid-template-columns: repeat(4, 42px) minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-}
-
 .live-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
   grid-column: 1;
   grid-row: 3;
@@ -985,12 +960,17 @@ body.board-edit-mode .board-version-row {
 }
 
 .live-tools-title {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
   margin: 0;
   color: var(--color_ui_text);
   font-size: 0.78rem;
   font-weight: 500;
   text-transform: uppercase;
+}
+
+.cue-live-row,
+.xfade-live-row {
+  display: contents;
 }
 
 .cue-panel .dialog-close-button {
@@ -1001,30 +981,12 @@ body.board-edit-mode .live-tools {
   display: none;
 }
 
-.xfade-live-row {
-  display: grid;
-  grid-template-columns: repeat(3, 42px);
-  gap: 8px;
-}
-
 .xfade-live-row .cue-stop-all-button {
   display: none;
 }
 
 .xfade-live-row .patch-bay-button {
   display: none;
-}
-
-.xfade-live-row .show-cables-button {
-  order: 1;
-}
-
-.xfade-live-row .cue-stop-all-button {
-  order: 2;
-}
-
-.xfade-live-row .cues-help-button {
-  order: 2;
 }
 
 body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
@@ -2697,33 +2659,12 @@ select:disabled,
   color: var(--color_ui_help);
 }
 
-.board-action-grid #addPad,
-.board-action-grid #addBoard,
 .duplicate-board-button,
 .board-notice-button,
 .bulk-edit-button,
-.board-action-grid .board-transfer-button,
-.board-action-grid .board-delete-button,
 .board-cancel-edit-button,
 .keyboard-shortcuts-button {
   display: none;
-}
-
-
-body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
-body.board-edit-mode .board-action-grid .duplicate-board-button,
-body.board-edit-mode .board-action-grid .board-notice-button,
-body.board-edit-mode .board-action-grid .board-transfer-button,
-body.board-edit-mode .board-action-grid .board-delete-button,
-body.board-edit-mode .board-action-grid #addPad,
-body.board-edit-mode .board-action-grid #addBoard {
-  display: grid;
-}
-
-body.board-edit-mode.shortcuts-disabled .board-action-grid .keyboard-shortcuts-button {
-  opacity: 0.42;
-  cursor: pointer;
-  filter: grayscale(1);
 }
 
 .master-audio-panel .audio-head-actions .keyboard-shortcuts-button {
@@ -2736,21 +2677,6 @@ body.shortcuts-disabled .master-audio-panel .audio-head-actions .keyboard-shortc
   filter: grayscale(1);
 }
 
-body.board-edit-mode .board-action-grid .show-cables-button,
-body.board-edit-mode .board-action-grid .patch-bay-button,
-body.board-edit-mode .board-action-grid .stage-button,
-body.board-edit-mode .board-action-grid .stage-lock-button {
-  display: none;
-}
-
-body.board-edit-mode .board-action-grid .pads-edit-button,
-body.board-edit-mode .board-action-grid .board-cancel-edit-button {
-  display: none;
-}
-
-body.board-edit-mode .board-action-grid .pads-edit-button {
-  display: grid;
-}
 
 .pads-edit-button .live-mode-icon {
   display: none;
@@ -5142,12 +5068,6 @@ body.stage-mode .board-select {
 
 body.stage-mode .board-action-grid {
   grid-column: 1;
-  grid-template-columns: 40px 40px max-content;
-  justify-content: start;
-}
-
-body.stage-mode .board-center-actions {
-  display: none;
 }
 
 body.stage-mode .board-skin-select {
@@ -5177,13 +5097,6 @@ body.stage-mode .cue-live-row .icon-button {
   min-height: 84px;
 }
 
-body.stage-mode .cue-live-row {
-  grid-template-columns: repeat(4, 84px) minmax(0, 1fr);
-}
-
-body.stage-mode .xfade-live-row {
-  grid-template-columns: repeat(2, 42px);
-}
 
 body.stage-mode .cue-live-row .icon-button svg {
   width: 42px;
@@ -5198,30 +5111,9 @@ body.stage-mode #openCueDialog {
   min-height: 42px;
 }
 
-body.stage-mode .board-layout-controls {
-  display: grid !important;
-  grid-column: 3;
-  width: max-content;
-  grid-template-columns: 42px auto;
-  grid-template-rows: 1fr 1fr;
-  height: 42px;
-  min-height: 42px;
-}
-
-body.stage-mode.board-edit-mode .board-action-grid {
-  grid-template-columns: 40px;
-}
-
-body.stage-mode .board-action-grid #addPad,
-body.stage-mode .board-action-grid #addBoard,
-body.stage-mode .board-action-grid .board-transfer-button,
-body.stage-mode .board-version-row,
-body.stage-mode .board-action-grid .keyboard-shortcuts-button,
-body.stage-mode .board-action-grid .show-cables-button,
-body.stage-mode .board-action-grid .patch-bay-button,
-body.stage-mode .board-action-grid .board-delete-button,
-body.stage-mode .board-action-grid .board-cancel-edit-button,
-body.stage-mode .board-action-grid .pads-edit-button,
+body.stage-mode .versions-section-toggle,
+body.stage-mode .board-manage-section-toggle,
+body.stage-mode .board-layout-controls,
 body.stage-mode .version-select {
   display: none;
 }
@@ -6678,7 +6570,7 @@ body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row {
 
   .cue-live-row .icon-button,
   body.stage-mode .cue-live-row .icon-button {
-    width: 100% !important;
+    width: 44px !important;
     min-width: 44px !important;
     height: 44px !important;
     min-height: 44px !important;

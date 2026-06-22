@@ -176,6 +176,8 @@ const state = {
   tagFilterLogic: "or",
   filterCompact: false,
   filterSectionOpen: true,
+  versionsSectionOpen: false,
+  boardManageSectionOpen: false,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -285,6 +287,10 @@ const els = {
   filterCompactToggle: document.querySelector("#filterCompactToggle"),
   filterCompactCount: document.querySelector("#filterCompactCount"),
   filterSectionToggle: document.querySelector("#filterSectionToggle"),
+  versionsSectionToggle: document.querySelector("#versionsSectionToggle"),
+  boardVersionRow: document.querySelector(".board-version-row"),
+  boardManageSectionToggle: document.querySelector("#boardManageSectionToggle"),
+  boardManageSectionBody: document.querySelector("#boardManageSectionBody"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   showCables: document.querySelector("#showCables"),
   cableOverlay: document.querySelector("#cableOverlay"),
@@ -1484,6 +1490,13 @@ function setBoardPadEditing(editing) {
     state.activeStructuralFilters = [];
     state.activeTagFilters = [];
     state.filterCompact = false;
+    state.boardManageSectionOpen = false;
+    if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = true;
+    if (els.boardManageSectionToggle) els.boardManageSectionToggle.setAttribute("aria-expanded", "false");
+  } else {
+    state.versionsSectionOpen = false;
+    if (els.boardVersionRow) els.boardVersionRow.hidden = true;
+    if (els.versionsSectionToggle) els.versionsSectionToggle.setAttribute("aria-expanded", "false");
   }
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
@@ -12012,6 +12025,18 @@ async function init() {
     if (e.target.closest?.("#filterSectionToggle")) {
       state.filterSectionOpen = !state.filterSectionOpen;
       refreshTagFilterChips();
+      return;
+    }
+    if (e.target.closest?.("#versionsSectionToggle")) {
+      state.versionsSectionOpen = !state.versionsSectionOpen;
+      els.versionsSectionToggle?.setAttribute("aria-expanded", String(state.versionsSectionOpen));
+      if (els.boardVersionRow) els.boardVersionRow.hidden = !state.versionsSectionOpen;
+      return;
+    }
+    if (e.target.closest?.("#boardManageSectionToggle")) {
+      state.boardManageSectionOpen = !state.boardManageSectionOpen;
+      els.boardManageSectionToggle?.setAttribute("aria-expanded", String(state.boardManageSectionOpen));
+      if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = !state.boardManageSectionOpen;
       return;
     }
     const logicBtn = e.target.closest?.(".tag-filter-logic-btn");
