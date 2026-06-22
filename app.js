@@ -2514,6 +2514,9 @@ function applyBoardTagFilter() {
     const logicLabel = totalActive > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
     setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labels.join(", ")}${logicLabel}`);
   }
+  if (els.bulkEditPads) {
+    els.bulkEditPads.disabled = !active || matchingPads.length === 0;
+  }
   syncFilterCompact();
   syncCompactToggleVisibility();
 }
@@ -3345,8 +3348,7 @@ function refreshTagFilterChips() {
     els.tagFilterChipsRow.hidden = options.length === 0 && tags.length === 0;
   }
   if (els.tagFilterLogicToggle) {
-    const totalActive = (structuralValue ? 1 : 0) + state.activeTagFilters.length;
-    els.tagFilterLogicToggle.hidden = totalActive < 2;
+    els.tagFilterLogicToggle.hidden = false;
     els.tagFilterLogicToggle.textContent = state.tagFilterLogic === "or" ? "OU" : "ET";
   }
   syncCompactToggleVisibility();

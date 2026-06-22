@@ -2036,9 +2036,14 @@ body.board-edit-mode .tag-filter-chips-row .bulk-edit-button {
   white-space: nowrap;
 }
 
-body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:hover {
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:hover:not(:disabled) {
   background: var(--color_ui_panel);
   color: var(--color_ui_text);
+}
+
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* scène : masquer toute la zone filtre */
