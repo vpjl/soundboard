@@ -2482,6 +2482,17 @@ function applyPadLayout(board = currentBoard()) {
   }
 }
 
+function activeFilterLabels() {
+  const labels = [];
+  const selectValue = String(els.boardTagFilter?.value || "").trim();
+  if (selectValue) {
+    const opt = els.boardTagFilter?.querySelector(`option[value="${selectValue}"]`);
+    if (opt) labels.push(opt.textContent.trim().toLowerCase());
+  }
+  state.activeTagFilters.forEach((tag) => labels.push(tag));
+  return labels;
+}
+
 function applyBoardTagFilter() {
   const selectValue = String(els.boardTagFilter?.value || "").trim();
   const active = Boolean(selectValue) || state.activeTagFilters.length > 0;
@@ -2494,12 +2505,14 @@ function applyBoardTagFilter() {
   if (!active) {
     setStatus(state.boardEditMode ? "Mode Garage" : "Mode live");
   } else if (!matchingPads.length) {
-    const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
-    setStatus(aspectMessages[selectValue] ?? "Aucun pad sélectionné");
+    const labels = activeFilterLabels();
+    setStatus(`Aucun pad avec ${labels.join(", ")}`);
   } else {
     const n = matchingPads.length;
-    const logicLabel = state.activeTagFilters.length > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
-    setStatus(`${n} pad${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""} sur ${state.pads.length}${logicLabel}`);
+    const labels = activeFilterLabels();
+    const totalActive = (selectValue ? 1 : 0) + state.activeTagFilters.length;
+    const logicLabel = totalActive > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
+    setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labels.join(", ")}${logicLabel}`);
   }
   syncFilterCompact();
   syncCompactToggleVisibility();
@@ -3229,11 +3242,19 @@ function padsForTagFilters(tagFilters, logic = "or") {
 function matchingPadsForCurrentFilter() {
   const selectValue = String(els.boardTagFilter?.value || "").trim();
   const tagFilters = state.activeTagFilters;
-  if (!selectValue && !tagFilters.length) return [];
-  if (selectValue && !tagFilters.length) return padsForBoardFilterValue(selectValue);
-  if (!selectValue && tagFilters.length) return padsForTagFilters(tagFilters, state.tagFilterLogic);
-  const bySelect = new Set(padsForBoardFilterValue(selectValue));
-  return padsForTagFilters(tagFilters, state.tagFilterLogic).filter((p) => bySelect.has(p));
+  const filterSets = [];
+  if (selectValue) filterSets.push(new Set(padsForBoardFilterValue(selectValue)));
+  tagFilters.forEach((tag) => filterSets.push(new Set(state.pads.filter((p) => padTagList(p).includes(tag)))));
+  if (!filterSets.length) return [];
+  if (filterSets.length === 1) return [...filterSets[0]];
+  if (state.tagFilterLogic === "or") {
+    const union = new Set();
+    filterSets.forEach((s) => s.forEach((p) => union.add(p)));
+    return [...union];
+  }
+  let result = [...filterSets[0]];
+  for (let i = 1; i < filterSets.length; i++) result = result.filter((p) => filterSets[i].has(p));
+  return result;
 }
 
 function syncFilterCompact() {
@@ -3268,9 +3289,18 @@ function refreshTagFilterChips() {
   if (!els.tagFilterChips) return;
   els.tagFilterChips.innerHTML = "";
   const structuralValue = String(els.boardTagFilter?.value || "").trim();
+  const hasActiveFilters = Boolean(structuralValue) || state.activeTagFilters.length > 0;
 
-  // Structural chips from select options (skip empty/all option)
-  const options = [...(els.boardTagFilter?.options || [])].filter((o) => o.value);
+  // Chip "Tous" — efface tout
+  const tousChip = document.createElement("button");
+  tousChip.type = "button";
+  tousChip.className = "tag-filter-chip tous-chip" + (hasActiveFilters ? "" : " is-empty");
+  tousChip.dataset.filterType = "tous";
+  tousChip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" width="11" height="11" style="flex-shrink:0"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>Tous`;
+  els.tagFilterChips.append(tousChip);
+
+  // Structural chips from select options (skip empty + "all")
+  const options = [...(els.boardTagFilter?.options || [])].filter((o) => o.value && o.value !== "all");
   let lastGroup = null;
   options.forEach((opt) => {
     const group = opt.closest("optgroup")?.label || "";
@@ -3315,7 +3345,8 @@ function refreshTagFilterChips() {
     els.tagFilterChipsRow.hidden = options.length === 0 && tags.length === 0;
   }
   if (els.tagFilterLogicToggle) {
-    els.tagFilterLogicToggle.hidden = state.activeTagFilters.length < 2;
+    const totalActive = (structuralValue ? 1 : 0) + state.activeTagFilters.length;
+    els.tagFilterLogicToggle.hidden = totalActive < 2;
     els.tagFilterLogicToggle.textContent = state.tagFilterLogic === "or" ? "OU" : "ET";
   }
   syncCompactToggleVisibility();
@@ -11930,7 +11961,10 @@ async function init() {
   document.addEventListener("click", (e) => {
     const chip = e.target.closest?.(".tag-filter-chip");
     if (!chip) return;
-    if (chip.dataset.filterType === "structural") {
+    if (chip.dataset.filterType === "tous") {
+      if (els.boardTagFilter) els.boardTagFilter.value = "";
+      state.activeTagFilters = [];
+    } else if (chip.dataset.filterType === "structural") {
       const newValue = chip.classList.contains("is-active") ? "" : chip.dataset.value;
       if (els.boardTagFilter) els.boardTagFilter.value = newValue;
     } else {

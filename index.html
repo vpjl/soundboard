@@ -237,15 +237,8 @@
             </div>
             <select id="boardTagFilter" hidden><option value="">-</option></select>
             <span id="boardTagFilterLabel" class="sr-only">Sélection groupée</span>
+            <div class="tag-filter-section-header"><span>SÉLECTION</span></div>
             <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
-              <button id="bulkEditPads" class="icon-button bulk-edit-button" type="button" aria-label="Modification groupée des pads">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
               <div id="tagFilterChips" class="tag-filter-chips"></div>
               <div class="tag-filter-chips-controls">
                 <button id="tagFilterLogicToggle" class="tag-filter-logic-toggle" type="button" hidden>OU</button>
@@ -261,6 +254,7 @@
                     <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </button>
+                <button id="bulkEditPads" class="bulk-edit-button" type="button">Modifier</button>
               </div>
             </div>
           </div>

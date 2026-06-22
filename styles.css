@@ -1993,18 +1993,57 @@ body:not(.board-edit-mode) .filter-compact-count {
   display: none;
 }
 
-/* bulk-edit button : garage uniquement (dans chips row) */
+/* section header SÉLECTION */
+.tag-filter-section-header {
+  padding: 8px 0 2px;
+}
+
+.tag-filter-section-header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+/* chip Tous — icône × */
+.tous-chip {
+  gap: 5px;
+}
+
+.tous-chip.is-empty {
+  opacity: 0.38;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* bulk-edit button : garage uniquement, texte */
 .tag-filter-chips-row .bulk-edit-button {
   display: none;
 }
 
 body.board-edit-mode .tag-filter-chips-row .bulk-edit-button {
-  display: grid;
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:hover {
+  background: var(--color_ui_panel);
+  color: var(--color_ui_text);
 }
 
 /* scène : masquer toute la zone filtre */
 body.stage-mode .tag-filter-chips-row,
+body.stage-mode .tag-filter-section-header,
 body.stage-mode .board-filter-row {
   display: none;
 }
