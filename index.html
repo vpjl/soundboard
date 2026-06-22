@@ -241,8 +241,14 @@
             <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
               <div id="tagFilterChips" class="tag-filter-chips"></div>
               <div class="tag-filter-chips-controls">
-                <button id="tagFilterLogicToggle" class="tag-filter-logic-toggle" type="button" hidden>OU</button>
+                <div id="tagFilterLogicGroup" class="tag-filter-logic-group">
+                  <button class="tag-filter-logic-btn" data-logic="or" type="button">OU</button>
+                  <button class="tag-filter-logic-btn" data-logic="and" type="button">ET</button>
+                </div>
                 <span id="filterCompactCount" class="filter-compact-count"></span>
+                <button id="filterTousBtn" class="icon-button filter-tous-btn" type="button" aria-label="Effacer la sélection">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </button>
                 <button id="filterCompactToggle" class="icon-button filter-compact-toggle" type="button" aria-label="Masquer les pads non sélectionnés">
                   <svg class="compact-icon-hide" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>

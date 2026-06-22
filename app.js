@@ -171,6 +171,7 @@ const state = {
   bulkSketchColor: "#ffffff",
   bulkSketchSize: 8,
   bulkSketchEraser: false,
+  activeStructuralFilters: [],
   activeTagFilters: [],
   tagFilterLogic: "or",
   filterCompact: false,
@@ -278,7 +279,8 @@ const els = {
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   tagFilterChipsRow: document.querySelector("#tagFilterChipsRow"),
   tagFilterChips: document.querySelector("#tagFilterChips"),
-  tagFilterLogicToggle: document.querySelector("#tagFilterLogicToggle"),
+  tagFilterLogicGroup: document.querySelector("#tagFilterLogicGroup"),
+  filterTousBtn: document.querySelector("#filterTousBtn"),
   filterCompactToggle: document.querySelector("#filterCompactToggle"),
   filterCompactCount: document.querySelector("#filterCompactCount"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
@@ -1477,7 +1479,7 @@ function setBoardPadEditing(editing) {
   els.editPads?.setAttribute("title", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
   if (!state.boardEditMode) {
     setCableOverlayVisible(false);
-    if (els.boardTagFilter) els.boardTagFilter.value = "";
+    state.activeStructuralFilters = [];
     state.activeTagFilters = [];
     state.filterCompact = false;
   }
@@ -2484,18 +2486,16 @@ function applyPadLayout(board = currentBoard()) {
 
 function activeFilterLabels() {
   const labels = [];
-  const selectValue = String(els.boardTagFilter?.value || "").trim();
-  if (selectValue) {
-    const opt = els.boardTagFilter?.querySelector(`option[value="${selectValue}"]`);
+  state.activeStructuralFilters.forEach((val) => {
+    const opt = els.boardTagFilter?.querySelector(`option[value="${val}"]`);
     if (opt) labels.push(opt.textContent.trim().toLowerCase());
-  }
+  });
   state.activeTagFilters.forEach((tag) => labels.push(tag));
   return labels;
 }
 
 function applyBoardTagFilter() {
-  const selectValue = String(els.boardTagFilter?.value || "").trim();
-  const active = Boolean(selectValue) || state.activeTagFilters.length > 0;
+  const active = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
   const matchingPads = active ? matchingPadsForCurrentFilter() : [];
   const matchingSet = new Set(matchingPads);
   state.pads.forEach((pad) => {
@@ -2510,7 +2510,7 @@ function applyBoardTagFilter() {
   } else {
     const n = matchingPads.length;
     const labels = activeFilterLabels();
-    const totalActive = (selectValue ? 1 : 0) + state.activeTagFilters.length;
+    const totalActive = state.activeStructuralFilters.length + state.activeTagFilters.length;
     const logicLabel = totalActive > 1 ? ` (${state.tagFilterLogic === "or" ? "OU" : "ET"})` : "";
     setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labels.join(", ")}${logicLabel}`);
   }
@@ -3243,11 +3243,9 @@ function padsForTagFilters(tagFilters, logic = "or") {
 }
 
 function matchingPadsForCurrentFilter() {
-  const selectValue = String(els.boardTagFilter?.value || "").trim();
-  const tagFilters = state.activeTagFilters;
   const filterSets = [];
-  if (selectValue) filterSets.push(new Set(padsForBoardFilterValue(selectValue)));
-  tagFilters.forEach((tag) => filterSets.push(new Set(state.pads.filter((p) => padTagList(p).includes(tag)))));
+  state.activeStructuralFilters.forEach((val) => filterSets.push(new Set(padsForBoardFilterValue(val))));
+  state.activeTagFilters.forEach((tag) => filterSets.push(new Set(state.pads.filter((p) => padTagList(p).includes(tag)))));
   if (!filterSets.length) return [];
   if (filterSets.length === 1) return [...filterSets[0]];
   if (state.tagFilterLogic === "or") {
@@ -3288,69 +3286,82 @@ function syncCompactToggleVisibility() {
   }
 }
 
+function makeChipGroup(label) {
+  const group = document.createElement("div");
+  group.className = "chip-group";
+  const lbl = document.createElement("span");
+  lbl.className = "chip-group-label";
+  lbl.textContent = label;
+  group.append(lbl);
+  const chips = document.createElement("div");
+  chips.className = "chip-group-chips";
+  group.append(chips);
+  return { group, chips };
+}
+
 function refreshTagFilterChips() {
   if (!els.tagFilterChips) return;
   els.tagFilterChips.innerHTML = "";
-  const structuralValue = String(els.boardTagFilter?.value || "").trim();
-  const hasActiveFilters = Boolean(structuralValue) || state.activeTagFilters.length > 0;
+  const hasActiveFilters = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
 
-  // Chip "Tous" — efface tout
-  const tousChip = document.createElement("button");
-  tousChip.type = "button";
-  tousChip.className = "tag-filter-chip tous-chip" + (hasActiveFilters ? "" : " is-empty");
-  tousChip.dataset.filterType = "tous";
-  tousChip.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" width="11" height="11" style="flex-shrink:0"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>Tous`;
-  els.tagFilterChips.append(tousChip);
-
-  // Structural chips from select options (skip empty + "all")
+  // Structural chips grouped by optgroup
   const options = [...(els.boardTagFilter?.options || [])].filter((o) => o.value && o.value !== "all");
-  let lastGroup = null;
+  const groupLabelMap = { "Types": "Type", "État": "État", "Aspect du pad": "Aspect", "Options audio": "Options" };
+  let currentGroup = null;
+  let currentChips = null;
   options.forEach((opt) => {
-    const group = opt.closest("optgroup")?.label || "";
-    if (group !== lastGroup && els.tagFilterChips.children.length > 0) {
-      const sep = document.createElement("span");
-      sep.className = "chip-group-sep";
-      sep.setAttribute("aria-hidden", "true");
-      els.tagFilterChips.append(sep);
+    const groupLabel = opt.closest("optgroup")?.label || "";
+    const shortLabel = groupLabelMap[groupLabel] || groupLabel;
+    if (shortLabel !== currentGroup) {
+      const { group, chips } = makeChipGroup(shortLabel);
+      els.tagFilterChips.append(group);
+      currentGroup = shortLabel;
+      currentChips = chips;
     }
-    lastGroup = group;
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "tag-filter-chip structural-chip";
     chip.textContent = opt.textContent;
     chip.dataset.value = opt.value;
     chip.dataset.filterType = "structural";
-    if (opt.value === structuralValue) chip.classList.add("is-active");
-    els.tagFilterChips.append(chip);
+    if (state.activeStructuralFilters.includes(opt.value)) chip.classList.add("is-active");
+    currentChips.append(chip);
   });
 
-  // Tag chips
+  // Tag chips group
   const tags = boardTags();
-  if (tags.length > 0 && options.length > 0) {
-    const sep = document.createElement("span");
-    sep.className = "chip-group-sep chip-group-sep--tags";
-    sep.setAttribute("aria-hidden", "true");
-    els.tagFilterChips.append(sep);
+  if (tags.length > 0) {
+    const { group, chips } = makeChipGroup("Tags");
+    tags.forEach((tag) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "tag-filter-chip";
+      chip.textContent = tag;
+      chip.dataset.tag = tag;
+      chip.dataset.filterType = "tag";
+      if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
+      chips.append(chip);
+    });
+    els.tagFilterChips.append(group);
   }
-  tags.forEach((tag) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "tag-filter-chip";
-    chip.textContent = tag;
-    chip.dataset.tag = tag;
-    chip.dataset.filterType = "tag";
-    if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
-    els.tagFilterChips.append(chip);
-  });
 
-  // Row visibility — always show if there are chips; scene handled by CSS
+  // Row visibility
   if (els.tagFilterChipsRow) {
     els.tagFilterChipsRow.hidden = options.length === 0 && tags.length === 0;
   }
-  if (els.tagFilterLogicToggle) {
-    els.tagFilterLogicToggle.hidden = false;
-    els.tagFilterLogicToggle.textContent = state.tagFilterLogic === "or" ? "OU" : "ET";
+
+  // Logic radio buttons
+  if (els.tagFilterLogicGroup) {
+    els.tagFilterLogicGroup.querySelectorAll(".tag-filter-logic-btn").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.logic === state.tagFilterLogic);
+    });
   }
+
+  // Tous button greyed state
+  if (els.filterTousBtn) {
+    els.filterTousBtn.classList.toggle("is-empty", !hasActiveFilters);
+  }
+
   syncCompactToggleVisibility();
 }
 
@@ -3625,35 +3636,25 @@ async function prepareBulkAutoTrim() {
 }
 
 function openBulkEditDialog() {
-  const selectedTag = String(els.boardTagFilter?.value || "").trim();
-  let pads;
-  if (selectedTag === "state:empty") {
-    pads = padsForBoardFilterValue(selectedTag);
-  } else if (selectedTag.startsWith("aspect:")) {
-    pads = padsForBoardFilterValue(selectedTag);
-  } else {
-    pads = matchingPadsForCurrentFilter();
-    if (!pads.length && !state.activeTagFilters.length) pads = padsForBoardTagSelection();
+  const singleStructural = state.activeStructuralFilters.length === 1 && !state.activeTagFilters.length
+    ? state.activeStructuralFilters[0] : null;
+  let pads = matchingPadsForCurrentFilter();
+  if (!pads.length && !state.activeStructuralFilters.length && !state.activeTagFilters.length) {
+    pads = padsForBoardTagSelection();
   }
   if (!pads.length) {
-    const aspectMessages = { "aspect:sketch": "Aucun pad avec dessin", "aspect:image": "Aucun pad avec image", "aspect:color": "Aucun pad avec couleur" };
-    const msg = aspectMessages[selectedTag];
-    if (msg) { setStatus(msg); return; }
-    window.alert(selectedTag === "state:empty" ? "Aucun pad vide sélectionné" : "Sélectionner des pads avec le menu Modification groupée du cadre board");
+    setStatus(activeFilterLabels().length ? `Aucun pad avec ${activeFilterLabels().join(", ")}` : "Sélectionner des pads avec les filtres");
     return;
   }
-  if (selectedTag === "state:empty") {
+  if (singleStructural === "state:empty") {
     confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible"));
     return;
   }
 
-  const isAspectPreset = selectedTag.startsWith("aspect:");
-  if (!isAspectPreset && (!selectedTag || pads.length === state.pads.length)) {
+  const isAspectPreset = Boolean(singleStructural?.startsWith("aspect:"));
+  if (!isAspectPreset && !state.activeStructuralFilters.length && !state.activeTagFilters.length) {
     const shouldEditAll = window.confirm("Modifier tous les pads ?");
-    if (!shouldEditAll) {
-      window.alert("Sélectionner des pads avec le menu Modification groupée du cadre board");
-      return;
-    }
+    if (!shouldEditAll) return;
     pads = state.pads;
   }
 
@@ -3676,7 +3677,7 @@ function openBulkEditDialog() {
     .forEach((checkbox) => { if (checkbox) checkbox.checked = false; });
 
   if (isAspectPreset) {
-    const mode = selectedTag === "aspect:sketch" ? "sketch" : selectedTag === "aspect:image" ? "image" : "color";
+    const mode = singleStructural === "aspect:sketch" ? "sketch" : singleStructural === "aspect:image" ? "image" : "color";
     syncBulkVisualMode(mode);
     if (els.bulkApplyVisual) els.bulkApplyVisual.checked = true;
     if (mode === "sketch" && !state.bulkSketchInitialized) {
@@ -3728,12 +3729,10 @@ async function confirmDeleteEmptyPads(pads) {
     await renderPads();
     setBoardPadEditing(true);
   }
+  state.activeStructuralFilters = [];
   state.activeTagFilters = [];
   refreshBoardTagFilterOptions();
-  if (els.boardTagFilter) {
-    els.boardTagFilter.value = "";
-    applyBoardTagFilter();
-  }
+  applyBoardTagFilter();
   const keptLast = count > deletedCount && remainingCount === 1;
   setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""} vide${deletedCount > 1 ? "s" : ""} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
 }
@@ -3802,7 +3801,7 @@ async function applyBulkEdit() {
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
   applyDucking();
-  if (els.boardTagFilter) els.boardTagFilter.value = "";
+  state.activeStructuralFilters = [];
   state.activeTagFilters = [];
   refreshTagFilterChips();
   applyBoardTagFilter();
@@ -8576,7 +8575,10 @@ function refreshBoardTagFilterOptions() {
     });
     els.boardTagFilter.append(audioGroup);
   }
-  els.boardTagFilter.value = [...els.boardTagFilter.options].some((option) => option.value === currentValue && !option.disabled) ? currentValue : "";
+  // Purge any structural filters whose option no longer exists
+  state.activeStructuralFilters = state.activeStructuralFilters.filter((val) =>
+    [...els.boardTagFilter.options].some((o) => o.value === val)
+  );
   refreshTagFilterChips();
   applyBoardTagFilter();
 }
@@ -11961,14 +11963,20 @@ async function init() {
   els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   document.addEventListener("click", (e) => {
+    const logicBtn = e.target.closest?.(".tag-filter-logic-btn");
+    if (logicBtn?.dataset.logic) {
+      state.tagFilterLogic = logicBtn.dataset.logic;
+      refreshTagFilterChips();
+      applyBoardTagFilter();
+      return;
+    }
     const chip = e.target.closest?.(".tag-filter-chip");
     if (!chip) return;
-    if (chip.dataset.filterType === "tous") {
-      if (els.boardTagFilter) els.boardTagFilter.value = "";
-      state.activeTagFilters = [];
-    } else if (chip.dataset.filterType === "structural") {
-      const newValue = chip.classList.contains("is-active") ? "" : chip.dataset.value;
-      if (els.boardTagFilter) els.boardTagFilter.value = newValue;
+    if (chip.dataset.filterType === "structural") {
+      const val = chip.dataset.value;
+      const idx = state.activeStructuralFilters.indexOf(val);
+      if (idx >= 0) state.activeStructuralFilters.splice(idx, 1);
+      else state.activeStructuralFilters.push(val);
     } else {
       const tag = chip.dataset.tag;
       const idx = state.activeTagFilters.indexOf(tag);
@@ -11978,15 +11986,16 @@ async function init() {
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
-  els.tagFilterLogicToggle?.addEventListener("click", () => {
-    state.tagFilterLogic = state.tagFilterLogic === "or" ? "and" : "or";
+  els.filterTousBtn?.addEventListener("click", () => {
+    state.activeStructuralFilters = [];
+    state.activeTagFilters = [];
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
   els.filterCompactToggle?.addEventListener("click", () => {
     if (state.filterCompact) {
       // Tout afficher : désactiver le compact ET réinitialiser le filtre
-      if (els.boardTagFilter) els.boardTagFilter.value = "";
+      state.activeStructuralFilters = [];
       state.activeTagFilters = [];
       state.filterCompact = false;
       refreshTagFilterChips();
