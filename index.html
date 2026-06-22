@@ -237,7 +237,11 @@
             </div>
             <select id="boardTagFilter" hidden><option value="">-</option></select>
             <span id="boardTagFilterLabel" class="sr-only">Sélection groupée</span>
-            <div class="tag-filter-section-header"><span>SÉLECTION</span></div>
+            <button class="tag-filter-section-header" type="button" id="filterSectionToggle" aria-expanded="true">
+              <span id="filterSectionTitle">SÉLECTION</span>
+              <span id="filterSectionCount" class="filter-section-count" hidden></span>
+              <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
             <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
               <div id="tagFilterChips" class="tag-filter-chips"></div>
               <div class="tag-filter-chips-controls">
@@ -471,6 +475,7 @@
             </button>
             <label class="tag-field">
               <span>Tags</span>
+              <div class="pad-tags-chips" data-tags-chips></div>
               <input type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
             </label>
             <label class="pad-fade-field">
@@ -2212,7 +2217,7 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=265"></script>
+    <script src="app.js?v=266"></script>
 
 
   </body>

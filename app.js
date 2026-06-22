@@ -175,6 +175,7 @@ const state = {
   activeTagFilters: [],
   tagFilterLogic: "or",
   filterCompact: false,
+  filterSectionOpen: true,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -283,6 +284,7 @@ const els = {
   filterTousBtn: document.querySelector("#filterTousBtn"),
   filterCompactToggle: document.querySelector("#filterCompactToggle"),
   filterCompactCount: document.querySelector("#filterCompactCount"),
+  filterSectionToggle: document.querySelector("#filterSectionToggle"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   showCables: document.querySelector("#showCables"),
   cableOverlay: document.querySelector("#cableOverlay"),
@@ -1961,6 +1963,7 @@ function makePad(index) {
   pad.nameEl = node.querySelector("[data-name]");
   pad.tagsEl = node.querySelector("[data-tags]");
   pad.tagsDisplayEl = node.querySelector("[data-tags-display]");
+  pad.tagsChipsEl = node.querySelector("[data-tags-chips]");
   pad.fadeEl = node.querySelector("[data-pad-fade]");
   pad.trimStartEl = node.querySelector("[data-trim-start]");
   pad.trimEndEl = node.querySelector("[data-trim-end]");
@@ -3305,10 +3308,17 @@ function refreshTagFilterChips() {
   els.tagFilterChips.innerHTML = "";
   const hasActiveFilters = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
 
-  // Titre section : SÉLECTION en studio, SÉLECTION / MODIFICATION en garage
-  const sectionHeaderEl = document.querySelector(".tag-filter-section-header span");
-  if (sectionHeaderEl) {
-    sectionHeaderEl.textContent = state.boardEditMode ? "SÉLECTION / MODIFICATION" : "SÉLECTION";
+  // Titre + toggle section
+  const titleEl = document.getElementById("filterSectionTitle");
+  if (titleEl) titleEl.textContent = state.boardEditMode ? "SÉLECTION / MODIFICATION" : "SÉLECTION";
+  if (els.filterSectionToggle) {
+    els.filterSectionToggle.setAttribute("aria-expanded", String(state.filterSectionOpen));
+  }
+  const countEl = document.getElementById("filterSectionCount");
+  if (countEl) {
+    const activeCount = state.activeStructuralFilters.length + state.activeTagFilters.length;
+    countEl.textContent = String(activeCount);
+    countEl.hidden = state.filterSectionOpen || activeCount === 0;
   }
 
   // Structural chips grouped by optgroup
@@ -3332,8 +3342,10 @@ function refreshTagFilterChips() {
     chip.textContent = opt.textContent;
     chip.dataset.value = opt.value;
     chip.dataset.filterType = "structural";
+    const matchCount = padsForBoardFilterValue(opt.value).length;
     if (state.activeStructuralFilters.includes(opt.value)) chip.classList.add("is-active");
-    else if (totalPads > 0 && padsForBoardFilterValue(opt.value).length === totalPads) chip.classList.add("is-universal");
+    else if (totalPads > 0 && matchCount === totalPads) chip.classList.add("is-universal");
+    else if (matchCount === 0) chip.classList.add("is-void");
     currentChips.append(chip);
   });
 
@@ -3357,7 +3369,7 @@ function refreshTagFilterChips() {
 
   // Row visibility
   if (els.tagFilterChipsRow) {
-    els.tagFilterChipsRow.hidden = options.length === 0 && tags.length === 0;
+    els.tagFilterChipsRow.hidden = (options.length === 0 && tags.length === 0) || !state.filterSectionOpen;
   }
 
   // Logic radio buttons
@@ -8489,6 +8501,30 @@ function setPadTags(pad, tags) {
   pad.tagsEl.value = pad.tags;
   pad.tagsDisplayEl.textContent = pad.tags;
   pad.tagsDisplayEl.hidden = !pad.tags;
+  renderPadTagChips(pad);
+}
+
+function renderPadTagChips(pad) {
+  if (!pad.tagsChipsEl) return;
+  pad.tagsChipsEl.innerHTML = "";
+  padTagList(pad).forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "pad-tag-chip";
+    chip.textContent = tag;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "pad-tag-chip-remove";
+    removeBtn.setAttribute("aria-label", `Supprimer le tag ${tag}`);
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const newTags = padTagList(pad).filter((t) => t !== tag).join(", ");
+      setPadTags(pad, newTags);
+      refreshBoardTagFilterOptions();
+    });
+    chip.append(removeBtn);
+    pad.tagsChipsEl.append(chip);
+  });
 }
 
 function padTagList(pad) {
@@ -11973,6 +12009,11 @@ async function init() {
   els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
   document.addEventListener("click", (e) => {
+    if (e.target.closest?.("#filterSectionToggle")) {
+      state.filterSectionOpen = !state.filterSectionOpen;
+      refreshTagFilterChips();
+      return;
+    }
     const logicBtn = e.target.closest?.(".tag-filter-logic-btn");
     if (logicBtn?.dataset.logic) {
       state.tagFilterLogic = logicBtn.dataset.logic;

@@ -1893,6 +1893,10 @@ body.filter-compact .pad.is-tag-dimmed {
   padding: 6px 0 2px;
 }
 
+.tag-filter-chips-row[hidden] {
+  display: none;
+}
+
 .tag-filter-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1908,6 +1912,9 @@ body.filter-compact .pad.is-tag-dimmed {
   border: 1px solid var(--color_ui_border);
   border-radius: 8px;
   padding: 4px 6px 5px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chip-group-label {
@@ -1948,7 +1955,8 @@ body.filter-compact .pad.is-tag-dimmed {
   color: #000;
 }
 
-.tag-filter-chip.is-universal:not(.is-active) {
+.tag-filter-chip.is-universal:not(.is-active),
+.tag-filter-chip.is-void:not(.is-active) {
   opacity: 0.35;
 }
 
@@ -2047,15 +2055,43 @@ body:not(.board-edit-mode) .filter-compact-count {
   display: none;
 }
 
-/* section header SÉLECTION */
+/* section header SÉLECTION — bouton toggle */
 .tag-filter-section-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 8px 0 2px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.tag-filter-section-header span {
+#filterSectionTitle {
   color: var(--muted);
   font-size: 0.72rem;
   text-transform: uppercase;
+  flex: 1;
+}
+
+.filter-section-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform 0.18s;
+}
+
+.tag-filter-section-header[aria-expanded="false"] .filter-section-chevron {
+  transform: rotate(-90deg);
+}
+
+.filter-section-count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent, #f0b429);
+  background: rgba(240, 180, 41, 0.15);
+  border-radius: 8px;
+  padding: 1px 6px;
 }
 
 
@@ -2892,6 +2928,46 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad.is-editing .tag-field {
   order: 20;
   grid-column: 1 / -1;
+}
+
+/* chips de tags dans les pads — garage uniquement */
+.pad-tags-chips {
+  display: none;
+}
+
+body.board-edit-mode .pad-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.pad-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px 1px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.pad-tag-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.pad-tag-chip-remove:hover {
+  opacity: 1;
 }
 
 .pad.is-editing .pad-fade-field {
