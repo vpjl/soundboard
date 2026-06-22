@@ -561,7 +561,7 @@ h1 {
   justify-content: flex-start;
   gap: 5px;
   min-width: 0;
-  padding-left: 4px;
+  padding-left: 10px;
 }
 
 .board-layout-controls select,
@@ -1972,6 +1972,8 @@ body.filter-compact .pad.is-tag-dimmed {
 .tag-filter-chip.is-universal:not(.is-active),
 .tag-filter-chip.is-void:not(.is-active) {
   opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
 }
 
 .tag-filter-chips-controls {
@@ -7305,6 +7307,19 @@ body.board-edit-mode .pad.is-editing {
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing {
   grid-template-columns: 1fr 1fr 38px !important;
+  grid-template-rows: auto auto auto 1fr auto auto;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-audio-button,
+body[data-skin="basic"].board-edit-mode .pad.is-editing .drag-handle {
+  grid-row: 5;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"],
+body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"],
+body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
+  grid-row: 6;
 }
 
 body.board-edit-mode .pad.is-editing .pad-actions,
@@ -7622,7 +7637,7 @@ body.stage-mode #boardName:focus {
 }
 
 .board-layout-controls .layout-rows-line {
-  padding-left: 8px;
+  padding-left: 14px;
 }
 
 #padColumns {

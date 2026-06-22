@@ -3371,8 +3371,8 @@ function refreshTagFilterChips() {
     chip.dataset.filterType = "structural";
     const matchCount = padsForBoardFilterValue(opt.value).length;
     if (state.activeStructuralFilters.includes(opt.value)) chip.classList.add("is-active");
-    else if (totalPads > 0 && matchCount === totalPads) chip.classList.add("is-universal");
-    else if (matchCount === 0) chip.classList.add("is-void");
+    else if (totalPads > 0 && matchCount === totalPads) { chip.classList.add("is-universal"); chip.disabled = true; }
+    else if (matchCount === 0) { chip.classList.add("is-void"); chip.disabled = true; }
     currentChips.append(chip);
   });
 
@@ -3387,8 +3387,10 @@ function refreshTagFilterChips() {
       chip.textContent = tag;
       chip.dataset.tag = tag;
       chip.dataset.filterType = "tag";
+      const tagCount = state.pads.filter((p) => padTagList(p).includes(tag)).length;
       if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
-      else if (totalPads > 0 && state.pads.filter((p) => padTagList(p).includes(tag)).length === totalPads) chip.classList.add("is-universal");
+      else if (totalPads > 0 && tagCount === totalPads) { chip.classList.add("is-universal"); chip.disabled = true; }
+      else if (tagCount === 0) { chip.classList.add("is-void"); chip.disabled = true; }
       chips.append(chip);
     });
     els.tagFilterChips.append(group);
