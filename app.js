@@ -1498,6 +1498,7 @@ function setBoardPadEditing(editing) {
     if (els.boardVersionRow) els.boardVersionRow.hidden = true;
     if (els.versionsSectionToggle) els.versionsSectionToggle.setAttribute("aria-expanded", "false");
   }
+  state.filterSectionOpen = false;
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
@@ -12037,6 +12038,18 @@ async function init() {
       state.boardManageSectionOpen = !state.boardManageSectionOpen;
       els.boardManageSectionToggle?.setAttribute("aria-expanded", String(state.boardManageSectionOpen));
       if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = !state.boardManageSectionOpen;
+      return;
+    }
+    const tagsAddBtn = e.target.closest?.(".tags-add-btn");
+    if (tagsAddBtn) {
+      const field = tagsAddBtn.closest(".tag-field");
+      if (field) {
+        field.classList.toggle("tags-input-open");
+        tagsAddBtn.setAttribute("aria-expanded", String(field.classList.contains("tags-input-open")));
+        if (field.classList.contains("tags-input-open")) {
+          field.querySelector("[data-tags]")?.focus();
+        }
+      }
       return;
     }
     const logicBtn = e.target.closest?.(".tag-filter-logic-btn");
