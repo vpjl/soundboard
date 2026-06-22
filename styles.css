@@ -948,31 +948,12 @@ body.board-edit-mode .board-version-row {
 
 .board-filter-row {
   display: grid;
-  grid-template-columns: minmax(104px, 0.8fr) minmax(104px, 1fr);
+  grid-template-columns: 1fr;
   gap: 8px;
   align-items: end;
 }
 
-body.board-edit-mode .board-filter-row {
-  grid-template-columns: minmax(0, 1fr) 42px minmax(104px, 0.75fr);
-}
-
-body.board-edit-mode .board-filter-row .bulk-edit-button {
-  display: grid;
-  order: 2;
-  align-self: end;
-}
-
-body.board-edit-mode .board-filter-row .board-tag-filter {
-  order: 3;
-}
-
-body.board-edit-mode .board-filter-row .board-skin-select {
-  order: 1;
-}
-
-.board-filter-row .skin-select,
-.board-filter-row .board-tag-filter {
+.board-filter-row .skin-select {
   display: grid;
   gap: 7px;
   width: 100%;
@@ -1105,9 +1086,6 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   max-height: calc(1.12em * 2);
 }
 
-body.board-edit-mode .board-filter-row .board-skin-select {
-  display: grid;
-}
 
 .board-select > span,
 .master-title {
@@ -1118,16 +1096,14 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   text-transform: uppercase;
 }
 
-.board-name span,
-.board-tag-filter span {
+.board-name span {
   color: var(--muted);
   font-size: 0.78rem;
   text-transform: uppercase;
 }
 
 .board-select select,
-.board-name input,
-.board-tag-filter select {
+.board-name input {
   width: 100%;
   height: 42px;
   border: 1px solid var(--line);
@@ -1135,10 +1111,6 @@ body.board-edit-mode .board-filter-row .board-skin-select {
   padding: 0 10px;
   background: #111319;
   color: var(--text);
-}
-
-.board-filter-row .board-tag-filter select {
-  height: 34px;
 }
 
 .board-name input:focus {
@@ -1916,10 +1888,10 @@ body.filter-compact .pad.is-tag-dimmed {
 
 .tag-filter-chips-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
-  padding: 4px 0 2px;
-  flex-wrap: nowrap;
+  padding: 6px 0 2px;
+  flex-wrap: wrap;
 }
 
 .tag-filter-chips {
@@ -1928,6 +1900,7 @@ body.filter-compact .pad.is-tag-dimmed {
   gap: 5px;
   flex: 1;
   min-width: 0;
+  align-items: center;
 }
 
 .tag-filter-chip {
@@ -1951,10 +1924,20 @@ body.filter-compact .pad.is-tag-dimmed {
   color: #000;
 }
 
+.chip-group-sep {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--color_ui_border);
+  align-self: center;
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
 .tag-filter-chips-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
@@ -1970,10 +1953,32 @@ body.filter-compact .pad.is-tag-dimmed {
   cursor: pointer;
 }
 
+.filter-compact-count {
+  font-size: 0.7rem;
+  color: var(--color_ui_text_muted);
+  white-space: nowrap;
+}
+
+.filter-compact-count.is-empty {
+  opacity: 0.38;
+}
+
 .filter-compact-toggle {
   width: 28px;
   height: 28px;
   padding: 0;
+}
+
+.filter-compact-toggle .compact-icon-show {
+  display: none;
+}
+
+.filter-compact-toggle.is-active .compact-icon-hide {
+  display: none;
+}
+
+.filter-compact-toggle.is-active .compact-icon-show {
+  display: block;
 }
 
 .filter-compact-toggle.is-active {
@@ -1982,28 +1987,26 @@ body.filter-compact .pad.is-tag-dimmed {
   border-color: var(--accent, #f0b429);
 }
 
-.filter-compact-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--accent, #f0b429) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #f0b429) 40%, transparent);
-  font-size: 0.74rem;
-  color: var(--color_ui_text);
-  margin-top: 4px;
+/* compact toggle + count : garage uniquement */
+body:not(.board-edit-mode) .filter-compact-toggle,
+body:not(.board-edit-mode) .filter-compact-count {
+  display: none;
 }
 
-.filter-compact-reset {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 5px;
-  border: 1px solid var(--color_ui_border);
-  background: var(--color_ui_panel_secondary);
-  color: var(--color_ui_text);
-  font-size: 0.72rem;
-  cursor: pointer;
+/* bulk-edit button : garage uniquement (dans chips row) */
+.tag-filter-chips-row .bulk-edit-button {
+  display: none;
+}
+
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button {
+  display: grid;
+  flex-shrink: 0;
+}
+
+/* scène : masquer toute la zone filtre */
+body.stage-mode .tag-filter-chips-row,
+body.stage-mode .board-filter-row {
+  display: none;
 }
 
 .pad.is-dragging {
@@ -2581,18 +2584,12 @@ select:disabled,
   display: none;
 }
 
-.board-tag-filter {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-}
 
 body.board-edit-mode .board-action-grid .keyboard-shortcuts-button,
 body.board-edit-mode .board-action-grid .duplicate-board-button,
 body.board-edit-mode .board-action-grid .board-notice-button,
 body.board-edit-mode .board-action-grid .board-transfer-button,
 body.board-edit-mode .board-action-grid .board-delete-button,
-body.board-edit-mode .bulk-edit-button,
 body.board-edit-mode .board-action-grid #addPad,
 body.board-edit-mode .board-action-grid #addBoard {
   display: grid;
@@ -4994,11 +4991,6 @@ body.stage-mode .board-skin-select {
 
 body.stage-mode .board-filter-row {
   grid-column: 1;
-  grid-template-columns: 1fr;
-}
-
-body.stage-mode .board-tag-filter {
-  display: none;
 }
 
 body.stage-mode .board-skin-select span {

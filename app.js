@@ -280,9 +280,7 @@ const els = {
   tagFilterChips: document.querySelector("#tagFilterChips"),
   tagFilterLogicToggle: document.querySelector("#tagFilterLogicToggle"),
   filterCompactToggle: document.querySelector("#filterCompactToggle"),
-  filterCompactBanner: document.querySelector("#filterCompactBanner"),
   filterCompactCount: document.querySelector("#filterCompactCount"),
-  filterCompactReset: document.querySelector("#filterCompactReset"),
   keyboardShortcuts: document.querySelector("#keyboardShortcuts"),
   showCables: document.querySelector("#showCables"),
   cableOverlay: document.querySelector("#cableOverlay"),
@@ -3241,39 +3239,81 @@ function matchingPadsForCurrentFilter() {
 function syncFilterCompact() {
   const active = state.filterCompact && state.boardEditMode;
   document.body.classList.toggle("filter-compact", active);
-  if (els.filterCompactBanner) {
+  if (els.filterCompactCount) {
     const hiddenCount = active
       ? state.pads.filter((p) => p.node?.classList.contains("is-tag-dimmed")).length
       : 0;
-    els.filterCompactBanner.hidden = !active || hiddenCount === 0;
-    if (els.filterCompactCount) {
-      els.filterCompactCount.textContent = `${hiddenCount} pad${hiddenCount > 1 ? "s" : ""} masqué${hiddenCount > 1 ? "s" : ""}`;
-    }
+    els.filterCompactCount.textContent = active
+      ? `${hiddenCount} masqué${hiddenCount > 1 ? "s" : ""}`
+      : "";
+    els.filterCompactCount.classList.toggle("is-empty", hiddenCount === 0);
+  }
+  if (els.filterCompactToggle) {
+    els.filterCompactToggle.classList.toggle("is-active", active);
+    els.filterCompactToggle.setAttribute(
+      "aria-label",
+      active ? "Tout afficher" : "Masquer les pads non sélectionnés"
+    );
   }
 }
 
 function syncCompactToggleVisibility() {
-  if (!els.filterCompactToggle) return;
-  const selectValue = String(els.boardTagFilter?.value || "").trim();
-  const hasFilter = Boolean(selectValue) || state.activeTagFilters.length > 0;
-  els.filterCompactToggle.hidden = !(state.boardEditMode && hasFilter);
-  els.filterCompactToggle.classList.toggle("is-active", state.filterCompact);
+  // visibility handled by CSS (garage only); just sync the active state here
+  if (els.filterCompactToggle) {
+    els.filterCompactToggle.classList.toggle("is-active", state.filterCompact);
+  }
 }
 
 function refreshTagFilterChips() {
   if (!els.tagFilterChips) return;
-  const tags = boardTags();
   els.tagFilterChips.innerHTML = "";
+  const structuralValue = String(els.boardTagFilter?.value || "").trim();
+
+  // Structural chips from select options (skip empty/all option)
+  const options = [...(els.boardTagFilter?.options || [])].filter((o) => o.value);
+  let lastGroup = null;
+  options.forEach((opt) => {
+    const group = opt.closest("optgroup")?.label || "";
+    if (group !== lastGroup && els.tagFilterChips.children.length > 0) {
+      const sep = document.createElement("span");
+      sep.className = "chip-group-sep";
+      sep.setAttribute("aria-hidden", "true");
+      els.tagFilterChips.append(sep);
+    }
+    lastGroup = group;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "tag-filter-chip structural-chip";
+    chip.textContent = opt.textContent;
+    chip.dataset.value = opt.value;
+    chip.dataset.filterType = "structural";
+    if (opt.value === structuralValue) chip.classList.add("is-active");
+    els.tagFilterChips.append(chip);
+  });
+
+  // Tag chips
+  const tags = boardTags();
+  if (tags.length > 0 && options.length > 0) {
+    const sep = document.createElement("span");
+    sep.className = "chip-group-sep chip-group-sep--tags";
+    sep.setAttribute("aria-hidden", "true");
+    els.tagFilterChips.append(sep);
+  }
   tags.forEach((tag) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "tag-filter-chip";
     chip.textContent = tag;
     chip.dataset.tag = tag;
+    chip.dataset.filterType = "tag";
     if (state.activeTagFilters.includes(tag)) chip.classList.add("is-active");
     els.tagFilterChips.append(chip);
   });
-  if (els.tagFilterChipsRow) els.tagFilterChipsRow.hidden = tags.length === 0;
+
+  // Row visibility — always show if there are chips; scene handled by CSS
+  if (els.tagFilterChipsRow) {
+    els.tagFilterChipsRow.hidden = options.length === 0 && tags.length === 0;
+  }
   if (els.tagFilterLogicToggle) {
     els.tagFilterLogicToggle.hidden = state.activeTagFilters.length < 2;
     els.tagFilterLogicToggle.textContent = state.tagFilterLogic === "or" ? "OU" : "ET";
@@ -11890,10 +11930,15 @@ async function init() {
   document.addEventListener("click", (e) => {
     const chip = e.target.closest?.(".tag-filter-chip");
     if (!chip) return;
-    const tag = chip.dataset.tag;
-    const idx = state.activeTagFilters.indexOf(tag);
-    if (idx >= 0) state.activeTagFilters.splice(idx, 1);
-    else state.activeTagFilters.push(tag);
+    if (chip.dataset.filterType === "structural") {
+      const newValue = chip.classList.contains("is-active") ? "" : chip.dataset.value;
+      if (els.boardTagFilter) els.boardTagFilter.value = newValue;
+    } else {
+      const tag = chip.dataset.tag;
+      const idx = state.activeTagFilters.indexOf(tag);
+      if (idx >= 0) state.activeTagFilters.splice(idx, 1);
+      else state.activeTagFilters.push(tag);
+    }
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
@@ -11903,16 +11948,18 @@ async function init() {
     applyBoardTagFilter();
   });
   els.filterCompactToggle?.addEventListener("click", () => {
-    state.filterCompact = !state.filterCompact;
-    syncFilterCompact();
-    syncCompactToggleVisibility();
-  });
-  els.filterCompactReset?.addEventListener("click", () => {
-    if (els.boardTagFilter) els.boardTagFilter.value = "";
-    state.activeTagFilters = [];
-    state.filterCompact = false;
-    refreshTagFilterChips();
-    applyBoardTagFilter();
+    if (state.filterCompact) {
+      // Tout afficher : désactiver le compact ET réinitialiser le filtre
+      if (els.boardTagFilter) els.boardTagFilter.value = "";
+      state.activeTagFilters = [];
+      state.filterCompact = false;
+      refreshTagFilterChips();
+      applyBoardTagFilter();
+    } else {
+      state.filterCompact = true;
+      syncFilterCompact();
+      syncCompactToggleVisibility();
+    }
   });
   els.padColumns?.addEventListener("input", updateBoardLayout);
   els.padColumns?.addEventListener("change", updateBoardLayout);

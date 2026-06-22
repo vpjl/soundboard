@@ -234,18 +234,10 @@
                   <option value="studio">Studio Grey</option>
                 </select>
               </label>
-              <label class="board-tag-filter">
-                <span class="field-title">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
-                  </svg>
-                  <span id="boardTagFilterLabel">Sélection groupée</span>
-                </span>
-                <select id="boardTagFilter">
-                  <option value="">-</option>
-                </select>
-              </label>
+            </div>
+            <select id="boardTagFilter" hidden><option value="">-</option></select>
+            <span id="boardTagFilterLabel" class="sr-only">Sélection groupée</span>
+            <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
               <button id="bulkEditPads" class="icon-button bulk-edit-button" type="button" aria-label="Modification groupée des pads">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -254,22 +246,22 @@
                   <path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
-            </div>
-            <div id="tagFilterChipsRow" class="tag-filter-chips-row" hidden>
               <div id="tagFilterChips" class="tag-filter-chips"></div>
               <div class="tag-filter-chips-controls">
                 <button id="tagFilterLogicToggle" class="tag-filter-logic-toggle" type="button" hidden>OU</button>
-                <button id="filterCompactToggle" class="icon-button filter-compact-toggle" type="button" aria-label="Masquer les pads non sélectionnés" hidden>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                <span id="filterCompactCount" class="filter-compact-count"></span>
+                <button id="filterCompactToggle" class="icon-button filter-compact-toggle" type="button" aria-label="Masquer les pads non sélectionnés">
+                  <svg class="compact-icon-hide" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>
                     <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
+                  <svg class="compact-icon-show" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
                 </button>
               </div>
-            </div>
-            <div id="filterCompactBanner" class="filter-compact-banner" hidden>
-              <span id="filterCompactCount"></span>
-              <button id="filterCompactReset" class="filter-compact-reset" type="button">Tout afficher</button>
             </div>
           </div>
           <input id="importBoardFile" class="file-input" type="file" accept=".json,application/json,text/plain">
