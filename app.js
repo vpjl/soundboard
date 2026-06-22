@@ -8022,17 +8022,13 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   }
   if (enabled) {
     state.stageMode = true;
-    document.body.classList.add("stage-mode");
     syncBoardModeSelector();
-    updateSkinOptions();
     syncStagePending();
     const ready = await prepareBoardForStage(options);
     if (!ready) {
-      // Rollback si la préparation échoue
       state.stageMode = false;
-      document.body.classList.remove("stage-mode");
       syncBoardModeSelector();
-      updateSkinOptions();
+      syncStagePending();
       localStorage.setItem(STAGE_MODE_STORAGE, "off");
       return;
     }
