@@ -1839,7 +1839,13 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 body[data-skin="basic"] .pad.is-editing.has-visual-image .visual-preview {
-  display: none;
+  display: block;
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+
+body[data-skin="basic"] .pad.is-editing .pad-trigger {
+  min-height: 80px;
 }
 
 .pad.is-empty {
