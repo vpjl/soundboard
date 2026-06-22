@@ -3930,7 +3930,7 @@ async function renderPads(options = {}) {
   updateShortcutIndicators();
   updateRecordingUi();
   syncCueControls();
-  setStatus("Board prêt pour l’édition : interface restaurée", "success");
+  setStatus("Board prêt pour l’édition", "success");
   perf.log("complete", { padCount: state.pads.length });
   state.pads.forEach(fitPadTitle);
 }
@@ -7974,6 +7974,7 @@ async function prepareBoardForStage(options = {}) {
     return true;
   }
 
+  const failures = [];
   for (let index = 0; index < pads.length; index += 1) {
     const pad = pads[index];
     setStatus(`Préparation scène : ${index + 1} / ${total} — ${pad.title}`, "progress");
@@ -7984,9 +7985,20 @@ async function prepareBoardForStage(options = {}) {
     } catch (error) {
       console.error(error);
       pad.node?.classList.add("is-missing-audio");
-      setStatus(`Préparation scène impossible : ${pad.title}`, "danger");
-      return false;
+      failures.push(pad);
     }
+  }
+
+  if (failures.length) {
+    const failSet = new Set(failures);
+    state.pads.forEach((pad) => {
+      pad.node.classList.toggle("is-tag-match", failSet.has(pad));
+      pad.node.classList.toggle("is-tag-dimmed", !failSet.has(pad));
+    });
+    const n = failures.length;
+    const names = failures.map((p) => p.title).join(", ");
+    setStatus(`Scène impossible — audio manquant (${n} pad${n > 1 ? "s" : ""}) : ${names}`, "danger");
+    return false;
   }
 
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
