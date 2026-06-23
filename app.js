@@ -5395,7 +5395,7 @@ function buildSkinPreviewFrame() {
     + '<link rel="stylesheet" href="' + cssHref + '">'
     + '<style>html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
     + '.app{min-height:0!important}'
-    + '.skin-preview-board.pads{grid-template-columns:minmax(0,340px)!important}</style>'
+    + '.skin-preview-board.pads{grid-template-columns:minmax(0,1fr)!important}</style>'
     + '</head><body></body></html>'
   );
   doc.close();
