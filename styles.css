@@ -7814,10 +7814,6 @@ body.stage-mode #boardName:focus {
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
 }
 
-.skin-name-field {
-  grid-template-columns: 1fr;
-}
-
 .skin-editor-field span,
 .skin-name-field span {
   color: var(--muted);
