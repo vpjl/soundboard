@@ -8782,6 +8782,15 @@ details[open] > .skin-editor-advanced-summary::before {
   overflow: auto;
 }
 
+/* Preview iframe: the board/pad render with the real CSS + real mode classes */
+.skin-editor-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(720px, calc(92vh - 170px));
+  border: 0;
+  background: transparent;
+}
+
 .skin-editor-preview [data-skin-variable] {
   cursor: pointer;
 }

@@ -5095,7 +5095,7 @@ function renderSkinEditorFields() {
   // Read from body — predefined skins set their vars on body[data-skin="X"],
   // not on :root, so documentElement would only return classic defaults.
   const computed = getComputedStyle(document.body);
-  const preview = document.querySelector(".skin-editor-preview");
+  const preview = skinPreviewRoot();
 
   function renderFieldGroup(group, container) {
     const title = document.createElement("h3");
@@ -5230,15 +5230,25 @@ function handleSkinVariablePointerOut(event) {
 
 function syncSkinPreviewMode() {
   const selected = document.querySelector("[name='skinPreviewMode']:checked")?.value || "studio";
-  const shell = document.querySelector(".skin-preview-board-shell");
-  if (!shell) return;
-  if (selected === "basic") shell.setAttribute("data-skin", "basic");
-  else shell.removeAttribute("data-skin");
+  const doc = skinPreviewFrameDoc();
+  const shell = doc?.querySelector(".skin-preview-board-shell");
+  if (!doc || !shell) return;
   const isStage = selected === "stage";
   const isGarage = selected === "basic";
+
+  // Drive the iframe <body> exactly like the real app: the real CSS
+  // (body.stage-mode … / body.board-edit-mode …) then applies as-is.
+  doc.body.classList.toggle("stage-mode", isStage);
+  doc.body.classList.toggle("board-edit-mode", isGarage);
+  doc.body.dataset.boardMode = isStage ? "stage" : isGarage ? "garage" : "studio";
+  const activeSkin = isGarage ? "basic" : (document.body.dataset.skin || "classic");
+  doc.body.dataset.skin = activeSkin;
+
+  // Transitional: keep the .is-*-preview classes for the legacy preview CSS
+  // still present (removed in step 2).
   shell.classList.toggle("is-stage-preview", isStage);
   shell.classList.toggle("is-garage-preview", isGarage);
-  const pad = shell.querySelector(".skin-preview-pad");
+  const pad = shell.querySelector(".pad");
   const trigger = pad?.querySelector(".pad-trigger");
   if (pad) {
     pad.classList.toggle("is-playing", isStage);
@@ -5353,8 +5363,47 @@ function loadSkinFonts() {
   } catch {}
 }
 
+// --- Skin preview iframe ---------------------------------------------------
+// The preview lives in an iframe so the REAL board CSS applies with the real
+// mode classes (stage-mode / board-edit-mode) on its <body>, exactly like the
+// app. This avoids re-implementing the per-mode styling in the editor page.
+
+function skinPreviewFrameDoc() {
+  return document.getElementById("skinPreviewFrame")?.contentDocument || null;
+}
+
+// Element on which skin CSS variables are set (the iframe <body>, mirroring the
+// real app where the active skin's variables live on document.body).
+function skinPreviewRoot() {
+  return skinPreviewFrameDoc()?.body || null;
+}
+
+function buildSkinPreviewFrame() {
+  const frame = document.getElementById("skinPreviewFrame");
+  const tpl = document.getElementById("skinPreviewTemplate");
+  if (!frame || !tpl) return;
+  const cssHref = document.querySelector('link[rel="stylesheet"][href*="styles.css"]')?.getAttribute("href") || "styles.css";
+  const fontsHref = document.querySelector('link[href*="fonts.googleapis.com/css2"]')?.getAttribute("href") || "";
+  const doc = frame.contentDocument;
+  doc.open();
+  doc.write(
+    '<!doctype html><html><head><meta charset="utf-8">'
+    + (fontsHref ? '<link rel="stylesheet" href="' + fontsHref + '">' : '')
+    + '<link rel="stylesheet" href="' + cssHref + '">'
+    + '<style>html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
+    + '.app{min-height:0!important}</style>'
+    + '</head><body></body></html>'
+  );
+  doc.close();
+  const shell = tpl.content.firstElementChild.cloneNode(true);
+  // Drop the preview-only pad class so the REAL .pad grid/layout rules apply.
+  shell.querySelectorAll(".skin-preview-pad").forEach((el) => el.classList.remove("skin-preview-pad"));
+  doc.body.appendChild(shell);
+}
+
 function openSkinEditor() {
   state.skinEditorVariables = {};
+  buildSkinPreviewFrame();
   renderSkinEditorFields();
 
   // Sync preview mode with current board mode (stage/studio/garage)
@@ -5400,8 +5449,9 @@ function openSkinEditor() {
 }
 
 function clearSkinEditorPreviewVariables() {
+  const root = skinPreviewRoot();
   CUSTOM_SKIN_VARIABLES.forEach((name) => {
-    document.querySelector(".skin-editor-preview")?.style.removeProperty(name);
+    root?.style.removeProperty(name);
   });
 }
 
@@ -5443,7 +5493,7 @@ function saveSkinToCurrentBoard() {
 }
 
 function _snapshotEditorVariables() {
-  const preview = document.querySelector(".skin-editor-preview");
+  const preview = skinPreviewRoot();
   return {
     ...snapshotCurrentSkinVariables(preview || document.body),
     ...state.skinEditorVariables,
