@@ -2976,8 +2976,32 @@ body.board-edit-mode .pad-tags-chips {
   display: none;
 }
 
+body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
+  min-height: 38px;
+}
+
 body.board-edit-mode .pad.is-editing .tag-field {
   grid-template-columns: 1fr auto;
+  min-height: 38px;
+}
+
+/* Align sections horizontally: explicit grid rows + stretch pads to match heights */
+body.board-edit-mode .pads {
+  align-items: stretch;
+}
+
+body.board-edit-mode .pad.is-editing {
+  grid-template-rows: 56px 38px 38px auto;
+}
+
+body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
+  grid-row: 2;
+  align-self: stretch;
+}
+
+body.board-edit-mode .pad.is-editing .tag-field {
+  grid-row: 3;
+  align-self: stretch;
 }
 
 body.board-edit-mode .pad.is-editing .tag-field > span {
