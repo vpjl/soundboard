@@ -8712,6 +8712,33 @@ details[open] > .skin-editor-advanced-summary::before {
   display: grid;
 }
 
+/* Garage preview: keep the pense-bête button square on the trigger (don't turn
+   it into a full-width edit button) so the 6 action buttons stay aspect/audio/
+   déplacer | dupliquer/transférer/corbeille. */
+.skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing .pad-note-button {
+  position: absolute;
+  top: 6px;
+  right: 40px;
+  order: 0;
+  grid-column: auto;
+  justify-self: auto;
+  width: 28px;
+  height: 28px;
+}
+
+/* Garage preview: show tag chips below the title, hide the inline trigger tags */
+.skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing .skin-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  grid-column: 1 / -1;
+  order: 5;
+}
+
+.skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing .pad-label .pad-tags {
+  display: none;
+}
+
 .skin-editor-preview {
   min-height: 0;
   max-height: min(780px, calc(92vh - 120px));

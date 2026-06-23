@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=302">
+    <link rel="stylesheet" href="styles.css?v=303">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2192,14 +2192,28 @@
                         </span>
                         <button class="pad-note-button has-note" type="button" aria-label="Pense-bête" data-skin-variable="--color_pad_note_background">
                           <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_note_overlay_text">
-                            <path d="M5 19c3-6 6-10 14-14-2 8-6 11-14 14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M8 16c2-1 4-3 6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <ellipse cx="8.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <ellipse cx="15.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <path d="M10 12.5l-2 5.5M14 12.5l2 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                           </svg>
                         </button>
                         <span class="pad-time" data-skin-variable="--color_ui_text_muted">00:12</span>
                         <span class="pad-progress" data-skin-variable="--color_pad_progress_background"><span class="pad-progress-fill skin-preview-progress-fill-short" data-skin-variable="--color_pad_progress_fill"></span></span>
                         <span class="vu-meter pad-vu" data-skin-variable="--color_pad_progress_background"><span class="vu-fill skin-preview-vu-fill-low"></span></span>
                       </button>
+                    </div>
+                    <div class="name-field">
+                      <button class="drag-handle" type="button" aria-label="Déplacer" data-skin-variable="--color_pad_button_border">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text">
+                          <circle cx="9" cy="6" r="1.5" fill="currentColor"/><circle cx="15" cy="6" r="1.5" fill="currentColor"/>
+                          <circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+                          <circle cx="9" cy="18" r="1.5" fill="currentColor"/><circle cx="15" cy="18" r="1.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+                      <div class="pad-tags-chips skin-preview-chips">
+                        <span class="pad-tag-chip" data-skin-variable="--color_pad_tag_background">intro</span>
+                        <span class="pad-tag-chip" data-skin-variable="--color_pad_tag_background">jingle</span>
+                      </div>
                     </div>
                   </div>
                   <div class="pad-actions">
@@ -2248,7 +2262,7 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=302"></script>
+    <script src="app.js?v=303"></script>
 
 
   </body>
