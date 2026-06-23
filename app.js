@@ -5299,15 +5299,6 @@ function loadSkinFonts() {
 
 function openSkinEditor() {
   state.skinEditorVariables = {};
-
-  // Ensure current skin is applied to body and preview before rendering fields
-  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
-  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
-  const customSkin = currentId ? customSkinById(currentId) : null;
-  if (customSkin) {
-    applyCustomSkinVariables(customSkin);
-  }
-
   renderSkinEditorFields();
   syncSkinPreviewMode();
 
