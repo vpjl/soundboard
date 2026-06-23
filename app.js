@@ -4900,28 +4900,29 @@ function hslToHex(h, s, l) {
   return "#" + [r, g, b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
 }
 
+// Returns exactly 6 teintes: index 0 = the base color, indices 1-5 = derived.
 function getSkinHarmonyColors(baseHex, type) {
-  if (!/^#[0-9a-fA-F]{6}$/.test(baseHex)) return Array(5).fill(baseHex);
+  if (!/^#[0-9a-fA-F]{6}$/.test(baseHex)) return Array(6).fill(baseHex);
   const [h, s] = hexToHSL(baseHex);
   const sat = Math.max(s, 55);
-  const c = (hue) => hslToHex(hue, sat, 52);
+  const c = (hue, light = 52) => hslToHex(hue, sat, light);
   switch (type) {
     case "analogue":
-      return [c(h - 30), c(h - 15), c(h), c(h + 15), c(h + 30)];
+      return [baseHex, c(h - 30), c(h - 15), c(h + 15), c(h + 30), c(h + 45)];
     case "complementaire":
-      return [c(h), c(h + 30), c(h + 150), c(h + 180), c(h + 210)];
+      return [baseHex, c(h + 30), c(h + 150), c(h + 180), c(h + 210), c(h + 330)];
     case "complementaire-divise":
-      return [c(h - 30), c(h), c(h + 30), c(h + 150), c(h + 210)];
+      return [baseHex, c(h - 30), c(h + 30), c(h + 150), c(h + 180), c(h + 210)];
     case "triade":
-      return [c(h), c(h + 60), c(h + 120), c(h + 180), c(h + 240)];
+      return [baseHex, c(h + 120), c(h + 240), c(h + 60), c(h + 180), c(h + 300)];
     case "carre":
-      return [c(h), c(h + 90), c(h + 180), c(h + 270), c(h + 45)];
+      return [baseHex, c(h + 90), c(h + 180), c(h + 270), c(h + 45), c(h + 225)];
     case "nuances":
-      return [hslToHex(h, s, 20), hslToHex(h, s, 35), baseHex, hslToHex(h, s, 65), hslToHex(h, s, 82)];
+      return [baseHex, hslToHex(h, s, 18), hslToHex(h, s, 32), hslToHex(h, s, 50), hslToHex(h, s, 68), hslToHex(h, s, 84)];
     case "monochromatique":
-      return [hslToHex(h, s, 20), hslToHex(h, s * 0.7, 38), baseHex, hslToHex(h, s * 0.45, 65), hslToHex(h, s * 0.2, 82)];
+      return [baseHex, hslToHex(h, s, 18), hslToHex(h, s * 0.7, 34), hslToHex(h, s * 0.5, 52), hslToHex(h, s * 0.4, 68), hslToHex(h, s * 0.25, 84)];
     default:
-      return [c(h), c(h + 72), c(h + 144), c(h + 216), c(h + 288)];
+      return [baseHex, c(h + 60), c(h + 120), c(h + 180), c(h + 240), c(h + 300)];
   }
 }
 
@@ -4941,29 +4942,36 @@ function applySkinHarmony() {
   const baseHex = document.querySelector("#skinHarmonyColor")?.value;
   const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
   if (!baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) return;
-  const [, s, l] = hexToHSL(baseHex);
-  const swatchColors = getSkinHarmonyColors(baseHex, type);
-  const sh0 = hexToHSL(swatchColors[0])[0];
-  const sh1 = hexToHSL(swatchColors[1])[0];
-  const sh2 = hexToHSL(swatchColors[2])[0];
-  const sh3 = hexToHSL(swatchColors[3])[0];
-  const sh4 = hexToHSL(swatchColors[4])[0];
-  const sat = (ratio, min = 30) => Math.min(100, Math.max(min, s * ratio));
+
+  // The 6 teintes (base + 5) are used AS-IS to color the surfaces — that's the
+  // whole model: pick a base, derive 5 teintes, color the skin with all 6.
+  const t = getSkinHarmonyColors(baseHex, type);
+  const [bh, bs] = hexToHSL(baseHex);
+
+  // Text colors are derived for readability, tinted with the base hue.
+  const bgL = hexToHSL(t[5])[2];
+  const darkBg = bgL < 50;
+  const textHex  = darkBg ? hslToHex(bh, Math.min(bs, 15), 93) : hslToHex(bh, Math.min(bs, 25), 12);
+  const mutedHex = darkBg ? hslToHex(bh, Math.min(bs, 18), 64) : hslToHex(bh, Math.min(bs, 30), 36);
 
   state.skinEditorHarmonyBase = {
-    "--color_ui_background":                  hslToHex(sh0, sat(0.85, 35), 16),
-    "--color_ui_panel":                        hslToHex(sh0, sat(0.75, 30), 22),
-    "--color_ui_border":                       hslToHex(sh0, sat(0.80, 35), 30),
-    "--color_ui_text":                         hslToHex(sh0, sat(0.12, 5),  90),
-    "--color_ui_text_muted":                   hslToHex(sh0, sat(0.25, 10), 60),
-    "--color_pad_background":                  hslToHex(sh2, sat(0.85, 40), 26),
-    "--color_pad_trigger_background":          hslToHex(sh4, sat(0.90, 50), 34),
-    "--color_pad_trigger_playing_background":  baseHex,
-    "--color_pad_actions_background":          hslToHex(sh2, sat(0.65, 30), 19),
-    "--color_pad_border":                      hslToHex(sh2, sat(0.90, 45), 34),
-    "--color_pad_progress_fill":               hslToHex(sh4, Math.max(s, 60), Math.max(l, 50)),
-    "--color_pad_button_background":           hslToHex(sh1, sat(0.70, 35), 28),
-    "--color_pad_note_background":             hslToHex(sh3, sat(0.60, 30), 24),
+    // T5 → fond général ; T3 → panneaux ; T4 → bordures/boutons ; T2 → pads ;
+    // T1 → déclencheur ; T0 (base) → accent/lecture active + progression.
+    "--color_ui_background":                   t[5],
+    "--color_ui_panel":                        t[3],
+    "--color_ui_panel_secondary":              t[4],
+    "--color_ui_border":                       t[4],
+    "--color_ui_text":                         textHex,
+    "--color_ui_text_muted":                   mutedHex,
+    "--color_pad_background":                  t[2],
+    "--color_pad_actions_background":          t[3],
+    "--color_pad_border":                      t[4],
+    "--color_pad_button_background":           t[4],
+    "--color_pad_button_text":                 mutedHex,
+    "--color_pad_note_background":             t[2],
+    "--color_pad_trigger_background":          t[1],
+    "--color_pad_trigger_playing_background":  t[0],
+    "--color_pad_progress_fill":               t[0],
   };
   applyHarmonyAdjustments();
 }
@@ -5337,17 +5345,15 @@ function openSkinEditor() {
 
   syncSkinPreviewMode();
 
-  // Restore harmony controls (picker + swatch) without overwriting skin colors
-  if (state.skinEditorHarmonyBase) {
-    updateHarmonySwatch();
-  } else {
-    const saved = loadSkinHarmonySettings();
-    if (saved) {
-      restoreSkinHarmonyFromSettings(saved);
-    } else {
-      deriveSkinHarmonyFromCurrentSkin();
-    }
-  }
+  // Always reflect the ACTIVE skin: reset harmony state and derive the base
+  // color (and nuancier) from the skin currently in use. Non-destructive —
+  // the skin's real colors are not overwritten until the user applies harmony.
+  state.skinEditorHarmonyBase = null;
+  const satSlider = document.querySelector("#skinHarmonySaturation");
+  const lumSlider = document.querySelector("#skinHarmonyLightness");
+  if (satSlider) satSlider.value = 0;
+  if (lumSlider) lumSlider.value = 0;
+  deriveSkinHarmonyFromCurrentSkin();
 
   loadSkinFonts();
 
