@@ -5246,10 +5246,7 @@ function syncSkinPreviewMode() {
   // (Forcing basic gave the basic-only garage grid, differing from real boards.)
   doc.body.dataset.skin = document.body.dataset.skin || "classic";
 
-  // Transitional: keep the .is-*-preview classes for the legacy preview CSS
-  // still present (removed in step 2).
-  shell.classList.toggle("is-stage-preview", isStage);
-  shell.classList.toggle("is-garage-preview", isGarage);
+  // The pad reflects the mode exactly like the real board.
   const pad = shell.querySelector(".pad");
   const trigger = pad?.querySelector(".pad-trigger");
   if (pad) {
