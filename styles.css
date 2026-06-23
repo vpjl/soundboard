@@ -8680,10 +8680,38 @@ details[open] > .skin-editor-advanced-summary::before {
 }
 
 /* Stage preview mode */
-.skin-preview-board-shell.is-stage-preview .pad-actions,
+/* Stage preview: mirror the real stage pad — only 4 live buttons
+   (play, stop, pause, mute); cue, audio, manage, controls, chips hidden. */
 .skin-preview-board-shell.is-stage-preview .controls,
-.skin-preview-board-shell.is-stage-preview .skin-preview-note-text {
+.skin-preview-board-shell.is-stage-preview .skin-preview-note-text,
+.skin-preview-board-shell.is-stage-preview .skin-preview-manage-group,
+.skin-preview-board-shell.is-stage-preview .skin-preview-chips,
+.skin-preview-board-shell.is-stage-preview .pad-cue-button,
+.skin-preview-board-shell.is-stage-preview .pad-audio-button {
   display: none;
+}
+
+.skin-preview-board-shell.is-stage-preview .pad-live-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.skin-preview-board-shell.is-stage-preview .live-button-group,
+.skin-preview-board-shell.is-stage-preview .secondary-live-group {
+  display: grid;
+  gap: 5px;
+  padding: 5px;
+}
+
+.skin-preview-board-shell.is-stage-preview .live-button-group [data-mode="oneshot"] {
+  order: 1;
+}
+.skin-preview-board-shell.is-stage-preview .live-button-group .pad-stop-button {
+  order: 2;
+}
+.skin-preview-board-shell.is-stage-preview .live-button-group [data-mode="toggle"] {
+  order: 3;
 }
 
 .skin-preview-board-shell.is-stage-preview .pad-trigger {

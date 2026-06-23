@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=304">
+    <link rel="stylesheet" href="styles.css?v=305">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2219,8 +2219,8 @@
                   <div class="pad-actions">
                     <div class="pad-live-row">
                       <div class="control-group live-button-group" aria-label="Contrôles live" data-skin-variable="--color_pad_actions_background">
-                        <button type="button" aria-label="Play" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg></span></button>
-                        <button type="button" aria-label="Pause" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></span></button>
+                        <button type="button" data-mode="oneshot" aria-label="Play" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg></span></button>
+                        <button type="button" data-mode="toggle" aria-label="Pause" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></span></button>
                         <button class="danger-button pad-stop-button" type="button" aria-label="Stop" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></span></button>
                       </div>
                       <div class="control-group secondary-live-group" aria-label="Contrôles live secondaires" data-skin-variable="--color_pad_actions_background">
@@ -2261,7 +2261,7 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=304"></script>
+    <script src="app.js?v=305"></script>
 
 
   </body>
