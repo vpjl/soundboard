@@ -8685,15 +8685,16 @@ details[open] > .skin-editor-advanced-summary::before {
   min-height: 0;
   max-height: min(780px, calc(92vh - 120px));
   padding: 10px;
-  overflow: auto;
+  overflow-x: hidden; /* clip the wide desktop-width iframe to the panel */
+  overflow-y: auto;
 }
 
-/* Preview iframe: the board/pad render with the real CSS + real mode classes.
-   Height is auto-sized to the content by JS so the whole pad is visible and the
-   outer .skin-editor-preview panel scrolls if needed. */
+/* Preview iframe: rendered at a DESKTOP width so the real desktop CSS applies
+   (a narrow iframe would trigger the mobile @media rules → small buttons).
+   The pad sits on the left; the panel clips the rest (overflow-x:hidden). */
 .skin-editor-preview-frame {
   display: block;
-  width: 100%;
+  width: 1200px;
   min-height: 220px;
   border: 0;
   background: transparent;
