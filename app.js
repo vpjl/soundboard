@@ -4820,12 +4820,12 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     title: "Pads",
     fields: [
       ["--color_pad_background", "Fond pad"],
-      ["--color_pad_trigger_background", "Fond du titre"],
+      ["--color_pad_trigger_background", "Fond titre"],
       ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
-      ["--color_pad_progress_fill", "Progression"],
-      ["--color_pad_button_background", "Fond bouton pad"],
-      ["--color_pad_button_border", "Bordure bouton pad"],
+      ["--color_pad_button_background", "Boutons"],
+      ["--color_pad_button_border", "Bordure boutons"],
+      ["--color_pad_button_text", "Textes boutons"],
     ],
   },
 ];
@@ -4834,7 +4834,7 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
   {
     title: "Pads avancé",
     fields: [
-      ["--color_pad_button_text", "Texte bouton pad"],
+      ["--color_pad_progress_fill", "Progression"],
       ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_note_background", "Fond pense-bête"],
       ["--color_pad_note_overlay_text", "Texte pense-bête"],
@@ -5101,7 +5101,7 @@ function renderSkinEditorFields() {
       const inputId = `skin-color-${name.replace(/[^a-z0-9_-]/gi, "-")}`;
       row.className = "skin-editor-field";
       row.dataset.skinVariable = name;
-      row.innerHTML = `<label for="${inputId}">${label}</label><input id="${inputId}" type="color" data-skin-variable="${name}" value="${value || "#ffffff"}">`;
+      row.innerHTML = `<input id="${inputId}" type="color" data-skin-variable="${name}" value="${value || "#ffffff"}"><label for="${inputId}">${label}</label>`;
       const input = row.querySelector("input");
       if (value) {
         preview?.style.setProperty(name, value);
