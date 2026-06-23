@@ -46,7 +46,6 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_button_background",
   "--color_pad_button_border",
   "--color_pad_button_text",
-  "--color_pad_title_background",
   "--color_pad_trigger_background",
   "--color_pad_trigger_playing_background",
   "--color_pad_progress_background",
@@ -4830,7 +4829,6 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
       ["--color_pad_button_border", "Bordure bouton pad"],
       ["--color_pad_button_background", "Fond bouton pad"],
       ["--color_pad_button_text", "Texte bouton pad"],
-      ["--color_pad_title_background", "Fond titre pad"],
       ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_note_background", "Fond pense-bête"],
       ["--color_pad_note_overlay_text", "Texte pense-bête"],
@@ -4946,7 +4944,9 @@ function applySkinHarmony() {
   const [, s, l] = hexToHSL(baseHex);
   const swatchColors = getSkinHarmonyColors(baseHex, type);
   const sh0 = hexToHSL(swatchColors[0])[0];
+  const sh1 = hexToHSL(swatchColors[1])[0];
   const sh2 = hexToHSL(swatchColors[2])[0];
+  const sh3 = hexToHSL(swatchColors[3])[0];
   const sh4 = hexToHSL(swatchColors[4])[0];
   const sat = (ratio, min = 30) => Math.min(100, Math.max(min, s * ratio));
 
@@ -4962,6 +4962,8 @@ function applySkinHarmony() {
     "--color_pad_actions_background":          hslToHex(sh2, sat(0.65, 30), 19),
     "--color_pad_border":                      hslToHex(sh2, sat(0.90, 45), 34),
     "--color_pad_progress_fill":               hslToHex(sh4, Math.max(s, 60), Math.max(l, 50)),
+    "--color_pad_button_background":           hslToHex(sh1, sat(0.70, 35), 28),
+    "--color_pad_note_background":             hslToHex(sh3, sat(0.60, 30), 24),
   };
   applyHarmonyAdjustments();
 }
@@ -5056,6 +5058,15 @@ function normalizeColorInputValue(value) {
 function renderSkinEditorFields() {
   if (!els.skinEditorFields) return;
   els.skinEditorFields.innerHTML = "";
+
+  // Ensure current skin is applied to body before reading color values
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const customSkin = currentId ? customSkinById(currentId) : null;
+  if (customSkin) {
+    applyCustomSkinVariables(customSkin);
+  }
+
   const computed = getComputedStyle(document.body);
   const preview = document.querySelector(".skin-editor-preview");
 

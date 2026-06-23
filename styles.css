@@ -36,7 +36,6 @@
   --color_pad_button_background: var(--color_ui_panel_secondary);
   --color_pad_button_border: var(--color_ui_border);
   --color_pad_button_text: var(--color_ui_text_muted);
-  --color_pad_title_background: rgba(0, 0, 0, 0.18);
   --color_pad_trigger_background: linear-gradient(145deg, #252a32, #1c1f27);
   --color_pad_trigger_playing_background: linear-gradient(145deg, rgba(73, 211, 160, 0.3), #20272a);
   --color_pad_progress_background: rgba(5, 7, 11, 0.58);
@@ -2546,7 +2545,6 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   padding-left: 28px;
   padding-right: 76px;
   border-radius: 7px;
-  background: var(--color_pad_title_background);
 }
 
 .pad-title {
@@ -7926,7 +7924,6 @@ body.stage-mode #boardName:focus {
   gap: 8px;
   padding: 5px 6px;
   border-radius: 7px;
-  background: var(--color_pad_title_background);
 }
 
 .skin-preview-shortcut,
@@ -8986,7 +8983,6 @@ details[open] > .skin-editor-advanced-summary::before {
 .skin-preview-pad-head {
   padding: 7px 8px;
   border-radius: 9px;
-  background: var(--color_pad_title_background);
 }
 
 .skin-preview-title-block {
