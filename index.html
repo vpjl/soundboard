@@ -172,17 +172,16 @@
               </div>
             </div>
             <div class="board-filter-row">
-              <label class="skin-select board-skin-select">
-                <span class="field-title">
+              <div class="skin-select board-skin-select">
+                <button id="openSkinEditorButton" class="icon-button" type="button" aria-label="Éditeur de skin">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     <circle cx="8" cy="10" r="1" fill="currentColor"/>
                     <circle cx="12" cy="7" r="1" fill="currentColor"/>
                     <circle cx="16" cy="10" r="1" fill="currentColor"/>
                   </svg>
-                  Skin
-                </span>
-                <select id="skinSelect">
+                </button>
+                <select id="skinSelect" aria-label="Skin">
                   <option value="basic">Basic/Custom</option>
                   <option value="candy">Candy</option>
                   <option value="classic">Classic Dark</option>
@@ -190,7 +189,7 @@
                   <option value="neon">Neon Stage</option>
                   <option value="studio">Studio Grey</option>
                 </select>
-              </label>
+              </div>
             </div>
             <div class="board-cols-help-row">
               <div class="board-layout-controls" aria-label="Disposition des pads">
@@ -1777,22 +1776,22 @@
 
     <dialog id="cueDialog" class="cue-dialog" aria-labelledby="cueTitle">
       <div class="cue-panel">
-        <div class="help-head">
-          <div>
+        <div class="help-head cue-help-head">
+          <div class="cue-help-info">
             <h2 id="cueTitle">Cues</h2>
             <p>Suivant exécute l’étape courante. Une condition peut aussi la déclencher automatiquement.</p>
+          </div>
+          <div class="cue-legend" aria-label="Légende cues">
+            <span><i class="cue-swatch cue-play"></i>Lance</span>
+            <span><i class="cue-swatch cue-stop"></i>Stoppe</span>
+            <span><i class="cue-swatch cue-wait"></i>Pause</span>
+            <span><i class="cue-swatch cue-condition"></i>Condition</span>
           </div>
           <button id="closeCueDialog" class="icon-button dialog-close-button" type="button" aria-label="Fermer">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-        </div>
-        <div class="cue-legend" aria-label="Légende cues">
-          <span><i class="cue-swatch cue-play"></i>Lance</span>
-          <span><i class="cue-swatch cue-stop"></i>Stoppe</span>
-          <span><i class="cue-swatch cue-wait"></i>Pause</span>
-          <span><i class="cue-swatch cue-condition"></i>Condition</span>
         </div>
         <div class="cue-timeline-wrap" aria-label="Ligne de temps cues">
           <div id="cueTimeline" class="cue-timeline"></div>
@@ -1946,10 +1945,86 @@
               <input id="skinEditorName" type="text" maxlength="48" placeholder="Mon skin">
             </label>
 
+            <div class="skin-harmony-block">
+              <div class="skin-harmony-row">
+                <div class="skin-harmony-color-group">
+                  <label for="skinHarmonyColor" class="skin-harmony-label">Couleur de base</label>
+                  <div class="skin-harmony-color-wrap is-unset">
+                    <input id="skinHarmonyColor" type="color" value="#4a9eff">
+                    <span class="skin-harmony-color-hint" aria-hidden="true">?</span>
+                  </div>
+                </div>
+                <div class="skin-harmony-swatch-group">
+                  <span class="skin-harmony-swatch-label">Nuancier</span>
+                  <div id="skinHarmonySwatch" class="skin-harmony-swatch" aria-label="Teintes de l'harmonie">
+                    <span data-swatch-index="0" title="Teinte 1"></span>
+                    <span data-swatch-index="1" title="Teinte 2"></span>
+                    <span data-swatch-index="2" title="Teinte 3"></span>
+                    <span data-swatch-index="3" title="Teinte 4"></span>
+                    <span data-swatch-index="4" title="Teinte 5"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="skin-harmony-adjustments">
+                <label class="skin-harmony-adjust-label">
+                  <span>Sat.</span>
+                  <input type="range" id="skinHarmonySaturation" min="-50" max="50" value="0" step="1">
+                  <output id="skinHarmonySatOutput">0</output>
+                </label>
+                <label class="skin-harmony-adjust-label">
+                  <span>Lum.</span>
+                  <input type="range" id="skinHarmonyLightness" min="-25" max="25" value="0" step="1">
+                  <output id="skinHarmonyLightOutput">0</output>
+                </label>
+                <button id="resetHarmonyAdjust" class="icon-button" type="button" aria-label="Réinitialiser les ajustements" title="Réinitialiser">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="skin-harmony-types" role="group" aria-label="Type d'harmonie">
+                <span class="skin-harmony-legend">Type</span>
+                <label><input type="radio" name="skinHarmonyType" value="complementaire" checked> Complémentaire</label>
+                <label><input type="radio" name="skinHarmonyType" value="analogue"> Analogue</label>
+                <label><input type="radio" name="skinHarmonyType" value="complementaire-divise"> Comp. divisé</label>
+                <label><input type="radio" name="skinHarmonyType" value="triade"> Triade</label>
+                <label><input type="radio" name="skinHarmonyType" value="carre"> Carré</label>
+                <label><input type="radio" name="skinHarmonyType" value="nuances"> Nuances</label>
+                <label><input type="radio" name="skinHarmonyType" value="monochromatique"> Monochromatique</label>
+              </div>
+            </div>
+
+            <div class="skin-fonts-block">
+              <label class="skin-font-row">
+                <span class="skin-font-label">Police titres</span>
+                <select id="skinFontFamily">
+                  <option value="">Inter (défaut)</option>
+                  <option value="'Courier New', Courier, monospace">Monospace</option>
+                  <option value="Georgia, 'Times New Roman', serif">Serif</option>
+                  <option value="'Arial Black', Impact, sans-serif">Impact</option>
+                  <option value="system-ui, -apple-system, sans-serif">Système</option>
+                  <option value="'Comic Sans MS', cursive">Fantaisie</option>
+                </select>
+              </label>
+              <label class="skin-font-row">
+                <span class="skin-font-label">Taille titres</span>
+                <input type="range" id="skinFontSize" min="10" max="22" value="14" step="1">
+                <output id="skinFontSizeOutput">14px</output>
+              </label>
+            </div>
+
             <div id="skinEditorFields" class="skin-editor-fields"></div>
           </section>
 
           <section class="skin-editor-preview" aria-label="Aperçu du skin">
+            <div class="skin-preview-mode-selector" role="group" aria-label="Mode d'aperçu">
+              <span class="skin-preview-mode-legend">Mode aperçu</span>
+              <label><input type="radio" name="skinPreviewMode" value="stage"> Scène</label>
+              <label><input type="radio" name="skinPreviewMode" value="studio" checked> Studio</label>
+              <label><input type="radio" name="skinPreviewMode" value="basic"> Garage</label>
+            </div>
+
             <div class="skin-preview-board-shell app" data-skin-variable="--color_ui_background">
               <div class="board-area skin-preview-board-area" aria-label="Aperçu board">
                 <div class="board-strip" data-skin-variable="--color_ui_border" aria-label="Boards">
@@ -2131,111 +2206,6 @@
                   </div>
                   <p class="skin-preview-note-text" data-skin-variable="--color_pad_note_background"><span data-skin-variable="--color_pad_note_overlay_text">Top départ voix off</span></p>
                 </article>
-
-                <article class="pad skin-preview-pad is-video-pad" data-pad data-skin-variable="--color_pad_border">
-                  <div class="pad-head" data-skin-variable="--color_pad_background">
-                    <div class="pad-play-row">
-                      <span class="pad-shortcut is-number" data-skin-variable="--color_pad_button_background">2</span>
-                      <span class="pad-type" data-skin-variable="--color_ui_text_muted" aria-label="Vidéo" title="Vidéo">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                          <path d="m16 10 4-2v8l-4-2V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                        </svg>
-                      </span>
-                      <button class="pad-trigger skin-preview-trigger-playing" type="button" data-skin-variable="--color_pad_trigger_playing_background" aria-disabled="true">
-                        <span class="pad-label" data-skin-variable="--color_pad_title_background">
-                          <span class="pad-title" data-skin-variable="--color_ui_text">Vidéo plateau</span>
-                          <span class="pad-tags" data-skin-variable="--color_pad_tag_background">loop</span>
-                        </span>
-                        <button class="pad-note-button" type="button" aria-label="Pense-bête" data-skin-variable="--color_pad_note_background">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_note_overlay_text">
-                            <path d="M5 19c3-6 6-10 14-14-2 8-6 11-14 14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M8 16c2-1 4-3 6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span class="pad-time" data-skin-variable="--color_ui_text_muted">-00:28</span>
-                        <span class="pad-progress" data-skin-variable="--color_pad_progress_background"><span class="pad-progress-fill skin-preview-progress-fill-wide" data-skin-variable="--color_pad_progress_fill"></span></span>
-                        <span class="vu-meter pad-vu" data-skin-variable="--color_pad_progress_background"><span class="vu-fill skin-preview-vu-fill-high"></span></span>
-                        <span class="pad-alerts"><span class="pad-alert pad-alert-loop">Loop</span></span>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="pad-actions">
-                    <div class="pad-live-row">
-                      <div class="control-group live-button-group" aria-label="Contrôles live" data-skin-variable="--color_pad_actions_background">
-                        <button type="button" aria-label="Play" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg></span></button>
-                        <button type="button" aria-label="Pause" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></span></button>
-                        <button class="danger-button pad-stop-button" type="button" aria-label="Stop" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></span></button>
-                      </div>
-                      <div class="control-group secondary-live-group" aria-label="Contrôles live secondaires" data-skin-variable="--color_pad_actions_background">
-                        <button class="pad-cue-button" type="button" aria-label="Cue" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M5 10v4h4l5 4V6l-5 4H5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                        <button class="pad-audio-button" type="button" aria-label="Réglages audio" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="11" cy="17" r="2" fill="currentColor"/></svg></span></button>
-                        <button class="pad-mute-button is-active" type="button" aria-label="Mute" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m18 9 4 6M22 9l-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                      </div>
-                      <div class="control-group manage-group skin-preview-manage-group" aria-label="Actions pad" data-skin-variable="--color_pad_actions_background">
-                        <button class="record-button" type="button" aria-label="Enregistrer" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                        <button class="loop-button is-active" type="button" aria-label="Loop" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M17 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="controls">
-                    <label data-skin-variable="--color_ui_text_muted"><span>Volume <output>88%</output></span><input type="range" min="0" max="1" step="0.01" value="0.88"></label>
-                    <label data-skin-variable="--color_ui_text_muted"><span>Pan <output>-18</output></span><input type="range" min="-1" max="1" step="0.01" value="-0.18"></label>
-                  </div>
-                  <p class="skin-preview-note-text" data-skin-variable="--color_pad_note_background"><span data-skin-variable="--color_pad_note_overlay_text">Baisser avant transition</span></p>
-                </article>
-
-                <article class="pad skin-preview-pad is-text-pad has-note" data-pad data-skin-variable="--color_pad_border">
-                  <div class="pad-head" data-skin-variable="--color_pad_background">
-                    <div class="pad-play-row">
-                      <span class="pad-shortcut is-number" data-skin-variable="--color_pad_button_background">3</span>
-                      <span class="pad-type" data-skin-variable="--color_ui_text_muted" aria-label="Texte" title="Texte">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M5 19c3-6 6-10 14-14-2 8-6 11-14 14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                          <path d="M8 16c2-1 4-3 6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                      </span>
-                      <button class="pad-trigger" type="button" data-skin-variable="--color_pad_trigger_background" aria-disabled="true">
-                        <span class="pad-label" data-skin-variable="--color_pad_title_background">
-                          <span class="pad-title" data-skin-variable="--color_ui_text">Annonce texte</span>
-                          <span class="pad-tags" data-skin-variable="--color_pad_tag_background">voix</span>
-                        </span>
-                        <button class="pad-note-button has-note" type="button" aria-label="Pense-bête" data-skin-variable="--color_pad_note_background">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_note_overlay_text">
-                            <path d="M5 19c3-6 6-10 14-14-2 8-6 11-14 14Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M8 16c2-1 4-3 6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span class="pad-time" data-skin-variable="--color_ui_text_muted">00:07</span>
-                        <span class="pad-progress" data-skin-variable="--color_pad_progress_background"><span class="pad-progress-fill skin-preview-progress-fill-mid" data-skin-variable="--color_pad_progress_fill"></span></span>
-                        <span class="vu-meter pad-vu" data-skin-variable="--color_pad_progress_background"><span class="vu-fill skin-preview-vu-fill-mid"></span></span>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="pad-actions">
-                    <div class="pad-live-row">
-                      <div class="control-group live-button-group" aria-label="Contrôles live" data-skin-variable="--color_pad_actions_background">
-                        <button type="button" aria-label="Play" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg></span></button>
-                        <button type="button" aria-label="Pause" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></span></button>
-                        <button class="danger-button pad-stop-button" type="button" aria-label="Stop" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></span></button>
-                      </div>
-                      <div class="control-group secondary-live-group" aria-label="Contrôles live secondaires" data-skin-variable="--color_pad_actions_background">
-                        <button class="pad-cue-button is-active" type="button" aria-label="Cue" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M5 10v4h4l5 4V6l-5 4H5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                        <button class="pad-audio-button" type="button" aria-label="Réglages audio" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="11" cy="17" r="2" fill="currentColor"/></svg></span></button>
-                        <button class="pad-mute-button" type="button" aria-label="Mute" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m18 9 4 6M22 9l-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                      </div>
-                      <div class="control-group manage-group skin-preview-manage-group" aria-label="Actions pad" data-skin-variable="--color_pad_actions_background">
-                        <button class="record-button" type="button" aria-label="Enregistrer" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                        <button class="loop-button" type="button" aria-label="Loop" data-skin-variable="--color_pad_button_border"><span data-skin-variable="--color_pad_button_background"><svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_pad_button_text"><path d="M17 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="controls">
-                    <label data-skin-variable="--color_ui_text_muted"><span>Volume <output>64%</output></span><input type="range" min="0" max="1" step="0.01" value="0.64"></label>
-                    <label data-skin-variable="--color_ui_text_muted"><span>Pan <output>22</output></span><input type="range" min="-1" max="1" step="0.01" value="0.22"></label>
-                  </div>
-                  <p class="skin-preview-note-text" data-skin-variable="--color_pad_note_background"><span data-skin-variable="--color_pad_note_overlay_text">Entrer après noir plateau</span></p>
-                </article>
               </div>
 
               <div class="skin-preview-messages">
@@ -2252,7 +2222,7 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=267"></script>
+    <script src="app.js?v=284"></script>
 
 
   </body>

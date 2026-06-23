@@ -59,6 +59,8 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_tag_background",
   "--color_pad_missing_background",
 ];
+const SKIN_HARMONY_STORAGE = "soundboard-skin-harmony";
+const SKIN_FONTS_STORAGE = "soundboard-skin-fonts";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const BOARD_EDIT_MODE_STORAGE = "soundboard-live-board-edit-mode";
 const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
@@ -227,6 +229,7 @@ const els = {
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
   skinSelect: document.querySelector("#skinSelect"),
+  openSkinEditorButton: document.querySelector("#openSkinEditorButton"),
 
   skinEditorDialog: document.querySelector("#skinEditorDialog"),
   skinEditorFields: document.querySelector("#skinEditorFields"),
@@ -4700,13 +4703,6 @@ function updateSkinOptions() {
   group.label = "Skins utilisateur";
   els.skinSelect.append(group);
 
-  const newOption = document.createElement("option");
-  newOption.value = "__edit_current_skin__";
-  newOption.textContent = "Éditeur de skin…";
-  newOption.dataset.customSkin = "true";
-  newOption.disabled = Boolean(state.stageMode);
-  group.append(newOption);
-
   customSkins
     .slice()
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "fr", { sensitivity: "base" }))
@@ -4792,14 +4788,13 @@ function saveCurrentSkinAsCustom() {
   setStatus(`Skin utilisateur enregistré: ${cleanName}`, "success");
 }
 
-const CUSTOM_SKIN_FIELD_GROUPS = [
+const ESSENTIAL_SKIN_FIELD_GROUPS = [
   {
-    title: "Board",
+    title: "Interface",
     fields: [
-      ["--color_ui_border", "Bordures"],
       ["--color_ui_background", "Fond général"],
       ["--color_ui_panel", "Fond blocs"],
-      ["--color_ui_panel_secondary", "Fond boutons"],
+      ["--color_ui_border", "Bordures"],
       ["--color_ui_text", "Texte"],
       ["--color_ui_text_muted", "Texte secondaire"],
     ],
@@ -4807,20 +4802,34 @@ const CUSTOM_SKIN_FIELD_GROUPS = [
   {
     title: "Pads",
     fields: [
-      ["--color_pad_button_border", "Bordure bouton pad"],
-      ["--color_pad_border", "Bordure pad"],
-      ["--color_pad_actions_background", "Fond zone boutons pad"],
-      ["--color_pad_button_background", "Fond bouton pad"],
       ["--color_pad_background", "Fond pad"],
-      ["--color_pad_trigger_background", "Fond déclencheur pad"],
-      ["--color_pad_trigger_playing_background", "Fond pad en lecture"],
-      ["--color_pad_note_background", "Fond pense-bête"],
-      ["--color_pad_progress_background", "Fond progression"],
-      ["--color_pad_tag_background", "Fond tag"],
-      ["--color_pad_title_background", "Fond titre pad"],
+      ["--color_pad_trigger_background", "Déclencheur"],
+      ["--color_pad_trigger_playing_background", "Lecture active"],
+      ["--color_pad_actions_background", "Fond boutons"],
+      ["--color_pad_border", "Bordure pad"],
       ["--color_pad_progress_fill", "Progression"],
+    ],
+  },
+];
+
+const ADVANCED_SKIN_FIELD_GROUPS = [
+  {
+    title: "UI avancé",
+    fields: [
+      ["--color_ui_panel_secondary", "Fond boutons UI"],
+    ],
+  },
+  {
+    title: "Pads avancé",
+    fields: [
+      ["--color_pad_button_border", "Bordure bouton pad"],
+      ["--color_pad_button_background", "Fond bouton pad"],
       ["--color_pad_button_text", "Texte bouton pad"],
+      ["--color_pad_title_background", "Fond titre pad"],
+      ["--color_pad_tag_background", "Fond tag"],
+      ["--color_pad_note_background", "Fond pense-bête"],
       ["--color_pad_note_overlay_text", "Texte pense-bête"],
+      ["--color_pad_progress_background", "Fond progression"],
     ],
   },
   {
@@ -4836,12 +4845,185 @@ const CUSTOM_SKIN_FIELD_GROUPS = [
   {
     title: "Aide",
     fields: [
-      ["--color_ui_help_border", "Bordure aide"],
       ["--color_ui_help_background", "Fond aide"],
+      ["--color_ui_help_border", "Bordure aide"],
       ["--color_ui_help", "Texte aide"],
     ],
   },
 ];
+
+function hexToHSL(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  s = Math.max(0, Math.min(100, s));
+  l = Math.max(0, Math.min(100, l));
+  const hn = h / 360, sn = s / 100, ln = l / 100;
+  let r, g, b;
+  if (sn === 0) {
+    r = g = b = ln;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = ln < 0.5 ? ln * (1 + sn) : ln + sn - ln * sn;
+    const p = 2 * ln - q;
+    r = hue2rgb(p, q, hn + 1 / 3);
+    g = hue2rgb(p, q, hn);
+    b = hue2rgb(p, q, hn - 1 / 3);
+  }
+  return "#" + [r, g, b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
+}
+
+function getSkinHarmonyColors(baseHex, type) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(baseHex)) return Array(5).fill(baseHex);
+  const [h, s] = hexToHSL(baseHex);
+  const sat = Math.max(s, 55);
+  const c = (hue) => hslToHex(hue, sat, 52);
+  switch (type) {
+    case "analogue":
+      return [c(h - 30), c(h - 15), c(h), c(h + 15), c(h + 30)];
+    case "complementaire":
+      return [c(h), c(h + 30), c(h + 150), c(h + 180), c(h + 210)];
+    case "complementaire-divise":
+      return [c(h - 30), c(h), c(h + 30), c(h + 150), c(h + 210)];
+    case "triade":
+      return [c(h), c(h + 60), c(h + 120), c(h + 180), c(h + 240)];
+    case "carre":
+      return [c(h), c(h + 90), c(h + 180), c(h + 270), c(h + 45)];
+    case "nuances":
+      return [hslToHex(h, s, 20), hslToHex(h, s, 35), baseHex, hslToHex(h, s, 65), hslToHex(h, s, 82)];
+    case "monochromatique":
+      return [hslToHex(h, s, 20), hslToHex(h, s * 0.7, 38), baseHex, hslToHex(h, s * 0.45, 65), hslToHex(h, s * 0.2, 82)];
+    default:
+      return [c(h), c(h + 72), c(h + 144), c(h + 216), c(h + 288)];
+  }
+}
+
+function updateHarmonySwatch() {
+  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
+  if (!baseHex) return;
+  const colors = getSkinHarmonyColors(baseHex, type);
+  const spans = document.querySelectorAll("#skinHarmonySwatch span");
+  spans.forEach((span, i) => {
+    span.style.background = colors[i] || "";
+    span.title = colors[i] || "";
+  });
+}
+
+function applySkinHarmony() {
+  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
+  if (!baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) return;
+  const [, s, l] = hexToHSL(baseHex);
+  const swatchColors = getSkinHarmonyColors(baseHex, type);
+  const sh0 = hexToHSL(swatchColors[0])[0];
+  const sh2 = hexToHSL(swatchColors[2])[0];
+  const sh4 = hexToHSL(swatchColors[4])[0];
+  const sat = (ratio, min = 30) => Math.min(100, Math.max(min, s * ratio));
+
+  state.skinEditorHarmonyBase = {
+    "--color_ui_background":                  hslToHex(sh0, sat(0.85, 35), 16),
+    "--color_ui_panel":                        hslToHex(sh0, sat(0.75, 30), 22),
+    "--color_ui_border":                       hslToHex(sh0, sat(0.80, 35), 30),
+    "--color_ui_text":                         hslToHex(sh0, sat(0.12, 5),  90),
+    "--color_ui_text_muted":                   hslToHex(sh0, sat(0.25, 10), 60),
+    "--color_pad_background":                  hslToHex(sh2, sat(0.85, 40), 26),
+    "--color_pad_trigger_background":          hslToHex(sh4, sat(0.90, 50), 34),
+    "--color_pad_trigger_playing_background":  baseHex,
+    "--color_pad_actions_background":          hslToHex(sh2, sat(0.65, 30), 19),
+    "--color_pad_border":                      hslToHex(sh2, sat(0.90, 45), 34),
+    "--color_pad_progress_fill":               hslToHex(sh4, Math.max(s, 60), Math.max(l, 50)),
+  };
+  applyHarmonyAdjustments();
+}
+
+function applyHarmonyAdjustments() {
+  const base = state.skinEditorHarmonyBase;
+  if (!base) return;
+  const satDelta  = parseInt(document.querySelector("#skinHarmonySaturation")?.value  ?? 0);
+  const lightDelta = parseInt(document.querySelector("#skinHarmonyLightness")?.value ?? 0);
+  document.getElementById("skinHarmonySatOutput")  && (document.getElementById("skinHarmonySatOutput").value  = (satDelta  >= 0 ? "+" : "") + satDelta);
+  document.getElementById("skinHarmonyLightOutput") && (document.getElementById("skinHarmonyLightOutput").value = (lightDelta >= 0 ? "+" : "") + lightDelta);
+  const preview = document.querySelector(".skin-editor-preview");
+  Object.entries(base).forEach(([name, baseHex]) => {
+    const [h, s, l] = hexToHSL(baseHex);
+    const adjusted = hslToHex(h, Math.max(0, Math.min(100, s + satDelta)), Math.max(0, Math.min(100, l + lightDelta)));
+    state.skinEditorVariables[name] = adjusted;
+    preview?.style.setProperty(name, adjusted);
+    const input = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(name)}"]`);
+    if (input) input.value = adjusted;
+  });
+}
+
+function applySwatchHighlight(index) {
+  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
+  const colors = getSkinHarmonyColors(baseHex, type);
+  const swatchColor = colors[index];
+  if (!swatchColor) return;
+  const targetHue = hexToHSL(swatchColor)[0];
+  document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => {
+    const applied = state.skinEditorVariables[el.dataset.skinVariable];
+    if (!/^#[0-9a-fA-F]{6}$/.test(applied)) { el.classList.remove("skin-hue-match"); return; }
+    const [elHue] = hexToHSL(applied);
+    const diff = Math.min(Math.abs(elHue - targetHue), 360 - Math.abs(elHue - targetHue));
+    el.classList.toggle("skin-hue-match", diff <= 35);
+  });
+}
+
+function clearSwatchHighlight() {
+  const active = document.querySelector("#skinHarmonySwatch span.is-active");
+  if (active) {
+    applySwatchHighlight(parseInt(active.dataset.swatchIndex ?? 0));
+  } else {
+    document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
+  }
+}
+
+function handleSwatchClick(e) {
+  const span = e.target.closest("#skinHarmonySwatch span");
+  if (!span) return;
+  const index = parseInt(span.dataset.swatchIndex ?? 0);
+  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
+  const colors = getSkinHarmonyColors(baseHex, type);
+  const swatchColor = colors[index];
+  if (!swatchColor) return;
+
+  const colorInput = document.querySelector("#skinHarmonyColor");
+  if (colorInput) {
+    colorInput.value = swatchColor;
+    colorInput.click();
+    updateHarmonySwatch();
+  }
+
+  document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
+  applySwatchHighlight(index);
+}
 
 function normalizeColorInputValue(value) {
   const text = String(value || "").trim();
@@ -4862,12 +5044,13 @@ function renderSkinEditorFields() {
   if (!els.skinEditorFields) return;
   els.skinEditorFields.innerHTML = "";
   const computed = getComputedStyle(document.body);
+  const preview = document.querySelector(".skin-editor-preview");
 
-  CUSTOM_SKIN_FIELD_GROUPS.forEach((group) => {
+  function renderFieldGroup(group, container) {
     const title = document.createElement("h3");
     title.className = "skin-editor-group-title";
     title.textContent = group.title;
-    els.skinEditorFields.append(title);
+    container.append(title);
 
     group.fields.forEach(([name, label]) => {
       const value = normalizeColorInputValue(computed.getPropertyValue(name));
@@ -4875,12 +5058,8 @@ function renderSkinEditorFields() {
       const inputId = `skin-color-${name.replace(/[^a-z0-9_-]/gi, "-")}`;
       row.className = "skin-editor-field";
       row.dataset.skinVariable = name;
-      row.innerHTML = `
-        <label for="${inputId}">${label}</label>
-        <input id="${inputId}" type="color" data-skin-variable="${name}" value="${value || "#ffffff"}">
-      `;
+      row.innerHTML = `<label for="${inputId}">${label}</label><input id="${inputId}" type="color" data-skin-variable="${name}" value="${value || "#ffffff"}">`;
       const input = row.querySelector("input");
-      const preview = document.querySelector(".skin-editor-preview");
       if (value) {
         preview?.style.setProperty(name, value);
         state.skinEditorVariables[name] = value;
@@ -4889,9 +5068,45 @@ function renderSkinEditorFields() {
         state.skinEditorVariables[name] = input.value;
         preview?.style.setProperty(name, input.value);
       });
-      els.skinEditorFields.append(row);
+      container.append(row);
+    });
+  }
+
+  ESSENTIAL_SKIN_FIELD_GROUPS.forEach((group) => renderFieldGroup(group, els.skinEditorFields));
+
+  // Snapshot advanced variable values onto preview so elements keep their colors when section is collapsed
+  const advancedVarNames = new Set();
+  ADVANCED_SKIN_FIELD_GROUPS.forEach((group) => {
+    group.fields.forEach(([name]) => {
+      advancedVarNames.add(name);
+      const value = normalizeColorInputValue(computed.getPropertyValue(name));
+      if (value) {
+        preview?.style.setProperty(name, value);
+        state.skinEditorVariables[name] = value;
+      }
     });
   });
+  state.skinEditorAdvancedVars = advancedVarNames;
+
+  const details = document.createElement("details");
+  details.className = "skin-editor-advanced-section";
+  if (state.skinEditorAdvancedOpen) details.open = true;
+
+  const summary = document.createElement("summary");
+  summary.className = "skin-editor-group-title skin-editor-advanced-summary";
+  summary.textContent = "Avancé";
+  details.append(summary);
+
+  const advancedFields = document.createElement("div");
+  advancedFields.className = "skin-editor-advanced-fields";
+  ADVANCED_SKIN_FIELD_GROUPS.forEach((group) => renderFieldGroup(group, advancedFields));
+  details.append(advancedFields);
+
+  details.addEventListener("toggle", () => {
+    state.skinEditorAdvancedOpen = details.open;
+  });
+
+  els.skinEditorFields.append(details);
 }
 
 function skinVariableSelector(variable) {
@@ -4929,6 +5144,9 @@ function handleSkinPreviewVariableClick(event) {
   const variable = previewTarget.dataset.skinVariable;
   if (!variable) return;
 
+  const advancedSection = els.skinEditorFields.querySelector(".skin-editor-advanced-section");
+  if (state.skinEditorAdvancedVars?.has(variable) && advancedSection && !advancedSection.open) return;
+
   const input = els.skinEditorFields.querySelector(`input[type="color"][data-skin-variable="${CSS.escape(variable)}"]`);
   if (!input) return;
 
@@ -4946,7 +5164,10 @@ function handleSkinVariablePointerOver(event) {
   if (!target) return;
 
   if (target.closest(".skin-editor-preview") || target.closest("#skinEditorFields")) {
-    highlightSkinEditorVariable(target.dataset.skinVariable);
+    const variable = target.dataset.skinVariable;
+    const advancedSection = els.skinEditorFields?.querySelector(".skin-editor-advanced-section");
+    if (state.skinEditorAdvancedVars?.has(variable) && advancedSection && !advancedSection.open) return;
+    highlightSkinEditorVariable(variable);
   }
 }
 
@@ -4956,9 +5177,133 @@ function handleSkinVariablePointerOut(event) {
   clearSkinEditorVariableHighlight();
 }
 
+function syncSkinPreviewMode() {
+  const selected = document.querySelector("[name='skinPreviewMode']:checked")?.value || "studio";
+  const shell = document.querySelector(".skin-preview-board-shell");
+  if (!shell) return;
+  if (selected === "basic") shell.setAttribute("data-skin", "basic");
+  else shell.removeAttribute("data-skin");
+  const isStage = selected === "stage";
+  const isGarage = selected === "basic";
+  shell.classList.toggle("is-stage-preview", isStage);
+  shell.classList.toggle("is-garage-preview", isGarage);
+  const pad = shell.querySelector(".skin-preview-pad");
+  const trigger = pad?.querySelector(".pad-trigger");
+  if (pad) {
+    pad.classList.toggle("is-playing", isStage);
+    pad.classList.toggle("is-editing", isGarage);
+  }
+  if (trigger) trigger.dataset.skinVariable = isStage ? "--color_pad_trigger_playing_background" : "--color_pad_trigger_background";
+}
+
+function saveSkinHarmonySettings() {
+  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
+  const isUnset = document.querySelector(".skin-harmony-color-wrap")?.classList.contains("is-unset");
+  if (isUnset || !baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) {
+    localStorage.removeItem(SKIN_HARMONY_STORAGE);
+    return;
+  }
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
+  const satDelta = parseInt(document.querySelector("#skinHarmonySaturation")?.value ?? 0);
+  const lightDelta = parseInt(document.querySelector("#skinHarmonyLightness")?.value ?? 0);
+  localStorage.setItem(SKIN_HARMONY_STORAGE, JSON.stringify({ baseHex, type, satDelta, lightDelta }));
+}
+
+function loadSkinHarmonySettings() {
+  try {
+    const raw = localStorage.getItem(SKIN_HARMONY_STORAGE);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function deriveSkinHarmonyFromCurrentSkin() {
+  const computed = getComputedStyle(document.body);
+  const candidates = [
+    "--color_pad_trigger_background",
+    "--color_pad_progress_fill",
+    "--color_ui_border",
+    "--color_ui_panel",
+  ];
+  let baseHex = "";
+  for (const v of candidates) {
+    baseHex = normalizeColorInputValue(computed.getPropertyValue(v));
+    if (baseHex) break;
+  }
+  if (!baseHex) return;
+  const colorInput = document.querySelector("#skinHarmonyColor");
+  const colorWrap = document.querySelector(".skin-harmony-color-wrap");
+  if (colorInput) colorInput.value = baseHex;
+  if (colorWrap) colorWrap.classList.remove("is-unset");
+  applySkinHarmony();
+  applyHarmonyAdjustments();
+  updateHarmonySwatch();
+}
+
+function restoreSkinHarmonyFromSettings(settings) {
+  const colorInput = document.querySelector("#skinHarmonyColor");
+  const colorWrap = document.querySelector(".skin-harmony-color-wrap");
+  if (colorInput) colorInput.value = settings.baseHex;
+  if (colorWrap) colorWrap.classList.remove("is-unset");
+  const typeRadio = document.querySelector(`[name='skinHarmonyType'][value='${settings.type}']`);
+  if (typeRadio) typeRadio.checked = true;
+  const sat = document.querySelector("#skinHarmonySaturation");
+  const lum = document.querySelector("#skinHarmonyLightness");
+  if (sat) sat.value = settings.satDelta ?? 0;
+  if (lum) lum.value = settings.lightDelta ?? 0;
+  applySkinHarmony();
+  applyHarmonyAdjustments();
+  updateHarmonySwatch();
+}
+
+function applySkinFonts() {
+  const family = document.querySelector("#skinFontFamily")?.value || "";
+  const size = document.querySelector("#skinFontSize")?.value || "14";
+  const output = document.getElementById("skinFontSizeOutput");
+  if (output) output.value = size + "px";
+  const preview = document.querySelector(".skin-editor-preview");
+  if (preview) {
+    if (family) preview.style.setProperty("--skin_font_family", family);
+    else preview.style.removeProperty("--skin_font_family");
+    preview.style.setProperty("--skin_font_size_title", size + "px");
+  }
+  localStorage.setItem(SKIN_FONTS_STORAGE, JSON.stringify({ family, size }));
+}
+
+function loadSkinFonts() {
+  try {
+    const raw = localStorage.getItem(SKIN_FONTS_STORAGE);
+    const settings = raw ? JSON.parse(raw) : null;
+    if (!settings) return;
+    const familySelect = document.querySelector("#skinFontFamily");
+    const sizeRange = document.querySelector("#skinFontSize");
+    if (familySelect && settings.family !== undefined) familySelect.value = settings.family;
+    if (sizeRange && settings.size !== undefined) sizeRange.value = settings.size;
+    applySkinFonts();
+  } catch {}
+}
+
 function openSkinEditor() {
   state.skinEditorVariables = {};
   renderSkinEditorFields();
+  syncSkinPreviewMode();
+
+  if (state.skinEditorHarmonyBase) {
+    // already in memory (reopened in same session)
+    updateHarmonySwatch();
+    applyHarmonyAdjustments();
+  } else {
+    // first open or after page reload — restore from localStorage, or derive from current skin
+    const saved = loadSkinHarmonySettings();
+    if (saved) {
+      restoreSkinHarmonyFromSettings(saved);
+    } else {
+      deriveSkinHarmonyFromCurrentSkin();
+    }
+  }
+
+  loadSkinFonts();
+
+  document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
 
   const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
   const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
@@ -4999,11 +5344,6 @@ function closeSkinEditor() {
 
 function handleSkinSelectChange() {
   const value = String(els.skinSelect?.value || "classic");
-  if (value === "__edit_current_skin__") {
-    applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
-    openSkinEditor();
-    return;
-  }
   applySkin(value);
 }
 
@@ -12101,7 +12441,40 @@ async function init() {
   });
   els.skinSelect?.addEventListener("input", handleSkinSelectChange);
   els.skinSelect?.addEventListener("change", handleSkinSelectChange);
+  els.openSkinEditorButton?.addEventListener("click", openSkinEditor);
   els.closeSkinEditor?.addEventListener("click", closeSkinEditor);
+  document.querySelector("#applySkinHarmony")?.addEventListener("click", applySkinHarmony);
+  document.querySelector("#skinHarmonyColor")?.addEventListener("input", () => {
+    document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
+    document.querySelectorAll("#skinHarmonySwatch span").forEach(s => s.classList.remove("is-active"));
+    document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
+    updateHarmonySwatch();
+    applySkinHarmony();
+    saveSkinHarmonySettings();
+  });
+  document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
+    updateHarmonySwatch();
+    if (state.skinEditorHarmonyBase) applySkinHarmony();
+    saveSkinHarmonySettings();
+  });
+  document.querySelector("#skinHarmonySwatch")?.addEventListener("click", handleSwatchClick);
+  document.querySelector("#skinHarmonySwatch")?.addEventListener("mouseover", e => {
+    const span = e.target.closest("#skinHarmonySwatch span");
+    if (span) applySwatchHighlight(parseInt(span.dataset.swatchIndex ?? 0));
+  });
+  document.querySelector("#skinHarmonySwatch")?.addEventListener("mouseleave", clearSwatchHighlight);
+  document.querySelector("#skinHarmonySaturation")?.addEventListener("input", () => { applyHarmonyAdjustments(); saveSkinHarmonySettings(); });
+  document.querySelector("#skinHarmonyLightness")?.addEventListener("input", () => { applyHarmonyAdjustments(); saveSkinHarmonySettings(); });
+  document.querySelector("#resetHarmonyAdjust")?.addEventListener("click", () => {
+    const sat = document.querySelector("#skinHarmonySaturation");
+    const lum = document.querySelector("#skinHarmonyLightness");
+    if (sat) sat.value = 0;
+    if (lum) lum.value = 0;
+    applyHarmonyAdjustments();
+    saveSkinHarmonySettings();
+  });
+  document.querySelector("#skinFontFamily")?.addEventListener("change", applySkinFonts);
+  document.querySelector("#skinFontSize")?.addEventListener("input", applySkinFonts);
   els.cancelSkinEditor?.addEventListener("click", closeSkinEditor);
 
   els.saveSkinEditor?.addEventListener("click", saveSkinEditorCurrent);
@@ -12110,6 +12483,9 @@ async function init() {
   document.querySelector(".skin-editor-preview")?.addEventListener("click", handleSkinPreviewVariableClick);
   document.querySelector(".skin-editor-preview")?.addEventListener("mouseover", handleSkinVariablePointerOver);
   document.querySelector(".skin-editor-preview")?.addEventListener("mouseout", handleSkinVariablePointerOut);
+  document.querySelector(".skin-editor-preview")?.addEventListener("change", (e) => {
+    if (e.target.matches("[name='skinPreviewMode']")) syncSkinPreviewMode();
+  });
   els.skinEditorFields?.addEventListener("mouseover", handleSkinVariablePointerOver);
   els.skinEditorFields?.addEventListener("mouseout", handleSkinVariablePointerOut);
   els.skinEditorFields?.addEventListener("focusin", handleSkinVariablePointerOver);
