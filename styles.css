@@ -2848,6 +2848,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   align-items: center;
 }
 
+/* Show playing state in preview for editing */
+.skin-editor-preview .pad-trigger {
+  background: var(--color_pad_trigger_playing_background, var(--color_pad_trigger_background)) !important;
+}
+
 .pad.is-editing .pad-label {
   grid-template-columns: minmax(0, 1fr) !important;
   width: 100%;
@@ -3030,6 +3035,11 @@ body.board-edit-mode .pad.is-editing .tags-add-btn {
 body.board-edit-mode .pad.is-editing .tags-add-btn:hover {
   color: var(--text);
   border-color: var(--color_ui_border);
+}
+
+/* Garage: hide tags from trigger display, show only in chips below */
+body.board-edit-mode .pad.is-editing .pad-tags {
+  display: none;
 }
 
 body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
@@ -7798,14 +7808,18 @@ body.stage-mode #boardName:focus {
 .skin-editor-field,
 .skin-name-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
   min-height: 48px;
+}
+
+.skin-name-field > span {
+  white-space: nowrap;
 }
 
 .skin-editor-field span,

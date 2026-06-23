@@ -5021,12 +5021,13 @@ function handleSwatchClick(e) {
   const swatchColor = colors[index];
   if (!swatchColor) return;
 
-  // Update picker value without triggering events (just for display)
+  // Change color picker to this swatch color and trigger color update
   const colorInput = document.querySelector("#skinHarmonyColor");
   if (colorInput) {
     colorInput.value = swatchColor;
+    // Trigger change event to apply harmony
+    colorInput.dispatchEvent(new Event("change", { bubbles: true }));
   }
-  updateHarmonySwatch();
 
   document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
   applySwatchHighlight(index);
@@ -5067,7 +5068,8 @@ function renderSkinEditorFields() {
     applyCustomSkinVariables(customSkin);
   }
 
-  const computed = getComputedStyle(document.body);
+  // Read from documentElement (root) for more reliable CSS variable access
+  const computed = getComputedStyle(document.documentElement);
   const preview = document.querySelector(".skin-editor-preview");
 
   function renderFieldGroup(group, container) {
