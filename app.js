@@ -4808,7 +4808,6 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     fields: [
       ["--color_pad_background", "Fond pad"],
       ["--color_pad_trigger_background", "Déclencheur"],
-      ["--color_pad_trigger_playing_background", "Lecture active"],
       ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
       ["--color_pad_progress_fill", "Progression"],
@@ -5105,18 +5104,6 @@ function renderSkinEditorFields() {
         state.skinEditorVariables[name] = input.value;
         preview?.style.setProperty(name, input.value);
       });
-      // "Lecture active": temporarily show the playing state so the change is visible
-      if (name === "--color_pad_trigger_playing_background") {
-        const previewPad = preview?.querySelector(".skin-preview-pad");
-        const showPlaying = () => previewPad?.classList.add("is-playing");
-        const hidePlaying = () => {
-          const isStage = document.querySelector("[name='skinPreviewMode']:checked")?.value === "stage";
-          if (!isStage) previewPad?.classList.remove("is-playing");
-        };
-        input.addEventListener("focus", showPlaying);
-        input.addEventListener("input", showPlaying);
-        input.addEventListener("blur", hidePlaying);
-      }
       container.append(row);
     });
   }
