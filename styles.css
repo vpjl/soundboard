@@ -8691,27 +8691,29 @@ details[open] > .skin-editor-advanced-summary::before {
   display: none;
 }
 
+/* 4 live buttons on a single row, like the real stage pad */
 .skin-preview-board-shell.is-stage-preview .pad-live-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
 }
 
 .skin-preview-board-shell.is-stage-preview .live-button-group,
 .skin-preview-board-shell.is-stage-preview .secondary-live-group {
-  display: grid;
-  gap: 5px;
-  padding: 5px;
+  display: contents;
 }
 
-.skin-preview-board-shell.is-stage-preview .live-button-group [data-mode="oneshot"] {
+.skin-preview-board-shell.is-stage-preview [data-mode="oneshot"] {
   order: 1;
 }
-.skin-preview-board-shell.is-stage-preview .live-button-group .pad-stop-button {
+.skin-preview-board-shell.is-stage-preview .pad-stop-button {
   order: 2;
 }
-.skin-preview-board-shell.is-stage-preview .live-button-group [data-mode="toggle"] {
+.skin-preview-board-shell.is-stage-preview [data-mode="toggle"] {
   order: 3;
+}
+.skin-preview-board-shell.is-stage-preview .pad-mute-button {
+  order: 4;
 }
 
 .skin-preview-board-shell.is-stage-preview .pad-trigger {
