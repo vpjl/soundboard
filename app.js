@@ -3936,6 +3936,8 @@ function renderBoardOptions() {
   });
   els.boardSelect.value = state.currentBoardId;
   if (els.boardName) els.boardName.value = currentBoard().name;
+  const stageTitle = document.getElementById("stageBoardTitle");
+  if (stageTitle) stageTitle.textContent = currentBoard().name;
   setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
   renderBoardLayoutControls();
   applyPadLayout();
@@ -4691,6 +4693,10 @@ function renderPadColumnOptions(limit = 8) {
 function updateSkinOptions() {
   if (!els.skinSelect) return;
 
+  // Preserve the current selection: rebuilding the custom optgroup removes its
+  // options and would otherwise reset the select to its first option ("basic").
+  const previousValue = els.skinSelect.value;
+
   const minimalOption = els.skinSelect.querySelector('option[value="minimal"]');
   if (minimalOption) {
     minimalOption.disabled = !canUseMinimalSkin();
@@ -4717,6 +4723,12 @@ function updateSkinOptions() {
       option.dataset.customSkin = "true";
       group.append(option);
     });
+
+  // Restore the previous selection if it still exists (raw value in quotes —
+  // CSS.escape would break the "custom:" colon inside the attribute selector)
+  if (previousValue && els.skinSelect.querySelector(`option[value="${previousValue}"]`)) {
+    els.skinSelect.value = previousValue;
+  }
 }
 
 function normalizeSkinName(skin) {
@@ -4807,7 +4819,7 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     title: "Pads",
     fields: [
       ["--color_pad_background", "Fond pad"],
-      ["--color_pad_trigger_background", "Déclencheur"],
+      ["--color_pad_trigger_background", "Bouton de lecture"],
       ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
       ["--color_pad_progress_fill", "Progression"],
@@ -5230,6 +5242,18 @@ function syncSkinPreviewMode() {
     pad.classList.toggle("is-editing", isGarage);
   }
   if (trigger) trigger.dataset.skinVariable = isStage ? "--color_pad_trigger_playing_background" : "--color_pad_trigger_background";
+
+  // Hide color fields whose elements aren't visible in the selected preview mode
+  // (e.g. the progress bar is hidden in garage/edit mode, so "Progression" is moot).
+  const hiddenFieldsByMode = {
+    basic: ["--color_pad_progress_fill"],
+    stage: [],
+    studio: [],
+  };
+  const toHide = new Set(hiddenFieldsByMode[selected] || []);
+  els.skinEditorFields?.querySelectorAll(".skin-editor-field[data-skin-variable]").forEach((field) => {
+    field.hidden = toHide.has(field.dataset.skinVariable);
+  });
 }
 
 function saveSkinHarmonySettings() {
@@ -8538,8 +8562,14 @@ function updateStageLockUi() {
 function toggleStageLock() {
   const lock = stageLockSettings();
   if (!lock.enabled) {
-    const password = window.prompt("Mot de passe pour verrouiller le mode scène");
+    const password = window.prompt("Choisissez un mot de passe pour verrouiller le mode scène");
     if (!password) return;
+    const confirmPassword = window.prompt("Confirmez le mot de passe");
+    if (confirmPassword === null) return;
+    if (confirmPassword !== password) {
+      setStatus("Les mots de passe ne correspondent pas", "danger");
+      return;
+    }
     localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: true, password }));
     updateStageLockUi();
     setStatus("Mode scène verrouillé");

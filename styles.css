@@ -5210,6 +5210,18 @@ body.stage-mode h1 {
   font-size: 1.02rem;
 }
 
+/* Board title shown only in stage mode (the name input is hidden there) */
+.stage-board-title {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+body:not(.stage-mode) .stage-board-title {
+  display: none;
+}
+
 body.stage-mode .board-strip,
 body.stage-mode .master-strip {
   gap: 6px;
@@ -8802,10 +8814,13 @@ details[open] > .skin-editor-advanced-summary::before {
   min-width: 0;
 }
 
-.skin-editor-preview .live-tools {
-  display: grid;
-  grid-template-columns: 1fr; /* override @media (pointer:coarse) 2-col layout */
-  align-content: start;
+/* Cues block in editor preview: all buttons flow on a single line.
+   The id-prefixed rule below wins (overrides board-edit-mode display:none). */
+.skin-editor-preview .live-tools,
+#skinEditorDialog .skin-editor-preview .live-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
   padding: 6px;
   border: 1px solid var(--color_ui_border);
@@ -8813,26 +8828,24 @@ details[open] > .skin-editor-advanced-summary::before {
   background: var(--color_ui_panel);
 }
 
-/* Override body.board-edit-mode .live-tools { display: none } which has higher specificity */
-#skinEditorDialog .skin-editor-preview .live-tools {
-  display: grid;
-}
-
 .skin-editor-preview .live-tools-title {
+  flex: 1 0 100%; /* title alone on its own line */
   font-size: 0.68rem;
   margin: 0 0 2px;
 }
 
+/* Let the rows' buttons flow directly into the single flex line */
 .skin-editor-preview .cue-live-row,
 .skin-editor-preview .xfade-live-row {
-  display: grid;
-  grid-column: auto; /* reset @media placement */
-  grid-row: auto;
-  grid-template-columns: repeat(3, 38px) minmax(0, 1fr);
+  display: contents;
 }
 
-.skin-editor-preview .xfade-live-row {
-  grid-template-columns: repeat(3, 38px);
+.skin-editor-preview .cue-status {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .skin-editor-preview .help-button {
