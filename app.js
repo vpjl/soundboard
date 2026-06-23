@@ -5395,6 +5395,12 @@ function buildSkinPreviewFrame() {
     + '<link rel="stylesheet" href="' + cssHref + '">'
     + '<style>html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
     + '.app{min-height:0!important}'
+    // Keep the preview content in a fixed left column (the shell is not the real
+    // topbar, so the per-mode topbar layout — esp. stage — would push the pad
+    // right / overflow). The pad inside still uses the real desktop CSS.
+    + '.skin-preview-board-shell{display:flex!important;flex-direction:column!important;'
+    + 'align-items:stretch!important;width:520px!important;max-width:520px!important;gap:8px}'
+    + '.skin-preview-board-shell>*{max-width:100%;min-width:0;margin:0}'
     + '.skin-preview-board.pads{grid-template-columns:minmax(0,340px)!important}</style>'
     + '</head><body></body></html>'
   );
