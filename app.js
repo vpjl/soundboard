@@ -5242,8 +5242,9 @@ function syncSkinPreviewMode() {
   doc.body.classList.toggle("stage-mode", isStage);
   doc.body.classList.toggle("board-edit-mode", isGarage);
   doc.body.dataset.boardMode = isStage ? "stage" : isGarage ? "garage" : "studio";
-  const activeSkin = isGarage ? "basic" : (document.body.dataset.skin || "classic");
-  doc.body.dataset.skin = activeSkin;
+  // Always the ACTIVE skin — garage is a board mode, not the "basic" skin.
+  // (Forcing basic gave the basic-only garage grid, differing from real boards.)
+  doc.body.dataset.skin = document.body.dataset.skin || "classic";
 
   // Transitional: keep the .is-*-preview classes for the legacy preview CSS
   // still present (removed in step 2).
@@ -5396,7 +5397,8 @@ function buildSkinPreviewFrame() {
     + (fontsHref ? '<link rel="stylesheet" href="' + fontsHref + '">' : '')
     + '<link rel="stylesheet" href="' + cssHref + '">'
     + '<style>html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
-    + '.app{min-height:0!important}</style>'
+    + '.app{min-height:0!important}'
+    + '.skin-preview-board.pads{grid-template-columns:minmax(0,340px)!important}</style>'
     + '</head><body></body></html>'
   );
   doc.close();
