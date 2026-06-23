@@ -5019,12 +5019,12 @@ function handleSwatchClick(e) {
   const swatchColor = colors[index];
   if (!swatchColor) return;
 
+  // Update picker value without triggering events (just for display)
   const colorInput = document.querySelector("#skinHarmonyColor");
   if (colorInput) {
     colorInput.value = swatchColor;
-    colorInput.click();
-    updateHarmonySwatch();
   }
+  updateHarmonySwatch();
 
   document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
   applySwatchHighlight(index);
@@ -5277,6 +5277,10 @@ function applySkinFonts() {
     else preview.style.removeProperty("--skin_font_family");
     preview.style.setProperty("--skin_font_size_title", size + "px");
   }
+  // Also apply to body so it shows on the real board
+  if (family) document.body.style.setProperty("--skin_font_family", family);
+  else document.body.style.removeProperty("--skin_font_family");
+  document.body.style.setProperty("--skin_font_size_title", size + "px");
   localStorage.setItem(SKIN_FONTS_STORAGE, JSON.stringify({ family, size }));
 }
 
@@ -5295,6 +5299,15 @@ function loadSkinFonts() {
 
 function openSkinEditor() {
   state.skinEditorVariables = {};
+
+  // Ensure current skin is applied to body and preview before rendering fields
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const customSkin = currentId ? customSkinById(currentId) : null;
+  if (customSkin) {
+    applyCustomSkinVariables(customSkin);
+  }
+
   renderSkinEditorFields();
   syncSkinPreviewMode();
 

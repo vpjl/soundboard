@@ -2991,7 +2991,7 @@ body.board-edit-mode .pads {
 }
 
 body.board-edit-mode .pad.is-editing {
-  grid-template-rows: 56px 38px 38px auto;
+  grid-template-rows: 56px 38px minmax(38px, auto) auto;
 }
 
 body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
@@ -8261,6 +8261,21 @@ body.stage-mode #boardName:focus {
 
 .skin-editor-header-actions button {
   min-height: 34px;
+}
+
+#deleteSkinEditor {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted, #bec4cc);
+  transition: color 0.15s;
+}
+
+#deleteSkinEditor:hover {
+  color: var(--text, #fffaf0);
 }
 
 .skin-editor-layout {
