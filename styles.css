@@ -9188,6 +9188,28 @@ details[open] > .skin-editor-advanced-summary::before {
   border-color: #343842;
 }
 
+/* Neutraliser les variables du skin dans le panneau de réglages (gauche) :
+   les blocs ne doivent pas être teintés par le skin en cours d'édition.
+   L'aperçu (.skin-editor-preview, sœur) conserve les couleurs du skin. */
+#skinEditorDialog .skin-editor-controls {
+  --bg: #111318;
+  --bg-end: #111318;
+  --panel: #181a20;
+  --panel-2: #20232b;
+  --line: #343842;
+  --text: #f5f1e8;
+  --muted: #a8a69f;
+  --accent: #ffce5c;
+  --color_ui_background: #111318;
+  --color_ui_background_secondary: #111318;
+  --color_ui_panel: #181a20;
+  --color_ui_panel_secondary: #20232b;
+  --color_ui_border: #343842;
+  --color_ui_text: #f5f1e8;
+  --color_ui_text_muted: #a8a69f;
+  --color_status_success: #ffce5c;
+}
+
 #skinEditorDialog .skin-editor-header h2,
 #skinEditorDialog .skin-editor-header-actions button {
   color: #f5f1e8;
