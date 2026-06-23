@@ -4740,7 +4740,17 @@ function normalizeSkinName(skin) {
 function readCustomSkins() {
   try {
     const parsed = JSON.parse(localStorage.getItem(CUSTOM_SKINS_STORAGE) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((skin) => skin && skin.id && skin.name && skin.variables) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((skin) => skin && skin.id && skin.name && skin.variables)
+      .map((skin) => {
+        // Migrate the old light help background (illegible with the light help text)
+        const old = String(skin.variables["--color_ui_help_background"] || "").replace(/\s/g, "");
+        if (old === "rgba(255,206,92,0.12)") {
+          skin.variables["--color_ui_help_background"] = "#23262d";
+        }
+        return skin;
+      });
   } catch {
     return [];
   }
@@ -4836,8 +4846,6 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
     fields: [
       ["--color_pad_progress_fill", "Progression"],
       ["--color_pad_tag_background", "Fond tag"],
-      ["--color_pad_note_background", "Fond pense-bête"],
-      ["--color_pad_note_overlay_text", "Texte pense-bête"],
       ["--color_pad_progress_background", "Fond progression"],
     ],
   },

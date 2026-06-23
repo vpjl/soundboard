@@ -2642,16 +2642,16 @@ select:disabled,
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--color_ui_border);
+  border: 1px solid var(--color_pad_button_border);
   border-radius: 7px;
-  background: var(--color_pad_note_background);
-  color: var(--color_ui_text);
+  background: var(--color_pad_button_background);
+  color: var(--color_pad_button_text);
   padding: 0;
 }
 
+/* has-note: only an indicator that a note exists — no special background */
 .pad-note-button.has-note {
   border-color: var(--color_status_progress);
-  background: var(--color_pad_note_background);
   color: var(--color_status_progress);
 }
 
@@ -8726,7 +8726,12 @@ details[open] > .skin-editor-advanced-summary::before {
   height: 28px;
 }
 
-/* Garage preview: show tag chips below the title, hide the inline trigger tags */
+/* Tag chips appear ONLY in garage preview (mirrors the real board: studio/stage
+   show tags as inline text, garage edit mode shows removable chips). */
+.skin-editor-preview .skin-preview-pad .skin-preview-chips {
+  display: none;
+}
+
 .skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing .skin-preview-chips {
   display: flex;
   flex-wrap: wrap;
@@ -8735,6 +8740,7 @@ details[open] > .skin-editor-advanced-summary::before {
   order: 5;
 }
 
+/* In garage, the chips replace the inline trigger tags; studio + stage keep text */
 .skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing .pad-label .pad-tags {
   display: none;
 }
