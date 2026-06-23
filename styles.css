@@ -8783,11 +8783,13 @@ details[open] > .skin-editor-advanced-summary::before {
   overflow: auto;
 }
 
-/* Preview iframe: the board/pad render with the real CSS + real mode classes */
+/* Preview iframe: the board/pad render with the real CSS + real mode classes.
+   Height is auto-sized to the content by JS so the whole pad is visible and the
+   outer .skin-editor-preview panel scrolls if needed. */
 .skin-editor-preview-frame {
   display: block;
   width: 100%;
-  height: min(720px, calc(92vh - 170px));
+  min-height: 220px;
   border: 0;
   background: transparent;
 }

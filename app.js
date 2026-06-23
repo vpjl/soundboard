@@ -5274,6 +5274,10 @@ function syncSkinPreviewMode() {
   els.skinEditorFields?.querySelectorAll(".skin-editor-field[data-skin-variable]").forEach((field) => {
     field.hidden = toHide.has(field.dataset.skinVariable);
   });
+
+  // Content height changes with the mode → re-measure the iframe
+  requestAnimationFrame(resizeSkinPreviewFrame);
+  window.setTimeout(resizeSkinPreviewFrame, 200);
 }
 
 function saveSkinHarmonySettings() {
@@ -5406,6 +5410,17 @@ function buildSkinPreviewFrame() {
   doc.addEventListener("mouseover", handleSkinVariablePointerOver);
   doc.addEventListener("mouseout", handleSkinVariablePointerOut);
   doc.body.querySelectorAll("[data-skin-variable]").forEach((el) => { el.style.cursor = "pointer"; });
+
+  // Auto-size the iframe to its content (CSS/fonts load async → re-measure)
+  requestAnimationFrame(resizeSkinPreviewFrame);
+  [150, 400, 900].forEach((d) => window.setTimeout(resizeSkinPreviewFrame, d));
+}
+
+function resizeSkinPreviewFrame() {
+  const frame = document.getElementById("skinPreviewFrame");
+  const doc = frame?.contentDocument;
+  if (!frame || !doc?.body) return;
+  frame.style.height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + "px";
 }
 
 function openSkinEditor() {
