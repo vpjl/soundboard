@@ -8706,6 +8706,12 @@ details[open] > .skin-editor-advanced-summary::before {
   display: none;
 }
 
+/* Garage preview: the pad must be a grid (other .skin-preview-pad rules force
+   display:flex/column, which would stack the edit buttons in a single column). */
+.skin-preview-board-shell.is-garage-preview .skin-preview-pad.is-editing {
+  display: grid;
+}
+
 .skin-editor-preview {
   min-height: 0;
   max-height: min(780px, calc(92vh - 120px));
