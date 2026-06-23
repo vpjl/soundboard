@@ -5401,8 +5401,14 @@ function buildSkinPreviewFrame() {
   );
   doc.close();
   const shell = tpl.content.firstElementChild.cloneNode(true);
-  // Drop the preview-only pad class so the REAL .pad grid/layout rules apply.
-  shell.querySelectorAll(".skin-preview-pad").forEach((el) => el.classList.remove("skin-preview-pad"));
+  // Swap the hand-crafted preview pad for a clone of the REAL #padTemplate so
+  // the real pad CSS (per mode) applies verbatim.
+  const padsContainer = shell.querySelector(".pads");
+  const realPad = buildSkinPreviewPad();
+  if (padsContainer && realPad) {
+    padsContainer.querySelectorAll(".pad").forEach((p) => p.remove());
+    padsContainer.appendChild(realPad);
+  }
   doc.body.appendChild(shell);
 
   // "click an element → focus its field" / hover highlight, across the iframe
@@ -5414,6 +5420,54 @@ function buildSkinPreviewFrame() {
   // Auto-size the iframe to its content (CSS/fonts load async → re-measure)
   requestAnimationFrame(resizeSkinPreviewFrame);
   [150, 400, 900].forEach((d) => window.setTimeout(resizeSkinPreviewFrame, d));
+}
+
+// Map preview pad elements → the skin variable they represent (for the
+// "click element → focus its field" / hover-highlight feature).
+const SKIN_PREVIEW_PAD_VARS = [
+  [".pad", "--color_pad_border"],
+  [".pad-head", "--color_pad_background"],
+  [".pad-trigger", "--color_pad_trigger_background"],
+  [".pad-title", "--color_ui_text"],
+  ["[data-tags-display]", "--color_pad_tag_background"],
+  [".pad-tag-chip", "--color_pad_tag_background"],
+  [".pad-note-button", "--color_pad_button_background"],
+  [".pad-time", "--color_ui_text_muted"],
+  [".pad-progress", "--color_pad_progress_background"],
+  [".pad-progress-fill", "--color_pad_progress_fill"],
+  [".pad-vu", "--color_pad_progress_background"],
+  [".pad-shortcut", "--color_pad_button_background"],
+  [".pad-type", "--color_ui_text_muted"],
+  [".control-group", "--color_pad_actions_background"],
+];
+
+// Build a real pad (clone of #padTemplate) with demo content for the preview.
+function buildSkinPreviewPad() {
+  const tpl = document.getElementById("padTemplate");
+  if (!tpl) return null;
+  const pad = tpl.content.firstElementChild.cloneNode(true);
+  pad.classList.add("is-audio-pad");
+
+  const setText = (sel, txt) => { const el = pad.querySelector(sel); if (el) el.textContent = txt; };
+  const setVal = (sel, val) => { const el = pad.querySelector(sel); if (el) el.value = val; };
+  setText(".pad-title", "Jingle ouverture");
+  setText("[data-tags-display]", "intro");
+  const shortcut = pad.querySelector(".pad-shortcut");
+  if (shortcut) { shortcut.textContent = "1"; shortcut.classList.add("is-number"); }
+  setText(".pad-time", "00:12");
+  setVal("[data-name]", "Jingle ouverture");
+  setVal("[data-tags]", "intro, jingle");
+  const chips = pad.querySelector("[data-tags-chips]");
+  if (chips) chips.innerHTML = '<span class="pad-tag-chip">intro</span><span class="pad-tag-chip">jingle</span>';
+  pad.querySelector(".pad-note-button")?.classList.add("has-note");
+  const pf = pad.querySelector(".pad-progress-fill"); if (pf) pf.style.width = "42%";
+  const vu = pad.querySelector(".vu-fill"); if (vu) vu.style.width = "30%";
+
+  // Annotate for the highlight/click feature
+  SKIN_PREVIEW_PAD_VARS.forEach(([sel, v]) => pad.querySelectorAll(sel).forEach((el) => { el.dataset.skinVariable = v; }));
+  pad.querySelectorAll(".pad-actions button").forEach((b) => { b.dataset.skinVariable = "--color_pad_button_background"; });
+
+  return pad;
 }
 
 function resizeSkinPreviewFrame() {
