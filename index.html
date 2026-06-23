@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
     <link rel="stylesheet" href="styles.css?v=258">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
@@ -1933,6 +1933,7 @@
           <h2 id="skinEditorTitle">Éditeur de skins</h2>
           <div class="skin-editor-header-actions">
             <button id="saveSkinEditor" type="button">Enregistrer</button>
+            <button id="saveSkinEditorAs" type="button">Enregistrer sous…</button>
             <button id="deleteSkinEditor" type="button">Supprimer</button>
             <button id="cancelSkinEditor" type="button">Annuler</button>
           </div>
@@ -2000,11 +2001,24 @@
                 <span class="skin-font-label">Police titres</span>
                 <select id="skinFontFamily">
                   <option value="">Inter (défaut)</option>
-                  <option value="'Courier New', Courier, monospace">Monospace</option>
-                  <option value="Georgia, 'Times New Roman', serif">Serif</option>
-                  <option value="'Arial Black', Impact, sans-serif">Impact</option>
-                  <option value="system-ui, -apple-system, sans-serif">Système</option>
-                  <option value="'Comic Sans MS', cursive">Fantaisie</option>
+                  <optgroup label="Google Fonts">
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="'Lato', sans-serif">Lato</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Oswald', sans-serif">Oswald</option>
+                    <option value="'Raleway', sans-serif">Raleway</option>
+                    <option value="'Nunito', sans-serif">Nunito</option>
+                    <option value="'Ubuntu', sans-serif">Ubuntu</option>
+                    <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                  </optgroup>
+                  <optgroup label="Système">
+                    <option value="system-ui, -apple-system, sans-serif">Sans-serif système</option>
+                    <option value="'Courier New', Courier, monospace">Monospace système</option>
+                    <option value="Georgia, 'Times New Roman', serif">Serif système</option>
+                    <option value="'Arial Black', Impact, sans-serif">Impact</option>
+                  </optgroup>
                 </select>
               </label>
               <label class="skin-font-row">
@@ -2222,7 +2236,7 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=284"></script>
+    <script src="app.js?v=285"></script>
 
 
   </body>

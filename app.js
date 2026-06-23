@@ -2455,6 +2455,7 @@ function normalizeBoard(board, fallbackName = "Projet") {
     cuesEnabled: board?.cuesEnabled !== false,
     cues: normalizeCues(board?.cues),
     cueIndex: Math.max(0, Number(board?.cueIndex) || 0),
+    skin: board?.skin || null,
   };
 }
 
@@ -4166,6 +4167,10 @@ async function switchBoard(boardId) {
     document.body.classList.add("board-edit-mode");
   }
   state.currentBoardId = boardId;
+  const newBoard = state.boards.find((b) => b.id === boardId) || state.boards[0];
+  const boardSkin = newBoard?.skin || localStorage.getItem(SKIN_STORAGE) || "classic";
+  applySkin(boardSkin);
+  if (!newBoard?.skin) saveSkinToCurrentBoard(); // inherit global skin for new boards
   saveBoards();
   renderBoardOptions();
   await renderPads({ preserveEditMode: wasEditing });
@@ -5030,12 +5035,20 @@ function normalizeColorInputValue(value) {
 
   if (/^#[0-9a-fA-F]{6}$/.test(text)) return text;
 
+  // 3-digit hex
+  const hex3 = text.match(/^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/);
+  if (hex3) return "#" + hex3.slice(1).map(c => c + c).join("");
+
   const rgba = text.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
   if (rgba) {
     return "#" + [rgba[1], rgba[2], rgba[3]]
       .map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0"))
       .join("");
   }
+
+  // Extract first solid color from a gradient or complex value
+  const nested = text.match(/(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+  if (nested) return normalizeColorInputValue(nested[1]);
 
   return "";
 }
@@ -5234,8 +5247,7 @@ function deriveSkinHarmonyFromCurrentSkin() {
   const colorWrap = document.querySelector(".skin-harmony-color-wrap");
   if (colorInput) colorInput.value = baseHex;
   if (colorWrap) colorWrap.classList.remove("is-unset");
-  applySkinHarmony();
-  applyHarmonyAdjustments();
+  // Only update swatch display — don't overwrite skin colors with harmony
   updateHarmonySwatch();
 }
 
@@ -5250,8 +5262,7 @@ function restoreSkinHarmonyFromSettings(settings) {
   const lum = document.querySelector("#skinHarmonyLightness");
   if (sat) sat.value = settings.satDelta ?? 0;
   if (lum) lum.value = settings.lightDelta ?? 0;
-  applySkinHarmony();
-  applyHarmonyAdjustments();
+  // Only update swatch display — don't overwrite skin colors with harmony
   updateHarmonySwatch();
 }
 
@@ -5287,12 +5298,10 @@ function openSkinEditor() {
   renderSkinEditorFields();
   syncSkinPreviewMode();
 
+  // Restore harmony controls (picker + swatch) without overwriting skin colors
   if (state.skinEditorHarmonyBase) {
-    // already in memory (reopened in same session)
     updateHarmonySwatch();
-    applyHarmonyAdjustments();
   } else {
-    // first open or after page reload — restore from localStorage, or derive from current skin
     const saved = loadSkinHarmonySettings();
     if (saved) {
       restoreSkinHarmonyFromSettings(saved);
@@ -5320,10 +5329,6 @@ function openSkinEditor() {
     els.deleteSkinEditor.disabled = !customSkin;
   }
 
-  if (els.saveSkinEditorAs) {
-    els.saveSkinEditorAs.hidden = true;
-  }
-
   if (els.skinEditorDialog?.showModal) {
     els.skinEditorDialog.showModal();
   }
@@ -5345,6 +5350,7 @@ function closeSkinEditor() {
 function handleSkinSelectChange() {
   const value = String(els.skinSelect?.value || "classic");
   applySkin(value);
+  saveSkinToCurrentBoard();
 }
 
 
@@ -5362,7 +5368,49 @@ function isBuiltInSkinDisplayName(name) {
   return BUILT_IN_SKIN_NAMES.some((skinName) => skinName.toLowerCase() === normalized);
 }
 
-function saveSkinEditorCurrent() {
+function saveSkinToCurrentBoard() {
+  const board = currentBoard();
+  if (!board) return;
+  const skinValue = localStorage.getItem(SKIN_STORAGE) || "classic";
+  if (board.skin === skinValue) return;
+  board.skin = skinValue;
+  saveBoards();
+}
+
+function _snapshotEditorVariables() {
+  const preview = document.querySelector(".skin-editor-preview");
+  return {
+    ...snapshotCurrentSkinVariables(preview || document.body),
+    ...state.skinEditorVariables,
+  };
+}
+
+// Overwrite current custom skin directly; falls back to save-as for built-in skins
+function saveSkinEditorOverwrite() {
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+
+  if (currentId) {
+    const skins = readCustomSkins();
+    const index = skins.findIndex((skin) => skin.id === currentId);
+    if (index !== -1) {
+      const name = String(els.skinEditorName?.value || skins[index].name).trim() || skins[index].name;
+      skins[index] = { ...skins[index], name, updatedAt: new Date().toISOString(), variables: _snapshotEditorVariables() };
+      writeCustomSkins(skins);
+      updateSkinOptions();
+      applySkin(`${CUSTOM_SKIN_PREFIX}${currentId}`);
+      saveSkinToCurrentBoard();
+      closeSkinEditor();
+      return;
+    }
+  }
+
+  // No current custom skin — fall through to save-as
+  saveSkinEditorAs();
+}
+
+// Always create a new custom skin; asks to replace if name already exists
+function saveSkinEditorAs() {
   const name = String(els.skinEditorName?.value || "").trim();
 
   if (!name) {
@@ -5375,51 +5423,21 @@ function saveSkinEditorCurrent() {
     return;
   }
 
-  const current = String(localStorage.getItem(SKIN_STORAGE) || "");
-  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
   const skins = readCustomSkins();
-  const existingSameName = skins.find((skin) => String(skin.name || "").trim().toLowerCase() === name.toLowerCase());
+  const existing = skins.find((skin) => String(skin.name || "").trim().toLowerCase() === name.toLowerCase());
 
-  if (existingSameName && existingSameName.id !== currentId) {
-    window.alert("Nom de skin déjà utilisé");
-    return;
+  if (existing) {
+    if (!window.confirm(`Un skin « ${existing.name} » existe déjà. Le remplacer ?`)) return;
+    const idx = skins.findIndex((s) => s.id === existing.id);
+    if (idx !== -1) skins.splice(idx, 1);
   }
 
-  const preview = document.querySelector(".skin-editor-preview");
-  const variables = {
-    ...snapshotCurrentSkinVariables(preview || document.body),
-    ...state.skinEditorVariables,
-  };
-
-  if (currentId) {
-    const index = skins.findIndex((skin) => skin.id === currentId);
-    if (index !== -1) {
-      skins[index] = {
-        ...skins[index],
-        name,
-        updatedAt: new Date().toISOString(),
-        variables,
-      };
-
-      writeCustomSkins(skins);
-      updateSkinOptions();
-      applySkin(`${CUSTOM_SKIN_PREFIX}${currentId}`);
-      closeSkinEditor();
-      return;
-    }
-  }
-
-  const skin = {
-    id: createId(),
-    name,
-    createdAt: new Date().toISOString(),
-    variables,
-  };
-
+  const skin = { id: createId(), name, createdAt: new Date().toISOString(), variables: _snapshotEditorVariables() };
   skins.push(skin);
   writeCustomSkins(skins);
   updateSkinOptions();
   applySkin(`${CUSTOM_SKIN_PREFIX}${skin.id}`);
+  saveSkinToCurrentBoard();
   closeSkinEditor();
 }
 
@@ -5447,6 +5465,7 @@ function deleteCurrentCustomSkin() {
 
   updateSkinOptions();
   applySkin("classic");
+  saveSkinToCurrentBoard();
   closeSkinEditor();
   setStatus(`Skin utilisateur supprimé: ${skin.name}`, "success");
 }
@@ -12398,7 +12417,6 @@ async function init() {
   state.db = await openDb();
   loadOutputSettings();
   loadMicrophoneSelection();
-  applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
   }
@@ -12416,6 +12434,11 @@ async function init() {
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
     state.currentBoardId = state.boards[0].id;
   }
+  // Apply board's saved skin, or fall back to global SKIN_STORAGE
+  const initBoard = currentBoard();
+  const initSkin = initBoard?.skin || localStorage.getItem(SKIN_STORAGE) || "classic";
+  applySkin(initSkin);
+  if (!initBoard?.skin) saveSkinToCurrentBoard(); // first run: inherit global skin
   renderBoardOptions();
   const isReload = sessionStorage.getItem("soundboard-session-started") === "yes";
   sessionStorage.setItem("soundboard-session-started", "yes");
@@ -12477,8 +12500,8 @@ async function init() {
   document.querySelector("#skinFontSize")?.addEventListener("input", applySkinFonts);
   els.cancelSkinEditor?.addEventListener("click", closeSkinEditor);
 
-  els.saveSkinEditor?.addEventListener("click", saveSkinEditorCurrent);
-  els.saveSkinEditorAs?.remove();
+  els.saveSkinEditor?.addEventListener("click", saveSkinEditorOverwrite);
+  els.saveSkinEditorAs?.addEventListener("click", saveSkinEditorAs);
   els.deleteSkinEditor?.addEventListener("click", deleteCurrentCustomSkin);
   document.querySelector(".skin-editor-preview")?.addEventListener("click", handleSkinPreviewVariableClick);
   document.querySelector(".skin-editor-preview")?.addEventListener("mouseover", handleSkinVariablePointerOver);
