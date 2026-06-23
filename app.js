@@ -4819,7 +4819,7 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     title: "Pads",
     fields: [
       ["--color_pad_background", "Fond pad"],
-      ["--color_pad_trigger_background", "Bouton de lecture"],
+      ["--color_pad_trigger_background", "Fond du titre"],
       ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
       ["--color_pad_progress_fill", "Progression"],
@@ -5243,11 +5243,17 @@ function syncSkinPreviewMode() {
   }
   if (trigger) trigger.dataset.skinVariable = isStage ? "--color_pad_trigger_playing_background" : "--color_pad_trigger_background";
 
-  // Hide color fields whose elements aren't visible in the selected preview mode
-  // (e.g. the progress bar is hidden in garage/edit mode, so "Progression" is moot).
+  // Hide color fields whose elements aren't visible in the selected preview mode.
   const hiddenFieldsByMode = {
-    basic: ["--color_pad_progress_fill"],
-    stage: [],
+    // Garage = edit mode: progress bar and VU meter are hidden.
+    basic: ["--color_pad_progress_fill", "--color_pad_progress_background"],
+    // Scène = playing: pad-actions buttons and controls are hidden.
+    stage: [
+      "--color_pad_actions_background",
+      "--color_pad_button_background",
+      "--color_pad_button_border",
+      "--color_pad_button_text",
+    ],
     studio: [],
   };
   const toHide = new Set(hiddenFieldsByMode[selected] || []);

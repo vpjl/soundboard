@@ -5212,9 +5212,10 @@ body.stage-mode h1 {
 
 /* Board title shown only in stage mode (the name input is hidden there) */
 .stage-board-title {
-  margin: 4px 0 0;
-  font-size: 1.1rem;
-  font-weight: 700;
+  margin: 6px 0 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
   color: var(--accent);
   letter-spacing: 0.01em;
 }
@@ -7810,6 +7811,10 @@ body.stage-mode #boardName:focus {
   border-radius: 6px;
   background: var(--color_pad_note_background);
   font-style: normal;
+}
+
+.skin-editor-field[hidden] {
+  display: none !important;
 }
 
 .skin-editor-field,
