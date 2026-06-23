@@ -5021,16 +5021,18 @@ function handleSwatchClick(e) {
   const swatchColor = colors[index];
   if (!swatchColor) return;
 
-  // Change color picker to this swatch color and trigger color update
+  document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
+
+  // Seed the base picker with this swatch color and open the native color picker.
+  // When the user picks, the picker's "input" listener applies the harmony.
   const colorInput = document.querySelector("#skinHarmonyColor");
   if (colorInput) {
     colorInput.value = swatchColor;
-    // Trigger change event to apply harmony
-    colorInput.dispatchEvent(new Event("change", { bubbles: true }));
+    if (typeof colorInput.showPicker === "function") {
+      try { colorInput.showPicker(); return; } catch {}
+    }
+    colorInput.click();
   }
-
-  document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
-  applySwatchHighlight(index);
 }
 
 function normalizeColorInputValue(value) {
@@ -5068,8 +5070,9 @@ function renderSkinEditorFields() {
     applyCustomSkinVariables(customSkin);
   }
 
-  // Read from documentElement (root) for more reliable CSS variable access
-  const computed = getComputedStyle(document.documentElement);
+  // Read from body — predefined skins set their vars on body[data-skin="X"],
+  // not on :root, so documentElement would only return classic defaults.
+  const computed = getComputedStyle(document.body);
   const preview = document.querySelector(".skin-editor-preview");
 
   function renderFieldGroup(group, container) {
@@ -5094,6 +5097,18 @@ function renderSkinEditorFields() {
         state.skinEditorVariables[name] = input.value;
         preview?.style.setProperty(name, input.value);
       });
+      // "Lecture active": temporarily show the playing state so the change is visible
+      if (name === "--color_pad_trigger_playing_background") {
+        const previewPad = preview?.querySelector(".skin-preview-pad");
+        const showPlaying = () => previewPad?.classList.add("is-playing");
+        const hidePlaying = () => {
+          const isStage = document.querySelector("[name='skinPreviewMode']:checked")?.value === "stage";
+          if (!isStage) previewPad?.classList.remove("is-playing");
+        };
+        input.addEventListener("focus", showPlaying);
+        input.addEventListener("input", showPlaying);
+        input.addEventListener("blur", hidePlaying);
+      }
       container.append(row);
     });
   }

@@ -2848,11 +2848,6 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   align-items: center;
 }
 
-/* Show playing state in preview for editing */
-.skin-editor-preview .pad-trigger {
-  background: var(--color_pad_trigger_playing_background, var(--color_pad_trigger_background)) !important;
-}
-
 .pad.is-editing .pad-label {
   grid-template-columns: minmax(0, 1fr) !important;
   width: 100%;
