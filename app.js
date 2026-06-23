@@ -4810,6 +4810,7 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     fields: [
       ["--color_ui_background", "Fond général"],
       ["--color_ui_panel", "Fond blocs"],
+      ["--color_ui_panel_secondary", "Fond boutons"],
       ["--color_ui_border", "Bordures"],
       ["--color_ui_text", "Texte"],
       ["--color_ui_text_muted", "Texte secondaire"],
@@ -4823,22 +4824,16 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
       ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
       ["--color_pad_progress_fill", "Progression"],
+      ["--color_pad_button_background", "Fond bouton pad"],
+      ["--color_pad_button_border", "Bordure bouton pad"],
     ],
   },
 ];
 
 const ADVANCED_SKIN_FIELD_GROUPS = [
   {
-    title: "UI avancé",
-    fields: [
-      ["--color_ui_panel_secondary", "Fond boutons UI"],
-    ],
-  },
-  {
     title: "Pads avancé",
     fields: [
-      ["--color_pad_button_border", "Bordure bouton pad"],
-      ["--color_pad_button_background", "Fond bouton pad"],
       ["--color_pad_button_text", "Texte bouton pad"],
       ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_note_background", "Fond pense-bête"],
