@@ -4804,7 +4804,7 @@ function saveCurrentSkinAsCustom() {
     id,
     name: cleanName,
     createdAt: new Date().toISOString(),
-    variables: snapshotCurrentSkinVariables(document.querySelector(".skin-editor-preview") || document.body),
+    variables: snapshotCurrentSkinVariables(skinPreviewRoot() || document.body),
   };
 
   skins.push(skin);
@@ -4997,7 +4997,7 @@ function applyHarmonyAdjustments() {
   const lightDelta = parseInt(document.querySelector("#skinHarmonyLightness")?.value ?? 0);
   document.getElementById("skinHarmonySatOutput")  && (document.getElementById("skinHarmonySatOutput").value  = (satDelta  >= 0 ? "+" : "") + satDelta);
   document.getElementById("skinHarmonyLightOutput") && (document.getElementById("skinHarmonyLightOutput").value = (lightDelta >= 0 ? "+" : "") + lightDelta);
-  const preview = document.querySelector(".skin-editor-preview");
+  const preview = skinPreviewRoot();
   Object.entries(base).forEach(([name, baseHex]) => {
     const [h, s, l] = hexToHSL(baseHex);
     const adjusted = hslToHex(h, Math.max(0, Math.min(100, s + satDelta)), Math.max(0, Math.min(100, l + lightDelta)));
@@ -5015,7 +5015,7 @@ function applySwatchHighlight(index) {
   const swatchColor = colors[index];
   if (!swatchColor) return;
   const targetHue = hexToHSL(swatchColor)[0];
-  document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => {
+  skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => {
     const applied = state.skinEditorVariables[el.dataset.skinVariable];
     if (!/^#[0-9a-fA-F]{6}$/.test(applied)) { el.classList.remove("skin-hue-match"); return; }
     const [elHue] = hexToHSL(applied);
@@ -5029,7 +5029,7 @@ function clearSwatchHighlight() {
   if (active) {
     applySwatchHighlight(parseInt(active.dataset.swatchIndex ?? 0));
   } else {
-    document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
+    skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
   }
 }
 
@@ -5166,8 +5166,12 @@ function skinVariableSelector(variable) {
 
 function clearSkinEditorVariableHighlight() {
   document
-    .querySelectorAll(".skin-variable-highlight, .skin-editor-field.is-linked-variable")
-    .forEach((node) => node.classList.remove("skin-variable-highlight", "is-linked-variable"));
+    .querySelectorAll(".skin-editor-field.is-linked-variable")
+    .forEach((node) => node.classList.remove("is-linked-variable"));
+  // Preview highlights live inside the iframe
+  skinPreviewFrameDoc()
+    ?.querySelectorAll(".skin-variable-highlight")
+    .forEach((node) => node.classList.remove("skin-variable-highlight"));
 }
 
 function highlightSkinEditorVariable(variable, options = {}) {
@@ -5175,7 +5179,8 @@ function highlightSkinEditorVariable(variable, options = {}) {
   clearSkinEditorVariableHighlight();
 
   const selector = skinVariableSelector(variable);
-  document.querySelectorAll(`.skin-editor-preview ${selector}`).forEach((node) => {
+  // Preview elements live inside the iframe document
+  skinPreviewFrameDoc()?.querySelectorAll(selector).forEach((node) => {
     node.classList.add("skin-variable-highlight");
   });
 
@@ -5190,10 +5195,9 @@ function highlightSkinEditorVariable(variable, options = {}) {
 
 function handleSkinPreviewVariableClick(event) {
   const previewTarget = event.target.closest?.("[data-skin-variable]");
-  if (!previewTarget || !previewTarget.closest(".skin-editor-preview") || !els.skinEditorFields) return;
+  if (!previewTarget || !previewTarget.dataset.skinVariable || !els.skinEditorFields) return;
 
   const variable = previewTarget.dataset.skinVariable;
-  if (!variable) return;
 
   const advancedSection = els.skinEditorFields.querySelector(".skin-editor-advanced-section");
   if (state.skinEditorAdvancedVars?.has(variable) && advancedSection && !advancedSection.open) return;
@@ -5212,19 +5216,16 @@ function handleSkinPreviewVariableClick(event) {
 
 function handleSkinVariablePointerOver(event) {
   const target = event.target.closest?.("[data-skin-variable]");
-  if (!target) return;
-
-  if (target.closest(".skin-editor-preview") || target.closest("#skinEditorFields")) {
-    const variable = target.dataset.skinVariable;
-    const advancedSection = els.skinEditorFields?.querySelector(".skin-editor-advanced-section");
-    if (state.skinEditorAdvancedVars?.has(variable) && advancedSection && !advancedSection.open) return;
-    highlightSkinEditorVariable(variable);
-  }
+  if (!target || !target.dataset.skinVariable) return;
+  const variable = target.dataset.skinVariable;
+  const advancedSection = els.skinEditorFields?.querySelector(".skin-editor-advanced-section");
+  if (state.skinEditorAdvancedVars?.has(variable) && advancedSection && !advancedSection.open) return;
+  highlightSkinEditorVariable(variable);
 }
 
 function handleSkinVariablePointerOut(event) {
   const related = event.relatedTarget;
-  if (related?.closest?.(".skin-editor-preview [data-skin-variable], #skinEditorFields [data-skin-variable]")) return;
+  if (related?.closest?.("[data-skin-variable]")) return;
   clearSkinEditorVariableHighlight();
 }
 
@@ -5337,7 +5338,7 @@ function applySkinFonts() {
   const size = document.querySelector("#skinFontSize")?.value || "14";
   const output = document.getElementById("skinFontSizeOutput");
   if (output) output.value = size + "px";
-  const preview = document.querySelector(".skin-editor-preview");
+  const preview = skinPreviewRoot();
   if (preview) {
     if (family) preview.style.setProperty("--skin_font_family", family);
     else preview.style.removeProperty("--skin_font_family");
@@ -5399,6 +5400,12 @@ function buildSkinPreviewFrame() {
   // Drop the preview-only pad class so the REAL .pad grid/layout rules apply.
   shell.querySelectorAll(".skin-preview-pad").forEach((el) => el.classList.remove("skin-preview-pad"));
   doc.body.appendChild(shell);
+
+  // "click an element → focus its field" / hover highlight, across the iframe
+  doc.addEventListener("click", handleSkinPreviewVariableClick);
+  doc.addEventListener("mouseover", handleSkinVariablePointerOver);
+  doc.addEventListener("mouseout", handleSkinVariablePointerOut);
+  doc.body.querySelectorAll("[data-skin-variable]").forEach((el) => { el.style.cursor = "pointer"; });
 }
 
 function openSkinEditor() {
@@ -5426,7 +5433,7 @@ function openSkinEditor() {
 
   loadSkinFonts();
 
-  document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
+  skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
 
   const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
   const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
@@ -12591,7 +12598,7 @@ async function init() {
   document.querySelector("#skinHarmonyColor")?.addEventListener("input", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
     document.querySelectorAll("#skinHarmonySwatch span").forEach(s => s.classList.remove("is-active"));
-    document.querySelector(".skin-editor-preview")?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
+    skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();
@@ -12624,9 +12631,8 @@ async function init() {
   els.saveSkinEditor?.addEventListener("click", saveSkinEditorOverwrite);
   els.saveSkinEditorAs?.addEventListener("click", saveSkinEditorAs);
   els.deleteSkinEditor?.addEventListener("click", deleteCurrentCustomSkin);
-  document.querySelector(".skin-editor-preview")?.addEventListener("click", handleSkinPreviewVariableClick);
-  document.querySelector(".skin-editor-preview")?.addEventListener("mouseover", handleSkinVariablePointerOver);
-  document.querySelector(".skin-editor-preview")?.addEventListener("mouseout", handleSkinVariablePointerOut);
+  // Preview click/hover listeners are attached inside the iframe (buildSkinPreviewFrame).
+  // Only the mode-radio change listener stays on the editor section.
   document.querySelector(".skin-editor-preview")?.addEventListener("change", (e) => {
     if (e.target.matches("[name='skinPreviewMode']")) syncSkinPreviewMode();
   });

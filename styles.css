@@ -8507,7 +8507,8 @@ body.stage-mode #boardName:focus {
   font-size: var(--skin_font_size_title, inherit);
 }
 
-.skin-editor-preview .skin-hue-match {
+.skin-editor-preview .skin-hue-match,
+.skin-hue-match {
   outline: 2px solid rgba(255, 214, 60, 0.9) !important;
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(255, 214, 60, 0.18) !important;
@@ -8802,7 +8803,8 @@ details[open] > .skin-editor-advanced-summary::before {
 }
 
 
-.skin-editor-preview .skin-variable-highlight {
+.skin-editor-preview .skin-variable-highlight,
+.skin-variable-highlight {
   position: relative;
   outline: 2px solid var(--color_status_progress);
   outline-offset: 2px;
