@@ -3035,15 +3035,10 @@ body.board-edit-mode .pad.is-editing .tags-add-btn:hover {
 }
 
 body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
-  display: none;
+  display: none !important;
 }
 
-body.board-edit-mode .pad.is-editing .tag-field.tags-input-open input[data-tags] {
-  grid-column: 1 / -1;
-  display: block;
-}
-
-body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
+body.board-edit-mode .pad.is-editing .tags-add-btn {
   display: none;
 }
 
@@ -7805,13 +7800,14 @@ body.stage-mode #boardName:focus {
 .skin-editor-field,
 .skin-name-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  min-height: 48px;
 }
 
 .skin-editor-field span,
@@ -8475,11 +8471,15 @@ body.stage-mode #boardName:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* Apply font overrides to both preview and real board */
+.pad-title,
+.pad-trigger,
 .skin-editor-preview .pad-title,
 .skin-editor-preview .pad-trigger {
   font-family: var(--skin_font_family, inherit);
 }
 
+.pad-title,
 .skin-editor-preview .pad-title {
   font-size: var(--skin_font_size_title, inherit);
 }

@@ -5300,6 +5300,13 @@ function loadSkinFonts() {
 function openSkinEditor() {
   state.skinEditorVariables = {};
   renderSkinEditorFields();
+
+  // Sync preview mode with current board mode (stage/studio/garage)
+  const boardMode = document.body.dataset.boardMode || "studio";
+  const previewMode = boardMode === "garage" ? "basic" : boardMode === "stage" ? "stage" : "studio";
+  const modeRadio = document.querySelector(`[name='skinPreviewMode'][value='${previewMode}']`);
+  if (modeRadio) modeRadio.checked = true;
+
   syncSkinPreviewMode();
 
   // Restore harmony controls (picker + swatch) without overwriting skin colors
