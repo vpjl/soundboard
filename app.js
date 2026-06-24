@@ -10315,14 +10315,45 @@ function aeDecorate(region, type) {
   el.appendChild(lab); el.appendChild(dots);
 }
 
+// Bornes audibles sur la timeline effective (cut retiré, silence muté).
+// In = 1er instant audible, Out = dernier instant audible, audible = durée réellement entendue.
+function aeEffectiveBounds() {
+  const d = aeWS?.getDuration() || 0;
+  const regs = (aeRegions?.getRegions() || [])
+    .map((r) => ({
+      type: r.__type === "silence" ? "silence" : "cut",
+      a: Math.max(0, Math.min(d, r.start)),
+      b: Math.max(0, Math.min(d, r.end)),
+    }))
+    .filter((r) => r.b > r.a);
+  const pts = new Set([0, d]);
+  regs.forEach((r) => { pts.add(r.a); pts.add(r.b); });
+  const bounds = [...pts].sort((x, y) => x - y);
+  const inAny = (mid, type) => regs.some((r) => r.type === type && mid >= r.a && mid < r.b);
+  let eff = 0; let inT = null; let outT = 0; let audible = 0;
+  for (let i = 0; i < bounds.length - 1; i += 1) {
+    const p = bounds[i]; const q = bounds[i + 1];
+    if (q <= p) continue;
+    const mid = (p + q) / 2;
+    if (inAny(mid, "cut")) continue; // retiré → n'avance pas la timeline effective
+    const len = q - p;
+    if (!inAny(mid, "silence")) {
+      if (inT === null) inT = eff;
+      outT = eff + len;
+      audible += len;
+    }
+    eff += len;
+  }
+  return { total: d, inT: inT === null ? 0 : inT, outT, audible };
+}
+
 function aeUpdateTimes() {
   if (!aeWS || !aeRegions) return;
-  const d = aeWS.getDuration() || 0;
-  let cut = 0;
-  aeRegions.getRegions().forEach((r) => { if (r.__type === "cut") cut += (r.end - r.start); });
-  aeEl("aeIn").textContent = aeFmt(0);
-  aeEl("aeOut").textContent = aeFmt(d);
-  aeEl("aeSel").textContent = aeFmt(d - cut);
+  const b = aeEffectiveBounds();
+  aeEl("aeTotal").textContent = aeFmt(b.total);
+  aeEl("aeIn").textContent = aeFmt(b.inT);
+  aeEl("aeOut").textContent = aeFmt(b.outT);
+  aeEl("aeSel").textContent = aeFmt(b.audible);
 }
 
 function aeAdd(type) {
