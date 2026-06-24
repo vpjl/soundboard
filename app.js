@@ -10509,8 +10509,37 @@ function aeUndo() {
 }
 
 function aeReset() {
-  if (aeMode === "envelope") aeFlatEnvelope();
-  else { aeRegions?.clearRegions(); aeUpdateTimes(); }
+  if (!aePad) return;
+  if (!window.confirm("Réinitialiser l'éditeur audio ?\n\nCela supprime les coupures, les silences, l'enveloppe, le trim et les fades de ce pad.")) return;
+  // Données du pad : régions, enveloppe, trim, fades (on ne touche pas pitch/reverb/eq…).
+  aePad.regions = [];
+  aePad.envelope = [];
+  aePad.effectiveBuffer = null;
+  aePad.effectiveBufferSig = "";
+  aePad.reversedBufferSource = null;
+  setPadTrim(aePad, 0, 0);
+  aePad.fadeMode = "global";
+  aePad.fadeInSeconds = normalizeOptionalSeconds("");
+  aePad.fadeOutSeconds = normalizeOptionalSeconds("");
+  if (aePad.buffer) applyEffectiveBufferState(aePad);
+  // Vue éditeur
+  aeRegions?.clearRegions();
+  aeFlatEnvelope();
+  aeEnvDirty = true;
+  aeUpdateTimes();
+  aeUpdateTrimOverlay();
+  // Réglages + persistance
+  updatePadTime(aePad);
+  renderWaveform(aePad);
+  if (state.audioPad === aePad && els.audioDialog?.open) {
+    syncAudioDialog(aePad, { renderWaveform: false });
+    renderAudioDialogWaveform(aePad);
+  }
+  savePadMeta(aePad);
+  if (state.audioMediaDraft && state.audioPad === aePad) {
+    dbGet(padMetaKey(aePad)).then((m) => { if (state.audioMediaDraft) state.audioMediaDraft.metaRecord = m; });
+  }
+  setStatus("Éditeur audio réinitialisé", "success");
 }
 
 async function aeRunTrimAuto() {
@@ -10531,7 +10560,7 @@ async function aeRunTrimAuto() {
 
 function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
-  aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null;
+  aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null; aeTrimDrag = null;
   aeEnvelope = null; aeDragSel = null; aeMode = "regions";
   aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = "";
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
@@ -10571,6 +10600,52 @@ function aeEffToOrig(pad, tEff, regions = pad.regions) {
 }
 
 let aeTrimEls = null;
+let aeTrimDrag = null;
+
+// Position pointeur → temps d'origine (en tenant compte du zoom/scroll de wavesurfer).
+function aePointerOrigTime(clientX) {
+  if (!aeWS) return 0;
+  const total = aeWS.getDuration() || 0;
+  try {
+    const wrapper = aeWS.getWrapper();
+    const scrollEl = wrapper.parentElement || wrapper;
+    const contentW = wrapper.scrollWidth || wrapper.getBoundingClientRect().width;
+    const rect = scrollEl.getBoundingClientRect();
+    const x = (clientX - rect.left) + (scrollEl.scrollLeft || 0);
+    return contentW ? Math.max(0, Math.min(total, (x / contentW) * total)) : 0;
+  } catch { return 0; }
+}
+
+function aeBindTrimHandle(el, which) {
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    el.setPointerCapture?.(e.pointerId);
+    aeTrimDrag = { which, pointerId: e.pointerId };
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!aeTrimDrag || aeTrimDrag.pointerId !== e.pointerId || !aePad) return;
+    const tEff = origToEffTime(aePad, aePointerOrigTime(e.clientX), aeLiveRegions());
+    const dur = aePad.duration || aeWS.getDuration() || 0;
+    if (which === "in") setPadTrim(aePad, Math.max(0, Math.min(tEff, (aePad.trimEnd || dur) - 0.05)), aePad.trimEnd);
+    else setPadTrim(aePad, aePad.trimStart, Math.max((aePad.trimStart || 0) + 0.05, Math.min(tEff, dur)));
+    aeUpdateTrimOverlay();
+    updatePadTime(aePad);
+  });
+  const end = (e) => {
+    if (!aeTrimDrag || aeTrimDrag.pointerId !== e.pointerId) return;
+    aeTrimDrag = null;
+    el.releasePointerCapture?.(e.pointerId);
+    if (!aePad) return;
+    savePadMeta(aePad);
+    if (state.audioMediaDraft && state.audioPad === aePad) {
+      dbGet(padMetaKey(aePad)).then((m) => { if (state.audioMediaDraft) state.audioMediaDraft.metaRecord = m; });
+    }
+    if (state.audioPad === aePad && els.audioDialog?.open) renderAudioDialogWaveform(aePad);
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+
 function aeEnsureTrimEls() {
   const wave = aeEl("aeWave");
   if (!wave) return null;
@@ -10581,9 +10656,13 @@ function aeEnsureTrimEls() {
   const dimR = document.createElement("div"); dimR.className = "ae-trim-dim";
   const lineI = document.createElement("div"); lineI.className = "ae-trim-line";
   const lineO = document.createElement("div"); lineO.className = "ae-trim-line";
-  root.append(dimL, dimR, lineI, lineO);
+  const handleI = document.createElement("div"); handleI.className = "ae-trim-handle"; handleI.title = "Début (trim in)";
+  const handleO = document.createElement("div"); handleO.className = "ae-trim-handle"; handleO.title = "Fin (trim out)";
+  root.append(dimL, dimR, lineI, lineO, handleI, handleO);
   wave.appendChild(root);
-  aeTrimEls = { root, dimL, dimR, lineI, lineO };
+  aeBindTrimHandle(handleI, "in");
+  aeBindTrimHandle(handleO, "out");
+  aeTrimEls = { root, dimL, dimR, lineI, lineO, handleI, handleO };
   return aeTrimEls;
 }
 
@@ -10595,8 +10674,7 @@ function aeUpdateTrimOverlay() {
   const dur = aePad.duration || total; // durée effective
   const tIn = trimStart(aePad);
   const tOut = aePad.trimEnd ? Math.min(trimEnd(aePad), dur) : dur;
-  const hasTrim = tIn > 0.001 || tOut < dur - 0.001;
-  if (!total || !hasTrim) { o.root.hidden = true; return; }
+  if (!total) { o.root.hidden = true; return; }
   const origIn = aeEffToOrig(aePad, tIn);
   const origOut = aeEffToOrig(aePad, tOut);
   let wrapper; let scrollEl; let contentW; let scrollLeft = 0; let viewW;
@@ -10617,6 +10695,8 @@ function aeUpdateTrimOverlay() {
   o.dimR.style.left = `${xOut}px`; o.dimR.style.width = `${Math.max(0, viewW - xOut)}px`;
   o.lineI.style.left = `${xIn}px`; o.lineI.hidden = origIn <= 0.001;
   o.lineO.style.left = `${xOut}px`; o.lineO.hidden = origOut >= total - 0.001;
+  o.handleI.style.left = `${xIn}px`;
+  o.handleO.style.left = `${xOut}px`;
 }
 
 // Aperçu fidèle : pendant la lecture, saute les régions "cut" et coupe le son sur les "silence".

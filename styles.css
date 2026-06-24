@@ -9391,6 +9391,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-grp { display: flex; align-items: center; gap: 8px; }
 .ae-grp-end { margin-left: auto; }
 .ae-grp.is-dim > .ae-tbtn { opacity: .4; pointer-events: none; }
+.ae-frame { border: 1px solid #2c313c; border-radius: 10px; padding: 5px 8px; }
+.ae-frame:has(.ae-mode.is-active) { border-color: #2f57a8; background: rgba(33, 64, 126, 0.12); }
 .ae-mode { padding: 7px 14px; border: 1px solid #2c313c; border-radius: 8px; background: #14171e; color: #9aa1ad; font-size: .82rem; cursor: pointer; }
 .ae-mode:hover { border-color: #444b59; }
 .ae-mode.is-active { background: #21407e; border-color: #2f57a8; color: #eaf1ff; }
@@ -9407,6 +9409,10 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-trim-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .ae-trim-dim { position: absolute; top: 0; bottom: 0; background: rgba(4, 6, 10, 0.66); }
 .ae-trim-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: repeating-linear-gradient(to bottom, #cfe2ff 0 5px, transparent 5px 9px); }
+.ae-trim-handle { position: absolute; top: 0; bottom: 0; width: 18px; margin-left: -9px; pointer-events: auto; cursor: ew-resize; z-index: 5; }
+.ae-trim-handle::before { content: ""; position: absolute; top: 0; bottom: 0; left: 8px; width: 2px; background: #cfe2ff; }
+.ae-trim-handle::after { content: ""; position: absolute; top: 50%; left: 50%; width: 12px; height: 26px; transform: translate(-50%, -50%); border-radius: 4px; background: #cfe2ff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.ae-trim-handle:hover::after { background: #eaf2ff; }
 #aeWave ::part(region-handle-left), #aeWave ::part(region-handle-right) { width: 4px; border: none; background: var(--rg, #888); opacity: .95; }
 .ae-rg-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 4px 10px; border-radius: 5px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #fff; background: rgba(0,0,0,.35); pointer-events: none; white-space: nowrap; }
 .ae-rg-dots { position: absolute; top: 5px; right: 6px; display: flex; gap: 5px; }
