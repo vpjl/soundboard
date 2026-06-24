@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=342">
+    <link rel="stylesheet" href="styles.css?v=343">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2218,11 +2218,15 @@
           <div class="ae-out">Out : <span id="aeOut">0:00.000</span></div>
         </div>
         <div class="ae-toolbar">
-          <div class="ae-grp">
+          <div class="ae-grp ae-modes">
+            <button class="ae-mode is-active" id="aeModeRegions" type="button">Régions</button>
+            <button class="ae-mode" id="aeModeEnvelope" type="button">Enveloppe</button>
+          </div>
+          <div class="ae-grp" id="aeRegionTools">
             <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Couper</button>
             <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence</button>
           </div>
-          <div class="ae-grp"><button class="ae-tbtn" id="aeUndo" type="button">↶ Défaire</button><button class="ae-tbtn" id="aeReset" type="button">↻ Réinit.</button></div>
+          <div class="ae-grp ae-grp-end"><button class="ae-tbtn" id="aeUndo" type="button">↶ Défaire</button><button class="ae-tbtn" id="aeReset" type="button">↻ Réinit.</button></div>
         </div>
         <div id="aeWave"></div>
         <div class="ae-transport">
@@ -2267,11 +2271,13 @@
     <script type="module">
       import WaveSurfer from "./lib/wavesurfer.esm.js?v=1";
       import RegionsPlugin from "./lib/regions.esm.js?v=1";
+      import EnvelopePlugin from "./lib/envelope.esm.js?v=1";
       window.WaveSurfer = WaveSurfer;
       window.WaveSurferRegions = RegionsPlugin;
+      window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=342"></script>
+    <script src="app.js?v=343"></script>
 
 
   </body>

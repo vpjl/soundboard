@@ -1976,6 +1976,7 @@ function makePad(index) {
     trimStart: 0,
     trimEnd: 0,
     regions: [],
+    envelope: [],
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
@@ -8068,6 +8069,7 @@ async function restorePad(pad) {
     const metaTrimStartedAt = performance.now();
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
     pad.regions = Array.isArray(meta.regions) ? meta.regions : [];
+    pad.envelope = Array.isArray(meta.envelope) ? meta.envelope : [];
     log("renderWaveform", { source: "setPadTrim/meta", measuredMs: perfElapsedMs(metaTrimStartedAt) });
     setPadTextSettings(pad, {
       textContent: meta.textContent,
@@ -8773,6 +8775,7 @@ async function savePadMeta(pad) {
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
     regions: pad.regions || [],
+    envelope: pad.envelope || [],
     playMode: pad.playMode,
     audioRefIndex: Number.isInteger(Number(pad.audioRefIndex)) ? Number(pad.audioRefIndex) : null,
   };
@@ -10289,6 +10292,7 @@ function selectedOptionValue(select) {
 
 // ===== Éditeur audio (régions cut/silence) — wavesurfer =====
 let aeWS = null, aeRegions = null, aePad = null, aeNewType = "cut";
+let aeEnvelope = null, aeMode = "regions", aeDragSel = null;
 const AE_TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
 const AE_EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
 const aeFmt = (s) => `${Math.floor(Math.max(0,s)/60)}:${(Math.max(0,s)%60).toFixed(3).padStart(6,"0")}`;
@@ -10366,9 +10370,78 @@ function aeAdd(type) {
   aeUpdateTimes();
 }
 
+const AE_HINT_REGIONS = "Rouge = couper (retiré du son) · Orange = silence (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Cliquer/glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.";
+const AE_HINT_ENV = "Enveloppe de volume : double-cliquer sur la courbe pour ajouter un point · glisser un point pour le déplacer · le faire sortir de la zone pour le supprimer. Haut = 100 %, bas = silence.";
+
+function aeUpdateHint() {
+  const h = document.querySelector(".ae-hint");
+  if (h) h.textContent = aeMode === "envelope" ? AE_HINT_ENV : AE_HINT_REGIONS;
+}
+
+function aeSetMode(mode) {
+  aeMode = mode === "envelope" ? "envelope" : "regions";
+  aeEl("aeModeRegions")?.classList.toggle("is-active", aeMode === "regions");
+  aeEl("aeModeEnvelope")?.classList.toggle("is-active", aeMode === "envelope");
+  const rt = aeEl("aeRegionTools"); if (rt) rt.hidden = aeMode !== "regions";
+  const wave = aeEl("aeWave");
+  if (wave) {
+    wave.classList.toggle("ae-mode-reg", aeMode === "regions");
+    wave.classList.toggle("ae-mode-env", aeMode === "envelope");
+  }
+  if (aeMode === "regions") {
+    if (!aeDragSel && aeRegions) aeDragSel = aeRegions.enableDragSelection({ color: AE_TINT.cut });
+  } else if (aeDragSel) {
+    aeDragSel(); aeDragSel = null;
+  }
+  // Régions non interactives en mode enveloppe (et inversement l'enveloppe via CSS ::part).
+  (aeRegions?.getRegions() || []).forEach((r) => {
+    if (r.element) r.element.style.pointerEvents = aeMode === "envelope" ? "none" : "";
+  });
+  aeUpdateHint();
+}
+
+function aeFlatEnvelope() {
+  const d = aeWS?.getDuration() || 0;
+  aeEnvelope?.setPoints([{ time: 0, volume: 1 }, { time: d, volume: 1 }]);
+}
+
+// Gain de l'enveloppe au temps t (interpolation linéaire entre points).
+function aeEnvGainAt(t) {
+  const pts = (aeEnvelope?.getPoints?.() || []).slice().sort((a, b) => a.time - b.time);
+  if (!pts.length) return 1;
+  if (t <= pts[0].time) return pts[0].volume;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const a = pts[i]; const b = pts[i + 1];
+    if (t >= a.time && t <= b.time) {
+      const f = (t - a.time) / ((b.time - a.time) || 1);
+      return a.volume + (b.volume - a.volume) * f;
+    }
+  }
+  return pts[pts.length - 1].volume;
+}
+
+function aeUndo() {
+  if (aeMode === "envelope") {
+    const d = aeWS?.getDuration() || 0;
+    const pts = (aeEnvelope?.getPoints() || []).slice().sort((a, b) => a.time - b.time);
+    for (let i = pts.length - 1; i >= 0; i -= 1) {
+      if (pts[i].time > 0.001 && pts[i].time < d - 0.001) { aeEnvelope.removePoint(pts[i]); return; }
+    }
+  } else {
+    const a = aeRegions?.getRegions() || [];
+    a[a.length - 1]?.remove();
+  }
+}
+
+function aeReset() {
+  if (aeMode === "envelope") aeFlatEnvelope();
+  else { aeRegions?.clearRegions(); aeUpdateTimes(); }
+}
+
 function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
   aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null;
+  aeEnvelope = null; aeDragSel = null; aeMode = "regions";
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
@@ -10461,7 +10534,7 @@ function aeSyncPreview(t) {
       inSilence = true;
     }
   }
-  aeWS.setVolume(inSilence ? 0 : 1);
+  aeWS.setVolume(inSilence ? 0 : aeEnvGainAt(t));
 }
 
 async function openPadRegionsEditor(pad) {
@@ -10478,21 +10551,35 @@ async function openPadRegionsEditor(pad) {
   els.audioEditorDialog?.showModal?.();
 
   aeRegions = window.WaveSurferRegions.create();
+  aeEnvelope = window.WaveSurferEnvelope
+    ? window.WaveSurferEnvelope.create({
+        points: (pad.envelope || []).map((p) => ({ time: p.time, volume: p.volume })),
+        lineColor: "rgba(120, 210, 130, 0.95)",
+        lineWidth: 3,
+        dragPointSize: 14,
+        dragPointFill: "#cfe2ff",
+        dragPointStroke: "rgba(0,0,0,0.55)",
+        dragLine: false,
+      })
+    : null;
+  const plugins = aeEnvelope ? [aeRegions, aeEnvelope] : [aeRegions];
   aeWS = window.WaveSurfer.create({
-    container: "#aeWave", url: URL.createObjectURL(blob), plugins: [aeRegions],
+    container: "#aeWave", url: URL.createObjectURL(blob), plugins,
     waveColor: "#3a9bff", progressColor: "#2f7fd6", cursorColor: "#cfe2ff", cursorWidth: 2,
     barWidth: 2, barGap: 1, barRadius: 2, height: 220, normalize: true, fillParent: true, minPxPerSec: 1, dragToSeek: true,
   });
-  aeRegions.enableDragSelection({ color: AE_TINT.cut });
+  if (aeEnvelope) aeEnvelope.setVolume = () => {}; // on pilote le volume d'aperçu nous-mêmes (cut/silence + enveloppe)
   aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); });
   aeRegions.on("region-updated", aeUpdateTimes);
   aeRegions.on("region-removed", aeUpdateTimes);
+  aeSetMode("regions");
   aeWS.on("ready", () => {
     aeEl("aeTotal").textContent = aeFmt(aeWS.getDuration());
     (pad.regions || []).forEach((rg) => {
       const r = aeRegions.addRegion({ start: rg.start, end: rg.end, color: AE_TINT[rg.type] || AE_TINT.cut, drag: true, resize: true });
       aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
     });
+    if (aeEnvelope && (aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
     aeUpdateTimes();
     aeUpdateTrimOverlay();
   });
@@ -10513,6 +10600,12 @@ async function aeApply() {
       .filter((r) => r.end - r.start > 0.01)
       .sort((a, b) => a.start - b.start);
     aePad.regions = regions;
+    // Enveloppe : points {time, volume} ; si plate (tout à 100 %), on stocke [].
+    let envelope = (aeEnvelope?.getPoints() || [])
+      .map((p) => ({ time: +Number(p.time).toFixed(4), volume: +Math.min(1, Math.max(0, Number(p.volume))).toFixed(3) }))
+      .sort((a, b) => a.time - b.time);
+    if (!envelope.length || envelope.every((p) => p.volume >= 0.999)) envelope = [];
+    aePad.envelope = envelope;
     // S'assurer que le buffer est décodé pour recaler la durée immédiatement (pas seulement à la prochaine lecture).
     if (!aePad.buffer && (aePad.audioStored || aePad.hasDirectAudio)) {
       try { aePad.buffer = await ensurePadAudioDecoded(aePad); } catch {}
@@ -10530,7 +10623,7 @@ async function aeApply() {
     }
     const cutN = regions.filter((r) => r.type === "cut").length;
     const silN = regions.filter((r) => r.type === "silence").length;
-    setStatus(`Régions appliquées : ${cutN} coupure(s), ${silN} silence(s)`, "success");
+    setStatus(`Appliqué : ${cutN} coupure(s), ${silN} silence(s)${envelope.length ? `, enveloppe (${envelope.length} pts)` : ""}`, "success");
   }
   els.audioEditorDialog?.close();
   aeDestroy();
@@ -13901,10 +13994,12 @@ async function init() {
   els.audioRegionsEdit?.addEventListener("click", () => {
     if (state.audioPad) openPadRegionsEditor(state.audioPad);
   });
+  aeEl("aeModeRegions")?.addEventListener("click", () => aeSetMode("regions"));
+  aeEl("aeModeEnvelope")?.addEventListener("click", () => aeSetMode("envelope"));
   aeEl("aeAddCut")?.addEventListener("click", () => aeAdd("cut"));
   aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
-  aeEl("aeReset")?.addEventListener("click", () => { aeRegions?.clearRegions(); aeUpdateTimes(); });
-  aeEl("aeUndo")?.addEventListener("click", () => { const a = aeRegions?.getRegions() || []; a[a.length - 1]?.remove(); });
+  aeEl("aeReset")?.addEventListener("click", aeReset);
+  aeEl("aeUndo")?.addEventListener("click", aeUndo);
   aeEl("aePlay")?.addEventListener("click", () => aeWS?.playPause());
   aeEl("aeToStart")?.addEventListener("click", () => aeWS?.seekTo(0));
   let aePx = 1;
