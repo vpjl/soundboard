@@ -10322,6 +10322,8 @@ function selectedOptionValue(select) {
 // ===== Éditeur audio (régions cut/silence) — wavesurfer =====
 let aeWS = null, aeRegions = null, aePad = null, aeNewType = "cut";
 let aeEnvelope = null, aeMode = "regions", aeDragSel = null;
+let aeEnvDirty = false, aeHadSavedEnv = false, aeEnvBaselineSig = "";
+const aeEnvSig = (pts) => (pts || []).map((p) => `${(+p.time).toFixed(3)}:${(+p.volume).toFixed(3)}`).sort().join("|");
 const AE_TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
 const AE_EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
 const aeFmt = (s) => `${Math.floor(Math.max(0,s)/60)}:${(Math.max(0,s)%60).toFixed(3).padStart(6,"0")}`;
@@ -10400,7 +10402,7 @@ function aeAdd(type) {
 }
 
 const AE_HINT_REGIONS = "Rouge = couper (retiré du son) · Orange = silence (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Cliquer/glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.";
-const AE_HINT_ENV = "Enveloppe de volume : double-cliquer sur la courbe pour ajouter un point · glisser un point pour le déplacer · le faire sortir de la zone pour le supprimer. Haut = 100 %, bas = silence.";
+const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Reprendre les fades » les régénère) ; ils ne sont alors plus appliqués en double.";
 
 function aeUpdateHint() {
   const h = document.querySelector(".ae-hint");
@@ -10412,6 +10414,7 @@ function aeSetMode(mode) {
   aeEl("aeModeRegions")?.classList.toggle("is-active", aeMode === "regions");
   aeEl("aeModeEnvelope")?.classList.toggle("is-active", aeMode === "envelope");
   const rt = aeEl("aeRegionTools"); if (rt) rt.classList.toggle("is-dim", aeMode !== "regions");
+  const et = aeEl("aeEnvTools"); if (et) et.hidden = aeMode !== "envelope";
   const wave = aeEl("aeWave");
   if (wave) {
     wave.classList.toggle("ae-mode-reg", aeMode === "regions");
@@ -10434,6 +10437,38 @@ function aeSetMode(mode) {
 function aeFlatEnvelope() {
   const d = aeWS?.getDuration() || 0;
   aeEnvelope?.setPoints([{ time: 0, volume: 1 }, { time: d, volume: 1 }]);
+}
+
+// Règle A : (re)génère les extrémités de l'enveloppe à partir des fades in/out du pad,
+// en préservant les points manuels du milieu.
+function aeSeedFadesIntoEnvelope(pad) {
+  if (!aeEnvelope) return;
+  const dur = pad.duration || aeWS?.getDuration() || 0; // durée effective
+  if (!dur) return;
+  const fi = Math.max(0, fadeDurationForPad(pad, "in") || 0);
+  const fo = Math.max(0, fadeDurationForPad(pad, "out") || 0);
+  const tIn0 = trimStart(pad);
+  const tIn1 = Math.min(dur, tIn0 + fi);
+  const tOut1 = pad.trimEnd ? Math.min(trimEnd(pad), dur) : dur;
+  const tOut0 = Math.max(tIn1, tOut1 - fo);
+  // points manuels du milieu (temps effectif strictement entre les fenêtres de fade)
+  const middle = (aeEnvelope.getPoints() || [])
+    .map((p) => ({ time: p.time, volume: p.volume }))
+    .filter((p) => { const e = origToEffTime(pad, p.time); return e > tIn1 + 1e-3 && e < tOut0 - 1e-3; });
+  const seeded = [];
+  if (fi > 0.01) seeded.push({ time: aeEffToOrig(pad, tIn0), volume: 0 }, { time: aeEffToOrig(pad, tIn1), volume: 1 });
+  else seeded.push({ time: aeEffToOrig(pad, tIn0), volume: 1 });
+  middle.forEach((p) => seeded.push(p));
+  if (fo > 0.01) seeded.push({ time: aeEffToOrig(pad, tOut0), volume: 1 }, { time: aeEffToOrig(pad, tOut1), volume: 0 });
+  else seeded.push({ time: aeEffToOrig(pad, tOut1), volume: 1 });
+  seeded.sort((a, b) => a.time - b.time);
+  const clean = [];
+  for (const p of seeded) {
+    const last = clean[clean.length - 1];
+    if (last && Math.abs(last.time - p.time) < 0.005) last.volume = Math.min(last.volume, p.volume);
+    else clean.push({ ...p });
+  }
+  aeEnvelope.setPoints(clean);
 }
 
 // Gain de l'enveloppe au temps t (interpolation linéaire entre points).
@@ -10473,6 +10508,7 @@ function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
   aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null;
   aeEnvelope = null; aeDragSel = null; aeMode = "regions";
+  aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = "";
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
@@ -10579,8 +10615,11 @@ async function openPadRegionsEditor(pad) {
     resumeAt = aeEffToOrig(pad, trimStart(pad) + playbackOffset(pad));
   }
   stopAudioDialogStartedPlayback();
+  const hadSavedEnv = (pad.envelope || []).length > 0;
   aeDestroy();
   aePad = pad;
+  aeHadSavedEnv = hadSavedEnv;
+  aeEnvDirty = false;
   aeEl("aeClipTitle").textContent = pad.title || `Pad ${pad.index + 1}`;
   aeEl("aeTotal").textContent = aeEl("aeIn").textContent = aeEl("aeOut").textContent = aeEl("aeSel").textContent = "0:00.000";
   const helpPanel = aeEl("aeHelpPanel");
@@ -10616,7 +10655,11 @@ async function openPadRegionsEditor(pad) {
       const r = aeRegions.addRegion({ start: rg.start, end: rg.end, color: AE_TINT[rg.type] || AE_TINT.cut, drag: true, resize: true });
       aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
     });
-    if (aeEnvelope && (aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
+    if (aeEnvelope) {
+      if (!hadSavedEnv) aeSeedFadesIntoEnvelope(pad); // défaut : la courbe reflète les fades du pad
+      if ((aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
+      aeEnvBaselineSig = aeEnvSig(aeEnvelope.getPoints()); // référence pour détecter une vraie édition
+    }
     aeUpdateTimes();
     aeUpdateTrimOverlay();
     if (resumeAt != null) {
@@ -10642,11 +10685,14 @@ async function aeApply() {
       .filter((r) => r.end - r.start > 0.01)
       .sort((a, b) => a.start - b.start);
     aePad.regions = regions;
-    // Enveloppe : points {time, volume} ; si plate (tout à 100 %), on stocke [].
+    // Enveloppe : on ne l'enregistre que si l'utilisateur l'a réellement éditée
+    // (sinon la courbe = simple reflet des fades → on laisse les fades aux curseurs).
+    const userEditedEnv = aeEnvDirty || aeEnvSig(aeEnvelope?.getPoints()) !== aeEnvBaselineSig;
     let envelope = (aeEnvelope?.getPoints() || [])
       .map((p) => ({ time: +Number(p.time).toFixed(4), volume: +Math.min(1, Math.max(0, Number(p.volume))).toFixed(3) }))
       .sort((a, b) => a.time - b.time);
-    if (!envelope.length || envelope.every((p) => p.volume >= 0.999)) envelope = [];
+    if (!aeHadSavedEnv && !userEditedEnv) envelope = [];
+    else if (!envelope.length || envelope.every((p) => p.volume >= 0.999)) envelope = [];
     aePad.envelope = envelope;
     // S'assurer que le buffer est décodé pour recaler la durée immédiatement (pas seulement à la prochaine lecture).
     if (!aePad.buffer && (aePad.audioStored || aePad.hasDirectAudio)) {
@@ -12963,6 +13009,8 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const reverseSegmentStart = Math.max(0, baseBuffer.duration - segmentEnd);
   const reverseSegmentEnd = Math.min(baseBuffer.duration, baseBuffer.duration - segmentStart);
   const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
+  // Enveloppe présente : elle porte le volume (fades inclus) → pas de fade statique en double.
+  const hasEnv = !pad.loop && Array.isArray(pad.envelope) && pad.envelope.length > 0;
 
   const ctx = state.audioContext;
   const source = ctx.createBufferSource();
@@ -12975,9 +13023,9 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     : fadeDurationForPad(pad, "in");
   const naturalDuration = Math.max(0.01, segmentEnd - startOffset);
   const naturalStopAt = now + naturalDuration;
-  const naturalFadeOutTime = !pad.loop ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
+  const naturalFadeOutTime = (!pad.loop && !hasEnv) ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
   const naturalFadeOutStart = naturalStopAt - naturalFadeOutTime;
-  const effectiveFadeInTime = fade && fadeTime > 0
+  const effectiveFadeInTime = fade && !hasEnv && fadeTime > 0
     ? Math.min(fadeTime, naturalFadeOutTime > 0 ? Math.max(0, naturalFadeOutStart - now) : naturalDuration)
     : 0;
   const targetGain = targetPadGain(pad);
@@ -12994,7 +13042,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   // Couche d'enveloppe de volume (multiplicative, indépendante des fades), si présente.
   let preGain = gain;
   pad.envGain = null;
-  if (!pad.loop && Array.isArray(pad.envelope) && pad.envelope.length) {
+  if (hasEnv) {
     const envGain = ctx.createGain();
     envGain.gain.setValueAtTime(1, now);
     scheduleEnvelopeGain(pad, envGain, now, startOffset, segmentStart, segmentEnd, baseBuffer.duration);
@@ -14092,6 +14140,7 @@ async function init() {
   });
   aeEl("aeModeRegions")?.addEventListener("click", () => aeSetMode("regions"));
   aeEl("aeModeEnvelope")?.addEventListener("click", () => aeSetMode("envelope"));
+  aeEl("aeEnvFromFades")?.addEventListener("click", () => { if (aePad) { aeSeedFadesIntoEnvelope(aePad); aeEnvDirty = true; } });
   aeEl("aeAddCut")?.addEventListener("click", () => aeAdd("cut"));
   aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
   aeEl("aeReset")?.addEventListener("click", aeReset);

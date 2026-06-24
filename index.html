@@ -2226,6 +2226,9 @@
             <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Couper</button>
             <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence</button>
           </div>
+          <div class="ae-grp" id="aeEnvTools" hidden>
+            <button class="ae-tbtn" id="aeEnvFromFades" type="button" title="Régénère le début et la fin de la courbe à partir des fades in/out réglés sur le pad">↧ Reprendre les fades</button>
+          </div>
           <div class="ae-grp ae-grp-end"><button class="ae-tbtn" id="aeUndo" type="button">↶ Défaire</button><button class="ae-tbtn" id="aeReset" type="button">↻ Réinit.</button></div>
         </div>
         <div id="aeWave"></div>
@@ -2277,7 +2280,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=346"></script>
+    <script src="app.js?v=347"></script>
 
 
   </body>
