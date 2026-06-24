@@ -10948,6 +10948,11 @@ function refreshPlayingPadOutput(pad) {
 function resetAudioDialogSettings() {
   const pad = state.audioPad;
   if (!pad) return;
+  const hadEditorEdits = (pad.regions?.length || 0) > 0 || (pad.envelope?.length || 0) > 0;
+  const message = hadEditorEdits
+    ? "Réinitialiser tous les réglages audio de ce pad ?\n\nLes régions (cut / silence) et l'enveloppe de volume de l'éditeur seront aussi supprimées."
+    : "Réinitialiser tous les réglages audio de ce pad ?";
+  if (!window.confirm(message)) return;
   setPadAudioSettings(pad, {
     fadeMode: "global",
     fadeInSeconds: "",
@@ -10985,7 +10990,6 @@ function resetAudioDialogSettings() {
   }
   setPadTrim(pad, 0, 0);
   // Réinitialise aussi l'éditeur : régions (cut/silence) + enveloppe.
-  const hadEditorEdits = (pad.regions?.length || 0) > 0 || (pad.envelope?.length || 0) > 0;
   pad.regions = [];
   pad.envelope = [];
   pad.effectiveBuffer = null;
