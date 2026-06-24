@@ -12278,6 +12278,35 @@ function connectPadOutput(pad, pan, analyser) {
   pad.reverbNodes = { dry, wet, convolver };
 }
 
+// Programme l'enveloppe de volume (pad.envelope, points {time,volume} en temps d'origine)
+// sur un gain dédié, sur la fenêtre réellement jouée (trim), en tenant compte du reverse.
+function scheduleEnvelopeGain(pad, envGain, now, startOffset, segStart, segEnd, baseDuration) {
+  const pts = (pad.envelope || [])
+    .map((p) => ({ t: Math.max(0, Math.min(baseDuration, origToEffTime(pad, p.time))), v: Math.min(1, Math.max(0, p.volume)) }))
+    .sort((a, b) => a.t - b.t);
+  if (!pts.length) return;
+  const envAt = (t) => {
+    if (t <= pts[0].t) return pts[0].v;
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const a = pts[i]; const b = pts[i + 1];
+      if (t >= a.t && t <= b.t) { const f = (t - a.t) / ((b.t - a.t) || 1); return a.v + (b.v - a.v) * f; }
+    }
+    return pts[pts.length - 1].v;
+  };
+  const reverse = !!pad.reverse;
+  const eStart = reverse ? (baseDuration - startOffset) : startOffset; // temps effectif au démarrage
+  const eEnd = reverse ? segStart : segEnd;                            // temps effectif en fin
+  if (Math.abs(eEnd - eStart) < 0.005) return;
+  const lo = Math.min(eStart, eEnd); const hi = Math.max(eStart, eEnd);
+  const inside = pts.filter((p) => p.t > lo + 1e-4 && p.t < hi - 1e-4);
+  inside.sort((a, b) => (reverse ? b.t - a.t : a.t - b.t));
+  const timeOf = (tEff) => Math.max(now, now + (reverse ? (eStart - tEff) : (tEff - eStart)));
+  const g = envGain.gain;
+  g.setValueAtTime(envAt(eStart), now);
+  for (const p of inside) g.linearRampToValueAtTime(p.v, timeOf(p.t));
+  g.linearRampToValueAtTime(envAt(eEnd), timeOf(eEnd));
+}
+
 function connectSourceToGain(pad, source, gain) {
   if (!pad.mono || !state.audioContext || (pad.buffer?.numberOfChannels || 1) < 2) {
     source.connect(gain);
@@ -12760,6 +12789,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   const wasManualCrossfadeSource = state.crossfadeArm.active && manualCrossfadeSourcePad() === pad;
   pad.source = null;
   pad.gain = null;
+  pad.envGain = null;
   pad.pan = null;
   pad.analyser = null;
   pad.meterData = null;
@@ -12961,7 +12991,18 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
   gain.gain.setValueAtTime(effectiveFadeInTime > 0 ? 0 : targetGain, now);
   pan.pan.setValueAtTime(pad.panValue, now);
-  connectSourceToGain(pad, source, gain);
+  // Couche d'enveloppe de volume (multiplicative, indépendante des fades), si présente.
+  let preGain = gain;
+  pad.envGain = null;
+  if (!pad.loop && Array.isArray(pad.envelope) && pad.envelope.length) {
+    const envGain = ctx.createGain();
+    envGain.gain.setValueAtTime(1, now);
+    scheduleEnvelopeGain(pad, envGain, now, startOffset, segmentStart, segmentEnd, baseBuffer.duration);
+    envGain.connect(gain);
+    pad.envGain = envGain;
+    preGain = envGain;
+  }
+  connectSourceToGain(pad, source, preGain);
   connectPadEq(pad, gain, pan);
   connectPadOutput(pad, pan, analyser);
 
