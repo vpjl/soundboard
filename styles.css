@@ -9341,7 +9341,10 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-help-btn:hover { border-color: #3a9bff; color: #cfe2ff; }
 .ae-help-panel { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(2,4,8,.78); border-radius: 10px; z-index: 5; }
 .ae-help-panel[hidden] { display: none; }
-.ae-help-card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: #0b0e14; border: 1px solid #232938; border-radius: 12px; padding: 20px 22px; }
+.ae-help-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow: auto; background: #0b0e14; border: 1px solid #232938; border-radius: 12px; padding: 20px 22px; }
+.ae-help-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 7px; border: 1px solid #2c313c; background: #14171e; color: #9aa1ad; display: grid; place-items: center; padding: 0; cursor: pointer; }
+.ae-help-close:hover { border-color: #444b59; color: #e9ecf2; }
+.ae-help-close svg { width: 16px; height: 16px; display: block; }
 .ae-help-card h3 { margin: 0 0 8px; font-size: 1rem; }
 .ae-help-lead { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid #232938; color: #b9c0cb; font-size: .86rem; line-height: 1.45; }
 .ae-help-lead strong { color: #e9ecf2; }

@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=337">
+    <link rel="stylesheet" href="styles.css?v=338">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2237,25 +2237,27 @@
       </div>
       <div class="ae-help-panel" id="aeHelpPanel" hidden>
         <div class="ae-help-card">
+          <button id="aeHelpClose" class="ae-help-close" type="button" aria-label="Fermer l'aide">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
           <h3>Aide — Éditeur audio</h3>
-          <p class="ae-help-lead">L'audio d'origine n'est <strong>jamais</strong> modifié : les régions coupées (cut) ou mutées (silence) peuvent être rétablies.</p>
+          <p class="ae-help-lead">L'audio d'origine n'est jamais modifié : les régions coupées (cut) ou mutées (silence) peuvent être rétablies.</p>
           <dl>
             <dt><span class="ae-help-tag cut">Couper</span></dt>
-            <dd>L'intervalle est retiré : le son est <strong>raccourci</strong> (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
+            <dd>L'intervalle est retiré : le son est raccourci (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
             <dt><span class="ae-help-tag silence">Silence</span></dt>
-            <dd>L'intervalle est mis à zéro (<strong>mute</strong>) ; la durée ne change pas.</dd>
+            <dd>L'intervalle est mis à zéro (mute) ; la durée ne change pas.</dd>
             <dt>↶ Défaire</dt>
             <dd>Retire la dernière région ajoutée.</dd>
             <dt>↻ Réinit.</dt>
             <dd>Supprime toutes les régions coupées ou mutées.</dd>
             <dt>Annuler</dt>
-            <dd>Ferme l'éditeur <strong>sans appliquer</strong> les changements.</dd>
+            <dd>Ferme l'éditeur sans appliquer les changements.</dd>
             <dt>Appliquer</dt>
             <dd>Ferme l'éditeur en appliquant les changements.</dd>
             <dt>In / Out</dt>
-            <dd>Premier et dernier instant réellement entendu, après cut et mute. <em>Sélection</em> = durée audible totale.</dd>
+            <dd>Premier et dernier instant réellement entendu, après cut et mute. Sélection = durée audible totale.</dd>
           </dl>
-          <button id="aeHelpClose" class="ae-fbtn apply" type="button">Compris</button>
         </div>
       </div>
     </dialog>
@@ -2267,7 +2269,7 @@
       window.WaveSurferRegions = RegionsPlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=337"></script>
+    <script src="app.js?v=338"></script>
 
 
   </body>

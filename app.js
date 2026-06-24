@@ -10330,7 +10330,7 @@ function aeEffectiveBounds() {
   regs.forEach((r) => { pts.add(r.a); pts.add(r.b); });
   const bounds = [...pts].sort((x, y) => x - y);
   const inAny = (mid, type) => regs.some((r) => r.type === type && mid >= r.a && mid < r.b);
-  let eff = 0; let inT = null; let outT = 0; let audible = 0;
+  let eff = 0; let inT = 0; let inFound = false; let outT = 0; let audible = 0;
   for (let i = 0; i < bounds.length - 1; i += 1) {
     const p = bounds[i]; const q = bounds[i + 1];
     if (q <= p) continue;
@@ -10338,13 +10338,13 @@ function aeEffectiveBounds() {
     if (inAny(mid, "cut")) continue; // retiré → n'avance pas la timeline effective
     const len = q - p;
     if (!inAny(mid, "silence")) {
-      if (inT === null) inT = eff;
-      outT = eff + len;
+      if (!inFound) { inT = p; inFound = true; } // In = 1er instant audible (timeline d'origine)
+      outT = eff + len;                          // Out = fin audible (timeline effective)
       audible += len;
     }
     eff += len;
   }
-  return { total: d, inT: inT === null ? 0 : inT, outT, audible };
+  return { total: d, inT, outT, audible };
 }
 
 function aeUpdateTimes() {
