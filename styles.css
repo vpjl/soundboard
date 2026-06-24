@@ -3038,10 +3038,16 @@ body.board-edit-mode .pad.is-editing .pad-tags {
 }
 
 body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
-  display: none !important;
+  display: none;
 }
 
-body.board-edit-mode .pad.is-editing .tags-add-btn {
+/* Click the [+] button → reveal the tag input (and hide [+] while open) */
+body.board-edit-mode .pad.is-editing .tag-field.tags-input-open input[data-tags] {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   display: none;
 }
 
