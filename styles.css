@@ -1535,12 +1535,27 @@ input[type="range"] {
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 90ms ease;
 }
 
+/* Simple hover: emphasise the border (no layout shift via inset shadow) */
+.danger-button:hover:not(:disabled),
+.small-button:hover:not(:disabled),
+.control-group button:hover:not(:disabled),
+.drag-handle:hover:not(:disabled),
+.icon-button:hover:not(:disabled) {
+  border-color: var(--color_ui_text_muted);
+  box-shadow: inset 0 0 0 1px var(--color_ui_border);
+}
+
 button:active,
 button.is-pressed {
   border-color: var(--color_status_success);
   background: color-mix(in srgb, var(--color_status_success) 28%, transparent);
   color: var(--color_ui_text);
   transform: translateY(1px);
+}
+
+/* Empty pad: no duration shown */
+.pad.is-empty .pad-time {
+  display: none;
 }
 
 .danger-button {

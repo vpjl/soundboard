@@ -6250,6 +6250,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const hasVideoPad = Boolean(saved?.video || saved?.videoName || meta?.videoName || meta?.videoPath);
+    setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
     const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
