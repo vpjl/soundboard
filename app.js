@@ -10344,6 +10344,7 @@ async function padAudioBlob(pad) {
 function aeDecorate(region, type) {
   region.__type = type;
   const el = region.element; if (!el) return;
+  el.querySelectorAll(".ae-rg-label, .ae-rg-dots").forEach((n) => n.remove()); // idempotent (évite les doublons)
   el.style.setProperty("--rg", AE_EDGE[type]);
   const lab = document.createElement("div");
   lab.className = "ae-rg-label"; lab.textContent = type === "cut" ? "COUPER" : "SILENCE";
@@ -10434,6 +10435,7 @@ function aeSetMode(mode) {
   (aeRegions?.getRegions() || []).forEach((r) => {
     if (r.element) r.element.style.opacity = aeMode === "envelope" ? "0.3" : "";
   });
+  if (aeMode === "envelope") aeMaybeReseedFades(); // recale le fade sur les régions actuelles
   aeUpdateHint();
 }
 
@@ -10466,11 +10468,14 @@ function aeSeedFadesIntoEnvelope(pad) {
     .map((p) => ({ time: p.time, volume: p.volume }))
     .filter((p) => { const e = origToEffTime(pad, p.time, regions); return e > tIn1 + 1e-3 && e < tOut0 - 1e-3; });
   const seeded = [];
+  // Sans fade-in : plein dès le tout début (t=0) pour éviter une fausse montée
+  // depuis le coin bas-gauche (segment par défaut de la polyline).
   if (fi > 0.01) seeded.push({ time: E(tIn0), volume: 0 }, { time: E(tIn1), volume: 1 });
-  else seeded.push({ time: E(tIn0), volume: 1 });
+  else seeded.push({ time: 0, volume: 1 });
   middle.forEach((p) => seeded.push(p));
+  // Sans fade-out : plein jusqu'à la toute fin (t=origDur) pour éviter une fausse descente.
   if (fo > 0.01) seeded.push({ time: E(tOut0), volume: 1 }, { time: E(tOut1), volume: 0 });
-  else seeded.push({ time: E(tOut1), volume: 1 });
+  else seeded.push({ time: origDur, volume: 1 });
   seeded.sort((a, b) => a.time - b.time);
   const clean = [];
   for (const p of seeded) {
@@ -10777,7 +10782,7 @@ async function openPadRegionsEditor(pad) {
     aeEnvelope.setVolume = () => {}; // on pilote le volume d'aperçu nous-mêmes (cut/silence + enveloppe)
     // Édition manuelle (double-clic / glisser un point) → enveloppe "sale" (≠ simple reflet des fades).
     // Garde temporelle pour ignorer les changements issus de nos propres setPoints (seeding, throttlés ~200 ms).
-    aeEnvelope.on("points-change", () => { if (performance.now() - aeSeedAt > 300) aeEnvDirty = true; });
+    aeEnvelope.on("points-change", () => { if (aeReady && performance.now() - aeSeedAt > 300) aeEnvDirty = true; });
   }
   aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); aeMaybeReseedFades(); });
   aeRegions.on("region-updated", () => { aeUpdateTimes(); aeMaybeReseedFades(); });
