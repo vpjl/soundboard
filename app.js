@@ -10490,10 +10490,27 @@ async function openAudioDialog(pad) {
       renderAudioDialogWaveform(pad);
       perf.log("deferred render complete");
     });
+    ensureAudioDialogBufferReady(pad); // décode si besoin → waveform + caractéristiques
   } else {
     setStatus("Réglages audio");
     perf.log("showModal unavailable");
   }
+}
+
+// À l'ouverture du dialogue, l'audio peut ne pas être décodé (chargement paresseux) :
+// sans buffer, la waveform est vide et le libellé indique « Aucun fichier ». On décode alors.
+async function ensureAudioDialogBufferReady(pad) {
+  if (pad.buffer || padType(pad) !== "audio") return;
+  if (!(pad.audioStored || pad.hasDirectAudio || pad.audioName || pad.audioPath)) return;
+  try {
+    pad.buffer = await ensurePadAudioDecoded(pad);
+  } catch {
+    return;
+  }
+  if (state.audioPad !== pad || !els.audioDialog?.open) return;
+  if (els.audioFilePath) els.audioFilePath.textContent = audioCharacteristics(pad);
+  updatePadTime(pad);
+  renderAudioDialogWaveform(pad);
 }
 
 function audioDraftFromPad(pad) {

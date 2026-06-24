@@ -3294,7 +3294,21 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 
 .audio-trim-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio-trim-actions-left,
+.audio-trim-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-trim-actions .icon-button {
+  width: 36px;
+  height: 36px;
 }
 
 .color-swatches {
@@ -4810,7 +4824,8 @@ body[data-skin="contrast"] .color-field {
 
 .audio-dialog.is-text-pad .audio-waveform,
 .audio-dialog.is-text-pad .trim-values,
-.audio-dialog.is-text-pad .audio-trim-actions {
+.audio-dialog.is-text-pad #audioAutoTrim,
+.audio-dialog.is-text-pad #audioRegionsEdit {
   display: none;
 }
 
