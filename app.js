@@ -10407,7 +10407,7 @@ function aeAdd(type) {
 }
 
 const AE_HINT_REGIONS = "Rouge = cut (retiré du son) · Orange = mute (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.";
-const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Appliquer les fades » les régénère) ; ils ne sont alors plus appliqués en double.";
+const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Appliquer les fades » les régénère).";
 
 function aeUpdateHint() {
   const h = document.querySelector(".ae-hint");
