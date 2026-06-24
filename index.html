@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=335">
+    <link rel="stylesheet" href="styles.css?v=336">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2203,7 +2203,9 @@
     <dialog id="audioEditorDialog" class="audio-editor-dialog">
       <div class="ae-titlebar">
         <span>Éditeur audio — régions</span>
-        <button id="aeHelp" class="ae-help-btn" type="button" aria-label="Aide de l'éditeur audio">?</button>
+        <button id="aeHelp" class="ae-help-btn" type="button" aria-label="Aide de l'éditeur audio">
+          <svg viewBox="6 5 12 15" aria-hidden="true"><path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div class="ae-body">
         <div class="ae-head">
@@ -2266,7 +2268,7 @@
       window.WaveSurferRegions = RegionsPlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=335"></script>
+    <script src="app.js?v=336"></script>
 
 
   </body>
