@@ -10781,6 +10781,9 @@ async function openPadRegionsEditor(pad) {
     });
     aeUpdateTimes();
     aeUpdateTrimOverlay();
+    // « Appliquer les fades » : actif seulement si le pad a un fade propre (mode "pad").
+    const ff = aeEl("aeEnvFromFades");
+    if (ff) ff.disabled = !(padOwnFade(pad, "in") || padOwnFade(pad, "out"));
     if (resumeAt != null) {
       const d = aeWS.getDuration() || 0;
       aeWS.setTime(Math.max(0, Math.min(d - 0.05, resumeAt)));

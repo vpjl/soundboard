@@ -9402,6 +9402,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 #aeWave.ae-mode-reg ::part(envelope-circle) { pointer-events: none !important; }
 .ae-tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #c7ccd6; font-size: .82rem; cursor: pointer; }
 .ae-tbtn:hover { border-color: #444b59; }
+.ae-tbtn:disabled { opacity: .4; cursor: not-allowed; }
+.ae-tbtn:disabled:hover { border-color: #2c313c; }
 .ae-tbtn.cut { color: #ff5b5b; }
 .ae-tbtn.silence { color: #ffa83a; }
 .ae-tbtn svg { width: 15px; height: 15px; }
