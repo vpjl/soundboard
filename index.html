@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=332">
+    <link rel="stylesheet" href="styles.css?v=333">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1186,6 +1186,11 @@
                 <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
+            <button id="audioRegionsEdit" class="icon-button" type="button" aria-label="Éditeur de régions (couper / silence)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button id="audioVideoImport" class="icon-button" type="button" aria-label="Importer un fichier vidéo">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -2195,7 +2200,46 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=332"></script>
+    <dialog id="audioEditorDialog" class="audio-editor-dialog">
+      <div class="ae-titlebar">Éditeur audio — régions</div>
+      <div class="ae-body">
+        <div class="ae-head">
+          <div class="ae-clip-title" id="aeClipTitle">Pad</div>
+          <div class="ae-total">Total : <span id="aeTotal">0:00.000</span></div>
+          <div class="ae-in">In : <span id="aeIn">0:00.000</span></div>
+          <div class="ae-sel">Sélection : <span id="aeSel">0:00.000</span></div>
+          <div class="ae-out">Out : <span id="aeOut">0:00.000</span></div>
+        </div>
+        <div class="ae-toolbar">
+          <div class="ae-grp">
+            <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Couper</button>
+            <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence</button>
+          </div>
+          <div class="ae-grp"><button class="ae-tbtn" id="aeUndo" type="button">↺ Annuler</button><button class="ae-tbtn" id="aeReset" type="button">↻ Réinit.</button></div>
+        </div>
+        <div id="aeWave"></div>
+        <div class="ae-transport">
+          <button class="ae-tp" id="aeToStart" type="button" aria-label="Début"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h2v14H7zM20 5 9 12l11 7z"/></svg></button>
+          <button class="ae-tp play" id="aePlay" type="button" aria-label="Lire / Pause"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <button class="ae-tp" id="aeZoomOut" type="button" aria-label="Dézoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M8 11h6"/></svg></button>
+          <button class="ae-tp" id="aeZoomIn" type="button" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M11 8v6M8 11h6"/></svg></button>
+        </div>
+        <p class="ae-hint">Rouge = couper (retiré du son) · Orange = silence (mis à zéro). Cliquer/glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.</p>
+      </div>
+      <div class="ae-footer">
+        <button class="ae-fbtn" id="aeCancel" type="button">Annuler</button>
+        <button class="ae-fbtn apply" id="aeApply" type="button">Appliquer</button>
+      </div>
+    </dialog>
+
+    <script type="module">
+      import WaveSurfer from "./lib/wavesurfer.esm.js?v=1";
+      import RegionsPlugin from "./lib/regions.esm.js?v=1";
+      window.WaveSurfer = WaveSurfer;
+      window.WaveSurferRegions = RegionsPlugin;
+      window.dispatchEvent(new Event("wavesurfer-ready"));
+    </script>
+    <script src="app.js?v=333"></script>
 
 
   </body>

@@ -304,6 +304,8 @@ const els = {
   shortcutEnabled: document.querySelector("#shortcutEnabled"),
   shortcutRows: document.querySelector("#shortcutRows"),
   audioDialog: document.querySelector("#audioDialog"),
+  audioEditorDialog: document.querySelector("#audioEditorDialog"),
+  audioRegionsEdit: document.querySelector("#audioRegionsEdit"),
   closeAudio: document.querySelector("#closeAudio"),
   applyAudio: document.querySelector("#applyAudio"),
   cancelAudio: document.querySelector("#cancelAudio"),
@@ -1972,6 +1974,7 @@ function makePad(index) {
     endStartTarget: "",
     trimStart: 0,
     trimEnd: 0,
+    regions: [],
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
@@ -8059,6 +8062,7 @@ async function restorePad(pad) {
     });
     const metaTrimStartedAt = performance.now();
     setPadTrim(pad, meta.trimStart ?? 0, meta.trimEnd ?? 0);
+    pad.regions = Array.isArray(meta.regions) ? meta.regions : [];
     log("renderWaveform", { source: "setPadTrim/meta", measuredMs: perfElapsedMs(metaTrimStartedAt) });
     setPadTextSettings(pad, {
       textContent: meta.textContent,
@@ -8763,6 +8767,7 @@ async function savePadMeta(pad) {
     endStartTarget: pad.endStartTarget,
     trimStart: pad.trimStart,
     trimEnd: pad.trimEnd,
+    regions: pad.regions || [],
     playMode: pad.playMode,
     audioRefIndex: Number.isInteger(Number(pad.audioRefIndex)) ? Number(pad.audioRefIndex) : null,
   };
@@ -10242,6 +10247,111 @@ function settleNativeSelects() {
 function selectedOptionValue(select) {
   if (!select) return "";
   return String(select.value ?? "").trim();
+}
+
+// ===== Éditeur audio (régions cut/silence) — wavesurfer =====
+let aeWS = null, aeRegions = null, aePad = null, aeNewType = "cut";
+const AE_TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
+const AE_EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
+const aeFmt = (s) => `${Math.floor(Math.max(0,s)/60)}:${(Math.max(0,s)%60).toFixed(3).padStart(6,"0")}`;
+const aeEl = (id) => document.getElementById(id);
+
+async function padAudioBlob(pad) {
+  const rawSaved = await dbGet(padAudioKey(pad));
+  const meta = await dbGet(padMetaKey(pad));
+  const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+  const audio = saved?.audio || rawSaved?.audio;
+  if (!audio) return null;
+  return new Blob([audio], { type: saved?.type || rawSaved?.type || "audio/wav" });
+}
+
+function aeDecorate(region, type) {
+  region.__type = type;
+  const el = region.element; if (!el) return;
+  el.style.setProperty("--rg", AE_EDGE[type]);
+  const lab = document.createElement("div");
+  lab.className = "ae-rg-label"; lab.textContent = type === "cut" ? "COUPER" : "SILENCE";
+  const dots = document.createElement("div");
+  dots.className = "ae-rg-dots"; dots.innerHTML = '<i class="no" title="Supprimer">✕</i>';
+  dots.querySelector(".no").onclick = (e) => { e.stopPropagation(); region.remove(); };
+  el.appendChild(lab); el.appendChild(dots);
+}
+
+function aeUpdateTimes() {
+  if (!aeWS || !aeRegions) return;
+  const d = aeWS.getDuration() || 0;
+  let cut = 0;
+  aeRegions.getRegions().forEach((r) => { if (r.__type === "cut") cut += (r.end - r.start); });
+  aeEl("aeIn").textContent = aeFmt(0);
+  aeEl("aeOut").textContent = aeFmt(d);
+  aeEl("aeSel").textContent = aeFmt(d - cut);
+}
+
+function aeAdd(type) {
+  if (!aeWS || !aeRegions) return;
+  aeNewType = type;
+  const d = aeWS.getDuration() || 1;
+  const start = aeWS.getCurrentTime() || d * 0.4;
+  const end = Math.min(d, start + Math.max(0.3, d * 0.08));
+  aeDecorate(aeRegions.addRegion({ start, end, color: AE_TINT[type], drag: true, resize: true }), type);
+  aeUpdateTimes();
+}
+
+function aeDestroy() {
+  try { aeWS?.destroy(); } catch {}
+  aeWS = null; aeRegions = null; aePad = null;
+  if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
+}
+
+async function openPadRegionsEditor(pad) {
+  if (!window.WaveSurfer || !window.WaveSurferRegions) { setStatus("Éditeur indisponible (wavesurfer non chargé)"); return; }
+  if (padType(pad) !== "audio") { setStatus("Édition de régions : pads audio uniquement"); return; }
+  const blob = await padAudioBlob(pad);
+  if (!blob) { setStatus("Pas d'audio à éditer"); return; }
+  aeDestroy();
+  aePad = pad;
+  aeEl("aeClipTitle").textContent = pad.title || `Pad ${pad.index + 1}`;
+  aeEl("aeTotal").textContent = aeEl("aeIn").textContent = aeEl("aeOut").textContent = aeEl("aeSel").textContent = "0:00.000";
+  els.audioEditorDialog?.showModal?.();
+
+  aeRegions = window.WaveSurferRegions.create();
+  aeWS = window.WaveSurfer.create({
+    container: "#aeWave", url: URL.createObjectURL(blob), plugins: [aeRegions],
+    waveColor: "#3a9bff", progressColor: "#2f7fd6", cursorColor: "#cfe2ff", cursorWidth: 2,
+    barWidth: 2, barGap: 1, barRadius: 2, height: 220, normalize: true, fillParent: true, minPxPerSec: 1, dragToSeek: true,
+  });
+  aeRegions.enableDragSelection({ color: AE_TINT.cut });
+  aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); });
+  aeRegions.on("region-updated", aeUpdateTimes);
+  aeRegions.on("region-removed", aeUpdateTimes);
+  aeWS.on("ready", () => {
+    aeEl("aeTotal").textContent = aeFmt(aeWS.getDuration());
+    (pad.regions || []).forEach((rg) => {
+      const r = aeRegions.addRegion({ start: rg.start, end: rg.end, color: AE_TINT[rg.type] || AE_TINT.cut, drag: true, resize: true });
+      aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
+    });
+    aeUpdateTimes();
+  });
+  aeWS.on("play", () => aeEl("aePlay")?.classList.add("is-playing"));
+  aeWS.on("pause", () => aeEl("aePlay")?.classList.remove("is-playing"));
+}
+
+async function aeApply() {
+  if (aePad && aeRegions) {
+    const regions = aeRegions.getRegions()
+      .map((r) => ({ type: r.__type === "silence" ? "silence" : "cut", start: +r.start.toFixed(4), end: +r.end.toFixed(4) }))
+      .filter((r) => r.end - r.start > 0.01)
+      .sort((a, b) => a.start - b.start);
+    aePad.regions = regions;
+    await savePadMeta(aePad);
+    // Keep the audio-dialog draft in sync so a later "Cancel" doesn't revert regions
+    if (state.audioMediaDraft && state.audioPad === aePad) {
+      state.audioMediaDraft.metaRecord = await dbGet(padMetaKey(aePad));
+    }
+    setStatus(`Régions enregistrées : ${regions.length}`, "success");
+  }
+  els.audioEditorDialog?.close();
+  aeDestroy();
 }
 
 async function openAudioDialog(pad) {
@@ -13502,6 +13612,20 @@ async function init() {
   els.audioVideoImport?.addEventListener("click", () => {
     if (state.audioPad) els.audioVideoFile?.click();
   });
+  els.audioRegionsEdit?.addEventListener("click", () => {
+    if (state.audioPad) openPadRegionsEditor(state.audioPad);
+  });
+  aeEl("aeAddCut")?.addEventListener("click", () => aeAdd("cut"));
+  aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
+  aeEl("aeReset")?.addEventListener("click", () => { aeRegions?.clearRegions(); aeUpdateTimes(); });
+  aeEl("aeUndo")?.addEventListener("click", () => { const a = aeRegions?.getRegions() || []; a[a.length - 1]?.remove(); });
+  aeEl("aePlay")?.addEventListener("click", () => aeWS?.playPause());
+  aeEl("aeToStart")?.addEventListener("click", () => aeWS?.seekTo(0));
+  let aePx = 1;
+  aeEl("aeZoomIn")?.addEventListener("click", () => { aePx = Math.min(600, aePx * 1.6); aeWS?.zoom(aePx); });
+  aeEl("aeZoomOut")?.addEventListener("click", () => { aePx = Math.max(1, aePx / 1.6); aeWS?.zoom(aePx); });
+  aeEl("aeApply")?.addEventListener("click", aeApply);
+  aeEl("aeCancel")?.addEventListener("click", () => { els.audioEditorDialog?.close(); aeDestroy(); });
   els.audioTextImport?.addEventListener("click", () => {
     if (!state.audioPad) return;
     // Already a text pad → import a file directly (the inline editor is already
