@@ -3,151 +3,173 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spike wavesurfer — éditeur audio</title>
+<title>Spike wavesurfer — Trim Audio</title>
 <style>
-  :root { color-scheme: dark; }
-  body { margin: 0; padding: 18px; background: #0d0f14; color: #e8e8ee; font: 14px/1.4 system-ui, sans-serif; }
-  h1 { font-size: 1.05rem; margin: 0 0 4px; }
-  .status { font-size: .8rem; color: #9aa0aa; margin-bottom: 14px; }
+  :root { color-scheme: dark; --blue:#3a9bff; --red:#ff5b5b; --orange:#ffa83a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #000; color: #e9ecf2; font: 14px/1.4 system-ui, -apple-system, sans-serif; }
+  .dlg { max-width: 980px; margin: 0 auto; }
+  .titlebar { padding: 16px 22px; font-weight: 700; font-size: 1.05rem; color: #f0f2f6; }
+  .body { padding: 0 22px 14px; }
+
+  .head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; row-gap: 6px; margin: 8px 0 4px; }
+  .clip-title { grid-column: 1; font-weight: 700; }
+  .total { grid-column: 3; text-align: right; color: #9aa1ad; font-variant-numeric: tabular-nums; }
+  .in  { grid-column: 1; color: var(--blue);  font-variant-numeric: tabular-nums; }
+  .sel { grid-column: 2; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .out { grid-column: 3; text-align: right; color: var(--red); font-variant-numeric: tabular-nums; }
+  .zoomrow { display: flex; justify-content: space-between; color: #6e7682; font-size: .82rem; margin: 2px 0 12px; }
+  .zoomrow .z { color: #aab0bb; }
+
+  .toolbar { display: flex; justify-content: space-between; margin-bottom: 10px; }
+  .toolbar .grp { display: flex; gap: 8px; }
+  .tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px;
+          border: 1px solid #2c313c; background: #14171e; color: #c7ccd6; font-size: .82rem; cursor: pointer; }
+  .tbtn:hover { border-color: #444b59; }
+  .tbtn.cut { color: var(--red); }
+  .tbtn.silence { color: var(--orange); }
+  .tbtn svg { width: 15px; height: 15px; }
+
+  #wave { border: 2px solid var(--blue); border-radius: 6px; background: #04060a; padding: 2px 0; }
+
+  /* Régions (parties du shadow DOM wavesurfer) */
+  #wave ::part(region) { backdrop-filter: none; }
+  #wave ::part(region-handle-left), #wave ::part(region-handle-right) {
+    width: 9px; border: none; background: var(--rg, #888); opacity: .95;
+  }
+  .rg-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    padding: 4px 10px; border-radius: 5px; font-size: .72rem; font-weight: 800; letter-spacing: .08em;
+    color: #fff; background: rgba(0,0,0,.35); pointer-events: none; white-space: nowrap; }
+  .rg-dots { position: absolute; top: 5px; right: 6px; display: flex; gap: 5px; }
+  .rg-dots i { width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 9px; font-weight: 900; color: #07120b; cursor: pointer; }
+  .rg-dots .ok { background: #46d39a; }
+  .rg-dots .no { background: var(--rg, #ff5b5b); color: #1a0707; }
+
+  .transport { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 18px 0 6px; }
+  .tp { width: 52px; height: 44px; border-radius: 12px; border: 1px solid #2c313c; background: #14171e;
+        color: #d6dae2; display: grid; place-items: center; cursor: pointer; }
+  .tp.play { width: 70px; height: 70px; border-radius: 50%; background: #1b1f29; }
+  .tp.play.is-playing { background: #2a3550; }
+  .tp svg { width: 22px; height: 22px; }
+  .tp.play svg { width: 28px; height: 28px; }
+
+  .footer { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px;
+            border-top: 1px solid #1b1f27; }
+  .fbtn { padding: 9px 16px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #d6dae2; cursor: pointer; }
+  .fbtn.apply { background: #20242e; }
+  .status { padding: 6px 22px 14px; font-size: .78rem; color: #6e7682; }
   .status b { color: #7ee0a2; }
-  .panel { border: 1px solid #2a2e38; border-radius: 10px; padding: 12px; background: #12151c; margin-bottom: 12px; }
-  #wave { background: #0a0c11; border-radius: 8px; }
-  #minimap { margin-top: 6px; background: #0a0c11; border-radius: 6px; }
-  .row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 12px; }
-  button { background: #20242e; color: #e8e8ee; border: 1px solid #343a46; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
-  button:hover { border-color: #5a6273; }
-  label { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: #c4c8d2; }
-  input[type=range] { width: 160px; }
-  output { font-variant-numeric: tabular-nums; color: #a78bfa; min-width: 46px; }
-  .regions { margin-top: 10px; font-size: .8rem; color: #9aa0aa; white-space: pre; font-family: ui-monospace, monospace; }
-  .err { color: #ff6b6b; }
 </style>
 </head>
 <body>
-  <h1>Spike wavesurfer — proof of concept éditeur audio</h1>
-  <div class="status" id="status">Chargement…</div>
+<div class="dlg">
+  <div class="titlebar">Trim Audio</div>
+  <div class="body">
+    <div class="head">
+      <div class="clip-title">L'oiseau bleu (final)</div>
+      <div class="total">Total: <span id="tTotal">0:00.000</span></div>
+      <div class="in">In: <span id="tIn">0:00.000</span></div>
+      <div class="sel">Selected: <span id="tSel">0:00.000</span></div>
+      <div class="out">Out: <span id="tOut">0:00.000</span></div>
+    </div>
+    <div class="zoomrow"><span class="z">🔍 <span id="zoomPct">100%</span></span><span>Scroll to zoom</span></div>
 
-  <div class="panel">
+    <div class="toolbar">
+      <div class="grp">
+        <button class="tbtn cut" id="addCut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Cut Region</button>
+        <button class="tbtn silence" id="addSilence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence Region</button>
+      </div>
+      <div class="grp">
+        <button class="tbtn" id="undo">↺ Undo</button>
+        <button class="tbtn" id="reset">↻ Reset</button>
+      </div>
+    </div>
+
     <div id="wave"></div>
-    <div id="minimap"></div>
-    <div class="row">
-      <button id="play">▶︎ Lire / Pause</button>
-      <label><input type="checkbox" id="fill" checked> Adapter à la fenêtre (fillParent)</label>
-      <label>Zoom <input type="range" id="zoom" min="0" max="300" value="0" disabled></label>
-    </div>
-    <div class="row">
-      <label>Vitesse <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1"><output id="speedVal">1.00×</output></label>
-      <label><input type="checkbox" id="preserve" checked> garder le pitch (preservePitch)</label>
-    </div>
-    <div class="row">
-      <button id="addCut">+ Région CUT</button>
-      <button id="addSilence">+ Région SILENCE</button>
-      <button id="clearRegions">Effacer régions</button>
-      <span style="color:#9aa0aa;font-size:.8rem">(les régions sont déplaçables / redimensionnables)</span>
-    </div>
-    <div class="regions" id="regionList">—</div>
-  </div>
 
-  <div class="status">Cette page est isolée : elle ne touche pas l'app. wavesurfer ne sert qu'à la visualisation/édition ; la lecture live des pads resterait sur ton moteur Web Audio.</div>
+    <div class="transport">
+      <button class="tp" id="toStart"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h2v14H7zM20 5 9 12l11 7z"/></svg></button>
+      <button class="tp play" id="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="tp" id="zoomOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M8 11h6"/></svg></button>
+      <button class="tp" id="zoomIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M11 8v6M8 11h6"/></svg></button>
+    </div>
+  </div>
+  <div class="footer">
+    <button class="fbtn">↺ Undo</button>
+    <div style="display:flex;gap:10px"><button class="fbtn">Cancel</button><button class="fbtn apply">Apply</button></div>
+  </div>
+  <div class="status" id="status">Chargement…</div>
+</div>
 
 <script type="module">
-  const status = document.getElementById("status");
-  const fail = (msg, e) => { status.innerHTML = '<span class="err">ÉCHEC : ' + msg + '</span>'; console.error(e); };
-
-  let WaveSurfer, RegionsPlugin, MinimapPlugin, EnvelopePlugin;
+  const $ = (id) => document.getElementById(id);
+  const status = $("status");
+  let WaveSurfer, RegionsPlugin;
   try {
-    WaveSurfer     = (await import("./lib/wavesurfer.esm.js")).default;
-    RegionsPlugin  = (await import("./lib/regions.esm.js")).default;
-    MinimapPlugin  = (await import("./lib/minimap.esm.js")).default;
-    EnvelopePlugin = (await import("./lib/envelope.esm.js")).default;
-  } catch (e) { fail("import ESM local (hors-ligne) impossible", e); throw e; }
+    WaveSurfer    = (await import("./lib/wavesurfer.esm.js")).default;
+    RegionsPlugin = (await import("./lib/regions.esm.js")).default;
+  } catch (e) { status.innerHTML = "ÉCHEC import ESM local"; throw e; }
 
-  // --- Génère un petit signal de test (3 salves) → WAV blob (aucun fichier requis)
+  function fmt(s) { const m = Math.floor(s/60), r = (s%60); return `${m}:${r.toFixed(3).padStart(6,"0")}`; }
+
   function makeToneWav() {
-    const sr = 22050, dur = 4, n = sr * dur;
-    const s = new Float32Array(n);
-    const bursts = [[0.3,0.9,330],[1.5,2.6,220],[3.1,3.8,440]];
-    for (const [a,b,f] of bursts) {
-      const i0 = (a*sr)|0, i1 = (b*sr)|0, len = i1 - i0;
-      for (let i = i0; i < i1; i++) {
-        const t = (i - i0) / len;
-        const env = Math.sin(Math.PI * t);            // fade in/out de la salve
-        s[i] += Math.sin(2*Math.PI*f*(i/sr)) * 0.8 * env;
-      }
-    }
-    const buf = new ArrayBuffer(44 + n*2), dv = new DataView(buf);
-    const w = (o,str) => { for (let i=0;i<str.length;i++) dv.setUint8(o+i, str.charCodeAt(i)); };
-    w(0,"RIFF"); dv.setUint32(4,36+n*2,true); w(8,"WAVE"); w(12,"fmt ");
-    dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
-    dv.setUint32(24,sr,true); dv.setUint32(28,sr*2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
-    w(36,"data"); dv.setUint32(40,n*2,true);
-    let off = 44;
-    for (let i=0;i<n;i++){ const v=Math.max(-1,Math.min(1,s[i])); dv.setInt16(off,v*0x7fff,true); off+=2; }
+    const sr = 22050, dur = 15, n = sr*dur, s = new Float32Array(n);
+    const bursts = [[1.2,2.0,300],[3.0,5.5,210],[6.5,7.2,360],[8.5,12.5,180],[13.0,14.5,420]];
+    for (const [a,b,f] of bursts) { const i0=(a*sr)|0,i1=(b*sr)|0,len=i1-i0;
+      for (let i=i0;i<i1;i++){ const t=(i-i0)/len; s[i]+=Math.sin(2*Math.PI*f*(i/sr))*0.8*Math.sin(Math.PI*t); } }
+    const buf=new ArrayBuffer(44+n*2),dv=new DataView(buf),w=(o,x)=>{for(let i=0;i<x.length;i++)dv.setUint8(o+i,x.charCodeAt(i))};
+    w(0,"RIFF");dv.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);
+    dv.setUint16(22,1,true);dv.setUint32(24,sr,true);dv.setUint32(28,sr*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
+    w(36,"data");dv.setUint32(40,n*2,true);let o=44;for(let i=0;i<n;i++){dv.setInt16(o,Math.max(-1,Math.min(1,s[i]))*0x7fff,true);o+=2;}
     return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
   }
 
-  const regions  = RegionsPlugin.create();
-  const minimap  = MinimapPlugin.create({ container: "#minimap", height: 28, waveColor: "#4b3f73", progressColor: "#7c3aed" });
-  const envelope = EnvelopePlugin.create({
-    volume: 0.9,
-    lineColor: "#ffce5c",
-    dragPointSize: 10,
-    points: [ { time: 0.4, volume: 0.0 }, { time: 0.9, volume: 0.9 }, { time: 3.6, volume: 0.0 } ],
+  const regions = RegionsPlugin.create();
+  const ws = WaveSurfer.create({
+    container: "#wave", height: 300, waveColor: "#3a9bff", progressColor: "#2f7fd6",
+    cursorColor: "#cfe2ff", fillParent: true, minPxPerSec: 1, url: makeToneWav(), plugins: [regions],
   });
 
-  let ws;
-  try {
-    ws = WaveSurfer.create({
-      container: "#wave",
-      height: 160,
-      waveColor: "#a78bfa",
-      progressColor: "#7c3aed",
-      cursorColor: "#e8e8ee",
-      fillParent: true,
-      url: makeToneWav(),
-      plugins: [regions, minimap, envelope],
-    });
-  } catch (e) { fail("WaveSurfer.create", e); throw e; }
+  const TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
+  const EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
 
   ws.on("ready", () => {
-    status.innerHTML = 'wavesurfer <b>7.12.8</b> chargé en local (hors-ligne) ✓ — waveform, regions, minimap, envelope OK. Durée: ' + ws.getDuration().toFixed(2) + 's';
-    refreshRegions();
+    const d = ws.getDuration();
+    $("tTotal").textContent = fmt(d); $("tIn").textContent = fmt(0);
+    $("tOut").textContent = fmt(d); $("tSel").textContent = fmt(d);
+    status.innerHTML = 'wavesurfer <b>7.12.8</b> local/hors-ligne ✓ — visuel aligné sur la maquette.';
   });
-  ws.on("error", (e) => fail("lecture/décodage", e));
 
-  // --- Contrôles
-  document.getElementById("play").onclick = () => ws.playPause();
-
-  const fill = document.getElementById("fill"), zoom = document.getElementById("zoom");
-  fill.onchange = () => {
-    ws.setOptions({ fillParent: fill.checked });
-    zoom.disabled = fill.checked;
-    if (!fill.checked) ws.zoom(Number(zoom.value) || 50);
-  };
-  zoom.oninput = () => { if (!fill.checked) ws.zoom(Number(zoom.value)); };
-
-  const speed = document.getElementById("speed"), speedVal = document.getElementById("speedVal"), preserve = document.getElementById("preserve");
-  const applySpeed = () => { speedVal.textContent = Number(speed.value).toFixed(2) + "×"; ws.setPlaybackRate(Number(speed.value), preserve.checked); };
-  speed.oninput = applySpeed; preserve.onchange = applySpeed;
-
-  const colors = { cut: "rgba(255,80,80,0.28)", silence: "rgba(255,170,60,0.25)" };
-  function addRegion(type) {
-    const d = ws.getDuration() || 4, start = Math.random()*d*0.6, end = Math.min(d, start + 0.6);
-    regions.addRegion({ start, end, color: colors[type], content: type.toUpperCase(), drag: true, resize: true });
-    refreshRegions();
+  function decorate(region, type) {
+    const el = region.element; if (!el) return;
+    el.style.setProperty("--rg", EDGE[type]);
+    const label = document.createElement("div"); label.className = "rg-label"; label.textContent = type.toUpperCase();
+    const dots = document.createElement("div"); dots.className = "rg-dots";
+    dots.innerHTML = '<i class="ok" title="Valider">✓</i><i class="no" title="Annuler">✕</i>';
+    dots.querySelector(".no").onclick = (e) => { e.stopPropagation(); region.remove(); };
+    el.appendChild(label); el.appendChild(dots);
   }
-  document.getElementById("addCut").onclick = () => addRegion("cut");
-  document.getElementById("addSilence").onclick = () => addRegion("silence");
-  document.getElementById("clearRegions").onclick = () => { regions.clearRegions(); refreshRegions(); };
-  regions.on("region-updated", refreshRegions);
-  regions.on("region-created", refreshRegions);
-
-  function refreshRegions() {
-    const list = regions.getRegions();
-    document.getElementById("regionList").textContent = list.length
-      ? list.map(r => `${(r.content?.textContent||"?").padEnd(8)} ${r.start.toFixed(2)}s → ${r.end.toFixed(2)}s`).join("\n")
-      : "— aucune région —";
+  function add(type) {
+    const d = ws.getDuration() || 15, start = Math.random()*d*0.5 + 1, end = Math.min(d, start + d*0.12);
+    const r = regions.addRegion({ start, end, color: TINT[type], drag: true, resize: true });
+    decorate(r, type);
   }
+  $("addCut").onclick = () => add("cut");
+  $("addSilence").onclick = () => add("silence");
+  $("reset").onclick = () => regions.clearRegions();
+  $("undo").onclick = () => { const a = regions.getRegions(); a[a.length-1]?.remove(); };
+
+  $("play").onclick = () => ws.playPause();
+  ws.on("play",  () => $("play").classList.add("is-playing"));
+  ws.on("pause", () => $("play").classList.remove("is-playing"));
+  $("toStart").onclick = () => { ws.seekTo(0); };
+
+  let px = 1;
+  const setZoom = (v) => { px = Math.max(1, Math.min(400, v)); ws.zoom(px);
+    $("zoomPct").textContent = Math.round(px / 1 * 100) + "%"; };
+  $("zoomIn").onclick = () => setZoom(px * 1.6);
+  $("zoomOut").onclick = () => setZoom(px / 1.6);
 </script>
 </body>
 </html>
