@@ -9996,8 +9996,8 @@ function bindWaveformTrim(pad) {
 }
 
 // Temps d'origine → temps effectif (après retrait des coupures). Point dans une coupure → couture.
-function origToEffTime(pad, tOrig) {
-  const cuts = (pad.regions || [])
+function origToEffTime(pad, tOrig, regions = pad.regions) {
+  const cuts = (regions || [])
     .filter((r) => r.type === "cut")
     .map((r) => [r.start, r.end])
     .sort((a, b) => a[0] - b[0]);
@@ -10123,6 +10123,9 @@ function setAudioTrimFromPointer(handle, event) {
 }
 
 function bindAudioDialogTrim() {
+  // Le trim n'est plus éditable depuis les Réglages (barres retirées) : il se règle
+  // dans l'éditeur audio (Trim auto). La waveform des Réglages reste un affichage.
+  return; // eslint-disable-line no-unreachable
   if (!els.audioWaveform) return;
   els.audioWaveform.addEventListener("pointerdown", (event) => {
     const pad = state.audioPad;
@@ -10413,8 +10416,8 @@ function aeSetMode(mode) {
   aeMode = mode === "envelope" ? "envelope" : "regions";
   aeEl("aeModeRegions")?.classList.toggle("is-active", aeMode === "regions");
   aeEl("aeModeEnvelope")?.classList.toggle("is-active", aeMode === "envelope");
-  const rt = aeEl("aeRegionTools"); if (rt) rt.classList.toggle("is-dim", aeMode !== "regions");
-  const et = aeEl("aeEnvTools"); if (et) et.hidden = aeMode !== "envelope";
+  aeEl("aeRegionGroup")?.classList.toggle("is-dim", aeMode !== "regions");
+  aeEl("aeEnvGroup")?.classList.toggle("is-dim", aeMode !== "envelope");
   const wave = aeEl("aeWave");
   if (wave) {
     wave.classList.toggle("ae-mode-reg", aeMode === "regions");
@@ -10443,24 +10446,30 @@ function aeFlatEnvelope() {
 // en préservant les points manuels du milieu.
 function aeSeedFadesIntoEnvelope(pad) {
   if (!aeEnvelope) return;
-  const dur = pad.duration || aeWS?.getDuration() || 0; // durée effective
-  if (!dur) return;
-  const fi = Math.max(0, fadeDurationForPad(pad, "in") || 0);
-  const fo = Math.max(0, fadeDurationForPad(pad, "out") || 0);
-  const tIn0 = trimStart(pad);
+  const origDur = aeWS?.getDuration() || 0;
+  if (!origDur) return;
+  const regions = aeLiveRegions(); // tient compte des cut/silence en cours d'édition
+  const cutTotal = regions
+    .filter((r) => r.type === "cut")
+    .reduce((s, r) => s + Math.max(0, Math.min(origDur, r.end) - Math.max(0, r.start)), 0);
+  const dur = Math.max(0.01, origDur - cutTotal); // durée effective live
+  const fi = padOwnFade(pad, "in");
+  const fo = padOwnFade(pad, "out");
+  const tIn0 = Math.min(dur, Math.max(0, pad.trimStart || 0));
   const tIn1 = Math.min(dur, tIn0 + fi);
-  const tOut1 = pad.trimEnd ? Math.min(trimEnd(pad), dur) : dur;
+  const tOut1 = pad.trimEnd ? Math.min(pad.trimEnd, dur) : dur;
   const tOut0 = Math.max(tIn1, tOut1 - fo);
+  const E = (tEff) => aeEffToOrig(pad, tEff, regions);
   // points manuels du milieu (temps effectif strictement entre les fenêtres de fade)
   const middle = (aeEnvelope.getPoints() || [])
     .map((p) => ({ time: p.time, volume: p.volume }))
-    .filter((p) => { const e = origToEffTime(pad, p.time); return e > tIn1 + 1e-3 && e < tOut0 - 1e-3; });
+    .filter((p) => { const e = origToEffTime(pad, p.time, regions); return e > tIn1 + 1e-3 && e < tOut0 - 1e-3; });
   const seeded = [];
-  if (fi > 0.01) seeded.push({ time: aeEffToOrig(pad, tIn0), volume: 0 }, { time: aeEffToOrig(pad, tIn1), volume: 1 });
-  else seeded.push({ time: aeEffToOrig(pad, tIn0), volume: 1 });
+  if (fi > 0.01) seeded.push({ time: E(tIn0), volume: 0 }, { time: E(tIn1), volume: 1 });
+  else seeded.push({ time: E(tIn0), volume: 1 });
   middle.forEach((p) => seeded.push(p));
-  if (fo > 0.01) seeded.push({ time: aeEffToOrig(pad, tOut0), volume: 1 }, { time: aeEffToOrig(pad, tOut1), volume: 0 });
-  else seeded.push({ time: aeEffToOrig(pad, tOut1), volume: 1 });
+  if (fo > 0.01) seeded.push({ time: E(tOut0), volume: 1 }, { time: E(tOut1), volume: 0 });
+  else seeded.push({ time: E(tOut1), volume: 1 });
   seeded.sort((a, b) => a.time - b.time);
   const clean = [];
   for (const p of seeded) {
@@ -10504,6 +10513,22 @@ function aeReset() {
   else { aeRegions?.clearRegions(); aeUpdateTimes(); }
 }
 
+async function aeRunTrimAuto() {
+  if (!aePad) return;
+  try {
+    const result = await calculateAutoTrimForPad(aePad);
+    if (!result || !result.detected) { setStatus("Trim auto : aucun silence détecté"); return; }
+    setPadTrim(aePad, result.start, result.end);
+    updatePadTime(aePad);
+    aeUpdateTrimOverlay();
+    if (state.audioPad === aePad && els.audioDialog?.open) renderAudioDialogWaveform(aePad);
+    setStatus(`Trim auto : ${formatTrimAutoSummary(result)}`);
+  } catch (error) {
+    console.error(error);
+    setStatus("Trim auto impossible");
+  }
+}
+
 function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
   aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null;
@@ -10512,10 +10537,23 @@ function aeDestroy() {
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
+// Régions actuellement présentes dans l'éditeur (live), au format {type,start,end}.
+function aeLiveRegions() {
+  if (!aeRegions) return aePad?.regions || [];
+  return aeRegions.getRegions().map((r) => ({ type: r.__type === "silence" ? "silence" : "cut", start: r.start, end: r.end }));
+}
+
+// Fades propres au pad (mode "pad" uniquement — les fades globaux ne sont pas repris).
+function padOwnFade(pad, type) {
+  if (pad.fadeMode !== "pad") return 0;
+  const v = Number(type === "in" ? pad.fadeInSeconds : pad.fadeOutSeconds);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
 // Convertit un temps de la timeline effective (après cut) vers la timeline d'origine.
-function aeEffToOrig(pad, tEff) {
+function aeEffToOrig(pad, tEff, regions = pad.regions) {
   const total = pad.buffer?.duration || aeWS?.getDuration() || 0;
-  const cuts = (pad.regions || [])
+  const cuts = (regions || [])
     .filter((r) => r.type === "cut")
     .map((r) => [Math.max(0, r.start), Math.min(total, r.end)])
     .filter(([a, b]) => b > a)
@@ -10655,11 +10693,12 @@ async function openPadRegionsEditor(pad) {
       const r = aeRegions.addRegion({ start: rg.start, end: rg.end, color: AE_TINT[rg.type] || AE_TINT.cut, drag: true, resize: true });
       aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
     });
-    if (aeEnvelope) {
+    requestAnimationFrame(() => { // après layout, sinon le SVG de l'enveloppe n'est pas encore dimensionné
+      if (!aeEnvelope || aePad !== pad) return;
       if (!hadSavedEnv) aeSeedFadesIntoEnvelope(pad); // défaut : la courbe reflète les fades du pad
       if ((aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
       aeEnvBaselineSig = aeEnvSig(aeEnvelope.getPoints()); // référence pour détecter une vraie édition
-    }
+    });
     aeUpdateTimes();
     aeUpdateTrimOverlay();
     if (resumeAt != null) {
@@ -13009,8 +13048,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const reverseSegmentStart = Math.max(0, baseBuffer.duration - segmentEnd);
   const reverseSegmentEnd = Math.min(baseBuffer.duration, baseBuffer.duration - segmentStart);
   const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
-  // Enveloppe présente : elle porte le volume (fades inclus) → pas de fade statique en double.
+  // Enveloppe présente : elle porte le volume. Seuls les fades PROPRES au pad y sont repris,
+  // donc on ne saute le fade statique que dans ce cas (les fades globaux restent appliqués).
   const hasEnv = !pad.loop && Array.isArray(pad.envelope) && pad.envelope.length > 0;
+  const foldPadFade = hasEnv && pad.fadeMode === "pad";
 
   const ctx = state.audioContext;
   const source = ctx.createBufferSource();
@@ -13023,9 +13064,9 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     : fadeDurationForPad(pad, "in");
   const naturalDuration = Math.max(0.01, segmentEnd - startOffset);
   const naturalStopAt = now + naturalDuration;
-  const naturalFadeOutTime = (!pad.loop && !hasEnv) ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
+  const naturalFadeOutTime = (!pad.loop && !foldPadFade) ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
   const naturalFadeOutStart = naturalStopAt - naturalFadeOutTime;
-  const effectiveFadeInTime = fade && !hasEnv && fadeTime > 0
+  const effectiveFadeInTime = fade && !foldPadFade && fadeTime > 0
     ? Math.min(fadeTime, naturalFadeOutTime > 0 ? Math.max(0, naturalFadeOutStart - now) : naturalDuration)
     : 0;
   const targetGain = targetPadGain(pad);
@@ -14141,6 +14182,7 @@ async function init() {
   aeEl("aeModeRegions")?.addEventListener("click", () => aeSetMode("regions"));
   aeEl("aeModeEnvelope")?.addEventListener("click", () => aeSetMode("envelope"));
   aeEl("aeEnvFromFades")?.addEventListener("click", () => { if (aePad) { aeSeedFadesIntoEnvelope(aePad); aeEnvDirty = true; } });
+  aeEl("aeTrimAuto")?.addEventListener("click", aeRunTrimAuto);
   aeEl("aeAddCut")?.addEventListener("click", () => aeAdd("cut"));
   aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
   aeEl("aeReset")?.addEventListener("click", aeReset);
