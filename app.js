@@ -10368,8 +10368,77 @@ function aeAdd(type) {
 
 function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
-  aeWS = null; aeRegions = null; aePad = null;
+  aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null;
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
+}
+
+// Convertit un temps de la timeline effective (après cut) vers la timeline d'origine.
+function aeEffToOrig(pad, tEff) {
+  const total = pad.buffer?.duration || aeWS?.getDuration() || 0;
+  const cuts = (pad.regions || [])
+    .filter((r) => r.type === "cut")
+    .map((r) => [Math.max(0, r.start), Math.min(total, r.end)])
+    .filter(([a, b]) => b > a)
+    .sort((x, y) => x[0] - y[0]);
+  const kept = []; let cur = 0;
+  for (const [a, b] of cuts) { if (a > cur) kept.push([cur, a]); cur = Math.max(cur, b); }
+  if (cur < total) kept.push([cur, total]);
+  let acc = 0;
+  for (const [a, b] of kept) {
+    const len = b - a;
+    if (tEff <= acc + len) return a + (tEff - acc);
+    acc += len;
+  }
+  return total;
+}
+
+let aeTrimEls = null;
+function aeEnsureTrimEls() {
+  const wave = aeEl("aeWave");
+  if (!wave) return null;
+  if (aeTrimEls && aeTrimEls.root.parentElement === wave) return aeTrimEls;
+  const root = document.createElement("div");
+  root.className = "ae-trim-overlay";
+  const dimL = document.createElement("div"); dimL.className = "ae-trim-dim";
+  const dimR = document.createElement("div"); dimR.className = "ae-trim-dim";
+  const lineI = document.createElement("div"); lineI.className = "ae-trim-line";
+  const lineO = document.createElement("div"); lineO.className = "ae-trim-line";
+  root.append(dimL, dimR, lineI, lineO);
+  wave.appendChild(root);
+  aeTrimEls = { root, dimL, dimR, lineI, lineO };
+  return aeTrimEls;
+}
+
+// Matérialise dans l'éditeur le trim (in/out) réglé dans la fenêtre Réglages.
+function aeUpdateTrimOverlay() {
+  if (!aeWS || !aePad) return;
+  const o = aeEnsureTrimEls(); if (!o) return;
+  const total = aeWS.getDuration() || 0;
+  const dur = aePad.duration || total; // durée effective
+  const tIn = trimStart(aePad);
+  const tOut = aePad.trimEnd ? Math.min(trimEnd(aePad), dur) : dur;
+  const hasTrim = tIn > 0.001 || tOut < dur - 0.001;
+  if (!total || !hasTrim) { o.root.hidden = true; return; }
+  const origIn = aeEffToOrig(aePad, tIn);
+  const origOut = aeEffToOrig(aePad, tOut);
+  let wrapper; let scrollEl; let contentW; let scrollLeft = 0; let viewW;
+  try {
+    wrapper = aeWS.getWrapper();
+    scrollEl = wrapper.parentElement || wrapper;
+    contentW = wrapper.scrollWidth || wrapper.getBoundingClientRect().width;
+    scrollLeft = scrollEl.scrollLeft || 0;
+    viewW = scrollEl.clientWidth || contentW;
+  } catch { o.root.hidden = true; return; }
+  if (!contentW) { o.root.hidden = true; return; }
+  const xOf = (t) => (t / total) * contentW - scrollLeft;
+  const clamp = (x) => Math.max(0, Math.min(viewW, x));
+  const xIn = clamp(xOf(origIn));
+  const xOut = clamp(xOf(origOut));
+  o.root.hidden = false;
+  o.dimL.style.left = "0px"; o.dimL.style.width = `${xIn}px`;
+  o.dimR.style.left = `${xOut}px`; o.dimR.style.width = `${Math.max(0, viewW - xOut)}px`;
+  o.lineI.style.left = `${xIn}px`; o.lineI.hidden = origIn <= 0.001;
+  o.lineO.style.left = `${xOut}px`; o.lineO.hidden = origOut >= total - 0.001;
 }
 
 // Aperçu fidèle : pendant la lecture, saute les régions "cut" et coupe le son sur les "silence".
@@ -10425,12 +10494,16 @@ async function openPadRegionsEditor(pad) {
       aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
     });
     aeUpdateTimes();
+    aeUpdateTrimOverlay();
   });
   aeWS.on("play", () => aeEl("aePlay")?.classList.add("is-playing"));
   aeWS.on("pause", () => aeEl("aePlay")?.classList.remove("is-playing"));
   aeWS.on("timeupdate", aeSyncPreview);
   aeWS.on("audioprocess", aeSyncPreview);
   aeWS.on("seeking", aeSyncPreview);
+  aeWS.on("zoom", aeUpdateTrimOverlay);
+  aeWS.on("scroll", aeUpdateTrimOverlay);
+  aeWS.on("redraw", aeUpdateTrimOverlay);
 }
 
 async function aeApply() {

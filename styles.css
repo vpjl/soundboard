@@ -9390,7 +9390,10 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-tbtn.cut { color: #ff5b5b; }
 .ae-tbtn.silence { color: #ffa83a; }
 .ae-tbtn svg { width: 15px; height: 15px; }
-#aeWave { border: 2px solid #3a9bff; border-radius: 6px; background: #04060a; padding: 2px 0; min-height: 200px; }
+#aeWave { position: relative; border: 2px solid #3a9bff; border-radius: 6px; background: #04060a; padding: 2px 0; min-height: 200px; }
+.ae-trim-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.ae-trim-dim { position: absolute; top: 0; bottom: 0; background: rgba(4, 6, 10, 0.66); }
+.ae-trim-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: repeating-linear-gradient(to bottom, #cfe2ff 0 5px, transparent 5px 9px); }
 #aeWave ::part(region-handle-left), #aeWave ::part(region-handle-right) { width: 4px; border: none; background: var(--rg, #888); opacity: .95; }
 .ae-rg-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 4px 10px; border-radius: 5px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #fff; background: rgba(0,0,0,.35); pointer-events: none; white-space: nowrap; }
 .ae-rg-dots { position: absolute; top: 5px; right: 6px; display: flex; gap: 5px; }
