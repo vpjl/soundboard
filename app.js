@@ -10228,8 +10228,27 @@ function setPadAsTextFromControls(pad, text) {
   pad.audioPath = "";
   pad.videoName = "";
   pad.videoPath = "";
-  pad.node.classList.remove("is-empty", "is-missing-audio");
   dbDelete(padAudioKey(pad)).catch(() => {});
+
+  // Cleared text → become a clean empty pad (reset title + show the [?] marker)
+  if (!String(text || "").trim()) {
+    pad.textContent = "";
+    pad.textMode = false;
+    pad.textName = "";
+    pad.textDuration = 0;
+    setPadTitle(pad, `Pad ${pad.index + 1}`);
+    setPadDuration(pad, 0);
+    pad.node.classList.add("is-empty");
+    pad.node.classList.remove("is-missing-audio");
+    updatePadType(pad);
+    renderWaveform(pad);
+    updateShortcutIndicators();
+    refreshBoardTagFilterOptions();
+    refreshCrossfadeTargetOptions();
+    return;
+  }
+
+  pad.node.classList.remove("is-empty", "is-missing-audio");
   setPadTextSettings(pad, {
     textContent: text,
     textMode: true,

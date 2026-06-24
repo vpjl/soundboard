@@ -3714,6 +3714,26 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   pointer-events: none;
 }
 
+/* Empty pad: show a neutral [?] marker */
+.pad.is-empty:not(.is-missing-audio)::after {
+  content: "?";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 999px;
+  background: rgba(18, 18, 15, 0.7);
+  color: var(--color_ui_text_muted);
+  font-size: 0.95rem;
+  font-weight: 900;
+  pointer-events: none;
+}
+
 .pad-live-check:has(input:checked) {
   border-color: transparent;
   background: transparent;
