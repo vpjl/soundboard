@@ -1316,8 +1316,9 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
   pad.audioDecodePromise = (async () => {
     prepareAudio();
     const buffer = await state.audioContext.decodeAudioData(audioSource.slice(0));
+    pad.buffer = buffer;
     setPadDecodedAudioMetadata(pad, buffer, audioSource);
-    setPadDuration(pad, buffer.duration);
+    applyEffectiveBufferState(pad); // durée + waveform = buffer effectif (régions appliquées)
     return buffer;
   })();
 
@@ -7384,6 +7385,10 @@ async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTru
   const buffer = await state.audioContext.decodeAudioData(arrayBuffer.slice(0));
   const nextTitle = options.keepTitle ? pad.title : cleanName(name);
   pad.buffer = buffer;
+  pad.regions = []; // nouvel audio : les anciennes régions ne s'appliquent plus
+  pad.effectiveBuffer = null;
+  pad.effectiveBufferSig = "";
+  pad.reversedBufferSource = null;
   syncStagePending();
   pad.hasDirectAudio = true;
   pad.audioName = name;
@@ -8287,8 +8292,8 @@ async function restorePad(pad) {
       : null;
   log("pad settings applied", { source: "audio" });
   if (pad.buffer) {
-    setPadDuration(pad, pad.buffer.duration);
-    log("updatePadTime", { duration: pad.buffer.duration });
+    applyEffectiveBufferState(pad); // durée + waveform = buffer effectif (régions)
+    log("updatePadTime", { duration: pad.duration });
     renderWaveform(pad);
     log("renderWaveform", { peakCount: pad.waveformPeaks.length });
   } else {
@@ -8922,7 +8927,7 @@ async function preloadStagePads(pads) {
     setStatus(`Préchargement : ${i + 1} / ${total} — ${pad.title}`, "progress");
     try {
       pad.buffer = await ensurePadAudioDecoded(pad);
-      setPadDuration(pad, pad.buffer.duration);
+      applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
       renderWaveform(pad);
     } catch (error) {
       console.error(error);
@@ -10343,12 +10348,20 @@ async function aeApply() {
       .filter((r) => r.end - r.start > 0.01)
       .sort((a, b) => a.start - b.start);
     aePad.regions = regions;
+    if (aePad.buffer) {
+      applyEffectiveBufferState(aePad); // recale durée + waveform + cache reverse
+      renderWaveform(aePad);
+      updatePadTime(aePad);
+      if (state.audioPad === aePad && els.audioDialog?.open) renderAudioDialogWaveform(aePad);
+    }
     await savePadMeta(aePad);
     // Keep the audio-dialog draft in sync so a later "Cancel" doesn't revert regions
     if (state.audioMediaDraft && state.audioPad === aePad) {
       state.audioMediaDraft.metaRecord = await dbGet(padMetaKey(aePad));
     }
-    setStatus(`Régions enregistrées : ${regions.length}`, "success");
+    const cutN = regions.filter((r) => r.type === "cut").length;
+    const silN = regions.filter((r) => r.type === "silence").length;
+    setStatus(`Régions appliquées : ${cutN} coupure(s), ${silN} silence(s)`, "success");
   }
   els.audioEditorDialog?.close();
   aeDestroy();
@@ -10540,6 +10553,10 @@ async function clearAudioPadMedia(pad = state.audioPad) {
     return;
   }
   pad.buffer = null;
+  pad.regions = [];
+  pad.effectiveBuffer = null;
+  pad.effectiveBufferSig = "";
+  pad.reversedBufferSource = null;
   pad.hasDirectAudio = false;
   pad.audioName = "";
   pad.audioUid = "";
@@ -12434,10 +12451,92 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   }
 }
 
+// ===== Régions → buffer effectif (moteur non destructif) =====
+// pad.regions = [{ type:"cut"|"silence", start, end }] en secondes sur la timeline d'origine.
+// "cut" retire l'intervalle (raccourcit le buffer) ; "silence" met l'intervalle à zéro (durée inchangée).
+function regionsSignature(regions) {
+  return (regions || [])
+    .map((r) => `${r.type === "silence" ? "s" : "c"}:${r.start}:${r.end}`)
+    .join("|");
+}
+
+function applyRegionsToBuffer(buffer, regions) {
+  if (!buffer || !regions || !regions.length || !state.audioContext) return buffer;
+  const sr = buffer.sampleRate;
+  const n = buffer.length;
+  const cuts = [];
+  const sils = [];
+  for (const r of regions) {
+    const a = Math.max(0, Math.min(n, Math.round((r.start || 0) * sr)));
+    const b = Math.max(0, Math.min(n, Math.round((r.end || 0) * sr)));
+    if (b > a) (r.type === "silence" ? sils : cuts).push([a, b]);
+  }
+  if (!cuts.length && !sils.length) return buffer;
+
+  // Points de découpe = toutes les frontières de régions
+  const pts = new Set([0, n]);
+  for (const [a, b] of cuts) { pts.add(a); pts.add(b); }
+  for (const [a, b] of sils) { pts.add(a); pts.add(b); }
+  const bounds = [...pts].sort((x, y) => x - y);
+  const inAny = (mid, arr) => arr.some(([a, b]) => mid >= a && mid < b);
+
+  // Plan des segments conservés (cut prioritaire si chevauchement)
+  const segs = [];
+  let outLen = 0;
+  for (let i = 0; i < bounds.length - 1; i += 1) {
+    const p = bounds[i];
+    const q = bounds[i + 1];
+    if (q <= p) continue;
+    const mid = (p + q) >> 1;
+    if (inAny(mid, cuts)) continue; // retiré
+    segs.push({ p, q, silence: inAny(mid, sils) });
+    outLen += q - p;
+  }
+  if (outLen <= 0) return buffer; // tout coupé → on garde l'original (évite un buffer vide)
+
+  const ch = buffer.numberOfChannels;
+  const out = state.audioContext.createBuffer(ch, outLen, sr);
+  for (let c = 0; c < ch; c += 1) {
+    const src = buffer.getChannelData(c);
+    const dst = out.getChannelData(c);
+    let w = 0;
+    for (const s of segs) {
+      const len = s.q - s.p;
+      if (!s.silence) dst.set(src.subarray(s.p, s.q), w); // silence : déjà à zéro
+      w += len;
+    }
+  }
+  return out;
+}
+
+function effectiveBufferForPad(pad) {
+  if (!pad?.buffer) return null;
+  const sig = regionsSignature(pad.regions);
+  if (!sig) { pad.effectiveBuffer = null; pad.effectiveBufferSig = ""; return pad.buffer; }
+  if (pad.effectiveBufferSig === sig && pad.effectiveBufferSource === pad.buffer && pad.effectiveBuffer) {
+    return pad.effectiveBuffer;
+  }
+  const eff = applyRegionsToBuffer(pad.buffer, pad.regions);
+  pad.effectiveBuffer = eff;
+  pad.effectiveBufferSig = sig;
+  pad.effectiveBufferSource = pad.buffer;
+  return eff;
+}
+
+// Recale durée / waveform / cache reverse sur le buffer effectif (régions appliquées).
+function applyEffectiveBufferState(pad) {
+  if (!pad?.buffer) return;
+  const eff = effectiveBufferForPad(pad);
+  pad.reversedBufferSource = null; // invalide le cache reverse
+  setPadDuration(pad, eff.duration);
+  pad.waveformPeaks = buildWaveformPeaks(eff);
+}
+
 function reversedBufferForPad(pad) {
-  if (!pad?.buffer || !state.audioContext) return pad?.buffer || null;
-  if (pad.reversedBufferSource === pad.buffer && pad.reversedBuffer) return pad.reversedBuffer;
-  const source = pad.buffer;
+  const base = effectiveBufferForPad(pad);
+  if (!base || !state.audioContext) return base || null;
+  if (pad.reversedBufferSource === base && pad.reversedBuffer) return pad.reversedBuffer;
+  const source = base;
   const reversed = state.audioContext.createBuffer(source.numberOfChannels, source.length, source.sampleRate);
   for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
     const input = source.getChannelData(channel);
@@ -12495,9 +12594,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const segmentEnd = trimEnd(pad);
   const segmentDuration = playableDuration(pad);
   const segmentOffset = segmentDuration ? Math.min(Math.max(0, offset), Math.max(0, segmentDuration - 0.01)) : 0;
-  const playbackBuffer = pad.reverse ? reversedBufferForPad(pad) : pad.buffer;
-  const reverseSegmentStart = Math.max(0, pad.buffer.duration - segmentEnd);
-  const reverseSegmentEnd = Math.min(pad.buffer.duration, pad.buffer.duration - segmentStart);
+  const baseBuffer = effectiveBufferForPad(pad) || pad.buffer; // régions cut/silence appliquées
+  const playbackBuffer = pad.reverse ? reversedBufferForPad(pad) : baseBuffer;
+  const reverseSegmentStart = Math.max(0, baseBuffer.duration - segmentEnd);
+  const reverseSegmentEnd = Math.min(baseBuffer.duration, baseBuffer.duration - segmentStart);
   const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
 
   const ctx = state.audioContext;
