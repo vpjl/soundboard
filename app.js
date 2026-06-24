@@ -2142,14 +2142,15 @@ function makePad(index) {
     event.preventDefault();
     const files = [...(event.dataTransfer?.files || [])];
     if (!files.length) return;
-    const contentFile = files.find((f) => /^(audio|video|text)\//.test(f.type));
+    const isTextDoc = (f) => /^text\//.test(f.type) || /\.(rtf|docx|md|txt|text)$/i.test(f.name || "");
+    const contentFile = files.find((f) => /^(audio|video|text)\//.test(f.type) || isTextDoc(f));
     const imageFile = files.find((f) => /^image\//.test(f.type));
     if (contentFile) {
       if (/^video\//.test(contentFile.type)) {
         await loadVideoIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger la vidéo"));
-      } else if (/^text\//.test(contentFile.type)) {
+      } else if (isTextDoc(contentFile)) {
         try {
-          const text = await contentFile.text();
+          const text = await readTextFile(contentFile);
           pad.textName = contentFile.name;
           setPadAsTextFromControls(pad, text);
           if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(contentFile.name));
@@ -7227,6 +7228,82 @@ async function repairAccidentalPadTitles() {
   }
 
   localStorage.setItem(PAD_NAME_REPAIR, "done");
+}
+
+// --- Text file import: plain, RTF, DOCX -----------------------------------
+function decodeXmlEntities(s) {
+  return String(s)
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&amp;/g, "&");
+}
+
+function rtfToText(rtf) {
+  let s = String(rtf || "");
+  s = s.replace(/\{\\\*[^{}]*\}/g, "");                 // ignorable destinations
+  s = s.replace(/\\par[d]?\b/g, "\n").replace(/\\line\b/g, "\n").replace(/\\tab\b/g, "\t");
+  s = s.replace(/\\'([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  s = s.replace(/\\u(-?\d+)\s?\??/g, (_, n) => String.fromCharCode(((Number(n) % 65536) + 65536) % 65536));
+  s = s.replace(/\\[a-zA-Z]+-?\d* ?/g, "").replace(/\\[^a-zA-Z]/g, "");
+  s = s.replace(/[{}]/g, "");
+  return s.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function inflateRawToText(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new TextDecoder("utf-8").decode(await new Response(stream).arrayBuffer());
+}
+
+function docxXmlToText(xml) {
+  let s = String(xml || "")
+    .replace(/<w:tab\b[^>]*\/?>/g, "\t")
+    .replace(/<w:br\b[^>]*\/?>/g, "\n")
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<[^>]+>/g, "");
+  return decodeXmlEntities(s).replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function extractDocxText(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const dv = new DataView(arrayBuffer);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= 0 && i > bytes.length - 22 - 65536; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("ZIP EOCD introuvable");
+  const cdOffset = dv.getUint32(eocd + 16, true);
+  const cdCount = dv.getUint16(eocd + 10, true);
+  let p = cdOffset;
+  let target = null;
+  for (let n = 0; n < cdCount; n += 1) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const commentLen = dv.getUint16(p + 32, true);
+    const localOffset = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(p + 46, p + 46 + nameLen));
+    if (name === "word/document.xml") { target = { method, compSize, localOffset }; break; }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  if (!target) throw new Error("word/document.xml introuvable");
+  const lo = target.localOffset;
+  if (dv.getUint32(lo, true) !== 0x04034b50) throw new Error("En-tête local ZIP invalide");
+  const dataStart = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+  const data = bytes.subarray(dataStart, dataStart + target.compSize);
+  const xml = target.method === 0 ? new TextDecoder("utf-8").decode(data) : await inflateRawToText(data);
+  return docxXmlToText(xml);
+}
+
+// Read a text-bearing file, parsing RTF/DOCX into plain text.
+async function readTextFile(file) {
+  const name = String(file?.name || "").toLowerCase();
+  if (name.endsWith(".docx")) return extractDocxText(await file.arrayBuffer());
+  if (name.endsWith(".rtf")) return rtfToText(await file.text());
+  return file.text();
 }
 
 async function loadFileIntoPad(pad, file) {
@@ -13387,7 +13464,7 @@ async function init() {
     const pad = state.audioPad;
     if (!file || !pad) return;
     try {
-      const text = await file.text();
+      const text = await readTextFile(file);
       pad.textName = file.name || "Texte";
       setPadAsTextFromControls(pad, text);
       if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(file.name || "Texte"));
