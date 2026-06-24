@@ -7240,15 +7240,63 @@ function decodeXmlEntities(s) {
     .replace(/&amp;/g, "&");
 }
 
+// Proper-ish RTF → text: walks brace groups and skips header/destination
+// groups (font table, color table, stylesheet, info…) so their content
+// (font names, the ";;" separators, metadata) is not emitted.
 function rtfToText(rtf) {
-  let s = String(rtf || "");
-  s = s.replace(/\{\\\*[^{}]*\}/g, "");                 // ignorable destinations
-  s = s.replace(/\\par[d]?\b/g, "\n").replace(/\\line\b/g, "\n").replace(/\\tab\b/g, "\t");
-  s = s.replace(/\\'([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-  s = s.replace(/\\u(-?\d+)\s?\??/g, (_, n) => String.fromCharCode(((Number(n) % 65536) + 65536) % 65536));
-  s = s.replace(/\\[a-zA-Z]+-?\d* ?/g, "").replace(/\\[^a-zA-Z]/g, "");
-  s = s.replace(/[{}]/g, "");
-  return s.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const s = String(rtf || "");
+  const n = s.length;
+  const IGNORE = new Set([
+    "fonttbl", "colortbl", "stylesheet", "info", "pict", "object", "header",
+    "footer", "headerl", "headerr", "footerl", "footerr", "themedata",
+    "colorschememapping", "latentstyles", "datastore", "listtable",
+    "listoverridetable", "rsidtbl", "generator", "filetbl", "revtbl",
+    "xmlnstbl", "mmathPr", "operator", "nonshppict", "fldinst",
+  ]);
+  const stack = [{ ignore: false, uc: 1 }];
+  const top = () => stack[stack.length - 1];
+  let out = "";
+  let skip = 0; // unicode-fallback chars to skip after \uN
+  let i = 0;
+  const put = (str) => { if (!top().ignore) out += str; };
+  const unit = (str) => { if (skip > 0) { skip -= 1; return; } put(str); };
+  while (i < n) {
+    const c = s[i];
+    if (c === "{") { stack.push({ ignore: top().ignore, uc: top().uc }); i += 1; continue; }
+    if (c === "}") { if (stack.length > 1) stack.pop(); i += 1; continue; }
+    if (c === "\\") {
+      const nx = s[i + 1];
+      if (nx === "\\" || nx === "{" || nx === "}") { unit(nx); i += 2; continue; }
+      if (nx === "*") { top().ignore = true; i += 2; continue; }
+      if (nx === "'") { unit(String.fromCharCode(parseInt(s.substr(i + 2, 2), 16) || 0)); i += 4; continue; }
+      if (/[a-z]/i.test(nx)) {
+        let j = i + 1;
+        while (j < n && /[a-z]/i.test(s[j])) j += 1;
+        const word = s.slice(i + 1, j);
+        let k = j;
+        let p = "";
+        if (s[k] === "-") { p = "-"; k += 1; }
+        while (k < n && /[0-9]/.test(s[k])) { p += s[k]; k += 1; }
+        if (s[k] === " ") k += 1;
+        i = k;
+        if (IGNORE.has(word)) top().ignore = true;
+        else if (word === "par" || word === "line" || word === "sect" || word === "page") put("\n");
+        else if (word === "tab") put("\t");
+        else if (word === "uc") top().uc = Math.max(0, parseInt(p || "1", 10));
+        else if (word === "u") {
+          put(String.fromCharCode(((parseInt(p || "0", 10) % 65536) + 65536) % 65536));
+          skip = top().uc;
+        }
+        continue;
+      }
+      i += 2; // control symbol (\~, \-, …)
+      continue;
+    }
+    if (c === "\r" || c === "\n") { i += 1; continue; }
+    unit(c);
+    i += 1;
+  }
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 async function inflateRawToText(bytes) {
