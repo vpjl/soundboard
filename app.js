@@ -9992,6 +9992,21 @@ function bindWaveformTrim(pad) {
   });
 }
 
+// Positions (en secondes sur la timeline effective) des coupures, pour les marquer dans la waveform.
+function cutSeamsEffective(pad) {
+  const regs = (pad.regions || [])
+    .filter((r) => r.type === "cut")
+    .map((r) => ({ start: r.start, end: r.end }))
+    .sort((a, b) => a.start - b.start);
+  const seams = [];
+  let removed = 0;
+  for (const r of regs) {
+    seams.push(Math.max(0, r.start - removed));
+    removed += Math.max(0, r.end - r.start);
+  }
+  return seams;
+}
+
 function renderAudioDialogWaveform(pad = state.audioPad) {
   if (!pad || !els.audioWaveformCanvas || !els.audioWaveform) return;
   const rect = els.audioWaveform.getBoundingClientRect();
@@ -10022,6 +10037,24 @@ function renderAudioDialogWaveform(pad = state.audioPad) {
       ctx.fillStyle = x >= startX && x <= endX ? "rgba(73, 211, 160, 0.9)" : "rgba(168, 166, 159, 0.45)";
       ctx.fillRect(x, (height - barHeight) / 2, Math.max(1, barWidth * 0.72), barHeight);
     });
+  }
+  if (pad.duration) {
+    const seams = cutSeamsEffective(pad);
+    if (seams.length) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 91, 91, 0.95)";
+      ctx.lineWidth = Math.max(1, dpr);
+      ctx.setLineDash([4 * dpr, 3 * dpr]);
+      seams.forEach((s) => {
+        const x = (s / pad.duration) * width;
+        if (x <= 0.5 || x >= width - 0.5) return;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
   }
   if (els.audioTrimSelection) {
     const startPct = pad.duration ? (trimStart(pad) / pad.duration) * 100 : 0;
@@ -10308,6 +10341,29 @@ function aeDestroy() {
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
+// Aperçu fidèle : pendant la lecture, saute les régions "cut" et coupe le son sur les "silence".
+function aeSyncPreview(t) {
+  if (!aeWS || !aeRegions) return;
+  let inSilence = false;
+  for (const r of aeRegions.getRegions()) {
+    if (t >= r.start && t < r.end) {
+      if (r.__type === "cut") {
+        const d = aeWS.getDuration() || 0;
+        if (r.end >= d - 0.015) { // coupure jusqu'à la fin → on arrête
+          aeWS.pause();
+          aeWS.setTime(0);
+          aeEl("aePlay")?.classList.remove("is-playing");
+          return;
+        }
+        aeWS.setTime(Math.min(d, r.end + 0.002)); // saute la coupure
+        return;
+      }
+      inSilence = true;
+    }
+  }
+  aeWS.setVolume(inSilence ? 0 : 1);
+}
+
 async function openPadRegionsEditor(pad) {
   if (!window.WaveSurfer || !window.WaveSurferRegions) { setStatus("Éditeur indisponible (wavesurfer non chargé)"); return; }
   if (padType(pad) !== "audio") { setStatus("Édition de régions : pads audio uniquement"); return; }
@@ -10317,6 +10373,8 @@ async function openPadRegionsEditor(pad) {
   aePad = pad;
   aeEl("aeClipTitle").textContent = pad.title || `Pad ${pad.index + 1}`;
   aeEl("aeTotal").textContent = aeEl("aeIn").textContent = aeEl("aeOut").textContent = aeEl("aeSel").textContent = "0:00.000";
+  const helpPanel = aeEl("aeHelpPanel");
+  if (helpPanel) helpPanel.hidden = true;
   els.audioEditorDialog?.showModal?.();
 
   aeRegions = window.WaveSurferRegions.create();
@@ -10339,6 +10397,9 @@ async function openPadRegionsEditor(pad) {
   });
   aeWS.on("play", () => aeEl("aePlay")?.classList.add("is-playing"));
   aeWS.on("pause", () => aeEl("aePlay")?.classList.remove("is-playing"));
+  aeWS.on("timeupdate", aeSyncPreview);
+  aeWS.on("audioprocess", aeSyncPreview);
+  aeWS.on("seeking", aeSyncPreview);
 }
 
 async function aeApply() {
@@ -10348,6 +10409,10 @@ async function aeApply() {
       .filter((r) => r.end - r.start > 0.01)
       .sort((a, b) => a.start - b.start);
     aePad.regions = regions;
+    // S'assurer que le buffer est décodé pour recaler la durée immédiatement (pas seulement à la prochaine lecture).
+    if (!aePad.buffer && (aePad.audioStored || aePad.hasDirectAudio)) {
+      try { aePad.buffer = await ensurePadAudioDecoded(aePad); } catch {}
+    }
     if (aePad.buffer) {
       applyEffectiveBufferState(aePad); // recale durée + waveform + cache reverse
       renderWaveform(aePad);
@@ -13726,6 +13791,8 @@ async function init() {
   aeEl("aeZoomOut")?.addEventListener("click", () => { aePx = Math.max(1, aePx / 1.6); aeWS?.zoom(aePx); });
   aeEl("aeApply")?.addEventListener("click", aeApply);
   aeEl("aeCancel")?.addEventListener("click", () => { els.audioEditorDialog?.close(); aeDestroy(); });
+  aeEl("aeHelp")?.addEventListener("click", () => { const p = aeEl("aeHelpPanel"); if (p) p.hidden = false; });
+  aeEl("aeHelpClose")?.addEventListener("click", () => { const p = aeEl("aeHelpPanel"); if (p) p.hidden = true; });
   els.audioTextImport?.addEventListener("click", () => {
     if (!state.audioPad) return;
     // Already a text pad → import a file directly (the inline editor is already
