@@ -10270,18 +10270,22 @@ async function clearAudioPadMedia(pad = state.audioPad) {
   disposeVideoProjection(pad);
   if (padType(pad) === "text") {
     pad.textContent = "";
-    pad.textMode = true;
+    pad.textMode = false;
     pad.textName = "";
     pad.textDuration = 0;
+    setPadTitle(pad, `Pad ${pad.index + 1}`);
     setPadDuration(pad, 0);
+    pad.node.classList.add("is-empty");
+    pad.node.classList.remove("is-missing-audio");
     updatePadType(pad);
     updatePadTime(pad);
+    renderWaveform(pad);
     await dbDelete(padAudioKey(pad));
     await savePadMeta(pad);
     syncAudioDialog(pad);
     refreshBoardTagFilterOptions();
     refreshCrossfadeTargetOptions();
-    setStatus(`Texte effacé: ${pad.title}`);
+    setStatus(`Pad vidé: ${pad.title}`);
     return;
   }
   pad.buffer = null;
@@ -10299,6 +10303,7 @@ async function clearAudioPadMedia(pad = state.audioPad) {
   pad.textMode = false;
   pad.textName = "";
   pad.waveformPeaks = [];
+  setPadTitle(pad, `Pad ${pad.index + 1}`);
   setPadDuration(pad, 0);
   setPadTrim(pad, 0, 0);
   pad.node.classList.add("is-empty");
