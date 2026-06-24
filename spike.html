@@ -121,10 +121,11 @@
   }
 
   // Options par défaut (le visuel actuel de la maquette)
+  // Défauts type litpads : barres normalisées (leur waveform = composant custom "WaveformBar")
   const opts = {
     waveColor: "#3a9bff", progressColor: "#2f7fd6", cursorColor: "#cfe2ff", cursorWidth: 2,
-    barWidth: 0, barGap: 0, barRadius: 0, barAlign: "", barHeight: 1, height: 300,
-    minPxPerSec: 1, fillParent: true, normalize: false, autoCenter: true, autoScroll: true,
+    barWidth: 2, barGap: 1, barRadius: 2, barAlign: "", barHeight: 1, height: 300,
+    minPxPerSec: 1, fillParent: true, normalize: true, autoCenter: true, autoScroll: true,
     hideScrollbar: false, interact: true, dragToSeek: true,
     waveBorder: "#3a9bff", waveBg: "#04060a",
   };
