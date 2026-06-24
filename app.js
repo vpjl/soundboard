@@ -10325,7 +10325,7 @@ function selectedOptionValue(select) {
 // ===== Éditeur audio (régions cut/silence) — wavesurfer =====
 let aeWS = null, aeRegions = null, aePad = null, aeNewType = "cut";
 let aeEnvelope = null, aeMode = "regions", aeDragSel = null;
-let aeEnvDirty = false, aeHadSavedEnv = false, aeEnvBaselineSig = "";
+let aeEnvDirty = false, aeHadSavedEnv = false, aeEnvBaselineSig = "", aeReady = false, aeSeedAt = 0;
 const aeEnvSig = (pts) => (pts || []).map((p) => `${(+p.time).toFixed(3)}:${(+p.volume).toFixed(3)}`).sort().join("|");
 const AE_TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
 const AE_EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
@@ -10428,17 +10428,18 @@ function aeSetMode(mode) {
   } else if (aeDragSel) {
     aeDragSel(); aeDragSel = null;
   }
-  // Régions estompées et non interactives en mode enveloppe (et inversement l'enveloppe via CSS ::part).
+  // Régions estompées en mode enveloppe (leur interactivité est gérée par l'enveloppe
+  // SVG au-dessus via le CSS ::part ; on ne touche PAS à pointer-events des régions,
+  // sinon elles restaient non déplaçables après un aller-retour de mode).
   (aeRegions?.getRegions() || []).forEach((r) => {
-    if (!r.element) return;
-    r.element.style.pointerEvents = aeMode === "envelope" ? "none" : "";
-    r.element.style.opacity = aeMode === "envelope" ? "0.3" : "";
+    if (r.element) r.element.style.opacity = aeMode === "envelope" ? "0.3" : "";
   });
   aeUpdateHint();
 }
 
 function aeFlatEnvelope() {
   const d = aeWS?.getDuration() || 0;
+  aeSeedAt = performance.now();
   aeEnvelope?.setPoints([{ time: 0, volume: 1 }, { time: d, volume: 1 }]);
 }
 
@@ -10477,7 +10478,17 @@ function aeSeedFadesIntoEnvelope(pad) {
     if (last && Math.abs(last.time - p.time) < 0.005) last.volume = Math.min(last.volume, p.volume);
     else clean.push({ ...p });
   }
+  aeSeedAt = performance.now();
   aeEnvelope.setPoints(clean);
+}
+
+// Tant que l'enveloppe n'a pas été éditée à la main, garder le fade calé sur le
+// début/fin audibles quand les régions (cut) changent.
+function aeMaybeReseedFades() {
+  if (!aeReady || !aeEnvelope || !aePad || aeEnvDirty) return;
+  if (!(padOwnFade(aePad, "in") || padOwnFade(aePad, "out"))) return;
+  aeSeedFadesIntoEnvelope(aePad);
+  aeEnvBaselineSig = aeEnvSig(aeEnvelope.getPoints());
 }
 
 // Gain de l'enveloppe au temps t (interpolation linéaire entre points).
@@ -10562,7 +10573,7 @@ function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
   aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null; aeTrimDrag = null;
   aeEnvelope = null; aeDragSel = null; aeMode = "regions";
-  aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = "";
+  aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = ""; aeReady = false;
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
@@ -10762,10 +10773,15 @@ async function openPadRegionsEditor(pad) {
     waveColor: "#3a9bff", progressColor: "#2f7fd6", cursorColor: "#cfe2ff", cursorWidth: 2,
     barWidth: 2, barGap: 1, barRadius: 2, height: 220, normalize: true, fillParent: true, minPxPerSec: 1, dragToSeek: true,
   });
-  if (aeEnvelope) aeEnvelope.setVolume = () => {}; // on pilote le volume d'aperçu nous-mêmes (cut/silence + enveloppe)
-  aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); });
-  aeRegions.on("region-updated", aeUpdateTimes);
-  aeRegions.on("region-removed", aeUpdateTimes);
+  if (aeEnvelope) {
+    aeEnvelope.setVolume = () => {}; // on pilote le volume d'aperçu nous-mêmes (cut/silence + enveloppe)
+    // Édition manuelle (double-clic / glisser un point) → enveloppe "sale" (≠ simple reflet des fades).
+    // Garde temporelle pour ignorer les changements issus de nos propres setPoints (seeding, throttlés ~200 ms).
+    aeEnvelope.on("points-change", () => { if (performance.now() - aeSeedAt > 300) aeEnvDirty = true; });
+  }
+  aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); aeMaybeReseedFades(); });
+  aeRegions.on("region-updated", () => { aeUpdateTimes(); aeMaybeReseedFades(); });
+  aeRegions.on("region-removed", () => { aeUpdateTimes(); aeMaybeReseedFades(); });
   aeSetMode("regions");
   aeWS.on("ready", () => {
     aeEl("aeTotal").textContent = aeFmt(aeWS.getDuration());
@@ -10778,6 +10794,7 @@ async function openPadRegionsEditor(pad) {
       if (!hadSavedEnv) aeSeedFadesIntoEnvelope(pad); // défaut : la courbe reflète les fades du pad
       if ((aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
       aeEnvBaselineSig = aeEnvSig(aeEnvelope.getPoints()); // référence pour détecter une vraie édition
+      aeReady = true;
     });
     aeUpdateTimes();
     aeUpdateTrimOverlay();
@@ -14264,7 +14281,11 @@ async function init() {
   });
   aeEl("aeModeRegions")?.addEventListener("click", () => aeSetMode("regions"));
   aeEl("aeModeEnvelope")?.addEventListener("click", () => aeSetMode("envelope"));
-  aeEl("aeEnvFromFades")?.addEventListener("click", () => { if (aePad) { aeSeedFadesIntoEnvelope(aePad); aeEnvDirty = true; } });
+  aeEl("aeEnvFromFades")?.addEventListener("click", () => {
+    if (!aePad) return;
+    aeSeedFadesIntoEnvelope(aePad); // re-cale les extrémités sur les fades ; reste "non sale" (suit les cuts)
+    aeEnvBaselineSig = aeEnvSig(aeEnvelope?.getPoints());
+  });
   aeEl("aeTrimAuto")?.addEventListener("click", aeRunTrimAuto);
   aeEl("aeAddCut")?.addEventListener("click", () => aeAdd("cut"));
   aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
