@@ -6237,6 +6237,9 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
   const includeAudio = exportMode !== "settings";
   const includeVideo = exportMode === "full";
   const board = currentBoard();
+  // Immediate feedback: the prep step (persist) can take a moment with no UI.
+  setStatus("Préparation de l'export…", "progress");
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const pads = [];
   syncPadIndexesFromDom();
   await persistCurrentPadsForExport();
