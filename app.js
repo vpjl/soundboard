@@ -7385,7 +7385,6 @@ async function loadVideoIntoPad(pad, file) {
   const blob = new Blob([arrayBuffer.slice(0)], { type: file.type || "video/mp4" });
   const duration = await videoDurationFromBlob(blob);
   disposeVideoProjection(pad);
-  const currentTitle = pad.title;
   pad.buffer = null;
   pad.hasDirectAudio = false;
   pad.audioName = "";
@@ -7402,7 +7401,7 @@ async function loadVideoIntoPad(pad, file) {
   pad.textMode = false;
   pad.textName = "";
   setPadTrim(pad, 0, 0);
-  setPadTitle(pad, currentTitle);
+  setPadTitle(pad, cleanName(file.name));
   setPadDuration(pad, duration);
   updatePadType(pad);
   renderWaveform(pad);
