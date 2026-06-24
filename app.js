@@ -9995,6 +9995,20 @@ function bindWaveformTrim(pad) {
   });
 }
 
+// Temps d'origine → temps effectif (après retrait des coupures). Point dans une coupure → couture.
+function origToEffTime(pad, tOrig) {
+  const cuts = (pad.regions || [])
+    .filter((r) => r.type === "cut")
+    .map((r) => [r.start, r.end])
+    .sort((a, b) => a[0] - b[0]);
+  let removed = 0;
+  for (const [a, b] of cuts) {
+    if (tOrig >= b) removed += (b - a);
+    else if (tOrig > a) removed += (tOrig - a);
+  }
+  return Math.max(0, tOrig - removed);
+}
+
 // Positions (en secondes sur la timeline effective) des coupures, pour les marquer dans la waveform.
 function cutSeamsEffective(pad) {
   const regs = (pad.regions || [])
@@ -10058,6 +10072,21 @@ function renderAudioDialogWaveform(pad = state.audioPad) {
       });
       ctx.restore();
     }
+  }
+  // Enveloppe de volume (lecture seule) reportée sur la waveform.
+  if (pad.duration && Array.isArray(pad.envelope) && pad.envelope.length) {
+    const pts = pad.envelope.slice().sort((a, b) => a.time - b.time);
+    ctx.save();
+    ctx.strokeStyle = "rgba(120, 210, 130, 0.95)";
+    ctx.lineWidth = Math.max(1.5, dpr * 1.5);
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const x = (origToEffTime(pad, p.time) / pad.duration) * width;
+      const y = (1 - Math.min(1, Math.max(0, p.volume))) * height;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.restore();
   }
   if (els.audioTrimSelection) {
     const startPct = pad.duration ? (trimStart(pad) / pad.duration) * 100 : 0;
@@ -10382,7 +10411,7 @@ function aeSetMode(mode) {
   aeMode = mode === "envelope" ? "envelope" : "regions";
   aeEl("aeModeRegions")?.classList.toggle("is-active", aeMode === "regions");
   aeEl("aeModeEnvelope")?.classList.toggle("is-active", aeMode === "envelope");
-  const rt = aeEl("aeRegionTools"); if (rt) rt.hidden = aeMode !== "regions";
+  const rt = aeEl("aeRegionTools"); if (rt) rt.classList.toggle("is-dim", aeMode !== "regions");
   const wave = aeEl("aeWave");
   if (wave) {
     wave.classList.toggle("ae-mode-reg", aeMode === "regions");
@@ -10393,9 +10422,11 @@ function aeSetMode(mode) {
   } else if (aeDragSel) {
     aeDragSel(); aeDragSel = null;
   }
-  // Régions non interactives en mode enveloppe (et inversement l'enveloppe via CSS ::part).
+  // Régions estompées et non interactives en mode enveloppe (et inversement l'enveloppe via CSS ::part).
   (aeRegions?.getRegions() || []).forEach((r) => {
-    if (r.element) r.element.style.pointerEvents = aeMode === "envelope" ? "none" : "";
+    if (!r.element) return;
+    r.element.style.pointerEvents = aeMode === "envelope" ? "none" : "";
+    r.element.style.opacity = aeMode === "envelope" ? "0.3" : "";
   });
   aeUpdateHint();
 }
@@ -10542,6 +10573,12 @@ async function openPadRegionsEditor(pad) {
   if (padType(pad) !== "audio") { setStatus("Édition de régions : pads audio uniquement"); return; }
   const blob = await padAudioBlob(pad);
   if (!blob) { setStatus("Pas d'audio à éditer"); return; }
+  // Reprise : si le pad est en cours de test dans les Réglages, reprendre au même endroit.
+  let resumeAt = null;
+  if ((state.audioDialogStartedPad === pad || state.cuePreviewPad === pad) && (pad.source || pad.speechUtterance)) {
+    resumeAt = aeEffToOrig(pad, trimStart(pad) + playbackOffset(pad));
+  }
+  stopAudioDialogStartedPlayback();
   aeDestroy();
   aePad = pad;
   aeEl("aeClipTitle").textContent = pad.title || `Pad ${pad.index + 1}`;
@@ -10582,6 +10619,11 @@ async function openPadRegionsEditor(pad) {
     if (aeEnvelope && (aeEnvelope.getPoints() || []).length < 2) aeFlatEnvelope(); // sinon le plugin met tout à 0
     aeUpdateTimes();
     aeUpdateTrimOverlay();
+    if (resumeAt != null) {
+      const d = aeWS.getDuration() || 0;
+      aeWS.setTime(Math.max(0, Math.min(d - 0.05, resumeAt)));
+      aeWS.play();
+    }
   });
   aeWS.on("play", () => aeEl("aePlay")?.classList.add("is-playing"));
   aeWS.on("pause", () => aeEl("aePlay")?.classList.remove("is-playing"));
@@ -10942,6 +10984,14 @@ function resetAudioDialogSettings() {
     });
   }
   setPadTrim(pad, 0, 0);
+  // Réinitialise aussi l'éditeur : régions (cut/silence) + enveloppe.
+  const hadEditorEdits = (pad.regions?.length || 0) > 0 || (pad.envelope?.length || 0) > 0;
+  pad.regions = [];
+  pad.envelope = [];
+  pad.effectiveBuffer = null;
+  pad.effectiveBufferSig = "";
+  pad.reversedBufferSource = null;
+  if (pad.buffer) applyEffectiveBufferState(pad);
   state.audioCrossfadeDraft = {
     startStopMode: "none",
     startStopTag: "",
@@ -10950,6 +11000,7 @@ function resetAudioDialogSettings() {
   };
   syncAudioDialog(pad);
   savePadMeta(pad);
+  if (hadEditorEdits) setStatus("Éditeur audio réinitialisé : régions et enveloppe supprimées", "success");
 }
 
 function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = false) {

@@ -9386,6 +9386,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-toolbar { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
 .ae-grp { display: flex; gap: 8px; }
 .ae-grp-end { margin-left: auto; }
+.ae-grp.is-dim { opacity: .4; pointer-events: none; }
 .ae-modes { display: inline-flex; border: 1px solid #2c313c; border-radius: 8px; overflow: hidden; gap: 0; }
 .ae-mode { padding: 7px 14px; border: none; background: #14171e; color: #9aa1ad; font-size: .82rem; cursor: pointer; }
 .ae-mode + .ae-mode { border-left: 1px solid #2c313c; }
