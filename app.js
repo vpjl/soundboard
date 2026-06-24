@@ -10903,7 +10903,7 @@ function syncAudioDialogMediaAvailability(pad) {
   setAudioSectionHidden('[aria-label="Reverb"]', isText);
   setAudioSectionHidden('[aria-label="Égalisation audio pad"]', isText);
   setAudioSectionHidden('[aria-label="Fades"]', isText);
-  setAudioSectionHidden('[aria-label="Lecture de texte"]', !isText);
+  setAudioSectionHidden('.audio-text-section', !isText);
   if (els.audioTextEditorFrame) {
     els.audioTextEditorFrame.hidden = !isText;
   }
@@ -13488,6 +13488,12 @@ async function init() {
   });
   els.audioTextImport?.addEventListener("click", () => {
     if (!state.audioPad) return;
+    // Already a text pad → import a file directly (the inline editor is already
+    // available for typing). Otherwise offer the file/type choice.
+    if (padType(state.audioPad) === "text") {
+      els.audioTextFile?.click();
+      return;
+    }
     const chooseFile = window.confirm("OK : sélectionner un fichier texte. Annuler : saisir le texte.");
     if (chooseFile) {
       els.audioTextFile?.click();
