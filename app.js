@@ -10348,7 +10348,10 @@ function aeDecorate(region, type) {
   el.style.setProperty("--rg", AE_EDGE[type]);
   const lab = document.createElement("div");
   lab.className = "ae-rg-label"; lab.textContent = type === "cut" ? "CUT" : "MUTE";
-  el.appendChild(lab);
+  const dots = document.createElement("div");
+  dots.className = "ae-rg-dots"; dots.innerHTML = '<i class="no" title="Supprimer la région">✕</i>';
+  dots.querySelector(".no").onclick = (e) => { e.stopPropagation(); region.remove(); };
+  el.appendChild(lab); el.appendChild(dots);
 }
 
 // Bornes audibles sur la timeline effective (cut retiré, silence muté).
@@ -10403,7 +10406,7 @@ function aeAdd(type) {
   aeUpdateTimes();
 }
 
-const AE_HINT_REGIONS = "Rouge = cut (retiré du son) · Orange = mute (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Glisser sur la waveform pour créer une région ; poignées pour ajuster ; « Défaire » pour retirer la dernière.";
+const AE_HINT_REGIONS = "Rouge = cut (retiré du son) · Orange = mute (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.";
 const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Appliquer les fades » les régénère) ; ils ne sont alors plus appliqués en double.";
 
 function aeUpdateHint() {
