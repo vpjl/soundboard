@@ -70,6 +70,7 @@
     <div class="zoomrow"><span>🔍 <span id="zoomPct">100%</span></span><span>Scroll to zoom</span></div>
     <div class="toolbar">
       <div class="grp">
+        <label class="tbtn" style="cursor:pointer">📂 Charger un audio<input id="fileInput" type="file" accept="audio/*,video/*" hidden></label>
         <button class="tbtn cut" id="addCut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Cut Region</button>
         <button class="tbtn silence" id="addSilence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence Region</button>
       </div>
@@ -148,6 +149,8 @@
     decorate(regions.addRegion({start:st,end:en,color:TINT[type],drag:true,resize:true}),type); }
   $("addCut").onclick=()=>add("cut"); $("addSilence").onclick=()=>add("silence");
   $("reset").onclick=()=>regions.clearRegions(); $("undo").onclick=()=>{const a=regions.getRegions();a[a.length-1]?.remove();};
+  $("fileInput").onchange=(e)=>{ const f=e.target.files?.[0]; if(!f) return; regions.clearRegions();
+    document.querySelector(".clip-title").textContent=f.name; ws.loadBlob(f); };
   $("play").onclick=()=>ws.playPause(); ws.on("play",()=>$("play").classList.add("is-playing")); ws.on("pause",()=>$("play").classList.remove("is-playing"));
   $("toStart").onclick=()=>ws.seekTo(0);
   let px=opts.minPxPerSec;
