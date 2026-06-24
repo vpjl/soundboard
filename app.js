@@ -4106,6 +4106,9 @@ async function renderPads(options = {}) {
   els.pads.innerHTML = "";
   const board = currentBoard();
   perf.log("preparation complete", { padCount: board.padCount });
+  // Immediate feedback while a large board is being prepared.
+  setStatus("Ouverture du board…", "progress");
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const restoreJobs = [];
   for (let index = 0; index < board.padCount; index += 1) {
     const pad = makePad(index);
@@ -4137,7 +4140,14 @@ async function renderPads(options = {}) {
   }
   perf.log("restore queued", { padCount: restoreJobs.length });
   const restoreStartedAt = performance.now();
-  const restoreResults = await Promise.all(restoreJobs);
+  const restoreTotal = restoreJobs.length;
+  let restoreDone = 0;
+  const trackedJobs = restoreJobs.map((job) => job.then((res) => {
+    restoreDone += 1;
+    setStatus(`Ouverture du board… ${restoreDone} / ${restoreTotal}`, "progress");
+    return res;
+  }));
+  const restoreResults = await Promise.all(trackedJobs);
   perf.log("restore complete", {
     padCount: restoreJobs.length,
     ...restorePadResultSummary(restoreResults, Number((performance.now() - restoreStartedAt).toFixed(2))),
