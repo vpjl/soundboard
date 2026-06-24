@@ -3306,6 +3306,8 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 
 .audio-trim-actions #audioAutoTrim {
   height: 36px;
+  min-height: 36px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
 }
@@ -4559,7 +4561,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .audio-head-actions .audio-head-reset {
-  margin-left: 10px;
+  margin-left: auto;
 }
 
 .audio-toggle-row {
