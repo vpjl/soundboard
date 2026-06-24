@@ -10344,7 +10344,7 @@ function applyTextDialog() {
   state.textPad = null;
 }
 
-function setPadAsTextFromControls(pad, text) {
+function setPadAsTextFromControls(pad, text, options = {}) {
   if (!pad) return;
   disposeVideoProjection(pad);
   pad.buffer = null;
@@ -10355,8 +10355,10 @@ function setPadAsTextFromControls(pad, text) {
   pad.videoPath = "";
   dbDelete(padAudioKey(pad)).catch(() => {});
 
-  // Cleared text → become a clean empty pad (reset title + show the [?] marker)
-  if (!String(text || "").trim()) {
+  // Cleared text → become a clean empty pad (reset title + show the [?] marker).
+  // forceText keeps the pad in (empty) text mode — used when entering text mode
+  // to type, so the editor opens instead of the pad being emptied.
+  if (!options.forceText && !String(text || "").trim()) {
     pad.textContent = "";
     pad.textMode = false;
     pad.textName = "";
@@ -13498,7 +13500,7 @@ async function init() {
     if (chooseFile) {
       els.audioTextFile?.click();
     } else {
-      setPadAsTextFromControls(state.audioPad, state.audioPad.textContent || "");
+      setPadAsTextFromControls(state.audioPad, state.audioPad.textContent || "", { forceText: true });
       syncAudioDialog(state.audioPad);
       requestAnimationFrame(() => {
         els.audioTextInlineEditor?.focus();
