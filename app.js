@@ -10325,7 +10325,7 @@ function selectedOptionValue(select) {
 // ===== Éditeur audio (régions cut/silence) — wavesurfer =====
 let aeWS = null, aeRegions = null, aePad = null, aeNewType = "cut";
 let aeEnvelope = null, aeMode = "regions", aeDragSel = null;
-let aeEnvDirty = false, aeHadSavedEnv = false, aeEnvBaselineSig = "", aeReady = false, aeSeedAt = 0;
+let aeEnvDirty = false, aeHadSavedEnv = false, aeEnvBaselineSig = "", aeReady = false, aeSeedAt = 0, aeRestoring = false;
 const aeEnvSig = (pts) => (pts || []).map((p) => `${(+p.time).toFixed(3)}:${(+p.volume).toFixed(3)}`).sort().join("|");
 const AE_TINT = { cut: "rgba(255,60,60,0.16)", silence: "rgba(255,150,40,0.14)" };
 const AE_EDGE = { cut: "#ff5b5b", silence: "#ffa83a" };
@@ -10347,11 +10347,8 @@ function aeDecorate(region, type) {
   el.querySelectorAll(".ae-rg-label, .ae-rg-dots").forEach((n) => n.remove()); // idempotent (évite les doublons)
   el.style.setProperty("--rg", AE_EDGE[type]);
   const lab = document.createElement("div");
-  lab.className = "ae-rg-label"; lab.textContent = type === "cut" ? "COUPER" : "SILENCE";
-  const dots = document.createElement("div");
-  dots.className = "ae-rg-dots"; dots.innerHTML = '<i class="no" title="Supprimer">✕</i>';
-  dots.querySelector(".no").onclick = (e) => { e.stopPropagation(); region.remove(); };
-  el.appendChild(lab); el.appendChild(dots);
+  lab.className = "ae-rg-label"; lab.textContent = type === "cut" ? "CUT" : "MUTE";
+  el.appendChild(lab);
 }
 
 // Bornes audibles sur la timeline effective (cut retiré, silence muté).
@@ -10401,12 +10398,13 @@ function aeAdd(type) {
   const d = aeWS.getDuration() || 1;
   const start = aeWS.getCurrentTime() || d * 0.4;
   const end = Math.min(d, start + Math.max(0.3, d * 0.08));
-  aeDecorate(aeRegions.addRegion({ start, end, color: AE_TINT[type], drag: true, resize: true }), type);
+  // La décoration est faite par le handler region-created (avec aeNewType = type) → pas de double.
+  aeRegions.addRegion({ start, end, color: AE_TINT[type], drag: true, resize: true });
   aeUpdateTimes();
 }
 
-const AE_HINT_REGIONS = "Rouge = couper (retiré du son) · Orange = silence (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Cliquer/glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.";
-const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Reprendre les fades » les régénère) ; ils ne sont alors plus appliqués en double.";
+const AE_HINT_REGIONS = "Rouge = cut (retiré du son) · Orange = mute (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Glisser sur la waveform pour créer une région ; poignées pour ajuster ; « Défaire » pour retirer la dernière.";
+const AE_HINT_ENV = "Enveloppe de volume : double-cliquer = ajouter un point · glisser = déplacer · sortir de la zone = supprimer. Haut = 100 %, bas = silence. Les fades in/out (Réglages) forment les extrémités de la courbe (« Appliquer les fades » les régénère) ; ils ne sont alors plus appliqués en double.";
 
 function aeUpdateHint() {
   const h = document.querySelector(".ae-hint");
@@ -10578,7 +10576,7 @@ function aeDestroy() {
   try { aeWS?.destroy(); } catch {}
   aeWS = null; aeRegions = null; aePad = null; aeTrimEls = null; aeTrimDrag = null;
   aeEnvelope = null; aeDragSel = null; aeMode = "regions";
-  aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = ""; aeReady = false;
+  aeEnvDirty = false; aeHadSavedEnv = false; aeEnvBaselineSig = ""; aeReady = false; aeRestoring = false;
   if (aeEl("aeWave")) aeEl("aeWave").innerHTML = "";
 }
 
@@ -10784,16 +10782,18 @@ async function openPadRegionsEditor(pad) {
     // Garde temporelle pour ignorer les changements issus de nos propres setPoints (seeding, throttlés ~200 ms).
     aeEnvelope.on("points-change", () => { if (aeReady && performance.now() - aeSeedAt > 300) aeEnvDirty = true; });
   }
-  aeRegions.on("region-created", (r) => { if (!r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); aeMaybeReseedFades(); });
+  aeRegions.on("region-created", (r) => { if (!aeRestoring && !r.__type) aeDecorate(r, aeNewType); aeUpdateTimes(); aeMaybeReseedFades(); });
   aeRegions.on("region-updated", () => { aeUpdateTimes(); aeMaybeReseedFades(); });
   aeRegions.on("region-removed", () => { aeUpdateTimes(); aeMaybeReseedFades(); });
   aeSetMode("regions");
   aeWS.on("ready", () => {
     aeEl("aeTotal").textContent = aeFmt(aeWS.getDuration());
+    aeRestoring = true; // évite la décoration en double via l'événement region-created
     (pad.regions || []).forEach((rg) => {
       const r = aeRegions.addRegion({ start: rg.start, end: rg.end, color: AE_TINT[rg.type] || AE_TINT.cut, drag: true, resize: true });
       aeDecorate(r, rg.type === "silence" ? "silence" : "cut");
     });
+    aeRestoring = false;
     requestAnimationFrame(() => { // après layout, sinon le SVG de l'enveloppe n'est pas encore dimensionné
       if (!aeEnvelope || aePad !== pad) return;
       if (!hadSavedEnv) aeSeedFadesIntoEnvelope(pad); // défaut : la courbe reflète les fades du pad

@@ -2208,8 +2208,8 @@
           </div>
           <div class="ae-grp ae-frame" id="aeRegionGroup">
             <button class="ae-mode is-active" id="aeModeRegions" type="button">Régions</button>
-            <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Couper</button>
-            <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Silence</button>
+            <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Cut</button>
+            <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Mute</button>
           </div>
           <div class="ae-grp ae-frame" id="aeEnvGroup">
             <button class="ae-mode" id="aeModeEnvelope" type="button">Enveloppe</button>
@@ -2236,12 +2236,12 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
           <h3>Aide — Éditeur audio</h3>
-          <p class="ae-help-lead">L'audio d'origine n'est jamais modifié : les régions coupées (cut) ou mutées (silence) peuvent être rétablies.</p>
+          <p class="ae-help-lead">L'audio d'origine n'est jamais modifié : les régions cut ou mute peuvent être rétablies.</p>
           <dl>
-            <dt><span class="ae-help-tag cut">Couper</span></dt>
+            <dt><span class="ae-help-tag cut">Cut</span></dt>
             <dd>L'intervalle est retiré : le son est raccourci (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
-            <dt><span class="ae-help-tag silence">Silence</span></dt>
-            <dd>L'intervalle est mis à zéro (mute) ; la durée ne change pas.</dd>
+            <dt><span class="ae-help-tag silence">Mute</span></dt>
+            <dd>L'intervalle est mis à zéro ; la durée ne change pas.</dd>
             <dt>↶ Défaire</dt>
             <dd>Retire la dernière région ajoutée.</dd>
             <dt>↻ Réinit.</dt>
@@ -2266,7 +2266,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=352"></script>
+    <script src="app.js?v=353"></script>
 
 
   </body>
