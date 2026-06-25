@@ -3005,7 +3005,7 @@ body.board-edit-mode .pads {
 }
 
 body.board-edit-mode .pad.is-editing {
-  grid-template-rows: 56px 38px minmax(38px, auto) auto;
+  grid-template-rows: 56px 38px auto minmax(38px, auto) auto;
 }
 
 body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
@@ -3014,7 +3014,7 @@ body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
 }
 
 body.board-edit-mode .pad.is-editing .tag-field {
-  grid-row: 3;
+  grid-row: 4;
   align-self: stretch;
 }
 
@@ -7124,6 +7124,7 @@ body.board-edit-mode .pad.is-editing .pad-alerts {
   max-width: none;
   height: auto !important;
   grid-column: 1 / -1 !important;
+  grid-row: 3 !important; /* ligne dédiée entre le nom et les tags */
   grid-area: auto;
   order: 0;
   margin: 2px 0;
