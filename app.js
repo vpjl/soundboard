@@ -5642,6 +5642,13 @@ function openSkinEditor() {
     els.deleteSkinEditor.disabled = !customSkin;
   }
 
+  // « Enregistrer » écrase le skin custom courant : sans objet pour un skin
+  // prédéfini (rien à écraser) → on le grise, l'utilisateur passe par
+  // « Enregistrer sous… ».
+  if (els.saveSkinEditor) {
+    els.saveSkinEditor.disabled = !customSkin;
+  }
+
   if (els.skinEditorDialog?.showModal) {
     els.skinEditorDialog.showModal();
   }
