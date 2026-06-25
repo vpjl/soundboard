@@ -3656,7 +3656,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.72);
+  background: var(--color_pad_button_background); /* « Boutons » skinnable dans les 3 modes (garage l'utilisait déjà ; studio/scène avaient un fond en dur) */
   color: var(--muted);
 }
 
