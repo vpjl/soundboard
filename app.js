@@ -5333,17 +5333,26 @@ function syncSkinPreviewMode() {
   window.setTimeout(resizeSkinPreviewFrame, 200);
 }
 
-function saveSkinHarmonySettings() {
+// Returns the current harmony settings ({ baseHex, type, satDelta, lightDelta })
+// or null when the harmony color is unset/invalid. Used both for the global
+// last-used memory and to embed the harmony in each saved skin (#4).
+function _snapshotHarmonySettings() {
   const baseHex = document.querySelector("#skinHarmonyColor")?.value;
   const isUnset = document.querySelector(".skin-harmony-color-wrap")?.classList.contains("is-unset");
-  if (isUnset || !baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) {
-    localStorage.removeItem(SKIN_HARMONY_STORAGE);
-    return;
-  }
+  if (isUnset || !baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) return null;
   const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
   const satDelta = parseInt(document.querySelector("#skinHarmonySaturation")?.value ?? 0);
   const lightDelta = parseInt(document.querySelector("#skinHarmonyLightness")?.value ?? 0);
-  localStorage.setItem(SKIN_HARMONY_STORAGE, JSON.stringify({ baseHex, type, satDelta, lightDelta }));
+  return { baseHex, type, satDelta, lightDelta };
+}
+
+function saveSkinHarmonySettings() {
+  const settings = _snapshotHarmonySettings();
+  if (!settings) {
+    localStorage.removeItem(SKIN_HARMONY_STORAGE);
+    return;
+  }
+  localStorage.setItem(SKIN_HARMONY_STORAGE, JSON.stringify(settings));
 }
 
 function loadSkinHarmonySettings() {
@@ -5572,23 +5581,28 @@ function openSkinEditor() {
 
   syncSkinPreviewMode();
 
-  // Always reflect the ACTIVE skin: reset harmony state and derive the base
-  // color (and nuancier) from the skin currently in use. Non-destructive —
-  // the skin's real colors are not overwritten until the user applies harmony.
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  const customSkin = currentId ? customSkinById(currentId) : null;
+
+  // Reflect the ACTIVE skin's harmony. A skin remembers its own harmony (#4):
+  // if it was saved with one, restore it; otherwise derive the base color from
+  // the skin's current colors. Non-destructive — colors aren't overwritten
+  // until the user applies harmony.
   state.skinEditorHarmonyBase = null;
   const satSlider = document.querySelector("#skinHarmonySaturation");
   const lumSlider = document.querySelector("#skinHarmonyLightness");
   if (satSlider) satSlider.value = 0;
   if (lumSlider) lumSlider.value = 0;
-  deriveSkinHarmonyFromCurrentSkin();
+  if (customSkin?.harmony) {
+    restoreSkinHarmonyFromSettings(customSkin.harmony);
+  } else {
+    deriveSkinHarmonyFromCurrentSkin();
+  }
 
   loadSkinFonts();
 
   skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
-
-  const current = String(localStorage.getItem(SKIN_STORAGE) || "classic");
-  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
-  const customSkin = currentId ? customSkinById(currentId) : null;
   const selectedOption = els.skinSelect?.querySelector(`option[value="${current}"]`);
   const fallbackName = selectedOption?.textContent || current || "Mon skin";
 
@@ -5668,7 +5682,7 @@ function saveSkinEditorOverwrite() {
     const index = skins.findIndex((skin) => skin.id === currentId);
     if (index !== -1) {
       const name = String(els.skinEditorName?.value || skins[index].name).trim() || skins[index].name;
-      skins[index] = { ...skins[index], name, updatedAt: new Date().toISOString(), variables: _snapshotEditorVariables() };
+      skins[index] = { ...skins[index], name, updatedAt: new Date().toISOString(), variables: _snapshotEditorVariables(), harmony: _snapshotHarmonySettings() };
       writeCustomSkins(skins);
       updateSkinOptions();
       applySkin(`${CUSTOM_SKIN_PREFIX}${currentId}`);
@@ -5705,7 +5719,7 @@ function saveSkinEditorAs() {
     if (idx !== -1) skins.splice(idx, 1);
   }
 
-  const skin = { id: createId(), name, createdAt: new Date().toISOString(), variables: _snapshotEditorVariables() };
+  const skin = { id: createId(), name, createdAt: new Date().toISOString(), variables: _snapshotEditorVariables(), harmony: _snapshotHarmonySettings() };
   skins.push(skin);
   writeCustomSkins(skins);
   updateSkinOptions();
