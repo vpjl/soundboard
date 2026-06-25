@@ -1524,6 +1524,8 @@ input[type="range"] {
 }
 
 .danger-button,
+.board-delete-button,
+.pad-delete-button,
 .small-button,
 .control-group button,
 .drag-handle,
