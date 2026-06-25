@@ -5052,8 +5052,16 @@ function buildSkinHarmonyBase() {
 }
 
 function applySkinHarmony() {
-  if (!buildSkinHarmonyBase()) return;
+  if (!buildSkinHarmonyBase()) return;   // base temporaire = teintes d'harmonie
+  // Appliquer la palette PURE (curseurs sat/lum remis à zéro), puis re-capturer
+  // toutes les couleurs courantes comme base des curseurs : ils ajusteront
+  // ensuite S/L de la palette entière, de façon cohérente.
+  const sat = document.querySelector("#skinHarmonySaturation");
+  const lum = document.querySelector("#skinHarmonyLightness");
+  if (sat) sat.value = 0;
+  if (lum) lum.value = 0;
   applyHarmonyAdjustments();
+  captureSkinSatLumBase();
 }
 
 function applyHarmonyAdjustments() {
@@ -5072,6 +5080,20 @@ function applyHarmonyAdjustments() {
     const input = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(name)}"]`);
     if (input) input.value = adjusted;
   });
+}
+
+// Base des curseurs sat/lum = couleurs courantes du skin (delta 0). Les curseurs
+// décalent alors la saturation/luminosité des couleurs EXISTANTES (teintes
+// préservées) au lieu de régénérer une palette d'harmonie. Capturée à l'ouverture
+// de l'éditeur ; applySkinHarmony() la remplace par les teintes d'harmonie quand
+// l'utilisateur valide une nouvelle couleur de base.
+function captureSkinSatLumBase() {
+  const base = {};
+  els.skinEditorFields?.querySelectorAll("input[data-skin-variable]").forEach((inp) => {
+    const v = normalizeColorInputValue(inp.value);
+    if (v) base[inp.dataset.skinVariable] = v;
+  });
+  state.skinEditorHarmonyBase = Object.keys(base).length ? base : null;
 }
 
 function applySwatchHighlight(index) {
@@ -5099,28 +5121,15 @@ function clearSwatchHighlight() {
   }
 }
 
+// Clic sur une teinte du nuancier : seulement surligner, de façon persistante,
+// les éléments de la simulation qui partagent cette teinte. Ne modifie AUCUNE
+// couleur et n'ouvre pas le picker (la couleur de base se choisit via son champ).
 function handleSwatchClick(e) {
   const span = e.target.closest("#skinHarmonySwatch span");
   if (!span) return;
   const index = parseInt(span.dataset.swatchIndex ?? 0);
-  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
-  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
-  const colors = getSkinHarmonyColors(baseHex, type);
-  const swatchColor = colors[index];
-  if (!swatchColor) return;
-
   document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
-
-  // Seed the base picker with this swatch color and open the native color picker.
-  // When the user picks, the picker's "input" listener applies the harmony.
-  const colorInput = document.querySelector("#skinHarmonyColor");
-  if (colorInput) {
-    colorInput.value = swatchColor;
-    if (typeof colorInput.showPicker === "function") {
-      try { colorInput.showPicker(); return; } catch {}
-    }
-    colorInput.click();
-  }
+  applySwatchHighlight(index);
 }
 
 function normalizeColorInputValue(value) {
@@ -5621,9 +5630,9 @@ function openSkinEditor() {
   } else {
     deriveSkinHarmonyFromCurrentSkin();
   }
-  // Préparer la base d'harmonie (sans appliquer) pour que les curseurs sat/lum
-  // aient un effet immédiat, sans écraser les couleurs réelles du skin.
-  buildSkinHarmonyBase();
+  // Base des curseurs sat/lum = couleurs courantes du skin (les curseurs ajustent
+  // S/L de l'existant, ils ne régénèrent pas la palette).
+  captureSkinSatLumBase();
 
   loadSkinFonts();
 
@@ -13754,17 +13763,26 @@ async function init() {
   els.openSkinEditorButton?.addEventListener("click", openSkinEditor);
   els.closeSkinEditor?.addEventListener("click", closeSkinEditor);
   document.querySelector("#applySkinHarmony")?.addEventListener("click", applySkinHarmony);
+  // Couleur de base : pendant qu'on bouge dans le picker (input) on ne fait que
+  // prévisualiser le nuancier — aucune couleur de la simulation n'est touchée.
   document.querySelector("#skinHarmonyColor")?.addEventListener("input", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
     document.querySelectorAll("#skinHarmonySwatch span").forEach(s => s.classList.remove("is-active"));
+    updateHarmonySwatch();
+  });
+  // La palette d'harmonie n'est générée + appliquée qu'à la VALIDATION d'une
+  // nouvelle couleur de base (change), pas au simple clic d'ouverture du picker.
+  document.querySelector("#skinHarmonyColor")?.addEventListener("change", () => {
+    document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
     skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();
   });
+  // Le type met seulement à jour le nuancier (référence) ; la palette s'applique
+  // ensuite via la couleur de base.
   document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
     updateHarmonySwatch();
-    if (state.skinEditorHarmonyBase) applySkinHarmony();
     saveSkinHarmonySettings();
   });
   document.querySelector("#skinHarmonySwatch")?.addEventListener("click", handleSwatchClick);
