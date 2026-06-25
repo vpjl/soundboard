@@ -1552,6 +1552,7 @@ function setBoardPadEditing(editing) {
   state.filterSectionOpen = false;
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
+  updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
   refreshBoardTagFilterOptions();
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
