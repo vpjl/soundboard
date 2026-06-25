@@ -2282,13 +2282,13 @@ body.stage-mode .board-filter-row {
 
 .pad.is-ending .pad-alert-ending,
 .pad.is-looping .pad-alert-loop,
-.pad.is-duck-trigger .pad-alert-duck-trigger,
-.pad.is-duck-source .pad-alert-duck-source,
+.pad.is-duck-trigger .pad-alert-duck-source,
 .pad.is-ducked .pad-alert-ducked,
 .pad.has-audio-fade-in .pad-alert-fade-in,
 .pad.has-audio-fade-out .pad-alert-fade-out,
 .pad.has-reverb .pad-alert-reverb,
-.pad.has-crossfade .pad-alert-crossfade,
+.pad.is-xfade-source .pad-alert-xfade-source,
+.pad.is-xfade-target .pad-alert-xfade-target,
 .pad.is-missing-audio .pad-alert-missing {
   display: inline-flex;
 }
@@ -2299,10 +2299,6 @@ body.stage-mode .board-filter-row {
 
 .pad-alert-loop {
   color: var(--color_status_progress);
-}
-
-.pad-alert-duck-trigger {
-  color: #8ce0a6;
 }
 
 .pad-alert-duck-source {
@@ -2322,7 +2318,8 @@ body.stage-mode .board-filter-row {
   color: #a8f3ff;
 }
 
-.pad-alert-crossfade {
+.pad-alert-xfade-source,
+.pad-alert-xfade-target {
   color: var(--color_status_warning);
 }
 

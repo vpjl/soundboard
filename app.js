@@ -4205,6 +4205,7 @@ async function renderPads(options = {}) {
   setStatus("Board prêt pour l’édition", "success");
   perf.log("complete", { padCount: state.pads.length });
   state.pads.forEach(fitPadTitle);
+  updateAllPadAlerts(); // calcule les badges (dont source/cible crossfade) après restauration
   if (!state.stageMode) backfillPadDurations(); // durées affichées sans passer par la scène
 }
 
@@ -9269,10 +9270,26 @@ function updatePadAlerts(pad) {
   pad.node.classList.toggle("has-audio-fade-in", hasFadeIn);
   pad.node.classList.toggle("has-audio-fade-out", hasFadeOut);
   pad.node.classList.toggle("has-reverb", pad.reverbMode === "pad" && pad.reverbPreset !== "none");
-  pad.node.classList.toggle("has-crossfade", pad.startStopMode !== "none" || pad.endStartMode !== "none");
+  const isXfadeSource = pad.startStopMode !== "none" || pad.endStartMode !== "none";
+  pad.node.classList.toggle("has-crossfade", isXfadeSource);
+  pad.node.classList.toggle("is-xfade-source", isXfadeSource);
+  pad.node.classList.toggle("is-xfade-target", Boolean(state.crossfadeTargetUids?.has(pad.uid)));
+}
+
+// Ensemble des pads qui sont CIBLE d'un crossfade (visés par le start/end d'un autre pad).
+function recomputeCrossfadeTargets() {
+  const set = new Set();
+  state.pads.forEach((src) => {
+    [[src.startStopMode, src.startStopTag], [src.endStartMode, src.endStartTarget]].forEach(([mode, target]) => {
+      if (mode === "none" || !String(target || "").trim()) return;
+      padsFromCrossfadeTarget(target, src).forEach((p) => { if (p?.uid) set.add(p.uid); });
+    });
+  });
+  state.crossfadeTargetUids = set;
 }
 
 function updateAllPadAlerts() {
+  recomputeCrossfadeTargets();
   state.pads.forEach(updatePadAlerts);
 }
 
@@ -9696,7 +9713,7 @@ function setPadCrossfade(pad, rule = {}) {
   if (pad.startStopTagEl) pad.startStopTagEl.value = pad.startStopTag;
   if (pad.endStartModeEl) pad.endStartModeEl.value = pad.endStartMode;
   if (pad.endStartTargetEl) pad.endStartTargetEl.value = pad.endStartTarget;
-  updatePadAlerts(pad);
+  updateAllPadAlerts(); // recalcule aussi les cibles (le badge →xf des autres pads en dépend)
   syncCueControls();
   if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
