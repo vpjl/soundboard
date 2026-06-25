@@ -5630,6 +5630,12 @@ function clearSkinEditorPreviewVariables() {
 function closeSkinEditor() {
   clearSkinEditorVariableHighlight();
   clearSkinEditorPreviewVariables();
+  // #5 : un color picker natif (<input type=color>) encore ouvert reste affiché
+  // si on ferme l'éditeur sans avoir cliqué ailleurs. Retirer le focus du champ
+  // couleur actif le ferme dans la plupart des navigateurs.
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement && active.type === "color") active.blur();
+  document.querySelector("#skinHarmonyColor")?.blur();
   els.skinEditorDialog?.close();
   applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
 }
