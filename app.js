@@ -4901,7 +4901,7 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
       ["--color_pad_progress_fill", "Progression"],
       ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_progress_background", "Fond progression"],
-      ["--color_pad_stop", "Boutons stop/mute"],
+      ["--color_pad_stop", "Boutons stop / mute / suppression"],
     ],
   },
   {

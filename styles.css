@@ -977,7 +977,7 @@ body.board-edit-mode .board-manage-section-toggle {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.72);
+  background: var(--color_ui_panel);
 }
 
 .live-tools-title {
@@ -1561,15 +1561,15 @@ button.is-pressed {
 
 .danger-button {
   min-height: 42px;
-  border-color: rgba(255, 95, 86, 0.55);
-  background: rgba(255, 95, 86, 0.13);
-  color: #ffd8d5;
+  border-color: color-mix(in srgb, var(--color_pad_stop) 55%, transparent);
+  background: color-mix(in srgb, var(--color_pad_stop) 13%, transparent);
+  color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
 }
 
 .board-delete-button,
 .pad-delete-button {
-  border-color: rgba(255, 95, 86, 0.72);
-  color: #ffd8d5;
+  border-color: color-mix(in srgb, var(--color_pad_stop) 72%, transparent);
+  color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
 }
 
 #stopAll {
@@ -9017,17 +9017,17 @@ body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"]
 /* Couleurs distinctes du mode courant */
 body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
   border-color: #36c66a !important;
-  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel_secondary)) !important;
 }
 
 body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
   border-color: #62b7ff !important;
-  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
 }
 
 body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
   border-color: #ffd36e !important;
-  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
 }
 
 /* Correctif final sélecteur modes : position stable et couleur Scène verte */
@@ -9053,31 +9053,31 @@ body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage
 body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
 .board-mode-button[data-board-mode-target="stage"].is-current {
   border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 42%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, var(--color_status_success) 42%, var(--color_ui_panel_secondary)) !important;
   color: var(--color_ui_text) !important;
 }
 
 body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
   border-color: #62b7ff !important;
-  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
 }
 
 body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
   border-color: #ffd36e !important;
-  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
 }
 
 /* Mode Scène : bouton Scène vert logo + clignotement pendant chargement */
 .board-mode-button[data-board-mode-target="stage"].is-current,
 body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
   border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 48%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, var(--color_status_success) 48%, var(--color_ui_panel_secondary)) !important;
   color: var(--color_ui_text) !important;
 }
 
 .board-mode-button[data-board-mode-target="stage"].is-pending {
   border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 34%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, var(--color_status_success) 34%, var(--color_ui_panel_secondary)) !important;
   animation: stage-mode-pending-pulse 0.72s ease-in-out infinite alternate;
 }
 
@@ -9158,7 +9158,7 @@ html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-
 html body.stage-mode .board-main > .board-mode-selector .board-mode-button[data-board-mode-target="stage"],
 html body[data-board-mode="stage"] .board-main > .board-mode-selector .board-mode-button[data-board-mode-target="stage"] {
   border-color: var(--soundboard-logo-green) !important;
-  background: color-mix(in srgb, var(--soundboard-logo-green) 52%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, var(--soundboard-logo-green) 52%, var(--color_ui_panel_secondary)) !important;
   color: var(--color_ui_text) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soundboard-logo-green) 60%, transparent) !important;
   filter: none !important;
@@ -9166,7 +9166,7 @@ html body[data-board-mode="stage"] .board-main > .board-mode-selector .board-mod
 
 html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-target="stage"].is-pending {
   border-color: var(--soundboard-logo-green) !important;
-  background: color-mix(in srgb, var(--soundboard-logo-green) 38%, var(--color_ui_panel)) !important;
+  background: color-mix(in srgb, var(--soundboard-logo-green) 38%, var(--color_ui_panel_secondary)) !important;
   filter: none !important;
 }
 /* Supprimer les compensations approximatives précédentes */
