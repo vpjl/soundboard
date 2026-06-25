@@ -57,7 +57,6 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_note_overlay_text",
   "--color_pad_tag_background",
   "--color_pad_missing_background",
-  "--color_pad_stop",
 ];
 const SKIN_HARMONY_STORAGE = "soundboard-skin-harmony";
 const SKIN_FONTS_STORAGE = "soundboard-skin-fonts";
@@ -4901,7 +4900,6 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
       ["--color_pad_progress_fill", "Progression"],
       ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_progress_background", "Fond progression"],
-      ["--color_pad_stop", "Boutons stop / mute / suppression"],
     ],
   },
   {
@@ -5149,9 +5147,9 @@ function normalizeColorInputValue(value) {
 }
 
 // getComputedStyle ne substitue PAS le var() à l'intérieur de la valeur d'une
-// custom property : --color_pad_stop: var(--color_status_stop) se relit
-// littéralement "var(--color_status_stop)". On suit la chaîne var() pour que le
-// champ de l'éditeur reçoive une vraie couleur (ex. boutons stop/mute/suppr.).
+// custom property : une variable définie comme « --a: var(--b) » se relit
+// littéralement "var(--b)". On suit la chaîne var() pour que le champ de
+// l'éditeur reçoive une vraie couleur au lieu d'une référence.
 function resolveComputedSkinVar(computed, name, depth = 0) {
   const raw = String(computed.getPropertyValue(name) || "").trim();
   const m = raw.match(/^var\(\s*(--[\w-]+)\s*\)$/);
@@ -5524,8 +5522,8 @@ const SKIN_PREVIEW_PAD_VARS = [
   [".pad-title", "--color_ui_text"],
   ["[data-tags-display]", "--color_pad_tag_background"],
   [".pad-tag-chip", "--color_pad_tag_background"],
-  [".pad-stop-button", "--color_pad_stop"],
-  [".pad-mute-button", "--color_pad_stop"],
+  [".pad-stop-button", "--color_status_stop"],
+  [".pad-mute-button", "--color_status_stop"],
   [".pad-note-button", "--color_pad_button_background"],
   [".pad-time", "--color_ui_text_muted"],
   [".pad-progress", "--color_pad_progress_background"],
