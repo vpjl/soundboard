@@ -6490,6 +6490,10 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     board: {
       name: board.name,
       padCount: board.padCount,
+      // Skin du board : référence (intégré ou custom) + données complètes du skin
+      // perso s'il est custom, pour qu'il voyage avec le board.
+      skin: board.skin || null,
+      customSkin: customSkinExportData(board.skin),
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
@@ -6531,6 +6535,35 @@ async function persistCurrentPadsForExport() {
   }
 }
 
+// Données complètes du skin perso d'un board (pour l'embarquer dans l'export).
+// Renvoie null si le board n'utilise pas de skin custom.
+function customSkinExportData(skinRef) {
+  if (typeof skinRef !== "string" || !skinRef.startsWith(CUSTOM_SKIN_PREFIX)) return null;
+  const skin = customSkinById(skinRef.slice(CUSTOM_SKIN_PREFIX.length));
+  if (!skin) return null;
+  return { id: skin.id, name: skin.name, variables: skin.variables, harmony: skin.harmony || null };
+}
+
+// Restaure le skin d'un board importé : enregistre le skin perso embarqué (s'il
+// n'est pas déjà présent) et renvoie la référence de skin à appliquer, ou la
+// référence intégrée, ou null.
+function restoreImportedBoardSkin(boardData) {
+  const custom = boardData?.customSkin;
+  if (custom && custom.variables) {
+    const skins = readCustomSkins();
+    let id = String(custom.id || "");
+    if (id && skins.some((s) => s.id === id)) return `${CUSTOM_SKIN_PREFIX}${id}`; // déjà présent
+    if (!id) id = createId();
+    skins.push({ id, name: custom.name || "Skin importé", createdAt: new Date().toISOString(), variables: custom.variables, harmony: custom.harmony || null });
+    writeCustomSkins(skins);
+    updateSkinOptions();
+    return `${CUSTOM_SKIN_PREFIX}${id}`;
+  }
+  const ref = boardData?.skin;
+  if (typeof ref === "string" && ref && !ref.startsWith(CUSTOM_SKIN_PREFIX)) return ref; // intégré
+  return null;
+}
+
 async function importBoardFile(file) {
   let payload;
   try {
@@ -6562,11 +6595,15 @@ async function importBoardFile(file) {
     cues: payload.board.cues,
     cueIndex: payload.board.cueIndex,
   });
+  // Restaure le skin embarqué (enregistre le skin perso si nécessaire).
+  const restoredSkin = restoreImportedBoardSkin(payload.board);
+  if (restoredSkin) importedBoard.skin = restoredSkin;
   setBoardPadEditing(false);
   state.boards.push(importedBoard);
   state.currentBoardId = importedBoard.id;
   saveBoards();
   renderBoardOptions();
+  if (importedBoard.skin) applySkin(importedBoard.skin);
 
   let audioFailures = 0;
   for (let index = 0; index < importedBoard.padCount; index += 1) {
