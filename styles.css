@@ -7086,12 +7086,15 @@ body.board-edit-mode .pad.is-editing .pad-time {
 
 body.board-edit-mode .pad.is-editing .pad-note-button {
   grid-area: auto;
-  position: static !important;
-  order: 12;
-  grid-column: 3;
-  justify-self: stretch;
-  width: 100%;
-  height: 38px;
+  position: absolute !important;
+  top: 8px;
+  right: 10px;
+  order: 0;
+  grid-column: auto;
+  justify-self: auto;
+  width: 28px;
+  height: 28px;
+  z-index: 7;
 }
 
 body.board-edit-mode .pad.is-editing .visual-toggle-button {
