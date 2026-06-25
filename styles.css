@@ -1561,14 +1561,16 @@ button.is-pressed {
 
 .danger-button {
   min-height: 42px;
-  border-color: color-mix(in srgb, var(--color_pad_stop) 55%, transparent);
-  background: color-mix(in srgb, var(--color_pad_stop) 13%, transparent);
-  color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
 }
 
+/* Style unique « stop / mute / suppression » : tous ces boutons (stop master,
+   stop cues/crossfade, danger des dialogues, corbeille pad/board en garage)
+   partagent exactement le même habillage, piloté par --color_pad_stop. */
+.danger-button,
 .board-delete-button,
 .pad-delete-button {
-  border-color: color-mix(in srgb, var(--color_pad_stop) 72%, transparent);
+  border-color: color-mix(in srgb, var(--color_pad_stop) 55%, transparent);
+  background: color-mix(in srgb, var(--color_pad_stop) 13%, transparent);
   color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
 }
 
