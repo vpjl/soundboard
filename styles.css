@@ -2904,7 +2904,9 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 
 .pad.is-editing .pad-time {
   top: 9px;
-  right: 10px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 .pad.is-editing .pad-progress,
@@ -7082,7 +7084,9 @@ body.board-edit-mode .pad.is-editing .pad-time {
   position: absolute !important;
   z-index: 6;
   top: 9px;
-  right: 10px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 body.board-edit-mode .pad.is-editing .pad-note-button {
