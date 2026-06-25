@@ -7105,9 +7105,19 @@ body.board-edit-mode .pad.is-editing .pad-crossfade-flash {
   right: 64px;
 }
 
+/* Garage : afficher les badges en overlay (haut-droite), sans gêner l'édition. */
 body.board-edit-mode .pad.is-editing .pad-alerts {
-  display: none !important;
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px;
+  position: absolute !important;
+  top: 8px;
+  right: 10px;
+  max-width: 55%;
   grid-area: auto;
+  z-index: 6;
+  pointer-events: none;
 }
 
 body.board-edit-mode .pad.is-editing .pad-progress,
