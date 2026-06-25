@@ -2318,9 +2318,12 @@ body.stage-mode .board-filter-row {
   color: #a8f3ff;
 }
 
-.pad-alert-xfade-source,
+.pad-alert-xfade-source {
+  color: var(--color_status_success);
+}
+
 .pad-alert-xfade-target {
-  color: var(--color_status_warning);
+  color: var(--color_status_stop);
 }
 
 .pad-alert-missing {
