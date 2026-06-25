@@ -1641,20 +1641,6 @@ body.show-cables .cable-overlay {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color_status_success) 18%, transparent), 0 18px 38px var(--color_ui_shadow);
 }
 
-.pad.is-looping {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_status_progress) 38%, transparent), 0 12px 32px var(--color_ui_shadow);
-}
-
-.pad.is-duck-trigger {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_status_success) 38%, transparent), 0 12px 32px var(--color_ui_shadow);
-}
-
-.pad.is-looping.is-duck-trigger {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color_status_progress) 38%, transparent),
-    inset 0 -4px 0 color-mix(in srgb, var(--color_status_success) 48%, transparent),
-    0 12px 32px var(--color_ui_shadow);
-}
 
 .pad.is-ending {
   border-color: var(--color_status_stop);
