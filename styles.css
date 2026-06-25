@@ -8873,6 +8873,17 @@ details[open] > .skin-editor-advanced-summary::before {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_status_success) 42%, transparent);
 }
 
+/* #9 : forcer 3 paliers de luminosité distincts pour que Scène/Studio/Garage
+   restent différenciables même avec une harmonie monochrome/nuances/analogue
+   (couleurs quasi identiques). Dérivé des couleurs courantes via brightness,
+   donc robuste à n'importe quel skin. Studio reste le palier neutre (1.0). */
+.board-mode-button[data-board-mode-target="stage"] {
+  filter: brightness(0.8);
+}
+.board-mode-button[data-board-mode-target="garage"] {
+  filter: brightness(1.2);
+}
+
 .board-mode-button.is-disabled,
 .board-mode-button:disabled {
   opacity: 0.36;
@@ -8882,12 +8893,12 @@ details[open] > .skin-editor-advanced-summary::before {
 
 body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"] {
   border-color: var(--color_status_progress);
-  background: color-mix(in srgb, var(--color_status_progress) 32%, var(--color_ui_panel));
+  background: color-mix(in srgb, var(--color_status_progress) 32%, var(--color_ui_panel_secondary));
 }
 
 body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"] {
   border-color: var(--color_status_success);
-  background: color-mix(in srgb, var(--color_status_success) 36%, var(--color_ui_panel));
+  background: color-mix(in srgb, var(--color_status_success) 36%, var(--color_ui_panel_secondary));
 }
 
 .board-mode-help {
