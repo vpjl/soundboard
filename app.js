@@ -1226,7 +1226,7 @@ function stopLastStartedPadFromKeyboard() {
     ? state.lastStartedPad
     : state.pads.find((item) => isPadPlaying(item));
   if (!pad) {
-    setStatus("Aucun pad à arrêter");
+    setStatus("Aucun pad à arrêter", "warning");
     return false;
   }
   stopPad(pad, fadeDurationForPad(pad, "out") > 0);
@@ -1600,7 +1600,7 @@ async function openCancelBoardEditDialog() {
     els.cancelEditDialog.showModal();
     return;
   }
-  cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
+  cancelBoardEdit().catch(() => setStatus("Annulation impossible", "danger"));
 }
 
 function setPadDuration(pad, seconds) {
@@ -1675,7 +1675,7 @@ function loadMicrophoneSelection() {
 
 async function refreshMicrophoneDevices(requestPermission = false) {
   if (!navigator.mediaDevices?.getUserMedia) {
-    setStatus("Micro indisponible dans ce navigateur");
+    setStatus("Micro indisponible dans ce navigateur", "danger");
     return [];
   }
   let permissionStream = null;
@@ -1716,7 +1716,7 @@ async function refreshMicrophoneDevices(requestPermission = false) {
     return inputs;
   } catch (error) {
     if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
-      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système");
+      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système", "danger");
       if (els.microphoneSummary) {
         els.microphoneSummary.textContent = "Micro inaccessible : autoriser l’accès au micro dans les préférences système, puis actualiser.";
       }
@@ -1751,7 +1751,7 @@ async function selectMicrophoneFromDialog() {
     syncMicrophoneSelectValues();
     updateMasterInputLabel();
     updateRecordingUi();
-    setStatus("Micro non sélectionné");
+    setStatus("Micro non sélectionné", "warning");
     return;
   }
   state.selectedMicrophoneId = select.value;
@@ -2187,7 +2187,7 @@ function makePad(index) {
     const imageFile = files.find((f) => /^image\//.test(f.type));
     if (contentFile) {
       if (/^video\//.test(contentFile.type)) {
-        await loadVideoIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger la vidéo"));
+        await loadVideoIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger la vidéo", "danger"));
       } else if (isTextDoc(contentFile)) {
         try {
           const text = await readTextFile(contentFile);
@@ -2197,10 +2197,10 @@ function makePad(index) {
           savePadMeta(pad);
           setStatus("Texte importé");
         } catch {
-          setStatus("Import texte impossible");
+          setStatus("Import texte impossible", "danger");
         }
       } else {
-        await loadFileIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger l'audio"));
+        await loadFileIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger l'audio", "danger"));
       }
     }
     if (imageFile) {
@@ -2211,7 +2211,7 @@ function makePad(index) {
           savePadMeta(pad);
         }
       } catch {
-        setStatus("Impossible de charger l'illustration");
+        setStatus("Impossible de charger l'illustration", "danger");
       }
     }
   });
@@ -2232,7 +2232,7 @@ function makePad(index) {
       stopPad(pad, fadeDurationForPad(pad, "out") > 0);
       return;
     }
-    playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
+    playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible", "danger"));
   });
   trigger.addEventListener("click", (event) => {
     event.preventDefault();
@@ -2272,10 +2272,10 @@ function makePad(index) {
   pad.cueButton?.addEventListener("click", (event) => {
     stopEvent(event);
     if (!outputSelectionSupported()) {
-      setStatus("Pré-écoute Cue indisponible dans ce navigateur");
+      setStatus("Pré-écoute Cue indisponible dans ce navigateur", "danger");
       return;
     }
-    previewPadCue(pad).catch(() => setStatus("Pré-écoute impossible"));
+    previewPadCue(pad).catch(() => setStatus("Pré-écoute impossible", "danger"));
   });
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {
@@ -2440,7 +2440,7 @@ function makePad(index) {
           pad.holdTriggered = true;
           setPadMode(pad, "hold");
           savePadMeta(pad);
-          playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
+          playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible", "danger"));
         }, PRESS_MS * 2);
       });
       const endStartPress = (event) => {
@@ -2470,7 +2470,7 @@ function makePad(index) {
       setPadMode(pad, mode);
       savePadMeta(pad);
       if (mode === "oneshot") {
-        playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible"));
+        playPad(pad, fadeDurationForPad(pad, "in") > 0, 0).catch(() => setStatus("Lecture impossible", "danger"));
       } else if (mode === "toggle") {
         togglePad(pad);
       }
@@ -2592,7 +2592,7 @@ function applyBoardTagFilter() {
     const sep = state.tagFilterLogic === "or" ? " OU " : " ET ";
     const labelStr = labels.join(sep);
     if (!matchingPads.length) {
-      setStatus(`Aucun pad avec ${labelStr}`);
+      setStatus(`Aucun pad avec ${labelStr}`, "warning");
     } else {
       const n = matchingPads.length;
       setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labelStr}`);
@@ -3121,13 +3121,13 @@ function addAllPadsToCueDraft() {
   const draft = cueDraft();
   if (draft.length) {
     syncAddAllCuePadsButton(draft);
-    setStatus("Liste cues non vide: ajout automatique désactivé");
+    setStatus("Liste cues non vide: ajout automatique désactivé", "warning");
     return;
   }
   const playablePads = cueAutoAddablePads();
   if (!playablePads.length) {
     renderCueRows();
-    setStatus("Aucun pad non vide");
+    setStatus("Aucun pad non vide", "warning");
     return;
   }
   state.cueDraft = playablePads.map((pad) => (
@@ -3205,7 +3205,7 @@ function checkCueConditions(endedPad = null) {
   if (board?.cuesEnabled === false || !board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
   const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
   if (!cueConditionMet(step, endedPad)) return;
-  runCurrentCue({ automatic: true }).catch(() => setStatus("Cue condition impossible"));
+  runCurrentCue({ automatic: true }).catch(() => setStatus("Cue condition impossible", "danger"));
 }
 
 async function executeCueStep(step) {
@@ -3704,7 +3704,7 @@ async function prepareBulkAutoTrim() {
   const pads = state.bulkEditPads.filter((pad) => pad && padType(pad) === "audio");
   if (!pads.length) {
     resetBulkAutoTrimUi();
-    setStatus("Trim auto groupé : aucun pad audio");
+    setStatus("Trim auto groupé : aucun pad audio", "warning");
     return;
   }
   if (els.bulkAutoTrim) els.bulkAutoTrim.disabled = true;
@@ -3751,7 +3751,7 @@ function openBulkEditDialog() {
     return;
   }
   if (singleStructural === "state:empty") {
-    confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible"));
+    confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible", "danger"));
     return;
   }
 
@@ -4105,7 +4105,7 @@ function startPadDrag(pad, event) {
       state.pads = drag.originalPads;
       state.pads.forEach((item) => els.pads.append(item.node));
       setBoardPadEditing(true);
-      setStatus("Réorganisation impossible");
+      setStatus("Réorganisation impossible", "danger");
     }
   };
 
@@ -4640,7 +4640,7 @@ function fileToDataUrl(file) {
 // Les data URL trop longues (~> 500 Ko de texte) sont ignorées silencieusement par Safari mobile.
 async function resizeImageForPad(file) {
   if (file.size > MAX_IMAGE_SIZE) {
-    setStatus(`Image trop volumineuse (max ${Math.round(MAX_IMAGE_SIZE / 1024 / 1024)} Mo)`);
+    setStatus(`Image trop volumineuse (max ${Math.round(MAX_IMAGE_SIZE / 1024 / 1024)} Mo)`, "danger", { alert: true });
     return null;
   }
   const dataUrl = await fileToDataUrl(file);
@@ -6529,7 +6529,7 @@ async function importBoardFile(file) {
   }
 
   if (payload?.format !== "soundboard-live-board" || !payload.board) {
-    setStatus("Fichier board invalide");
+    setStatus("Fichier board invalide", "danger");
     return;
   }
 
@@ -6898,7 +6898,7 @@ async function transferPadToBoard(move = false) {
   const pad = state.transferPad;
   const targetBoardId = els.padTransferBoard?.value;
   if (!pad || !targetBoardId) {
-    setStatus("Pad à transférer introuvable");
+    setStatus("Pad à transférer introuvable", "danger");
     return;
   }
   const sourceBoard = currentBoard();
@@ -6908,7 +6908,7 @@ async function transferPadToBoard(move = false) {
   }
   const copied = await copyPadToBoard(pad, targetBoardId);
   if (!copied) {
-    setStatus("Transfert impossible");
+    setStatus("Transfert impossible", "danger");
     return;
   }
   if (move) {
@@ -6928,12 +6928,12 @@ async function duplicatePadFromNode(sourceNode, directPad = null) {
   const padNodes = [...els.pads.querySelectorAll("[data-pad]")];
   const sourceIndex = padNodes.indexOf(sourceNode);
   if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= state.pads.length) {
-    setStatus("Pad à copier introuvable");
+    setStatus("Pad à copier introuvable", "danger");
     return;
   }
   const sourcePad = directPad?.node === sourceNode ? directPad : padFromNode(sourceNode);
   if (!sourcePad) {
-    setStatus("Pad à copier introuvable");
+    setStatus("Pad à copier introuvable", "danger");
     return;
   }
   syncPadIndexesFromDom();
@@ -7145,7 +7145,7 @@ async function deleteCurrentBoard() {
   await renderPads();
   setBoardPadEditing(false);
   setStatus(`${board.name} supprime`);
-  offerAudioCleanupAfterDeletion().catch(() => setStatus(`${board.name} supprime · nettoyage indisponible`));
+  offerAudioCleanupAfterDeletion().catch(() => setStatus(`${board.name} supprime · nettoyage indisponible`, "danger"));
 }
 
 function isAudioStoreKey(key) {
@@ -7289,11 +7289,11 @@ async function offerAudioCleanupAfterDeletion() {
 async function exportCleanupAudioFiles() {
   const candidates = selectedCleanupCandidates();
   if (!candidates.length) {
-    setStatus("Aucun son sélectionné");
+    setStatus("Aucun son sélectionné", "warning");
     return;
   }
   if (!window.showDirectoryPicker) {
-    setStatus("Sélection de dossier indisponible dans ce navigateur");
+    setStatus("Sélection de dossier indisponible dans ce navigateur", "danger");
     return;
   }
   const directory = await window.showDirectoryPicker({ mode: "readwrite" });
@@ -7318,7 +7318,7 @@ async function exportCleanupAudioFiles() {
 
 async function deleteSelectedCleanupAudio(candidates = selectedCleanupCandidates()) {
   if (!candidates.length) {
-    setStatus("Aucun son sélectionné");
+    setStatus("Aucun son sélectionné", "warning");
     return;
   }
   const names = candidates.map((candidate) => `- ${candidate.label}`).join("\n");
@@ -7731,7 +7731,7 @@ function missingVideoCandidateNames(pad, meta = null, saved = null) {
 async function relinkMissingVideoFromFolder(files, boardId = state.currentBoardId) {
   const videoFiles = videoFilesFromSelection(files);
   if (!videoFiles.length) {
-    setStatus("Aucun fichier vidéo trouvé dans ce dossier");
+    setStatus("Aucun fichier vidéo trouvé dans ce dossier", "danger");
     return;
   }
 
@@ -7859,7 +7859,7 @@ async function applyFolderImportSelection() {
   state.folderImportFiles = [];
   els.folderImportDialog?.close();
   if (!selected.length) {
-    setStatus("Aucun fichier ajouté");
+    setStatus("Aucun fichier ajouté", "warning");
     return;
   }
   await addAudioFilesAsNewPads(selected);
@@ -7884,7 +7884,7 @@ function missingAudioCandidateNames(pad, meta = null, saved = null) {
 async function relinkMissingAudioFromFolder(files) {
   const audioFiles = audioFilesFromSelection(files);
   if (!audioFiles.length) {
-    setStatus("Aucun fichier audio trouvé dans ce dossier");
+    setStatus("Aucun fichier audio trouvé dans ce dossier", "danger");
     return;
   }
 
@@ -7987,12 +7987,12 @@ async function toggleRecording(pad) {
   }
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    setStatus("Micro indisponible dans ce navigateur");
+    setStatus("Micro indisponible dans ce navigateur", "danger");
     return;
   }
 
   if (!window.MediaRecorder) {
-    setStatus("Enregistrement non supporte ici");
+    setStatus("Enregistrement non supporte ici", "danger");
     return;
   }
 
@@ -8040,9 +8040,9 @@ async function toggleRecording(pad) {
   } catch (error) {
     resetRecordingState();
     if (error?.name === "NotAllowedError") {
-      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système");
+      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système", "danger");
     } else if (error?.name === "NotFoundError") {
-      setStatus("Aucun micro detecte");
+      setStatus("Aucun micro detecte", "danger");
     } else {
       setStatus(`Erreur micro${error?.name ? `: ${error.name}` : ""}`);
     }
@@ -8299,7 +8299,7 @@ async function restorePad(pad) {
       summary.duration = pad.duration;
       log("updatePadTime", { duration: pad.duration, source: "text" });
     }
-    if (missingAudio) setStatus(`Son manquant: ${pad.title}`);
+    if (missingAudio) setStatus(`Son manquant: ${pad.title}`, "danger");
     if (!missingAudio && !pad.textMode && !pad.textContent) {
       summary.detectedType = meta?.visualImage || rawSaved?.visualImage ? "image" : "empty";
       pad.node.classList.add("is-empty");
@@ -8543,7 +8543,7 @@ async function ensureSpeechVoices() {
 
 async function previewTextCue(pad) {
   if (!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance) {
-    setStatus("Cue texte indisponible dans ce navigateur");
+    setStatus("Cue texte indisponible dans ce navigateur", "danger");
     return;
   }
   await ensureSpeechVoices();
@@ -8574,7 +8574,7 @@ async function previewTextCue(pad) {
   };
   utterance.onerror = () => {
     if (state.cuePreviewUtterance === utterance) stopCuePreview();
-    setStatus("Cue texte impossible");
+    setStatus("Cue texte impossible", "danger");
   };
   state.cuePreviewUtterance = utterance;
   state.cuePreviewPad = pad;
@@ -8590,7 +8590,7 @@ async function previewTextCue(pad) {
 async function selectCueOutput() {
   if (!outputSelectionSupported()) {
     saveCueOutput("", "par défaut");
-    setStatus("Sortie Cue séparée indisponible dans ce navigateur");
+    setStatus("Sortie Cue séparée indisponible dans ce navigateur", "danger");
     return false;
   }
   const output = await navigator.mediaDevices.selectAudioOutput();
@@ -8603,7 +8603,7 @@ async function selectCueOutput() {
 async function selectMasterOutput() {
   if (!outputSelectionSupported()) {
     saveMasterOutput("", "par défaut");
-    setStatus("Choix de sortie master indisponible dans ce navigateur");
+    setStatus("Choix de sortie master indisponible dans ce navigateur", "danger");
     return false;
   }
   await ensureAudio();
@@ -8929,7 +8929,7 @@ async function safeSaveRestoredPadMeta(pad, meta) {
   return savePadMeta(pad);
 }
 
-function setStatus(text, type = "") {
+function setStatus(text, type = "", options = {}) {
   const normalizedType = type || "neutral";
   els.status.textContent = text;
   els.status.classList.toggle("is-success", normalizedType === "success");
@@ -8938,7 +8938,10 @@ function setStatus(text, type = "") {
   els.status.classList.toggle("is-danger", normalizedType === "danger");
   els.status.classList.toggle("is-stop", normalizedType === "stop");
 
-  if (!state.stageMode && ["warning", "danger", "stop"].includes(normalizedType)) {
+  // Le type ne fait que colorer la barre de statut. L'alerte modale est opt-in
+  // (options.alert) et réservée aux rares cas bloquants — pas déclenchée
+  // automatiquement par le type, sinon chaque message warning/danger popperait.
+  if (options.alert && !state.stageMode) {
     window.alert(text);
   }
 }
@@ -8971,7 +8974,7 @@ function toggleStageLock() {
     const confirmPassword = window.prompt("Confirmez le mot de passe");
     if (confirmPassword === null) return;
     if (confirmPassword !== password) {
-      setStatus("Les mots de passe ne correspondent pas", "danger");
+      setStatus("Les mots de passe ne correspondent pas", "danger", { alert: true });
       return;
     }
     localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: true, password }));
@@ -9917,7 +9920,7 @@ async function applyAutoTrimToAudioDialog() {
   try {
     const result = await calculateAutoTrimForPad(pad);
     if (!result) {
-      setStatus("Trim auto impossible : audio silencieux ou indisponible");
+      setStatus("Trim auto impossible : audio silencieux ou indisponible", "danger");
       return;
     }
     if (!result.detected) {
