@@ -1570,7 +1570,8 @@ button.is-pressed {
    partagent exactement le même habillage, piloté par --color_pad_stop. */
 .danger-button,
 .board-delete-button,
-.pad-delete-button {
+.pad-delete-button,
+.control-group .pad-delete-button {
   border-color: color-mix(in srgb, var(--color_pad_stop) 55%, transparent);
   background: color-mix(in srgb, var(--color_pad_stop) 13%, transparent);
   color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
