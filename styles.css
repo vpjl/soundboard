@@ -7711,9 +7711,8 @@ body.stage-mode .pad:not(.is-editing) .pad-live-row button {
 }
 
 #audioStatus.is-success {
-  color: var(--accent);
   font-weight: 700;
-  text-shadow: 0 0 18px rgba(73, 211, 160, 0.34);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color_status_success) 34%, transparent);
 }
 
 .stage-button {
