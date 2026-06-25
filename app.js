@@ -5007,10 +5007,18 @@ function updateHarmonySwatch() {
   });
 }
 
-function applySkinHarmony() {
+// Construit la table des teintes d'harmonie (state.skinEditorHarmonyBase) à
+// partir de la couleur/type courants, SANS toucher aux champs ni à l'aperçu.
+// Séparé d'applySkinHarmony pour pouvoir préparer la base à l'ouverture de
+// l'éditeur (afin que les curseurs sat/lum aient une base à ajuster) sans
+// écraser les couleurs réelles du skin.
+function buildSkinHarmonyBase() {
   const baseHex = document.querySelector("#skinHarmonyColor")?.value;
   const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
-  if (!baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) return;
+  if (!baseHex || !/^#[0-9a-fA-F]{6}$/.test(baseHex)) {
+    state.skinEditorHarmonyBase = null;
+    return false;
+  }
 
   // The 6 teintes (base + 5) are used AS-IS to color the surfaces — that's the
   // whole model: pick a base, derive 5 teintes, color the skin with all 6.
@@ -5042,6 +5050,11 @@ function applySkinHarmony() {
     "--color_pad_trigger_playing_background":  t[0],
     "--color_pad_progress_fill":               t[0],
   };
+  return true;
+}
+
+function applySkinHarmony() {
+  if (!buildSkinHarmonyBase()) return;
   applyHarmonyAdjustments();
 }
 
@@ -5610,6 +5623,9 @@ function openSkinEditor() {
   } else {
     deriveSkinHarmonyFromCurrentSkin();
   }
+  // Préparer la base d'harmonie (sans appliquer) pour que les curseurs sat/lum
+  // aient un effet immédiat, sans écraser les couleurs réelles du skin.
+  buildSkinHarmonyBase();
 
   loadSkinFonts();
 
