@@ -8408,6 +8408,27 @@ details[open] > .skin-editor-advanced-summary::before {
   background: var(--bg, #111318);
 }
 
+.skin-preview-demo-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.skin-preview-demo-field > span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+.skin-preview-demo-field input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2, #14171e);
+  color: var(--text);
+}
+
 .skin-preview-mode-legend {
   margin-right: 6px;
   color: var(--muted);

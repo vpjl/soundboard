@@ -5509,14 +5509,20 @@ function buildSkinPreviewPad() {
   const setText = (sel, txt) => { const el = pad.querySelector(sel); if (el) el.textContent = txt; };
   const setVal = (sel, val) => { const el = pad.querySelector(sel); if (el) el.value = val; };
   setText(".pad-title", "Jingle ouverture");
-  setText("[data-tags-display]", "intro");
   const shortcut = pad.querySelector(".pad-shortcut");
   if (shortcut) { shortcut.textContent = "1"; shortcut.classList.add("is-number"); }
   setText(".pad-time", "00:12");
   setVal("[data-name]", "Jingle ouverture");
-  setVal("[data-tags]", "intro, jingle");
+  // Tags de démo modifiables depuis le champ « Tags (aperçu) ».
+  const tagsRaw = document.getElementById("skinPreviewTags")?.value ?? "intro, jingle";
+  const tagList = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
+  setText("[data-tags-display]", tagList.join(", ") || "intro");
+  setVal("[data-tags]", tagsRaw);
   const chips = pad.querySelector("[data-tags-chips]");
-  if (chips) chips.innerHTML = '<span class="pad-tag-chip">intro</span><span class="pad-tag-chip">jingle</span>';
+  if (chips) {
+    chips.innerHTML = "";
+    tagList.forEach((t) => { const s = document.createElement("span"); s.className = "pad-tag-chip"; s.textContent = t; chips.appendChild(s); });
+  }
   pad.querySelector(".pad-note-button")?.classList.add("has-note");
   const pf = pad.querySelector(".pad-progress-fill"); if (pf) pf.style.width = "42%";
   const vu = pad.querySelector(".vu-fill"); if (vu) vu.style.width = "30%";
@@ -5526,6 +5532,20 @@ function buildSkinPreviewPad() {
   pad.querySelectorAll(".pad-actions button").forEach((b) => { b.dataset.skinVariable = "--color_pad_button_background"; });
 
   return pad;
+}
+
+// Met à jour les tags du pad d'aperçu (sans le reconstruire) quand on édite « Tags (aperçu) ».
+function applySkinPreviewTags() {
+  const root = skinPreviewRoot();
+  if (!root) return;
+  const raw = document.getElementById("skinPreviewTags")?.value ?? "";
+  const tagList = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  root.querySelectorAll("[data-tags-display]").forEach((el) => { el.textContent = tagList.join(", ") || "intro"; });
+  root.querySelectorAll("[data-tags]").forEach((el) => { el.value = raw; });
+  root.querySelectorAll("[data-tags-chips]").forEach((chips) => {
+    chips.innerHTML = "";
+    tagList.forEach((t) => { const s = chips.ownerDocument.createElement("span"); s.className = "pad-tag-chip"; s.textContent = t; chips.appendChild(s); });
+  });
 }
 
 function resizeSkinPreviewFrame() {
@@ -13706,6 +13726,7 @@ async function init() {
   });
   document.querySelector("#skinFontFamily")?.addEventListener("change", applySkinFonts);
   document.querySelector("#skinFontSize")?.addEventListener("input", applySkinFonts);
+  document.querySelector("#skinPreviewTags")?.addEventListener("input", applySkinPreviewTags);
   els.cancelSkinEditor?.addEventListener("click", closeSkinEditor);
 
   els.saveSkinEditor?.addEventListener("click", saveSkinEditorOverwrite);
