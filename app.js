@@ -9189,9 +9189,9 @@ function badgeClassFor(label) {
   if (text.includes("fade") || text === "f in" || text === "f out") return "is-fade";
   if (text.includes("duck")) return "is-duck";
   if (text.includes("mute")) return "is-stop";
-  if (text.includes("revrs")) return "is-crossfade";
+  if (text.includes("revrs")) return "is-reverse";
   if (text.includes("rev")) return "is-reverb";
-  if (text.includes("eq")) return "is-reverb";
+  if (text.includes("eq")) return "is-eq";
   if (text.includes("xf") || text.includes("cross")) return "is-crossfade";
   if (text.includes("loop")) return "is-loop";
   if (text.includes("mono")) return "is-mono";

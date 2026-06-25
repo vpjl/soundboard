@@ -2299,11 +2299,11 @@ body.stage-mode .tag-filter-section-header {
 }
 
 .pad-alert-loop {
-  color: var(--color_status_progress);
+  color: #4ea3ff;
 }
 
 .pad-alert-duck-source {
-  color: #9cc8ff;
+  color: #2dd4bf;
 }
 
 .pad-alert-ducked {
@@ -2312,16 +2312,19 @@ body.stage-mode .tag-filter-section-header {
 
 .pad-alert-fade-in,
 .pad-alert-fade-out {
-  color: #d9b5ff;
+  color: #c084fc;
 }
 
 .pad-alert-reverb {
-  color: #a8f3ff;
+  color: #22d3ee;
 }
 
-.pad-alert-xfade-source,
+.pad-alert-xfade-source {
+  color: #fbbf24; /* source : contrôle un autre pad */
+}
+
 .pad-alert-xfade-target {
-  color: var(--color_status_warning);
+  color: #fb923c; /* cible : contrôlée par un autre pad */
 }
 
 .pad-alert-missing {
@@ -2441,32 +2444,41 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   text-transform: uppercase;
 }
 
-.option-badge.is-fade {
-  color: #d9b5ff;
+/* Nuancier : une teinte distincte par option pour bien distinguer les pads. */
+.option-badge.is-loop {
+  color: #4ea3ff; /* bleu */
 }
 
 .option-badge.is-duck {
-  color: #9cc8ff;
+  color: #2dd4bf; /* turquoise */
 }
 
-.option-badge.is-reverb {
-  color: #a8f3ff;
+.option-badge.is-reverse {
+  color: #ff9f43; /* orange */
 }
 
 .option-badge.is-stop {
-  color: #ffb4ae;
-}
-
-.option-badge.is-crossfade {
-  color: var(--color_status_warning);
-}
-
-.option-badge.is-loop {
-  color: var(--color_status_progress);
+  color: #ff6b6b; /* rouge (mute) */
 }
 
 .option-badge.is-mono {
-  color: var(--color_ui_text_muted);
+  color: #9aa1ad; /* gris */
+}
+
+.option-badge.is-fade {
+  color: #c084fc; /* violet (fade in/out) */
+}
+
+.option-badge.is-reverb {
+  color: #22d3ee; /* cyan */
+}
+
+.option-badge.is-eq {
+  color: #f472b6; /* rose */
+}
+
+.option-badge.is-crossfade {
+  color: #fbbf24; /* or (crossfade) */
 }
 
 .pad.is-playing .pad-trigger {
@@ -9296,6 +9308,13 @@ body.stage-mode #audioStatus {
 .help-button {
   border-radius: 50% !important;
   padding: 0 !important;
+}
+
+/* Bouton aide du dialogue Réglages du pad : même couleur que les boutons d'aide du board. */
+.audio-help-button {
+  border-color: var(--color_ui_help_border);
+  background: var(--color_ui_help_background);
+  color: var(--color_ui_help);
 }
 
 .pad.is-drop-target {
