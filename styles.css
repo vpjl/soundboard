@@ -2298,33 +2298,30 @@ body.stage-mode .tag-filter-section-header {
   color: #ffb0aa;
 }
 
-.pad-alert-loop {
-  color: #4ea3ff;
+.pad-alert-loop,
+.pad-alert-reverb {
+  color: #4ea3ff; /* bleu */
+}
+
+.pad-alert-fade-in,
+.pad-alert-fade-out {
+  color: #2dd4bf; /* turquoise */
 }
 
 .pad-alert-duck-source {
-  color: #2dd4bf;
+  color: #f472b6; /* rose */
 }
 
 .pad-alert-ducked {
   color: var(--color_ui_text_muted);
 }
 
-.pad-alert-fade-in,
-.pad-alert-fade-out {
-  color: #c084fc;
-}
-
-.pad-alert-reverb {
-  color: #22d3ee;
-}
-
 .pad-alert-xfade-source {
-  color: #fbbf24; /* source : contrôle un autre pad */
+  color: #c084fc; /* violet : source (contrôle un autre pad) */
 }
 
 .pad-alert-xfade-target {
-  color: #fb923c; /* cible : contrôlée par un autre pad */
+  color: #fb923c; /* orange : cible (contrôlée par un autre pad) */
 }
 
 .pad-alert-missing {
@@ -2444,37 +2441,26 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   text-transform: uppercase;
 }
 
-/* Nuancier : une teinte distincte par option pour bien distinguer les pads. */
-.option-badge.is-loop {
+/* Nuancier groupé : bleu = loop/reverb/mono ; turquoise = eq/revrs/fade ;
+   violet = xf source ; orange = xf cible ; rouge = mute ; or = crossfade ; rose = duck. */
+.option-badge.is-loop,
+.option-badge.is-reverb,
+.option-badge.is-mono {
   color: #4ea3ff; /* bleu */
 }
 
-.option-badge.is-duck {
+.option-badge.is-eq,
+.option-badge.is-reverse,
+.option-badge.is-fade {
   color: #2dd4bf; /* turquoise */
 }
 
-.option-badge.is-reverse {
-  color: #ff9f43; /* orange */
+.option-badge.is-duck {
+  color: #f472b6; /* rose */
 }
 
 .option-badge.is-stop {
   color: #ff6b6b; /* rouge (mute) */
-}
-
-.option-badge.is-mono {
-  color: #9aa1ad; /* gris */
-}
-
-.option-badge.is-fade {
-  color: #c084fc; /* violet (fade in/out) */
-}
-
-.option-badge.is-reverb {
-  color: #22d3ee; /* cyan */
-}
-
-.option-badge.is-eq {
-  color: #f472b6; /* rose */
 }
 
 .option-badge.is-crossfade {
