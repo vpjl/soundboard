@@ -2298,30 +2298,27 @@ body.stage-mode .tag-filter-section-header {
   color: #ffb0aa;
 }
 
-.pad-alert-loop,
+.pad-alert-loop {
+  color: #9aa1ad; /* gris */
+}
+
 .pad-alert-reverb {
   color: #4ea3ff; /* bleu */
 }
 
 .pad-alert-fade-in,
-.pad-alert-fade-out {
-  color: #2dd4bf; /* turquoise */
-}
-
+.pad-alert-fade-out,
 .pad-alert-duck-source {
-  color: #f472b6; /* rose */
+  color: #2dd4bf; /* turquoise */
 }
 
 .pad-alert-ducked {
   color: var(--color_ui_text_muted);
 }
 
-.pad-alert-xfade-source {
-  color: #c084fc; /* violet : source (contrôle un autre pad) */
-}
-
+.pad-alert-xfade-source,
 .pad-alert-xfade-target {
-  color: #fb923c; /* orange : cible (contrôlée par un autre pad) */
+  color: #fb923c; /* orange */
 }
 
 .pad-alert-missing {
@@ -2441,38 +2438,35 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   text-transform: uppercase;
 }
 
-/* Nuancier groupé : bleu = loop/reverb/mono ; turquoise = eq/revrs/fade ;
-   violet = xf source ; orange = xf cible ; rouge = mute ; or = crossfade ; rose = duck. */
+/* Nuancier groupé : gris = loop/revrs/mono ; bleu = eq/reverb ;
+   turquoise = f in/f out/duck ; orange = xf→ / →xf. */
 .option-badge.is-loop,
-.option-badge.is-reverb,
-.option-badge.is-mono {
-  color: #4ea3ff; /* bleu */
+.option-badge.is-mono,
+.option-badge.is-reverse {
+  color: #9aa1ad; /* gris */
 }
 
 .option-badge.is-eq,
-.option-badge.is-reverse,
-.option-badge.is-fade {
+.option-badge.is-reverb {
+  color: #4ea3ff; /* bleu */
+}
+
+.option-badge.is-fade,
+.option-badge.is-duck {
   color: #2dd4bf; /* turquoise */
 }
 
-.option-badge.is-duck {
-  color: #f472b6; /* rose */
+.option-badge.is-xfade-source,
+.option-badge.is-xfade-target {
+  color: #fb923c; /* orange */
 }
 
 .option-badge.is-stop {
-  color: #ff6b6b; /* rouge (mute) */
+  color: #ff6b6b; /* rouge (mute, inutilisé) */
 }
 
 .option-badge.is-crossfade {
-  color: #fbbf24; /* or (crossfade) */
-}
-
-.option-badge.is-xfade-source {
-  color: #c084fc; /* violet : source (contrôle un autre pad) */
-}
-
-.option-badge.is-xfade-target {
-  color: #fb923c; /* orange : cible (contrôlée par un autre pad) */
+  color: #fbbf24; /* or (inutilisé) */
 }
 
 .pad.is-playing .pad-trigger {

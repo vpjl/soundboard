@@ -9208,16 +9208,17 @@ function badgeMarkup(items) {
 
 function padOptionBadges(pad) {
   const items = [];
+  // Ordre demandé : Loop · Revrs · Mono · EQ · Rev · f in · f out · Duck · →xf · xf→
   if (pad.loop) items.push("Loop");
-  if (pad.duckTrigger && pad.duckMode === "pad") items.push("Duck");
   if (pad.reverse) items.push("Revrs");
   if (pad.mono) items.push("Mono");
+  if (pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
+  if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
   if (fadeDurationForPad(pad, "in") > 0) items.push("f in");
   if (fadeDurationForPad(pad, "out") > 0) items.push("f out");
-  if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
-  if (pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
-  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("xf→"); // source
+  if (pad.duckTrigger && pad.duckMode === "pad") items.push("Duck");
   if (state.crossfadeTargetUids?.has(pad.uid)) items.push("→xf"); // cible
+  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("xf→"); // source
   return items;
 }
 
