@@ -47,6 +47,7 @@
   --color_pad_note_overlay_text: #fff7d8;
   --color_pad_tag_background: rgba(17, 19, 25, 0.68);
   --color_pad_missing_background: rgba(18, 18, 15, 0.88);
+  --color_pad_stop: var(--color_status_stop); /* style commun skinable des boutons stop/mute */
 
   --accent: var(--color_status_success);
   --accent-2: var(--color_status_progress);
@@ -3415,7 +3416,9 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   width: 38px;
   min-height: 38px;
   touch-action: none;
-  color: var(--color_status_progress);
+  color: var(--color_pad_button_text);
+  background: var(--color_pad_button_background);
+  border-color: var(--color_pad_button_border);
 }
 
 .drag-handle svg {
@@ -3689,9 +3692,9 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 }
 
 .pad-live-row .pad-stop-button {
-  border-color: color-mix(in srgb, var(--color_status_stop) 55%, transparent);
-  background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
-  color: color-mix(in srgb, var(--color_status_stop) 55%, #fff);
+  border-color: color-mix(in srgb, var(--color_pad_stop) 55%, transparent);
+  background: color-mix(in srgb, var(--color_pad_stop) 13%, transparent);
+  color: color-mix(in srgb, var(--color_pad_stop) 55%, #fff);
 }
 
 .pad-live-row .pad-cue-button {
@@ -3714,19 +3717,19 @@ body.no-cue-output .pad-live-row .pad-cue-button,
 }
 
 .pad-live-row .pad-mute-button {
-  border-color: color-mix(in srgb, var(--color_status_stop) 44%, transparent);
+  border-color: color-mix(in srgb, var(--color_pad_stop) 44%, transparent);
   color: var(--muted);
 }
 
 .pad-live-row .pad-mute-button svg,
 .pad-live-row .pad-mute-button circle {
-  color: var(--color_status_stop);
-  fill: var(--color_status_stop);
+  color: var(--color_pad_stop);
+  fill: var(--color_pad_stop);
 }
 
 .pad-live-row .pad-mute-button.is-active {
-  background: color-mix(in srgb, var(--color_status_stop) 24%, transparent);
-  color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
+  background: color-mix(in srgb, var(--color_pad_stop) 24%, transparent);
+  color: color-mix(in srgb, var(--color_pad_stop) 30%, #fff);
 }
 
 .pad-live-check svg,
@@ -7500,9 +7503,9 @@ body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"] 
 
 body.board-edit-mode .pad.is-editing .pad-audio-button {
   grid-column: 2;
-  border-color: color-mix(in srgb, var(--color_status_progress) 56%, var(--color_pad_button_border));
-  color: var(--color_ui_text);
-  background: color-mix(in srgb, var(--color_status_progress) 14%, var(--color_pad_button_background));
+  border-color: var(--color_pad_button_border);
+  color: var(--color_pad_button_text);
+  background: var(--color_pad_button_background);
 }
 
 body.board-edit-mode .pad.is-editing .drag-handle {
