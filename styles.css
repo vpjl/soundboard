@@ -2646,6 +2646,11 @@ select:disabled,
   color: var(--color_ui_help);
 }
 
+/* Studio : léger recentrage (le badge numéro à gauche décale le ressenti). */
+body:not(.stage-mode) .pad:not(.is-editing) .pad-time {
+  left: calc(50% + 7px) !important;
+}
+
 .pad-note-button {
   position: absolute;
   top: 6px;
