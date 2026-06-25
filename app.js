@@ -1330,6 +1330,43 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
   }
 }
 
+// Remplit en arrière-plan les durées manquantes (pads non décodés) pour les afficher
+// en studio/garage sans passer par la scène. Décode juste pour la durée + la waveform,
+// puis libère le buffer (pas de préchargement mémoire) ; la durée est sauvegardée → instantané ensuite.
+let durationBackfillToken = 0;
+async function backfillPadDurations() {
+  const token = ++durationBackfillToken;
+  const pads = state.pads.filter((p) =>
+    !p.duration && !p.buffer && !p.videoName && !p.textContent
+    && (p.audioStored || p.hasDirectAudio || p.audioName || p.audioPath));
+  for (const pad of pads) {
+    if (token !== durationBackfillToken || state.stageMode) return; // board changé / scène : on arrête
+    if (pad.duration || pad.buffer) continue;
+    try {
+      const rawSaved = await dbGet(padAudioKey(pad));
+      const meta = await dbGet(padMetaKey(pad));
+      const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+      const audio = saved?.audio || rawSaved?.audio;
+      if (!audio) continue;
+      prepareAudio();
+      if (!state.audioContext) return;
+      const buf = await state.audioContext.decodeAudioData(audio.slice(0));
+      if (token !== durationBackfillToken) return;
+      if (pad.buffer || pad.duration) continue;
+      pad.audioDuration = buf.duration;
+      const cutTotal = (pad.regions || [])
+        .filter((r) => r.type === "cut")
+        .reduce((s, r) => s + Math.max(0, Math.min(buf.duration, r.end) - Math.max(0, r.start)), 0);
+      setPadDuration(pad, Math.max(0, buf.duration - cutTotal));
+      pad.waveformPeaks = buildWaveformPeaks(buf);
+      renderWaveform(pad);
+      updatePadTime(pad);
+      savePadMeta(pad);
+    } catch {}
+    await new Promise((r) => setTimeout(r, 30)); // respiration entre décodages
+  }
+}
+
 function restorePadBaseInfo(pad, summary = {}) {
   return {
     padIndex: pad.index,
@@ -4168,6 +4205,7 @@ async function renderPads(options = {}) {
   setStatus("Board prêt pour l’édition", "success");
   perf.log("complete", { padCount: state.pads.length });
   state.pads.forEach(fitPadTitle);
+  if (!state.stageMode) backfillPadDurations(); // durées affichées sans passer par la scène
 }
 
 async function switchBoard(boardId) {
@@ -9011,6 +9049,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   if (enabled) {
+    // Stop global immédiat avant d'entrer en scène (si un son est en lecture).
+    state.pads.forEach((pad) => { if (isPadPlaying(pad)) stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); });
     state.stageMode = true;
     syncBoardModeSelector();
     syncStagePending();
@@ -13146,7 +13186,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   await ensureAudio();
   if (!options.skipStartCrossfade) executeStartCrossfade(pad);
-  stopPad(pad, false, false, { triggerEnd: false });
+  stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); // redémarrage interne (seek) → pas de flash
   const segmentStart = trimStart(pad);
   const segmentEnd = trimEnd(pad);
   const segmentDuration = playableDuration(pad);
@@ -13329,7 +13369,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
       return;
     }
     pad.stopAt = now + effectiveFadeTime + 0.02;
-    requestAnimationFrame(() => flashPadStop(pad, effectiveFadeTime));
+    if (!options.noFlash) requestAnimationFrame(() => flashPadStop(pad, effectiveFadeTime));
     setStatus(`${pad.title} fade out`);
   } else {
     try {
@@ -13342,7 +13382,7 @@ function stopPad(pad, fade = false, preservePosition = false, options = {}) {
     pad.stopAt = now;
     clearPlayingPad(pad, source, options.triggerEnd ?? true);
     clearPadMuteState(pad);
-    requestAnimationFrame(() => flashPadStop(pad, 0));
+    if (!options.noFlash) requestAnimationFrame(() => flashPadStop(pad, 0));
     setStatus(`${pad.title} stop`);
   }
 }
