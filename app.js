@@ -9262,7 +9262,10 @@ function updatePadAlerts(pad) {
   }
   pad.node.classList.toggle("is-ending", isEnding);
   pad.node.classList.toggle("is-looping", pad.loop);
-  pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode !== "global");
+  pad.node.classList.toggle("is-reverse", Boolean(pad.reverse));
+  pad.node.classList.toggle("is-mono", Boolean(pad.mono));
+  pad.node.classList.toggle("is-eq", pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0));
+  pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode === "pad");
   pad.node.classList.toggle("is-duck-source", isDuckSource);
   pad.node.classList.toggle("is-ducked", isDucked);
   pad.node.classList.toggle("is-muted", Boolean(pad.muted));

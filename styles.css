@@ -2283,6 +2283,9 @@ body.stage-mode .tag-filter-section-header {
 
 .pad.is-ending .pad-alert-ending,
 .pad.is-looping .pad-alert-loop,
+.pad.is-reverse .pad-alert-reverse,
+.pad.is-mono .pad-alert-mono,
+.pad.is-eq .pad-alert-eq,
 .pad.is-duck-trigger .pad-alert-duck-source,
 .pad.is-ducked .pad-alert-ducked,
 .pad.has-audio-fade-in .pad-alert-fade-in,
@@ -2298,10 +2301,13 @@ body.stage-mode .tag-filter-section-header {
   color: #ffb0aa;
 }
 
-.pad-alert-loop {
+.pad-alert-loop,
+.pad-alert-reverse,
+.pad-alert-mono {
   color: #9aa1ad; /* gris */
 }
 
+.pad-alert-eq,
 .pad-alert-reverb {
   color: #4ea3ff; /* bleu */
 }
