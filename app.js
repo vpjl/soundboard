@@ -5135,6 +5135,17 @@ function normalizeColorInputValue(value) {
   return "";
 }
 
+// getComputedStyle ne substitue PAS le var() à l'intérieur de la valeur d'une
+// custom property : --color_pad_stop: var(--color_status_stop) se relit
+// littéralement "var(--color_status_stop)". On suit la chaîne var() pour que le
+// champ de l'éditeur reçoive une vraie couleur (ex. boutons stop/mute/suppr.).
+function resolveComputedSkinVar(computed, name, depth = 0) {
+  const raw = String(computed.getPropertyValue(name) || "").trim();
+  const m = raw.match(/^var\(\s*(--[\w-]+)\s*\)$/);
+  if (m && depth < 8) return resolveComputedSkinVar(computed, m[1], depth + 1);
+  return raw;
+}
+
 function renderSkinEditorFields() {
   if (!els.skinEditorFields) return;
   els.skinEditorFields.innerHTML = "";
@@ -5159,7 +5170,7 @@ function renderSkinEditorFields() {
     container.append(title);
 
     group.fields.forEach(([name, label]) => {
-      const value = normalizeColorInputValue(computed.getPropertyValue(name));
+      const value = normalizeColorInputValue(resolveComputedSkinVar(computed, name));
       const row = document.createElement("div");
       const inputId = `skin-color-${name.replace(/[^a-z0-9_-]/gi, "-")}`;
       row.className = "skin-editor-field";
@@ -5185,7 +5196,7 @@ function renderSkinEditorFields() {
   ADVANCED_SKIN_FIELD_GROUPS.forEach((group) => {
     group.fields.forEach(([name]) => {
       advancedVarNames.add(name);
-      const value = normalizeColorInputValue(computed.getPropertyValue(name));
+      const value = normalizeColorInputValue(resolveComputedSkinVar(computed, name));
       if (value) {
         preview?.style.setProperty(name, value);
         state.skinEditorVariables[name] = value;
