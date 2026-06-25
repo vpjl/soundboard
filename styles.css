@@ -2094,9 +2094,9 @@ body:not(.board-edit-mode) .filter-compact-count {
 }
 
 .filter-section-chevron {
-  color: var(--color_status_progress);
-  width: 16px;
-  height: 16px;
+  color: var(--accent);
+  width: 20px !important;
+  height: 20px !important;
   flex-shrink: 0;
   transition: transform 0.18s;
 }
@@ -2348,7 +2348,7 @@ body.crossfade-armed .pad.is-crossfade-source {
 }
 
 body.crossfade-target-choice .pad.is-crossfade-source {
-  cursor: not-allowed;
+  cursor: default;
   outline: 2px dashed var(--color_status_stop);
   outline-offset: 3px;
   box-shadow: none;
@@ -2395,7 +2395,7 @@ body:not(.board-edit-mode) #showCables.show-cables-button {
 
 body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
   opacity: 0.48;
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .live-tools #openCueDialog {
@@ -3694,7 +3694,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 body.no-cue-output .pad-live-row .pad-cue-button,
 .pad-live-row .pad-cue-button:disabled {
   opacity: 0.34;
-  cursor: not-allowed;
+  cursor: default;
   filter: grayscale(1);
 }
 
@@ -4311,7 +4311,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .cue-field.is-disabled input {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .cue-remove-button {
@@ -4334,7 +4334,7 @@ body[data-skin="contrast"] .color-field {
 .icon-button:disabled,
 .small-button.is-disabled,
 .icon-button.is-disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.42;
 }
 
@@ -4689,7 +4689,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .master-audio-control.is-disabled input[type="number"] {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .audio-section .field-title {
@@ -4916,7 +4916,7 @@ body[data-skin="contrast"] .color-field {
 }
 
 .audio-toggle-block.is-disabled input {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .audio-normalize-field input,
@@ -6702,7 +6702,7 @@ body.stage-mode .secondary-live-group {
   .board-layout-controls select:disabled,
   .board-layout-controls input:disabled {
     opacity: 0.42;
-    cursor: not-allowed;
+    cursor: default;
     filter: grayscale(1);
   }
 }
@@ -6882,7 +6882,7 @@ body.stage-mode .pad-play-row {
   box-sizing: border-box;
   grid-template-columns: 24px 16px minmax(0, 1fr) auto 28px 28px !important;
   grid-template-areas:
-    ". flash . time note eye"
+    ". flash time . note eye"
     "label label label label label label"
     "progress progress progress progress progress progress"
     "vu vu vu vu vu vu"
@@ -6957,7 +6957,7 @@ body.stage-mode .pad-title {
 body.stage-mode .pad-time {
   grid-area: time;
   position: static !important;
-  justify-self: end;
+  justify-self: center;
   align-self: center;
   font-size: 0.76rem;
 }
@@ -8812,7 +8812,7 @@ details[open] > .skin-editor-advanced-summary::before {
 .board-mode-button.is-disabled,
 .board-mode-button:disabled {
   opacity: 0.36;
-  cursor: not-allowed;
+  cursor: default;
   filter: grayscale(1);
 }
 
@@ -9397,7 +9397,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 #aeWave.ae-mode-reg ::part(envelope-circle) { pointer-events: none !important; }
 .ae-tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #c7ccd6; font-size: .82rem; cursor: pointer; }
 .ae-tbtn:hover { border-color: #444b59; }
-.ae-tbtn:disabled { opacity: .4; cursor: not-allowed; }
+.ae-tbtn:disabled { opacity: .4; cursor: default; }
 .ae-tbtn:disabled:hover { border-color: #2c313c; }
 .ae-tbtn.cut { color: #ff5b5b; }
 .ae-tbtn.silence { color: #ffa83a; }

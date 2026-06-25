@@ -1553,9 +1553,6 @@ function setBoardPadEditing(editing) {
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   refreshBoardTagFilterOptions();
-  if (!state.stageMode) {
-    setStatus(state.boardEditMode ? "Mode edit" : "Mode live");
-  }
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
@@ -14871,7 +14868,6 @@ function setBoardModeFromSelector(targetMode) {
       setBoardPadEditing(false);
     }
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    setStatus("Mode Studio");
     syncBoardModeSelectorSoon();
     return;
   }
@@ -14885,7 +14881,6 @@ function setBoardModeFromSelector(targetMode) {
     boardModeBodyObserver.disconnect();
     setBoardPadEditing(true);
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    setStatus("Mode Garage");
     syncBoardModeSelectorSoon();
     return;
   }
