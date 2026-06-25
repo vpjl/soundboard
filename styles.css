@@ -3619,22 +3619,14 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   color: var(--muted);
 }
 
+/* Groupe de boutons commun aux 3 modes. En scène/garage le conteneur est dissous
+   (display:contents), donc seul le studio le rend comme boîte. Pas de cadre
+   (bordure/fond/padding) : le frame ne s'affichait que sur le studio et n'est plus
+   souhaité — on le retire de la base plutôt que d'empiler un override par mode. */
 .control-group {
   display: grid;
   gap: 6px;
   min-width: 0;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(17, 19, 25, 0.45);
-}
-
-/* Studio : pas de cadre autour des groupes de 3 boutons (comme en garage, où ils
-   passent en display:contents). On retire bordure/fond/padding du conteneur. */
-body[data-board-mode="studio"] .control-group {
-  border-color: transparent;
-  background: none;
-  padding: 0;
 }
 
 .pad-live-row {
