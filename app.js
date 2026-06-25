@@ -5746,80 +5746,35 @@ function saveSkinEditorOverwrite() {
 }
 
 // Always create a new custom skin; asks to replace if name already exists
-// « Enregistrer sous… » : le nom et l'emplacement sont choisis dans le dialogue
-// natif d'enregistrement (Finder). On écrit un fichier .json ET on garde le skin
-// utilisable dans l'app. Le contrôle du nom réservé n'intervient qu'APRÈS saisie.
-async function saveSkinEditorAs() {
+// « Enregistrer sous… » : ouvre un dialogue pour saisir/modifier le nom, puis
+// enregistre un nouveau skin utilisateur dans l'app. Le contrôle du nom réservé
+// n'intervient qu'APRÈS saisie (le champ n'est plus pré-rempli avec un nom intégré).
+function saveSkinEditorAs() {
   const field = String(els.skinEditorName?.value || "").trim();
   const suggested = field && !isBuiltInSkinDisplayName(field) ? field : "Mon skin";
-  const variables = _snapshotEditorVariables();
-  const harmony = _snapshotHarmonySettings();
 
-  let chosenName = "";
-  let writeFile = null;
+  const entered = window.prompt("Nom du skin", suggested);
+  if (entered === null) return;
+  const name = String(entered).trim();
 
-  if (window.showSaveFilePicker) {
-    let handle = null;
-    try {
-      handle = await window.showSaveFilePicker({
-        suggestedName: `${suggested}.json`,
-        types: [{ description: "Skin Soundboard Live", accept: { "application/json": [".json"] } }],
-      });
-    } catch (error) {
-      if (error?.name === "AbortError") { setStatus("Enregistrement annulé"); return; }
-      handle = null;
-    }
-    if (handle) {
-      chosenName = handle.name.replace(/\.json$/i, "").trim();
-      writeFile = async (blob) => {
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-      };
-    }
+  if (!name) { window.alert("Nom du skin obligatoire"); return; }
+  if (isBuiltInSkinDisplayName(name)) { window.alert("Ce nom est réservé à un skin intégré"); return; }
+
+  const skins = readCustomSkins();
+  const existing = skins.find((skin) => String(skin.name || "").trim().toLowerCase() === name.toLowerCase());
+  if (existing) {
+    if (!window.confirm(`Un skin « ${existing.name} » existe déjà. Le remplacer ?`)) return;
+    const idx = skins.findIndex((s) => s.id === existing.id);
+    if (idx !== -1) skins.splice(idx, 1);
   }
 
-  // Repli (navigateur sans showSaveFilePicker) : on demande le nom puis on télécharge.
-  if (!writeFile) {
-    const entered = window.prompt("Nom du skin", suggested);
-    if (entered === null) return;
-    chosenName = String(entered).trim();
-  }
-
-  if (!chosenName) { window.alert("Nom du skin obligatoire"); return; }
-  if (isBuiltInSkinDisplayName(chosenName)) { window.alert("Ce nom est réservé à un skin intégré"); return; }
-
-  const skin = { id: createId(), name: chosenName, createdAt: new Date().toISOString(), variables, harmony };
-  const blob = new Blob([JSON.stringify({ kind: "soundboard-skin", ...skin }, null, 2)], { type: "application/json" });
-
-  try {
-    if (writeFile) {
-      await writeFile(blob);
-    } else {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${chosenName}.json`;
-      link.rel = "noopener";
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-  } catch (error) {
-    if (error?.name === "AbortError") { setStatus("Enregistrement annulé"); return; }
-    window.alert("Enregistrement du fichier impossible");
-    return;
-  }
-
-  // Garde le skin utilisable dans l'app (remplace un skin perso de même nom).
-  const skins = readCustomSkins().filter((s) => String(s.name || "").trim().toLowerCase() !== chosenName.toLowerCase());
+  const skin = { id: createId(), name, createdAt: new Date().toISOString(), variables: _snapshotEditorVariables(), harmony: _snapshotHarmonySettings() };
   skins.push(skin);
   writeCustomSkins(skins);
+  if (els.skinEditorName) els.skinEditorName.value = name;
   updateSkinOptions();
   applySkin(`${CUSTOM_SKIN_PREFIX}${skin.id}`);
   saveSkinToCurrentBoard();
-  setStatus(`Skin « ${chosenName} » enregistré`, "success");
   closeSkinEditor();
 }
 
