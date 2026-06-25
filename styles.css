@@ -7105,23 +7105,26 @@ body.board-edit-mode .pad.is-editing .pad-crossfade-flash {
   right: 64px;
 }
 
-/* Garage : afficher les badges en overlay (haut-droite), sans gêner l'édition. */
+/* Garage : badges sur une ligne dédiée, entre le titre et les champs (tags…). */
 body.board-edit-mode .pad.is-editing .pad-alerts {
   display: flex !important;
   flex-wrap: wrap;
-  align-items: flex-start;
-  align-content: flex-start;
-  justify-content: flex-end;
-  gap: 3px;
-  position: absolute !important;
-  top: 8px !important;
-  right: 10px !important;
-  bottom: auto !important; /* sinon le bottom:24px hérité étire le conteneur sur toute la hauteur */
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
   left: auto !important;
-  max-width: 55%;
+  width: 100%;
+  max-width: none;
   height: auto !important;
+  grid-column: 1 / -1 !important;
   grid-area: auto;
-  z-index: 6;
+  order: 0;
+  margin: 2px 0;
+  overflow: visible;
   pointer-events: none;
 }
 
