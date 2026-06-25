@@ -1870,7 +1870,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
   grid-template-columns: 44px 1fr !important;
   column-gap: 8px;
   align-items: center;
-  padding: 8px !important; /* l'en-tête est désormais au-dessus du box (margin-top), plus besoin du padding-top 28px */
+  padding: 0 8px !important; /* pas de padding vertical : titre 2 lignes centré sans déborder du cadre */
   min-height: 56px;
 }
 
@@ -3629,6 +3629,14 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   background: rgba(17, 19, 25, 0.45);
 }
 
+/* Studio : pas de cadre autour des groupes de 3 boutons (comme en garage, où ils
+   passent en display:contents). On retire bordure/fond/padding du conteneur. */
+body[data-board-mode="studio"] .control-group {
+  border-color: transparent;
+  background: none;
+  padding: 0;
+}
+
 .pad-live-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -5326,8 +5334,23 @@ body.stage-mode .board-select {
   grid-column: 1 / -1;
 }
 
+/* Scène : le cadenas remonte sur la même ligne que le menu skin, calé à droite.
+   La rangée du cadenas (40px) suit immédiatement celle du skin (gap 8px) ; on la
+   tire de 48px vers le haut pour la superposer, et on la rend transparente aux
+   clics sauf le cadenas lui-même (pour ne pas bloquer le select en dessous). */
 body.stage-mode .board-cols-help-row {
   grid-column: 1;
+  margin-top: -48px;
+  align-items: center;
+  pointer-events: none;
+}
+
+body.stage-mode .board-cols-help-row .board-action-grid {
+  justify-content: flex-end;
+}
+
+body.stage-mode .board-cols-help-row #stageLock {
+  pointer-events: auto;
 }
 
 body.stage-mode .board-skin-select {
@@ -5336,6 +5359,7 @@ body.stage-mode .board-skin-select {
 
 body.stage-mode .board-filter-row {
   grid-column: 1;
+  padding-right: 52px;
 }
 
 body.stage-mode .board-skin-select #openSkinEditorButton {
@@ -7040,7 +7064,8 @@ body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-column: 1 / -1;
   min-height: 38px;
   margin-top: 28px; /* commence sous l'en-tête (numéro/type/durée/pense-bête), comme en studio */
-  padding: 8px 12px !important;
+  padding: 0 12px !important; /* pas de padding vertical : le titre 2 lignes est centré dans le cadre sans déborder */
+  align-items: center;
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
