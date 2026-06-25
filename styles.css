@@ -2633,6 +2633,7 @@ select:disabled,
   position: absolute;
   top: 10px;
   left: 50%;
+  right: auto;
   transform: translateX(-50%);
   align-self: start;
   color: var(--muted);
