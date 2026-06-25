@@ -612,7 +612,7 @@ body.board-edit-mode .board-edit-actions {
 }
 
 .master-strip {
-  --master-stop-size: 54px;
+  --master-stop-size: 70px;
   --master-stop-panel-height: 112px;
   display: grid;
   grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
@@ -2094,7 +2094,9 @@ body:not(.board-edit-mode) .filter-compact-count {
 }
 
 .filter-section-chevron {
-  color: var(--muted);
+  color: var(--color_status_progress);
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   transition: transform 0.18s;
 }
@@ -2123,8 +2125,8 @@ body.board-edit-mode .tag-filter-chips-row .bulk-edit-button {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  height: 28px;
-  padding: 0 10px;
+  height: 42px;
+  padding: 0 14px;
   border-radius: 7px;
   border: 1px solid var(--color_ui_border);
   background: var(--color_ui_panel_secondary);
@@ -2145,10 +2147,9 @@ body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:disabled {
   cursor: default;
 }
 
-/* scène : masquer toute la zone filtre */
+/* scène : masquer les filtres tags (mais garder le menu skin, seul enfant de .board-filter-row) */
 body.stage-mode .tag-filter-chips-row,
-body.stage-mode .tag-filter-section-header,
-body.stage-mode .board-filter-row {
+body.stage-mode .tag-filter-section-header {
   display: none;
 }
 
@@ -2611,7 +2612,7 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
 button:disabled,
 select:disabled,
 .icon-button:disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.38;
   filter: grayscale(0.45);
 }
@@ -2625,7 +2626,8 @@ select:disabled,
 .pad-time {
   position: absolute;
   top: 10px;
-  right: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   align-self: start;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -2656,6 +2658,11 @@ select:disabled,
 .pad-note-button.has-note {
   border-color: var(--color_status_progress);
   color: var(--color_status_progress);
+}
+
+/* En scène, masquer le bouton pense-bête s'il est vide (rien à ouvrir). */
+body.stage-mode .pad-note-button:not(.has-note) {
+  display: none;
 }
 
 .pad-note-button svg {

@@ -2588,7 +2588,7 @@ function applyBoardTagFilter() {
     pad.node.classList.toggle("is-tag-dimmed", active ? !matchingSet.has(pad) : false);
   });
   if (!active) {
-    setStatus(state.boardEditMode ? "Mode Garage" : "Mode live");
+    // Pas de message « Mode … » (redondant avec les boutons de mode).
   } else {
     const labels = activeFilterLabels();
     const sep = state.tagFilterLogic === "or" ? " OU " : " ET ";
@@ -9113,7 +9113,6 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     if (requestFullscreen && document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});
     }
-    setStatus("Mode édition");
   }
   syncStagePending();
 }
@@ -14167,6 +14166,7 @@ async function init() {
     }
   });
   els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));
+  document.querySelector("#audioHelp")?.addEventListener("click", () => openContextHelp(["audio-pad"], "Aide Réglages du pad"));
   els.masterHelp?.addEventListener("click", () => openContextHelp(["master"], "Aide Master"));
   els.cuesHelp?.addEventListener("click", () => openContextHelp(["cues-crossfade"], "Aide Cues / Crossfade"));
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
