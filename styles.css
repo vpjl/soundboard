@@ -2467,6 +2467,14 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   color: #fbbf24; /* or (crossfade) */
 }
 
+.option-badge.is-xfade-source {
+  color: #c084fc; /* violet : source (contrôle un autre pad) */
+}
+
+.option-badge.is-xfade-target {
+  color: #fb923c; /* orange : cible (contrôlée par un autre pad) */
+}
+
 .pad.is-playing .pad-trigger {
   background: var(--color_pad_trigger_playing_background);
 }

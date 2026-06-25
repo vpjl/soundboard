@@ -9192,6 +9192,8 @@ function badgeClassFor(label) {
   if (text.includes("revrs")) return "is-reverse";
   if (text.includes("rev")) return "is-reverb";
   if (text.includes("eq")) return "is-eq";
+  if (text === "xf→") return "is-xfade-source";
+  if (text === "→xf") return "is-xfade-target";
   if (text.includes("xf") || text.includes("cross")) return "is-crossfade";
   if (text.includes("loop")) return "is-loop";
   if (text.includes("mono")) return "is-mono";
@@ -9209,13 +9211,13 @@ function padOptionBadges(pad) {
   if (pad.loop) items.push("Loop");
   if (pad.duckTrigger && pad.duckMode === "pad") items.push("Duck");
   if (pad.reverse) items.push("Revrs");
-  if (pad.muted) items.push("Mute");
   if (pad.mono) items.push("Mono");
   if (fadeDurationForPad(pad, "in") > 0) items.push("f in");
   if (fadeDurationForPad(pad, "out") > 0) items.push("f out");
   if (pad.reverbMode === "pad" && pad.reverbPreset !== "none") items.push("Rev");
   if (pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0)) items.push("EQ");
-  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("Xf");
+  if (pad.startStopMode !== "none" || pad.endStartMode !== "none") items.push("xf→"); // source
+  if (state.crossfadeTargetUids?.has(pad.uid)) items.push("→xf"); // cible
   return items;
 }
 
