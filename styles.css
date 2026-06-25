@@ -2631,10 +2631,11 @@ select:disabled,
 
 .pad-time {
   position: absolute;
+  grid-area: auto !important; /* ne pas être placé dans la cellule "time" de la grille (sinon left:50% = centre de cette cellule, à droite) */
   top: 10px;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
   align-self: start;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
