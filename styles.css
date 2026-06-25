@@ -1864,8 +1864,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
   grid-template-columns: 44px 1fr !important;
   column-gap: 8px;
   align-items: center;
-  padding: 28px 8px 8px 8px !important;
-  min-height: 80px;
+  padding: 8px !important; /* l'en-tête est désormais au-dessus du box (margin-top), plus besoin du padding-top 28px */
+  min-height: 56px;
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label {
@@ -3014,7 +3014,7 @@ body.board-edit-mode .pads {
 }
 
 body.board-edit-mode .pad.is-editing {
-  grid-template-rows: 56px 38px auto minmax(38px, auto) auto;
+  grid-template-rows: 68px 38px auto minmax(38px, auto) auto;
 }
 
 body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
@@ -7030,8 +7030,9 @@ body.board-edit-mode .pad.is-editing .pad-play-row {
 body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-area: auto;
   grid-column: 1 / -1;
-  min-height: 56px;
-  padding: 8px 72px 8px 60px !important;
+  min-height: 38px;
+  margin-top: 28px; /* commence sous l'en-tête (numéro/type/durée/pense-bête), comme en studio */
+  padding: 8px 12px !important;
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
