@@ -141,26 +141,6 @@ body[data-skin="candy"] {
   --danger: var(--color_status_danger);
 }
 
-body[data-skin="candy"] .pad-trigger {
-  border: 1px solid rgba(94, 224, 162, 0.32);
-  background: linear-gradient(145deg, #123b44, #20283a);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-body[data-skin="candy"] .pad.is-playing .pad-trigger {
-  background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
-}
-
-body[data-skin="candy"] .pad.has-color .pad-trigger {
-  border-color: rgba(94, 224, 162, 0.32);
-  background: linear-gradient(145deg, #123b44, #20283a);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-body[data-skin="candy"] .pad.has-color.is-playing .pad-trigger {
-  background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
-}
-
 body[data-skin="candy"] .pad.is-ducked .pad-trigger {
   filter: saturate(0.78) brightness(0.82);
 }
@@ -236,8 +216,6 @@ body[data-skin="minimal"] .pad-trigger {
   min-height: 100%;
   padding: 6px 6px 30px;
   gap: 6px;
-  border: 1px solid var(--line);
-  background: #1a1d22;
 }
 
 body[data-skin="minimal"] .pad-action-line,
@@ -245,10 +223,6 @@ body[data-skin="minimal"] .live-button-group,
 body[data-skin="minimal"] .pad-live-options,
 body[data-skin="minimal"] .manage-group {
   min-width: 0;
-}
-
-body[data-skin="minimal"] .pad.is-playing .pad-trigger {
-  background: rgba(94, 224, 143, 0.2);
 }
 
 body[data-skin="minimal"] .pad-title {
@@ -1665,20 +1639,8 @@ body.show-cables .cable-overlay {
   border-color: var(--line);
 }
 
-.pad.has-color .pad-trigger {
-  box-shadow: none;
-}
-
-body[data-skin="classic"] .pad.has-color .pad-trigger {
-  box-shadow: none;
-}
-
 body[data-skin="classic"] .pad.has-color {
   border-color: var(--line);
-}
-
-body[data-skin="contrast"] .pad.has-color .pad-trigger {
-  box-shadow: none;
 }
 
 body[data-skin="contrast"] .pad.has-color {
@@ -1700,17 +1662,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hid
   background-color: var(--pad-color);
 }
 
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hidden):not(.is-editing) .pad-trigger {
-  background: transparent;
-}
-
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
   overflow: hidden;
-  background: transparent;
-}
-
-body[data-skin="basic"] .pad.has-color .pad-trigger {
-  box-shadow: none;
 }
 
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
@@ -1718,10 +1671,6 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
 }
 
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
-body[data-skin="basic"] .pad.is-editing .pad-trigger {
-  background-image: linear-gradient(145deg, #252a32, #1c1f27);
-}
-
 .visual-toggle-button {
   display: none;
   position: absolute;
@@ -2186,9 +2135,7 @@ body.stage-mode .tag-filter-section-header {
   min-width: 0;
   min-height: 86px;
   padding: 10px 10px 34px;
-  border: 0;
   border-radius: 8px;
-  background: var(--color_pad_trigger_background);
   color: var(--color_ui_text);
   text-align: left;
   cursor: default;
@@ -2482,36 +2429,15 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   color: #fbbf24; /* or (inutilisé) */
 }
 
-.pad.is-playing .pad-trigger {
-  background: var(--color_pad_trigger_playing_background);
-}
-
-.pad-trigger.is-pressed {
-  background: color-mix(in srgb, var(--color_status_progress) 32%, var(--color_status_success) 22%);
-}
-
 .pad-trigger:active {
-  border-color: transparent;
-  background: var(--color_pad_trigger_background);
   color: var(--color_ui_text);
   transform: none;
-}
-
-.pad.is-playing .pad-trigger:active {
-  background: var(--color_pad_trigger_playing_background);
 }
 
 /* Le trigger n'est plus qu'une zone de clic : sa boîte visible est désormais
    portée par .pad-title. On neutralise tous ses fonds/bordures/ombres (built-in,
    basic, playing, pressed…). Le filtre is-ducked reste sur le trigger : il
    assombrit le titre (enfant). */
-.pad-trigger {
-  background: transparent !important;
-  background-image: none !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-}
-
 .pad-title {
   min-width: 0;
   overflow: hidden;
@@ -3716,9 +3642,6 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 .pad-live-row button,
 .pad-live-options button {
   width: 100%;
-}
-
-.pad-stop-button {
 }
 
 .pad-live-row .pad-stop-button {
@@ -7241,10 +7164,6 @@ body.stage-mode .pad:not(.is-editing) .pad-trigger {
    basic/custom (tout le pad est le trigger et montre sa couleur/image). Pour les
    skins intégrés, on laisse le fond du trigger visible (cadre du titre) dans les
    3 modes — il l'était déjà en garage, il manquait en studio/scène. */
-body[data-skin="basic"] .pad:not(.is-editing) .pad-trigger {
-  background: transparent;
-}
-
 .pad:not(.is-editing) .pad-label,
 body.stage-mode .pad:not(.is-editing) .pad-label {
   display: grid !important;
@@ -7411,23 +7330,14 @@ body.stage-mode .pad:not(.is-editing) .controls {
 }
 
 body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
-  border: 1px solid var(--line);
   border-radius: 8px;
-  background: linear-gradient(145deg, rgba(34, 40, 50, 0.96), rgba(24, 28, 36, 0.96));
   padding: 7px 9px !important;
 }
 
 
 body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
-  border: 1px solid rgba(94, 224, 162, 0.32);
   border-radius: 8px;
-  background: linear-gradient(145deg, #123b44, #20283a);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   padding: 7px 9px !important;
-}
-
-body[data-skin="candy"] .pad:not(.is-editing).is-playing .pad-trigger {
-  background: linear-gradient(145deg, rgba(94, 224, 162, 0.42), #213540);
 }
 
 body[data-skin="basic"] .pad:not(.is-editing) .pad-alerts,
