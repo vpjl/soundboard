@@ -3644,7 +3644,8 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   width: 100%;
 }
 
-.pad-live-row .pad-stop-button {
+.pad-live-row .pad-stop-button,
+.pad-live-row .pad-mute-button {
   border-color: color-mix(in srgb, var(--color_status_stop) 55%, transparent);
   background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
   color: color-mix(in srgb, var(--color_status_stop) 55%, #fff);
@@ -3667,11 +3668,6 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   opacity: 0.34;
   cursor: default;
   filter: grayscale(1);
-}
-
-.pad-live-row .pad-mute-button {
-  border-color: color-mix(in srgb, var(--color_status_stop) 44%, transparent);
-  color: var(--muted);
 }
 
 .pad-live-row .pad-mute-button svg,
