@@ -3608,7 +3608,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--color_pad_button_background); /* « Boutons » skinnable dans les 3 modes (garage l'utilisait déjà ; studio/scène avaient un fond en dur) */
-  color: var(--muted);
+  color: var(--color_pad_button_text); /* « Textes boutons » skinnable en studio/scène aussi (garage l'utilisait déjà) */
 }
 
 .pad-live-check {
