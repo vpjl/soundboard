@@ -13,6 +13,11 @@ Ce fichier consigne les decisions de conception validees, afin d'eviter de les r
 - La version affichee dans `#audioStatus`, les query strings d'assets dans `index.html` et le `CACHE_NAME`/assets de `service-worker.js` doivent rester coherents.
 - En cas de doute sur une version publiee, verifier `index.html` et `service-worker.js` ensemble.
 
+## Skins
+
+- `--color_ui_text` pilote les textes principaux de l'interface.
+- Le titre interne des pads est pilote separement par `--color_pad_title_text`.
+
 ## Notes de version de l'application
 
 - Ne pas supprimer les notes de version de l'application pour les deplacer dans `docs/`.

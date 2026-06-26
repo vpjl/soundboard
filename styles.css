@@ -36,6 +36,7 @@
   --color_pad_button_background: var(--color_ui_panel_secondary);
   --color_pad_button_border: var(--color_ui_border);
   --color_pad_button_text: var(--color_ui_text_muted);
+  --color_pad_title_text: var(--color_ui_text);
   --color_pad_trigger_background: linear-gradient(145deg, #252a32, #1c1f27);
   --color_pad_trigger_playing_background: linear-gradient(145deg, rgba(73, 211, 160, 0.3), #20272a);
   --color_pad_progress_background: rgba(5, 7, 11, 0.58);
@@ -2453,6 +2454,7 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   user-select: none;
   /* Boîte unique du pad, portée par le titre (le trigger n'est plus que la zone
      de clic, transparent). Suit le skin et l'état lecture/press. */
+  color: var(--color_pad_title_text);
   background: var(--color_pad_trigger_background);
   border-radius: 6px;
   padding: 4px 10px;
@@ -8784,6 +8786,10 @@ details[open] > .skin-editor-advanced-summary::before {
 /* Éditeur de skins : correspondance explicite des variables dans l’aperçu */
 #skinEditorDialog .skin-editor-preview [data-skin-variable="--color_ui_text"] {
   color: var(--color_ui_text);
+}
+
+#skinEditorDialog .skin-editor-preview [data-skin-variable="--color_pad_title_text"] {
+  color: var(--color_pad_title_text);
 }
 
 #skinEditorDialog .skin-editor-preview [data-skin-variable="--color_ui_text_muted"] {

@@ -17,7 +17,7 @@ Fichiers principaux :
 ## Etat courant
 
 - Branche de travail habituelle : `main`.
-- Version publique synchronisee : `v422`.
+- Version publique synchronisee : `v423`.
 - Le cache service worker doit rester aligne avec les versions d'assets dans `index.html`.
 - Les notes de version internes de l'application sont des notes utilisateur attachees aux versions de board.
 
