@@ -4982,6 +4982,9 @@ function getSkinHarmonyColors(baseHex, type) {
       return [baseHex, c(h + 120), c(h + 240), c(h + 60), c(h + 180), c(h + 300)];
     case "carre":
       return [baseHex, c(h + 90), c(h + 180), c(h + 270), c(h + 45), c(h + 225)];
+    case "compose":
+      // Composé : base + paire analogue (±30) + grappe complémentaire (180, 150, 210).
+      return [baseHex, c(h + 30), c(h - 30), c(h + 180), c(h + 150), c(h + 210)];
     case "nuances":
       return [baseHex, hslToHex(h, s, 18), hslToHex(h, s, 32), hslToHex(h, s, 50), hslToHex(h, s, 68), hslToHex(h, s, 84)];
     case "monochromatique":
@@ -4995,12 +4998,22 @@ function updateHarmonySwatch() {
   const baseHex = document.querySelector("#skinHarmonyColor")?.value;
   const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
   if (!baseHex) return;
+  // Personnalisée : palette manuelle, on ne recalcule pas le nuancier.
+  if (type === "personnalisee") return;
   const colors = getSkinHarmonyColors(baseHex, type);
   const spans = document.querySelectorAll("#skinHarmonySwatch span");
   spans.forEach((span, i) => {
     span.style.background = colors[i] || "";
     span.title = colors[i] || "";
   });
+}
+
+// Active/désactive le champ « Couleur de base » (désactivé en harmonie
+// personnalisée, où la palette est éditée manuellement).
+function setHarmonyBaseColorEnabled(enabled) {
+  const input = document.querySelector("#skinHarmonyColor");
+  if (input) input.disabled = !enabled;
+  document.querySelector(".skin-harmony-color-wrap")?.classList.toggle("is-disabled", !enabled);
 }
 
 // Construit la table des teintes d'harmonie (state.skinEditorHarmonyBase) à
@@ -5628,6 +5641,10 @@ function openSkinEditor() {
   // Base des curseurs sat/lum = couleurs courantes du skin (les curseurs ajustent
   // S/L de l'existant, ils ne régénèrent pas la palette).
   captureSkinSatLumBase();
+  // Couleur de base désactivée si l'harmonie restaurée est « personnalisée ».
+  setHarmonyBaseColorEnabled(
+    (document.querySelector("[name='skinHarmonyType']:checked")?.value) !== "personnalisee"
+  );
 
   loadSkinFonts();
 
@@ -13814,9 +13831,14 @@ async function init() {
     applySkinHarmony();
     saveSkinHarmonySettings();
   });
-  // Changer le type d'harmonie est un choix délibéré : on recalcule la palette
-  // avec les nouvelles teintes et on met à jour l'aperçu (comme un pick de couleur).
+  // Changer l'harmonie est un choix délibéré : on recalcule la palette avec les
+  // nouvelles teintes et on met à jour l'aperçu (comme un pick de couleur).
+  // « Personnalisée » fige la palette (édition manuelle) et désactive la couleur
+  // de base — on ne recalcule alors rien.
   document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
+    const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
+    setHarmonyBaseColorEnabled(type !== "personnalisee");
+    if (type === "personnalisee") { saveSkinHarmonySettings(); return; }
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();

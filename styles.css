@@ -8087,12 +8087,17 @@ body.stage-mode #boardName:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted, #bec4cc);
-  transition: color 0.15s;
+  /* Style stop générique (comme la corbeille des pads / boutons stop) */
+  border: 1px solid color-mix(in srgb, var(--color_status_stop) 55%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
+  color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 #deleteSkinEditor:hover {
-  color: var(--text, #fffaf0);
+  border-color: var(--color_status_stop);
+  color: color-mix(in srgb, var(--color_status_stop) 12%, #fff);
 }
 
 .skin-editor-layout {
@@ -8232,6 +8237,12 @@ body.stage-mode #boardName:focus {
 
 .skin-harmony-color-wrap.is-unset .skin-harmony-color-hint {
   display: flex;
+}
+
+/* Couleur de base désactivée (harmonie personnalisée) */
+.skin-harmony-color-wrap.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .skin-harmony-swatch {
