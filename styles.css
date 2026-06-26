@@ -1805,9 +1805,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   min-height: 0;
   padding: 10px 14px 12px;
   border-radius: 6px;
-  /* Même boîte qu'en garage (trigger basic L1721) pour un aspect uniforme dans
-     les 3 modes ; la vidéo/couleur du pad reste visible autour du titre. */
-  background: linear-gradient(145deg, #252a32, #1c1f27);
+  /* Fond = boîte unique de .pad-title (base, skin-aware) ; ici on ne garde que la
+     géométrie/typo spécifiques aux pads à image/couleur. */
   font-family: 'Barlow Condensed', var(--font-sans);
   font-weight: 500;
   font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
@@ -2502,6 +2501,17 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   background: var(--color_pad_trigger_playing_background);
 }
 
+/* Le trigger n'est plus qu'une zone de clic : sa boîte visible est désormais
+   portée par .pad-title. On neutralise tous ses fonds/bordures/ombres (built-in,
+   basic, playing, pressed…). Le filtre is-ducked reste sur le trigger : il
+   assombrit le titre (enfant). */
+.pad-trigger {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .pad-title {
   min-width: 0;
   overflow: hidden;
@@ -2515,6 +2525,19 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Boîte unique du pad, portée par le titre (le trigger n'est plus que la zone
+     de clic, transparent). Suit le skin et l'état lecture/press. */
+  background: var(--color_pad_trigger_background);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.pad.is-playing .pad-title {
+  background: var(--color_pad_trigger_playing_background);
+}
+
+.pad-trigger.is-pressed .pad-title {
+  background: color-mix(in srgb, var(--color_status_progress) 32%, var(--color_status_success) 22%);
 }
 
 .pads[data-columns="5"] .pad-title,
