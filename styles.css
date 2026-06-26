@@ -7210,6 +7210,13 @@ body.stage-mode .pad:not(.is-editing) .pad-trigger {
   grid-area: title;
   min-height: 38px;
   padding: 4px 0 !important;
+}
+
+/* Le trigger transparent en not-editing n'est nécessaire que pour les skins
+   basic/custom (tout le pad est le trigger et montre sa couleur/image). Pour les
+   skins intégrés, on laisse le fond du trigger visible (cadre du titre) dans les
+   3 modes — il l'était déjà en garage, il manquait en studio/scène. */
+body[data-skin="basic"] .pad:not(.is-editing) .pad-trigger {
   background: transparent;
 }
 
