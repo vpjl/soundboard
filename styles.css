@@ -1805,7 +1805,9 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   min-height: 0;
   padding: 10px 14px 12px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
+  /* Même boîte qu'en garage (trigger basic L1721) pour un aspect uniforme dans
+     les 3 modes ; la vidéo/couleur du pad reste visible autour du titre. */
+  background: linear-gradient(145deg, #252a32, #1c1f27);
   font-family: 'Barlow Condensed', var(--font-sans);
   font-weight: 500;
   font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
