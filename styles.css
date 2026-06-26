@@ -7385,6 +7385,20 @@ body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
   padding: 7px 9px !important;
 }
 
+/* Garage (is-editing) : même cadre de trigger (fond/bordure/arrondi) qu'en
+   scène/studio, pour que le fond du titre du pad soit identique dans les 3 modes.
+   On ne touche pas au layout garage (marge/padding/centrage gérés ailleurs). */
+body[data-skin="classic"] .pad.is-editing .pad-trigger {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(34, 40, 50, 0.96), rgba(24, 28, 36, 0.96));
+}
+body[data-skin="candy"] .pad.is-editing .pad-trigger {
+  border: 1px solid rgba(94, 224, 162, 0.32);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #123b44, #20283a);
+}
+
 body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
   border: 1px solid rgba(94, 224, 162, 0.32);
   border-radius: 8px;
