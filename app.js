@@ -13819,10 +13819,11 @@ async function init() {
     applySkinHarmony();
     saveSkinHarmonySettings();
   });
-  // Le type met seulement à jour le nuancier (référence) ; la palette s'applique
-  // ensuite via la couleur de base.
+  // Changer le type d'harmonie est un choix délibéré : on recalcule la palette
+  // avec les nouvelles teintes et on met à jour l'aperçu (comme un pick de couleur).
   document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
     updateHarmonySwatch();
+    applySkinHarmony();
     saveSkinHarmonySettings();
   });
   document.querySelector("#skinHarmonySwatch")?.addEventListener("click", handleSwatchClick);
