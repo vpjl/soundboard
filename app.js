@@ -6490,10 +6490,10 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     board: {
       name: board.name,
       padCount: board.padCount,
-      // Skin du board : référence (intégré ou custom) + données complètes du skin
-      // perso s'il est custom, pour qu'il voyage avec le board.
+      // Skins : référence du skin sélectionné par le board + TOUTE la bibliothèque
+      // de skins perso (ils font partie des réglages et voyagent avec le board).
       skin: board.skin || null,
-      customSkin: customSkinExportData(board.skin),
+      customSkins: readCustomSkins(),
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
@@ -6535,33 +6535,33 @@ async function persistCurrentPadsForExport() {
   }
 }
 
-// Données complètes du skin perso d'un board (pour l'embarquer dans l'export).
-// Renvoie null si le board n'utilise pas de skin custom.
-function customSkinExportData(skinRef) {
-  if (typeof skinRef !== "string" || !skinRef.startsWith(CUSTOM_SKIN_PREFIX)) return null;
-  const skin = customSkinById(skinRef.slice(CUSTOM_SKIN_PREFIX.length));
-  if (!skin) return null;
-  return { id: skin.id, name: skin.name, variables: skin.variables, harmony: skin.harmony || null };
-}
+// Enregistre les skins perso embarqués dans un board importé (toute la
+// bibliothèque ; rétrocompatible avec l'ancien champ `customSkin` singulier),
+// en dédoublonnant par id (on conserve une version locale existante). Renvoie
+// ensuite la référence de skin que le board doit appliquer, ou null.
+function registerImportedCustomSkins(boardData) {
+  let incoming = Array.isArray(boardData?.customSkins) ? boardData.customSkins : [];
+  if (!incoming.length && boardData?.customSkin) incoming = [boardData.customSkin];
 
-// Restaure le skin d'un board importé : enregistre le skin perso embarqué (s'il
-// n'est pas déjà présent) et renvoie la référence de skin à appliquer, ou la
-// référence intégrée, ou null.
-function restoreImportedBoardSkin(boardData) {
-  const custom = boardData?.customSkin;
-  if (custom && custom.variables) {
+  if (incoming.length) {
     const skins = readCustomSkins();
-    let id = String(custom.id || "");
-    if (id && skins.some((s) => s.id === id)) return `${CUSTOM_SKIN_PREFIX}${id}`; // déjà présent
-    if (!id) id = createId();
-    skins.push({ id, name: custom.name || "Skin importé", createdAt: new Date().toISOString(), variables: custom.variables, harmony: custom.harmony || null });
-    writeCustomSkins(skins);
-    updateSkinOptions();
-    return `${CUSTOM_SKIN_PREFIX}${id}`;
+    const ids = new Set(skins.map((s) => s.id));
+    let added = false;
+    for (const c of incoming) {
+      if (!c || !c.id || !c.variables || ids.has(c.id)) continue;
+      skins.push({ id: c.id, name: c.name || "Skin importé", createdAt: c.createdAt || new Date().toISOString(), variables: c.variables, harmony: c.harmony || null });
+      ids.add(c.id);
+      added = true;
+    }
+    if (added) { writeCustomSkins(skins); updateSkinOptions(); }
   }
+
   const ref = boardData?.skin;
-  if (typeof ref === "string" && ref && !ref.startsWith(CUSTOM_SKIN_PREFIX)) return ref; // intégré
-  return null;
+  if (typeof ref !== "string" || !ref) return null;
+  if (ref.startsWith(CUSTOM_SKIN_PREFIX)) {
+    return customSkinById(ref.slice(CUSTOM_SKIN_PREFIX.length)) ? ref : null; // seulement si présent
+  }
+  return ref; // skin intégré
 }
 
 async function importBoardFile(file) {
@@ -6595,8 +6595,8 @@ async function importBoardFile(file) {
     cues: payload.board.cues,
     cueIndex: payload.board.cueIndex,
   });
-  // Restaure le skin embarqué (enregistre le skin perso si nécessaire).
-  const restoredSkin = restoreImportedBoardSkin(payload.board);
+  // Enregistre les skins perso embarqués et restaure le skin du board.
+  const restoredSkin = registerImportedCustomSkins(payload.board);
   if (restoredSkin) importedBoard.skin = restoredSkin;
   setBoardPadEditing(false);
   state.boards.push(importedBoard);
