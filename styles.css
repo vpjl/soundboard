@@ -3678,6 +3678,15 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   fill: var(--color_status_stop);
 }
 
+/* Boutons stop globaux (master, groupe, cues) : icône en plein --color_status_stop
+   comme le bouton stop du pad / le cercle du mute (color pilote currentColor =
+   rect rempli + ligne au trait). Ne touche pas aux autres .danger-button. */
+#stopAll svg,
+#stopGroup svg,
+#cueStopAll svg {
+  color: var(--color_status_stop);
+}
+
 .pad-live-row .pad-mute-button.is-active {
   background: color-mix(in srgb, var(--color_status_stop) 24%, transparent);
   color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
