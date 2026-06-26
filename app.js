@@ -5008,6 +5008,23 @@ function updateHarmonySwatch() {
   });
 }
 
+// Mode personnalisé : remplit le nuancier avec les couleurs courantes du skin
+// (une variable représentative par teinte), pour que les teintes affichées
+// correspondent à la réalité avant édition.
+function populateCustomSwatchFromCurrent() {
+  const read = (v) => {
+    const fromState = state.skinEditorVariables?.[v];
+    if (/^#[0-9a-fA-F]{6}$/.test(fromState || "")) return fromState;
+    const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(v)}"]`);
+    return field ? normalizeColorInputValue(field.value) : "";
+  };
+  document.querySelectorAll("#skinHarmonySwatch span").forEach((span, i) => {
+    const v = HARMONY_TINT_VARS[i]?.[0];
+    const color = v ? read(v) : "";
+    if (color) { span.style.background = color; span.title = color; }
+  });
+}
+
 // Active/désactive le champ « Couleur de base » (désactivé en harmonie
 // personnalisée, où la palette est éditée manuellement).
 function setHarmonyBaseColorEnabled(enabled) {
@@ -5107,10 +5124,10 @@ function captureSkinSatLumBase() {
 }
 
 function applySwatchHighlight(index) {
-  const baseHex = document.querySelector("#skinHarmonyColor")?.value;
-  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value || "complementaire";
-  const colors = getSkinHarmonyColors(baseHex, type);
-  const swatchColor = colors[index];
+  // Couleur réelle de la teinte affichée (vaut pour tous les modes, y compris
+  // « personnalisée » où les teintes sont éditées à la main).
+  const span = document.querySelector(`#skinHarmonySwatch span[data-swatch-index="${index}"]`);
+  const swatchColor = span ? normalizeColorInputValue(getComputedStyle(span).backgroundColor) : "";
   if (!swatchColor) return;
   const targetHue = hexToHSL(swatchColor)[0];
   skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => {
@@ -5134,12 +5151,66 @@ function clearSwatchHighlight() {
 // Clic sur une teinte du nuancier : seulement surligner, de façon persistante,
 // les éléments de la simulation qui partagent cette teinte. Ne modifie AUCUNE
 // couleur et n'ouvre pas le picker (la couleur de base se choisit via son champ).
+// Quelles variables de skin utilise chaque teinte (t0..t5), d'après le mapping
+// d'harmonie (cf. buildSkinHarmonyBase). Sert à l'édition d'une seule teinte en
+// mode « personnalisée ».
+const HARMONY_TINT_VARS = [
+  ["--color_pad_trigger_playing_background", "--color_pad_progress_fill"],          // t0
+  ["--color_pad_trigger_background"],                                                // t1
+  ["--color_pad_background", "--color_pad_note_background"],                         // t2
+  ["--color_ui_panel"],                                                             // t3
+  ["--color_ui_panel_secondary", "--color_ui_border", "--color_pad_border", "--color_pad_button_background"], // t4
+  ["--color_ui_background"],                                                         // t5
+];
+
 function handleSwatchClick(e) {
   const span = e.target.closest("#skinHarmonySwatch span");
   if (!span) return;
   const index = parseInt(span.dataset.swatchIndex ?? 0);
   document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
+
+  // En harmonie « personnalisée », cliquer une teinte l'édite (sans recalculer
+  // les autres). Dans les autres harmonies : surbrillance seule.
+  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
+  if (type === "personnalisee") {
+    editHarmonyTinte(index, span);
+    return;
+  }
   applySwatchHighlight(index);
+}
+
+// Édite une seule teinte (mode personnalisé) : ouvre un color picker pour cette
+// teinte et applique sa nouvelle couleur AUX seules variables qu'elle pilote.
+function editHarmonyTinte(index, span) {
+  const current = normalizeColorInputValue(getComputedStyle(span).backgroundColor) || "#ffffff";
+  const input = document.createElement("input");
+  input.type = "color";
+  input.value = current;
+  const rect = span.getBoundingClientRect();
+  Object.assign(input.style, { position: "fixed", left: `${Math.round(rect.left)}px`, top: `${Math.round(rect.bottom)}px`, width: "1px", height: "1px", opacity: "0", pointerEvents: "none" });
+  document.body.appendChild(input);
+
+  const apply = () => {
+    const color = input.value;
+    span.style.background = color;
+    span.title = color;
+    const preview = skinPreviewRoot();
+    (HARMONY_TINT_VARS[index] || []).forEach((v) => {
+      state.skinEditorVariables[v] = color;
+      if (state.skinEditorHarmonyBase) state.skinEditorHarmonyBase[v] = color; // base des curseurs sat/lum
+      preview?.style.setProperty(v, color);
+      const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(v)}"]`);
+      if (field) field.value = color;
+    });
+  };
+  input.addEventListener("input", apply);
+  input.addEventListener("change", () => { apply(); input.remove(); });
+
+  if (typeof input.showPicker === "function") {
+    try { input.showPicker(); } catch { input.click(); }
+  } else {
+    input.click();
+  }
 }
 
 function normalizeColorInputValue(value) {
@@ -5642,9 +5713,9 @@ function openSkinEditor() {
   // S/L de l'existant, ils ne régénèrent pas la palette).
   captureSkinSatLumBase();
   // Couleur de base désactivée si l'harmonie restaurée est « personnalisée ».
-  setHarmonyBaseColorEnabled(
-    (document.querySelector("[name='skinHarmonyType']:checked")?.value) !== "personnalisee"
-  );
+  const restoredType = document.querySelector("[name='skinHarmonyType']:checked")?.value;
+  setHarmonyBaseColorEnabled(restoredType !== "personnalisee");
+  if (restoredType === "personnalisee") populateCustomSwatchFromCurrent();
 
   loadSkinFonts();
 
@@ -13838,7 +13909,7 @@ async function init() {
   document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
     const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
     setHarmonyBaseColorEnabled(type !== "personnalisee");
-    if (type === "personnalisee") { saveSkinHarmonySettings(); return; }
+    if (type === "personnalisee") { populateCustomSwatchFromCurrent(); saveSkinHarmonySettings(); return; }
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();
