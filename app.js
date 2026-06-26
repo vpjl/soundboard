@@ -42,7 +42,6 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_ui_help_background",
   "--color_pad_background",
   "--color_pad_border",
-  "--color_pad_actions_background",
   "--color_pad_button_background",
   "--color_pad_button_border",
   "--color_pad_button_text",
@@ -4884,7 +4883,6 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
     fields: [
       ["--color_pad_background", "Fond pad"],
       ["--color_pad_trigger_background", "Fond titre"],
-      ["--color_pad_actions_background", "Fond boutons"],
       ["--color_pad_border", "Bordure pad"],
       ["--color_pad_button_background", "Boutons"],
       ["--color_pad_button_border", "Bordure boutons"],
@@ -5039,7 +5037,6 @@ function buildSkinHarmonyBase() {
     "--color_ui_text":                         textHex,
     "--color_ui_text_muted":                   mutedHex,
     "--color_pad_background":                  t[2],
-    "--color_pad_actions_background":          t[3],
     "--color_pad_border":                      t[4],
     "--color_pad_button_background":           t[4],
     "--color_pad_button_text":                 mutedHex,
@@ -5347,7 +5344,6 @@ function syncSkinPreviewMode() {
     basic: ["--color_pad_progress_fill", "--color_pad_progress_background"],
     // Scène = playing: pad-actions buttons and controls are hidden.
     stage: [
-      "--color_pad_actions_background",
       "--color_pad_button_background",
       "--color_pad_button_border",
       "--color_pad_button_text",
@@ -5540,7 +5536,6 @@ const SKIN_PREVIEW_PAD_VARS = [
   [".pad-vu", "--color_pad_progress_background"],
   [".pad-shortcut", "--color_pad_button_background"],
   [".pad-type", "--color_ui_text_muted"],
-  [".control-group", "--color_pad_actions_background"],
 ];
 
 // Build a real pad (clone of #padTemplate) with demo content for the preview.
