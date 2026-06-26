@@ -2513,6 +2513,11 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Fond de titre dédié, identique dans les 3 modes (scène/studio/garage), tous
+     skins : c'est le titre qui porte sa boîte sombre, plus la "boîte de trigger". */
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 4px 9px;
 }
 
 .pads[data-columns="5"] .pad-title,
@@ -7383,6 +7388,14 @@ body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
   border-radius: 8px;
   background: linear-gradient(145deg, rgba(34, 40, 50, 0.96), rgba(24, 28, 36, 0.96));
   padding: 7px 9px !important;
+}
+
+/* Garage : retirer la "boîte de trigger" (vestige coloré/arrondi). Le fond visible
+   derrière le titre est désormais porté par .pad-title, identique aux 3 modes. */
+body.board-edit-mode .pad.is-editing .pad-trigger,
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+  background: transparent;
+  background-image: none;
 }
 
 body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
