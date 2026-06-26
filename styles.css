@@ -3671,7 +3671,9 @@ body.no-cue-output .pad-live-row .pad-cue-button,
 }
 
 .pad-live-row .pad-mute-button svg,
-.pad-live-row .pad-mute-button circle {
+.pad-live-row .pad-mute-button circle,
+.pad-live-row .pad-stop-button svg,
+.pad-live-row .pad-stop-button rect {
   color: var(--color_status_stop);
   fill: var(--color_status_stop);
 }
