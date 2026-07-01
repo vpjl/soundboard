@@ -1747,10 +1747,21 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background: transparent;
 }
 
-/* En skin basic, le .pad-label porte la boîte visible (fond + rayon).
-   Le .pad-title ne doit pas avoir de fond propre, quelle que soit la
-   configuration du pad (image, couleur, ou aucun). */
-body[data-skin="basic"] .pad:not(.is-editing) .pad-title {
+/* Pads basic AVEC illustration/couleur : le titre est une boîte compacte
+   semi-transparente, juste un peu plus haute que le texte, posée en bas.
+   Le .pad-label (height:100%, transparent) sert uniquement à l'aligner en bas ;
+   toute la surface du pad reste cliquable via le .pad-trigger transparent. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  align-self: end;
+  margin: 0 8px 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(37, 42, 50, 0.82), rgba(28, 31, 39, 0.82));
+}
+
+/* Pads basic SANS illustration : pas de boîte titre superflue. */
+body[data-skin="basic"] .pad:not(.has-visual-image):not(.has-color):not(.is-editing) .pad-title {
   background: transparent;
   border-radius: 0;
   padding: 0;
