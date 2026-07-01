@@ -1747,10 +1747,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background: transparent;
 }
 
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  /* Le fond opaque global de .pad-title masquerait l'illustration —
-     le .pad-label porte déjà la boîte semi-transparente en bas du pad. */
+/* En skin basic, le .pad-label porte la boîte visible (fond + rayon).
+   Le .pad-title ne doit pas avoir de fond propre, quelle que soit la
+   configuration du pad (image, couleur, ou aucun). */
+body[data-skin="basic"] .pad:not(.is-editing) .pad-title {
   background: transparent;
   border-radius: 0;
   padding: 0;
