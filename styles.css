@@ -1749,24 +1749,11 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  grid-column: 1 / -1;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 0;
-  padding: 10px 14px 12px;
-  border-radius: 6px;
-  /* Fond = boîte unique de .pad-title (base, skin-aware) ; ici on ne garde que la
-     géométrie/typo spécifiques aux pads à image/couleur. */
-  font-family: 'Barlow Condensed', var(--font-sans);
-  font-weight: 500;
-  font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
-  display: block;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-line-clamp: unset;
+  /* Le fond opaque global de .pad-title masquerait l'illustration —
+     le .pad-label porte déjà la boîte semi-transparente en bas du pad. */
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
