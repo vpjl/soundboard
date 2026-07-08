@@ -176,7 +176,7 @@ const state = {
   activeTagFilters: [],
   tagFilterLogic: "or",
   filterCompact: false,
-  filterSectionOpen: true,
+  filterSectionOpen: false,
   versionsSectionOpen: false,
   boardManageSectionOpen: false,
   sketchDrawing: false,

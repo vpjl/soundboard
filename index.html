@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=434">
+    <link rel="stylesheet" href="styles.css?v=435">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -249,7 +249,7 @@
             </div>
             <select id="boardTagFilter" hidden><option value="">-</option></select>
             <span id="boardTagFilterLabel" class="sr-only">Sélection groupée</span>
-            <button class="tag-filter-section-header" type="button" id="filterSectionToggle" aria-expanded="true">
+            <button class="tag-filter-section-header" type="button" id="filterSectionToggle" aria-expanded="false">
               <span id="filterSectionTitle">SÉLECTION</span>
               <span id="filterSectionCount" class="filter-section-count" hidden></span>
               <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2283,7 +2283,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=434"></script>
+    <script src="app.js?v=435"></script>
 
 
   </body>
