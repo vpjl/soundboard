@@ -1539,8 +1539,8 @@ function setBoardPadEditing(editing) {
   els.editPads?.setAttribute("title", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
   if (!state.boardEditMode) {
     setCableOverlayVisible(false);
-    state.activeStructuralFilters = [];
-    state.activeTagFilters = [];
+    // Conserver la sélection de pads en sortant du garage (comme studio → garage).
+    // Seul le masquage « compact » est remis au neutre.
     state.filterCompact = false;
     state.boardManageSectionOpen = false;
     if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = true;
