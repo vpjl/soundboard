@@ -937,6 +937,17 @@ body.board-edit-mode .board-manage-section-toggle {
   width: 100%;
 }
 
+/* Titre « ASPECT » au-dessus du bloc skin : visible dans les 3 modes. */
+.board-aspect-title {
+  display: block;
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 0 2px;
+}
+
 .live-tools {
   display: flex;
   flex-wrap: wrap;
@@ -1701,8 +1712,6 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hi
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
@@ -1753,11 +1762,16 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
    toute la surface du pad reste cliquable via le .pad-trigger transparent. */
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  display: block;
   align-self: end;
   margin: 0 8px 8px;
   padding: 6px 12px;
   border-radius: 6px;
   background: linear-gradient(145deg, rgba(37, 42, 50, 0.82), rgba(28, 31, 39, 0.82));
+  -webkit-line-clamp: unset;
+  /* Boîte compacte : police plus petite que le titre de scène (clamp jusqu'à 1.6rem),
+     relative à la largeur du trigger (conteneur inline-size). */
+  font-size: clamp(0.9rem, 6cqi, 1.25rem);
 }
 
 /* Pads basic SANS illustration : pas de boîte titre superflue. */
@@ -2135,6 +2149,13 @@ body.stage-mode .tag-filter-section-header {
   min-height: 86px;
   padding: 10px 10px 34px;
   border-radius: 8px;
+  /* Zone de clic uniquement : la boîte visible est portée par .pad-title.
+     Fond ET bordure explicitement neutres, sinon les valeurs UA par défaut du
+     <button> (fond gris sombre + bordure en color-scheme dark) réapparaissent et
+     masquent l'illustration. Bordure transparente (pas `none`) pour que l'état
+     .is-ducked puisse la teinter via border-color. */
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--color_ui_text);
   text-align: left;
   cursor: default;
@@ -5310,7 +5331,8 @@ body.stage-mode .board-filter-row {
 }
 
 body.stage-mode .board-skin-select #openSkinEditorButton {
-  display: none;
+  width: 40px;
+  height: 40px;
 }
 
 body.stage-mode .board-skin-select select {
@@ -6371,8 +6393,6 @@ body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.i
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .controls,
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time,
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-progress,
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-vu,
@@ -6897,8 +6917,7 @@ body.stage-mode .pad-trigger {
   padding: 8px 8px 9px !important;
 }
 
-.pad-label,
-body.stage-mode .pad-label {
+.pad-play-row .pad-label {
   display: grid !important;
   grid-template-columns: 22px 22px minmax(0, 1fr) !important;
   align-items: start;
@@ -7714,7 +7733,29 @@ body.stage-mode .pads.has-pad-layout {
   justify-content: center;
 }
 
+/* Scène : rétablir le bloc « Board » (titre + nom) au-dessus des boutons de mode,
+   à la même place qu'en studio/garage. Le <select> désactivé sert d'affichage du
+   nom du board (styled en texte), donc les boutons scène/studio/garage restent à la
+   même position visuelle dans les 3 modes. */
 body.stage-mode .board-select {
+  display: grid !important;
+}
+
+body.stage-mode #boardSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0;
+}
+
+/* Le nom du board est désormais dans le bloc board : masquer le gros titre topbar.
+   Cible l'ID + !important pour battre `html body.stage-mode .brand p { display:block !important }`. */
+body.stage-mode #stageBoardTitle {
   display: none !important;
 }
 

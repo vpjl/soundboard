@@ -9262,6 +9262,9 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   if (enabled) {
+    // Restauration au rafraîchissement (skipDecode) : préchargement sauté → pas de
+    // clignotement « préparation » (fixé plus bas à la valeur réelle de skipPreload).
+    state.stageSkipPreload = Boolean(options.skipDecode);
     // Stop global immédiat avant d'entrer en scène (si un son est en lecture).
     state.pads.forEach((pad) => { if (isPadPlaying(pad)) stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); });
     state.stageMode = true;
@@ -9287,6 +9290,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       }
     }
     if (!skipPreload) await preloadStagePads(validPads);
+    state.stageSkipPreload = skipPreload;
     if (failures.length > 0) {
       const n = failures.length;
       setStatus(`Mode scène — ${n} pad${n > 1 ? "s" : ""} défectueux ignoré${n > 1 ? "s" : ""}`, "warning");
@@ -9321,7 +9325,12 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       setStatus("Mode scène actif : activez le plein écran depuis les contrôles du navigateur sur smartphone", "success");
     }
   } else {
+    state.stageSkipPreload = false;
     syncStageVisiblePads();
+    // Sortie de scène : effacer le message « Board prêt pour la scène … »
+    if (/^(Board prêt pour la scène|Mode scène)/.test(els.status.textContent || "")) {
+      setStatus("");
+    }
     if (requestFullscreen && document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});
     }
@@ -9330,7 +9339,10 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 }
 
 function syncStagePending() {
-  const pending = state.stageMode && orderedPadsForCurrentBoard().some(
+  // Pas de clignotement « préparation » quand le préchargement a été volontairement
+  // sauté (restauration au rafraîchissement) : sinon il tourne à l'infini alors que
+  // l'audio se charge à la demande au premier déclenchement.
+  const pending = state.stageMode && !state.stageSkipPreload && orderedPadsForCurrentBoard().some(
     (pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer
   );
   els.stageMode?.classList.toggle("is-stage-pending", pending);
