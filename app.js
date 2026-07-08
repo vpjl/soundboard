@@ -9327,7 +9327,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   } else {
     state.stageSkipPreload = false;
     syncStageVisiblePads();
-    // Sortie de scène : effacer le message « Board prêt pour la scène … »
+    // Sortie de scène : effacer le message « Board prêt pour la scène… »
     if (/^(Board prêt pour la scène|Mode scène)/.test(els.status.textContent || "")) {
       setStatus("");
     }

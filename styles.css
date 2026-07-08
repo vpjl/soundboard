@@ -5308,13 +5308,17 @@ body.stage-mode .board-select {
    clics sauf le cadenas lui-même (pour ne pas bloquer le select en dessous). */
 body.stage-mode .board-cols-help-row {
   grid-column: 1;
-  margin-top: -48px;
-  align-items: center;
-  pointer-events: none;
+  margin-top: 0;
+  align-items: start;
+  /* Le sélecteur de colonnes reste sous le menu skin (interactif). Seul le
+     cadenas remonte sur la ligne du skin (via la marge négative ci-dessous). */
+  pointer-events: auto;
 }
 
 body.stage-mode .board-cols-help-row .board-action-grid {
   justify-content: flex-end;
+  margin-top: -48px;
+  pointer-events: none;
 }
 
 body.stage-mode .board-cols-help-row #stageLock {
@@ -5366,7 +5370,6 @@ body.stage-mode #openCueDialog {
 
 body.stage-mode .versions-section-toggle,
 body.stage-mode .board-manage-section-toggle,
-body.stage-mode .board-layout-controls,
 body.stage-mode .version-select {
   display: none;
 }
@@ -7749,7 +7752,13 @@ body.stage-mode #boardSelect {
   background: transparent;
   box-shadow: none;
   color: var(--accent);
+  /* Le select est désactivé en scène : neutraliser le fanage de select:disabled
+     (opacity 0.38 + grayscale) qui grisait le titre après chargement. */
+  -webkit-text-fill-color: var(--accent);
+  opacity: 1;
+  filter: none;
   font-weight: 600;
+  font-size: clamp(1rem, 2.2vw, 1.3rem);
   padding: 0;
 }
 
