@@ -175,6 +175,7 @@ const state = {
   activeStructuralFilters: [],
   activeTagFilters: [],
   tagFilterLogic: "or",
+  invertSelection: false,
   filterCompact: false,
   filterSectionOpen: false,
   versionsSectionOpen: false,
@@ -2579,27 +2580,29 @@ function activeFilterLabels() {
 
 function applyBoardTagFilter() {
   const active = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
-  const matchingPads = active ? matchingPadsForCurrentFilter() : [];
-  const matchingSet = new Set(matchingPads);
+  const invert = active && state.invertSelection;
+  const selectedPads = selectedPadsForCurrentFilter();
+  const selectedSet = new Set(selectedPads);
   state.pads.forEach((pad) => {
-    pad.node.classList.toggle("is-tag-match", active ? matchingSet.has(pad) : false);
-    pad.node.classList.toggle("is-tag-dimmed", active ? !matchingSet.has(pad) : false);
+    pad.node.classList.toggle("is-tag-match", active ? selectedSet.has(pad) : false);
+    pad.node.classList.toggle("is-tag-dimmed", active ? !selectedSet.has(pad) : false);
   });
   if (!active) {
     // Pas de message « Mode … » (redondant avec les boutons de mode).
+    state.invertSelection = false;
   } else {
     const labels = activeFilterLabels();
     const sep = state.tagFilterLogic === "or" ? " OU " : " ET ";
     const labelStr = labels.join(sep);
-    if (!matchingPads.length) {
-      setStatus(`Aucun pad avec ${labelStr}`, "warning");
+    if (!selectedPads.length) {
+      setStatus(invert ? `Tous les pads ont ${labelStr}` : `Aucun pad avec ${labelStr}`, "warning");
     } else {
-      const n = matchingPads.length;
-      setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} avec ${labelStr}`);
+      const n = selectedPads.length;
+      setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} ${invert ? "sans" : "avec"} ${labelStr}`);
     }
   }
   if (els.bulkEditPads) {
-    els.bulkEditPads.disabled = !active || matchingPads.length === 0;
+    els.bulkEditPads.disabled = !active || selectedPads.length === 0;
   }
   syncFilterCompact();
   syncCompactToggleVisibility();
@@ -3342,8 +3345,23 @@ function matchingPadsForCurrentFilter() {
   return result;
 }
 
+// Pads réellement sélectionnés = ceux qui matchent le filtre, ou l'inverse quand
+// l'inversion de sélection est active (sélectionne les pads NON sélectionnés).
+function selectedPadsForCurrentFilter() {
+  const active = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
+  if (!active) return [];
+  const matching = matchingPadsForCurrentFilter();
+  if (!state.invertSelection) return matching;
+  const set = new Set(matching);
+  return state.pads.filter((pad) => !set.has(pad));
+}
+
 function syncFilterCompact() {
-  const active = state.filterCompact && state.boardEditMode;
+  // Aucun pad sélectionné → « masquer les pads non sélectionnés » n'a pas de sens :
+  // on force l'état neutre et on désactive le bouton (studio comme garage).
+  const selectedCount = selectedPadsForCurrentFilter().length;
+  if (selectedCount === 0 && state.filterCompact) state.filterCompact = false;
+  const active = state.filterCompact && !state.stageMode;
   document.body.classList.toggle("filter-compact", active);
   if (els.filterCompactCount) {
     const hiddenCount = active
@@ -3355,6 +3373,7 @@ function syncFilterCompact() {
     els.filterCompactCount.classList.toggle("is-empty", hiddenCount === 0);
   }
   if (els.filterCompactToggle) {
+    els.filterCompactToggle.disabled = selectedCount === 0;
     els.filterCompactToggle.classList.toggle("is-active", active);
     els.filterCompactToggle.setAttribute(
       "aria-label",
@@ -3459,6 +3478,13 @@ function refreshTagFilterChips() {
     els.tagFilterLogicGroup.querySelectorAll(".tag-filter-logic-btn").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.logic === state.tagFilterLogic);
     });
+  }
+
+  // Invert selection button (actif quand l'inversion est appliquée, inutile sans filtre)
+  const invertBtn = document.getElementById("filterInvertBtn");
+  if (invertBtn) {
+    invertBtn.classList.toggle("is-active", state.invertSelection && hasActiveFilters);
+    invertBtn.disabled = !hasActiveFilters;
   }
 
   // Tous button greyed state
@@ -3742,7 +3768,7 @@ async function prepareBulkAutoTrim() {
 function openBulkEditDialog() {
   const singleStructural = state.activeStructuralFilters.length === 1 && !state.activeTagFilters.length
     ? state.activeStructuralFilters[0] : null;
-  let pads = matchingPadsForCurrentFilter();
+  let pads = selectedPadsForCurrentFilter();
   if (!pads.length && !state.activeStructuralFilters.length && !state.activeTagFilters.length) {
     pads = padsForBoardTagSelection();
   }
@@ -13995,6 +14021,12 @@ async function init() {
       }
       return;
     }
+    if (e.target.closest?.("#filterInvertBtn")) {
+      state.invertSelection = !state.invertSelection;
+      refreshTagFilterChips();
+      applyBoardTagFilter();
+      return;
+    }
     const logicBtn = e.target.closest?.(".tag-filter-logic-btn");
     if (logicBtn?.dataset.logic) {
       state.tagFilterLogic = logicBtn.dataset.logic;
@@ -14021,6 +14053,7 @@ async function init() {
   els.filterTousBtn?.addEventListener("click", () => {
     state.activeStructuralFilters = [];
     state.activeTagFilters = [];
+    state.invertSelection = false;
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
@@ -14029,6 +14062,7 @@ async function init() {
       // Tout afficher : désactiver le compact ET réinitialiser le filtre
       state.activeStructuralFilters = [];
       state.activeTagFilters = [];
+      state.invertSelection = false;
       state.filterCompact = false;
       refreshTagFilterChips();
       applyBoardTagFilter();
@@ -14200,7 +14234,15 @@ async function init() {
   els.bulkEditDialog?.addEventListener("click", (event) => {
     if (event.target === els.bulkEditDialog) els.bulkEditDialog.close();
   });
-  els.bulkEditDialog?.addEventListener("close", resetBulkAutoTrimUi);
+  els.bulkEditDialog?.addEventListener("close", () => {
+    resetBulkAutoTrimUi();
+    // Sortie de modif groupée : « masquer les pads non sélectionnés » revient au neutre.
+    if (state.filterCompact) {
+      state.filterCompact = false;
+      syncFilterCompact();
+      syncCompactToggleVisibility();
+    }
+  });
   els.bulkTemplatePad?.addEventListener("change", () => {
     const pad = state.bulkEditPads.find((item) => String(item.index) === els.bulkTemplatePad.value);
     syncBulkTemplateFields(pad);

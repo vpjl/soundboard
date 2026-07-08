@@ -1950,6 +1950,7 @@ body.filter-compact .pad.is-tag-dimmed {
 .tag-filter-chips-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 5px;
   flex-shrink: 0;
 }
@@ -1986,6 +1987,34 @@ body.filter-compact .pad.is-tag-dimmed {
   color: #000;
 }
 
+/* Bouton « inverser la sélection » : à côté de OU/ET, autonome (icône). */
+.filter-invert-btn {
+  display: inline-grid;
+  place-items: center;
+  padding: 3px 6px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 6px;
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+}
+
+.filter-invert-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.filter-invert-btn.is-active {
+  background: var(--accent, #f0b429);
+  color: #000;
+  border-color: var(--accent, #f0b429);
+}
+
+.filter-invert-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* bouton × effacer sélection */
 .filter-tous-btn {
   width: 28px;
@@ -2009,7 +2038,7 @@ body.filter-compact .pad.is-tag-dimmed {
 }
 
 .filter-compact-count.is-empty {
-  opacity: 0.38;
+  display: none;
 }
 
 .filter-compact-toggle {
@@ -2036,9 +2065,9 @@ body.filter-compact .pad.is-tag-dimmed {
   border-color: var(--accent, #f0b429);
 }
 
-/* compact toggle + count : garage uniquement */
-body:not(.board-edit-mode) .filter-compact-toggle,
-body:not(.board-edit-mode) .filter-compact-count {
+/* compact toggle + count : studio ET garage (masqués seulement en scène) */
+body.stage-mode .filter-compact-toggle,
+body.stage-mode .filter-compact-count {
   display: none;
 }
 
