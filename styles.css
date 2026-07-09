@@ -7140,6 +7140,20 @@ body.board-edit-mode .pad.is-editing .pad-note-button {
   z-index: 7;
 }
 
+/* Pense-bête masqué en garage (édition des pads). */
+body.board-edit-mode .pad-note-button {
+  display: none !important;
+}
+
+/* Pad vide en garage : « dupliquer » et « copier/déplacer » désactivés (rien à copier). */
+body.board-edit-mode .pad.is-empty [data-action="duplicate-pad"],
+body.board-edit-mode .pad.is-empty [data-action="transfer-pad"] {
+  opacity: 0.38;
+  filter: grayscale(0.45);
+  pointer-events: none;
+  cursor: default;
+}
+
 body.board-edit-mode .pad.is-editing .visual-toggle-button {
   display: none;
 }
