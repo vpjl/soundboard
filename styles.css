@@ -894,17 +894,28 @@ body.board-edit-mode .board-manage-section-toggle {
 
 .board-version-row {
   display: grid;
-  grid-template-columns: repeat(4, 42px);
+  grid-template-columns: 42px 42px 42px 42px 1fr 42px;
   gap: 8px;
   align-items: center;
 }
 
-#versionSelect {
-  grid-column: 1 / 4;
+/* ligne 1 : sauvegarder · restaurer · renommer · archiver (cols 1-4) */
+#saveVersion { grid-column: 1; grid-row: 1; }
+#restoreVersion { grid-column: 2; grid-row: 1; }
+#renameVersion { grid-column: 3; grid-row: 1; }
+#archiveVersion { grid-column: 4; grid-row: 1; }
+
+/* corbeille à droite de « archiver », séparée par l'espace flexible (colonne 1fr) */
+#deleteVersion {
+  grid-column: 6;
+  grid-row: 1;
 }
 
-#deleteVersion {
-  grid-column: 4;
+/* menu versions sur sa propre ligne, pleine largeur disponible */
+#versionSelect {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
 }
 
 .board-select,
@@ -5649,7 +5660,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: repeat(4, 30px);
+    grid-template-columns: 30px 30px 30px 30px 1fr 30px;
   }
 
   .board-layout-controls {
@@ -5818,7 +5829,7 @@ body.stage-mode .pad-alerts {
   }
 
   .board-version-row {
-    grid-template-columns: repeat(4, 30px);
+    grid-template-columns: 30px 30px 30px 30px 1fr 30px;
   }
 
   .board-layout-controls {

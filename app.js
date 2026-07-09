@@ -6452,7 +6452,8 @@ async function deleteSelectedBoardVersion() {
     return;
   }
   const label = String(snapshot.label || "").trim() || formatVersionLabel(snapshot.savedAt);
-  if (!window.confirm(`Supprimer la version "${label}" ?`)) return;
+  const kind = snapshot.archived ? "version archivée" : "version";
+  if (!window.confirm(`Supprimer la ${kind} "${label}" ?`)) return;
   const nextHistory = history.filter((item) => item.id !== snapshot.id);
   await dbSet(boardHistoryKey(board.id), nextHistory);
   await refreshVersionOptions(nextHistory[0]?.id || "");
