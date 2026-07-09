@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=444">
+    <link rel="stylesheet" href="styles.css?v=445">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -364,6 +364,12 @@
                 <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
+            <button id="resetCuePosition" class="icon-button cue-reset-button" type="button" aria-label="Revenir au début des cues">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
+              </svg>
+            </button>
             <button id="cueRun" class="icon-button cue-run-button" type="button" aria-label="Lancer le cue courant">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
@@ -371,14 +377,8 @@
             </button>
             <button id="cueNext" class="icon-button cue-next-button" type="button" aria-label="Cue suivante">
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
-                <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button id="resetCuePosition" class="icon-button cue-reset-button" type="button" aria-label="Revenir au début des cues">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
+                <path d="M4 5v14l8-7-8-7Z" fill="currentColor"/>
+                <path d="M13 5v14l8-7-8-7Z" fill="currentColor"/>
               </svg>
             </button>
             <span id="cueStatus" class="cue-status">Pas de cue</span>
@@ -2296,7 +2296,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=444"></script>
+    <script src="app.js?v=445"></script>
 
 
   </body>

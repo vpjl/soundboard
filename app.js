@@ -9294,6 +9294,13 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     // Stop global immédiat avant d'entrer en scène (si un son est en lecture).
     state.pads.forEach((pad) => { if (isPadPlaying(pad)) stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); });
     state.stageMode = true;
+    // Entrée en scène : repositionner les cues au début (cue 1 / index 0).
+    const cueEntryBoard = currentBoard();
+    if (cueEntryBoard) {
+      cueEntryBoard.cueIndex = 0;
+      saveBoards();
+      syncCueControls();
+    }
     syncBoardModeSelector();
     syncStagePending();
     const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = await prepareBoardForStage(options);

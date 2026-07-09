@@ -2636,6 +2636,13 @@ select:disabled,
   color: var(--muted);
 }
 
+/* Bloc cues/crossfade : conserver la bordure normale des boutons désactivés
+   (sinon elle quasi-disparaît et le bloc paraît désorganisé). */
+.cue-live-row .icon-button:disabled,
+.xfade-live-row .icon-button:disabled {
+  border-color: var(--color_ui_border);
+}
+
 .pad-time {
   position: absolute;
   grid-area: auto !important; /* ne pas être placé dans la cellule "time" de la grille (sinon left:50% = centre de cette cellule, à droite) */
