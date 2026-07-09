@@ -7479,7 +7479,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 body.board-edit-mode .pad.is-editing {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  /* Comme en basic/custom : 2 colonnes larges + 1 colonne étroite (38px) où
+     tombent « déplacer » (drag, order 42) et « supprimer » (delete, order 45)
+     → 4 boutons identiques + 2 boutons carrés plus petits, pour tous les skins. */
+  grid-template-columns: 1fr 1fr 38px !important;
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing {
