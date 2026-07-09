@@ -9295,6 +9295,13 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     // Stop global immédiat avant d'entrer en scène (si un son est en lecture).
     state.pads.forEach((pad) => { if (isPadPlaying(pad)) stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); });
     state.stageMode = true;
+    // Entrée en scène : désélectionner les pads (aucune sélection/filtre actif).
+    state.activeStructuralFilters = [];
+    state.activeTagFilters = [];
+    state.invertSelection = false;
+    state.filterCompact = false;
+    refreshTagFilterChips();
+    applyBoardTagFilter();
     // Entrée en scène : repositionner les cues au début (cue 1 / index 0).
     const cueEntryBoard = currentBoard();
     if (cueEntryBoard) {
