@@ -1534,14 +1534,21 @@ input[type="range"] {
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 90ms ease;
 }
 
-/* Simple hover: emphasise the border (no layout shift via inset shadow) */
+/* Hover cohérent et visible : bordure accentuée + léger éclaircissement (overlay
+   inset, sans décalage de layout). Étendu aux boutons qui n'y réagissaient pas
+   (pense-bête, boutons de mode, chips/tags et logique de la sélection). */
 .danger-button:hover:not(:disabled),
 .small-button:hover:not(:disabled),
 .control-group button:hover:not(:disabled),
 .drag-handle:hover:not(:disabled),
-.icon-button:hover:not(:disabled) {
+.icon-button:hover:not(:disabled),
+.pad-note-button:hover:not(:disabled),
+.board-mode-button:hover:not(:disabled),
+.tag-filter-chip:hover,
+.tag-filter-logic-btn:hover:not(:disabled),
+.filter-invert-btn:hover:not(:disabled) {
   border-color: var(--color_ui_text_muted);
-  box-shadow: inset 0 0 0 1px var(--color_ui_border);
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--color_ui_text) 11%, transparent);
 }
 
 button:active,
@@ -7561,7 +7568,6 @@ body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"] 
 
 body.board-edit-mode .pad.is-editing .pad-audio-button {
   grid-column: 2;
-  border-color: var(--color_pad_button_border);
   color: var(--color_pad_button_text);
   background: var(--color_pad_button_background);
 }
