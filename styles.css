@@ -4452,6 +4452,70 @@ body[data-skin="contrast"] .color-field {
   text-transform: uppercase;
 }
 
+/* Volume / Pan : curseur + valeur chiffrée à droite */
+.bulk-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bulk-range-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+.bulk-range-value {
+  min-width: 3.6ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color_ui_text_muted);
+  font-size: 0.82rem;
+}
+
+/* Reverb : les 3 radios (aucun / global / pad) sur une même ligne */
+.bulk-reverb-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+}
+.bulk-reverb-modes label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+/* Tags en chips (même principe que le pad) : chips + bouton [+] révélant l'input */
+.bulk-tag-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.bulk-tag-field .pad-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.bulk-tag-field .tags-add-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 6px;
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.bulk-tag-field input {
+  display: none;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.bulk-tag-field.tags-input-open input {
+  display: inline-block;
+}
+
 .bulk-edit-grid input[type="text"],
 .bulk-edit-grid select {
   width: 100%;

@@ -455,6 +455,10 @@ const els = {
   bulkPan: document.querySelector("#bulkPan"),
   bulkApplyTags: document.querySelector("#bulkApplyTags"),
   bulkTags: document.querySelector("#bulkTags"),
+  bulkVolumeValue: document.querySelector("#bulkVolumeValue"),
+  bulkPanValue: document.querySelector("#bulkPanValue"),
+  bulkTagsChips: document.querySelector("#bulkTagsChips"),
+  bulkTagsAdd: document.querySelector("#bulkTagsAdd"),
   bulkApplyVisual: document.querySelector("#bulkApplyVisual"),
   bulkVisualModeBtns: [...document.querySelectorAll("[data-bulk-visual-mode]")],
   bulkVisualPanels: [...document.querySelectorAll("[data-bulk-visual-panel]")],
@@ -3551,9 +3555,13 @@ function isEmptyPad(pad) {
 
 function syncBulkTemplateFields(pad) {
   if (!pad) return;
+  // Référence des valeurs initiales : sert à restaurer un réglage quand on décoche sa case.
+  state.bulkTemplatePadObj = pad;
   if (els.bulkVolume) els.bulkVolume.value = String(pad.volume);
   if (els.bulkPan) els.bulkPan.value = String(pad.panValue);
   if (els.bulkTags) els.bulkTags.value = pad.tags;
+  renderBulkTagChips();
+  updateBulkRangeValues();
   setBulkColorValue(pad.color || "");
   if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
   if (els.bulkFadeOutEnabled) els.bulkFadeOutEnabled.checked = pad.fadeOutEnabled;
@@ -3765,6 +3773,118 @@ async function prepareBulkAutoTrim() {
   }
 }
 
+// Le bouton « Appliquer » n'est actif que si au moins un champ est coché (une
+// modification à appliquer). Sinon désactivé (à l'ouverture notamment).
+function syncBulkApplyState() {
+  const anyChecked = [
+    els.bulkApplyVolume, els.bulkApplyPan, els.bulkApplyTags, els.bulkApplyVisual,
+    els.bulkApplyLiveFade, els.bulkApplyAudioFlags, els.bulkApplyAutoTrim,
+    els.bulkApplyReverb, els.bulkApplyCrossfade,
+  ].some((cb) => cb?.checked);
+  if (els.applyBulkEdit) els.applyBulkEdit.disabled = !anyChecked;
+}
+
+// Valeur chiffrée du volume (%) et du pan (−100…100, 0 = centre).
+function updateBulkRangeValues() {
+  if (els.bulkVolumeValue && els.bulkVolume) {
+    els.bulkVolumeValue.textContent = `${Math.round((Number(els.bulkVolume.value) || 0) * 100)}%`;
+  }
+  if (els.bulkPanValue && els.bulkPan) {
+    els.bulkPanValue.textContent = String(Math.round((Number(els.bulkPan.value) || 0) * 100));
+  }
+}
+
+// Tags en chips (même principe que le pad) : le champ #bulkTags porte la chaîne
+// « a, b, c », les chips en sont le rendu (avec × pour retirer).
+function renderBulkTagChips() {
+  const chips = els.bulkTagsChips;
+  if (!chips || !els.bulkTags) return;
+  chips.innerHTML = "";
+  const list = [...new Set(
+    els.bulkTags.value.split(/[#,;]+|\s+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
+  )];
+  list.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "pad-tag-chip";
+    chip.textContent = tag;
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "pad-tag-chip-remove";
+    rm.setAttribute("aria-label", `Supprimer le tag ${tag}`);
+    rm.textContent = "×";
+    rm.addEventListener("click", (e) => {
+      e.stopPropagation();
+      els.bulkTags.value = list.filter((t) => t !== tag).join(", ");
+      renderBulkTagChips();
+      markBulkFieldChanged(els.bulkApplyTags);
+    });
+    chip.append(rm);
+    chips.append(chip);
+  });
+}
+
+// Modifier un réglage coche automatiquement sa case « appliquer ».
+function markBulkFieldChanged(applyCheckbox) {
+  if (applyCheckbox && !applyCheckbox.checked) applyCheckbox.checked = true;
+  syncBulkApplyState();
+}
+
+// Groupes « case ↔ contrôles » : chaque groupe sait restaurer ses contrôles à la
+// valeur initiale (celle du pad modèle) quand on décoche sa case.
+function bulkFieldGroups() {
+  const restoreReverb = (pad) => {
+    if (els.bulkReverbNone) els.bulkReverbNone.checked = pad.reverbMode === "none";
+    if (els.bulkReverbGlobal) els.bulkReverbGlobal.checked = pad.reverbMode !== "none" && pad.reverbMode !== "pad";
+    if (els.bulkReverbPad) els.bulkReverbPad.checked = pad.reverbMode === "pad";
+    if (els.bulkReverbPreset) els.bulkReverbPreset.value = pad.reverbPreset === "none" ? "hall" : pad.reverbPreset;
+    if (els.bulkReverbWet) els.bulkReverbWet.value = String(pad.reverbWet ?? 0.5);
+  };
+  return [
+    { apply: els.bulkApplyVolume, controls: [els.bulkVolume],
+      restore: (pad) => { if (els.bulkVolume) els.bulkVolume.value = String(pad.volume); updateBulkRangeValues(); } },
+    { apply: els.bulkApplyPan, controls: [els.bulkPan],
+      restore: (pad) => { if (els.bulkPan) els.bulkPan.value = String(pad.panValue); updateBulkRangeValues(); } },
+    { apply: els.bulkApplyTags, controls: [els.bulkTags],
+      restore: (pad) => { if (els.bulkTags) els.bulkTags.value = pad.tags; renderBulkTagChips(); } },
+    { apply: els.bulkApplyLiveFade, controls: [els.bulkFadeInEnabled, els.bulkFadeOutEnabled],
+      restore: (pad) => {
+        if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
+        if (els.bulkFadeOutEnabled) els.bulkFadeOutEnabled.checked = pad.fadeOutEnabled;
+      } },
+    { apply: els.bulkApplyAudioFlags, controls: [els.bulkLoop, els.bulkDuck],
+      restore: (pad) => {
+        if (els.bulkLoop) els.bulkLoop.checked = pad.loop;
+        if (els.bulkDuck) els.bulkDuck.checked = pad.duckTrigger;
+      } },
+    { apply: els.bulkApplyReverb,
+      controls: [els.bulkReverbNone, els.bulkReverbGlobal, els.bulkReverbPad, els.bulkReverbPreset, els.bulkReverbWet],
+      restore: restoreReverb },
+    { apply: els.bulkApplyCrossfade,
+      controls: [els.bulkStartStopMode, els.bulkStartStopTarget, els.bulkEndStartMode, els.bulkEndStartTarget],
+      restore: (pad) => fillBulkCrossfadeControls(pad) },
+    { apply: els.bulkApplyVisual, controls: [],
+      restore: (pad) => setBulkColorValue(pad.color || "") },
+  ];
+}
+
+function bindBulkFieldGroups() {
+  bulkFieldGroups().forEach((group) => {
+    group.controls.filter(Boolean).forEach((control) => {
+      const evt = control.type === "range" || control.type === "text" ? "input" : "change";
+      control.addEventListener(evt, () => markBulkFieldChanged(group.apply));
+    });
+    group.apply?.addEventListener("change", () => {
+      // Décocher = revenir à la valeur initiale du réglage.
+      if (!group.apply.checked && state.bulkTemplatePadObj) group.restore(state.bulkTemplatePadObj);
+      syncBulkApplyState();
+    });
+  });
+  // Aspect du pad : choisir une couleur coche la case correspondante.
+  els.bulkColorButtons?.forEach((btn) => {
+    btn.addEventListener("click", () => markBulkFieldChanged(els.bulkApplyVisual));
+  });
+}
+
 function openBulkEditDialog() {
   const singleStructural = state.activeStructuralFilters.length === 1 && !state.activeTagFilters.length
     ? state.activeStructuralFilters[0] : null;
@@ -3820,6 +3940,7 @@ function openBulkEditDialog() {
   }
 
   syncBulkTemplateFields(pads[0]);
+  syncBulkApplyState();
   if (els.bulkEditDialog?.showModal) {
     els.bulkEditDialog.showModal();
     if (isAspectPreset && state.bulkVisualMode === "image") els.bulkImageInput?.click();
@@ -14246,6 +14367,21 @@ async function init() {
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
   els.cancelBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
+  // Activation du bouton « Appliquer » dès qu'un champ est coché.
+  els.bulkEditDialog?.addEventListener("change", syncBulkApplyState);
+  // Valeur chiffrée volume/pan qui suit les curseurs.
+  els.bulkVolume?.addEventListener("input", updateBulkRangeValues);
+  els.bulkPan?.addEventListener("input", updateBulkRangeValues);
+  // Tags en chips (comme le pad) : le champ pilote les chips, le bouton + le révèle.
+  els.bulkTags?.addEventListener("input", renderBulkTagChips);
+  els.bulkTagsAdd?.addEventListener("click", () => {
+    const field = els.bulkTagsAdd.closest(".tag-field");
+    const open = field?.classList.toggle("tags-input-open");
+    els.bulkTagsAdd.setAttribute("aria-expanded", String(Boolean(open)));
+    if (open) els.bulkTags?.focus();
+  });
+  // Modifier un réglage coche sa case ; décocher la case restaure la valeur initiale.
+  bindBulkFieldGroups();
   els.bulkEditDialog?.addEventListener("click", (event) => {
     if (event.target === els.bulkEditDialog) els.bulkEditDialog.close();
   });
