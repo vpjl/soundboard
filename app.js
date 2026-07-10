@@ -12038,7 +12038,7 @@ function setAudioSectionHidden(selector, hidden) {
 }
 
 function syncAudioDialogMediaAvailability(pad) {
-  const isVideo = Boolean(pad?.videoName);
+  const isVideo = padType(pad) === "video";
   const isText = padType(pad) === "text";
   els.audioDialog?.classList.toggle("is-video-pad", isVideo);
   els.audioDialog?.classList.toggle("is-text-pad", isText);
@@ -12051,6 +12051,12 @@ function syncAudioDialogMediaAvailability(pad) {
   setDisabledField(els.audioNormalize, isVideo || isText);
   setDisabledField(els.audioMono, isVideo || isText || Boolean(pad?.buffer?.numberOfChannels === 1));
   setDisabledField(els.audioReverse, isVideo || isText);
+  // Vidéo : le cadre waveform, le trim auto, le bouton lire et l'éditeur audio sont
+  // MASQUÉS via CSS (.audio-dialog.is-video-pad …, classe posée juste au-dessus) — ces
+  // outils agissent sur un buffer audio, absent en vidéo. Le CSS gère le masquage car
+  // .icon-button{display:grid} / .audio-section{display:grid} et le style inline du
+  // conteneur battent l'attribut [hidden]. Le reste du dialogue (volume, mute, loop,
+  // ducking, fades, crossfade…) reste valable pour la vidéo.
   setAudioSectionHidden('[aria-label="Waveform et trim"]', false);
   setAudioSectionHidden('[aria-label="Normalisation"]', isText);
   setAudioSectionHidden('[aria-label="Pitch"]', isText);

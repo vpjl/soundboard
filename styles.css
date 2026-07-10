@@ -4923,6 +4923,16 @@ body[data-skin="contrast"] .color-field {
   display: none !important;
 }
 
+/* Vidéo : masquer le cadre waveform et les outils audio (trim auto, lire, éditeur) dans
+   « Réglages du pad » — ces outils agissent sur un buffer audio, absent en vidéo.
+   !important pour battre .audio-section{display:grid}, .icon-button{display:grid} et le
+   style inline display:inline-flex du conteneur transport (trim auto + lire). */
+.audio-dialog.is-video-pad [aria-label="Waveform et trim"],
+.audio-dialog.is-video-pad .audio-head-transport,
+.audio-dialog.is-video-pad .audio-head-regions {
+  display: none !important;
+}
+
 .audio-text-editor-frame {
   display: none;
 }
