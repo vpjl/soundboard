@@ -2583,8 +2583,11 @@ function activeFilterLabels() {
 }
 
 function applyBoardTagFilter() {
-  const active = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
-  const invert = active && state.invertSelection;
+  const hasFilter = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
+  const invert = state.invertSelection;
+  // La sélection s'applique dès qu'il y a un filtre OU l'inversion (qui, sans
+  // filtre, sélectionne tous les pads).
+  const active = hasFilter || invert;
   const selectedPads = selectedPadsForCurrentFilter();
   const selectedSet = new Set(selectedPads);
   state.pads.forEach((pad) => {
@@ -2593,7 +2596,10 @@ function applyBoardTagFilter() {
   });
   if (!active) {
     // Pas de message « Mode … » (redondant avec les boutons de mode).
-    state.invertSelection = false;
+  } else if (!hasFilter) {
+    // Inversion sans filtre = tous les pads sélectionnés.
+    const n = selectedPads.length;
+    setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} sélectionné${n > 1 ? "s" : ""}`);
   } else {
     const labels = activeFilterLabels();
     const sep = state.tagFilterLogic === "or" ? " OU " : " ET ";
@@ -3352,10 +3358,10 @@ function matchingPadsForCurrentFilter() {
 // Pads réellement sélectionnés = ceux qui matchent le filtre, ou l'inverse quand
 // l'inversion de sélection est active (sélectionne les pads NON sélectionnés).
 function selectedPadsForCurrentFilter() {
-  const active = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
-  if (!active) return [];
   const matching = matchingPadsForCurrentFilter();
+  // Sans inversion : les pads du filtre (vide si aucun filtre).
   if (!state.invertSelection) return matching;
+  // Avec inversion : le complément — donc TOUS les pads s'il n'y a pas de filtre.
   const set = new Set(matching);
   return state.pads.filter((pad) => !set.has(pad));
 }
@@ -3484,11 +3490,11 @@ function refreshTagFilterChips() {
     });
   }
 
-  // Invert selection button (actif quand l'inversion est appliquée, inutile sans filtre)
+  // Bouton inverser la sélection : toujours actif (sans filtre, il sélectionne tout).
   const invertBtn = document.getElementById("filterInvertBtn");
   if (invertBtn) {
-    invertBtn.classList.toggle("is-active", state.invertSelection && hasActiveFilters);
-    invertBtn.disabled = !hasActiveFilters;
+    invertBtn.classList.toggle("is-active", state.invertSelection);
+    invertBtn.disabled = false;
   }
 
   // Tous button greyed state
