@@ -9607,7 +9607,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .audio-editor-dialog { position: relative; }
 .audio-editor-dialog::backdrop { background: rgba(0,0,0,.6); }
 .ae-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; font-weight: 700; font-size: 1.05rem; }
-.ae-help-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #2c313c; background: #14171e; color: #9aa1ad; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.ae-help-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color_ui_help_border); background: var(--color_ui_help_background); color: var(--color_ui_help); cursor: pointer; display: grid; place-items: center; padding: 0; }
 .ae-help-btn svg { width: 16px; height: 16px; display: block; }
 .ae-help-btn:hover { border-color: #3a9bff; color: #cfe2ff; }
 .ae-help-panel { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(2,4,8,.78); border-radius: 10px; z-index: 5; }
@@ -9669,8 +9669,14 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-rg-dots .no { background: var(--rg, #ff5b5b); color: #1a0707; }
 .ae-transport { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 16px 0 6px; }
 .ae-tp { width: 52px; height: 44px; border-radius: 12px; border: 1px solid #2c313c; background: #14171e; color: #d6dae2; display: grid; place-items: center; cursor: pointer; }
-.ae-tp.play { width: 66px; height: 66px; border-radius: 50%; background: #1b1f29; }
+.ae-tp svg { width: 22px; height: 22px; }
+/* Bouton lire/pause : même taille/forme que « Début » (.ae-tp), fond légèrement distinct. */
+.ae-tp.play { background: #1b1f29; }
 .ae-tp.play.is-playing { background: #2a3550; }
+/* Icône : triangle à l'arrêt, [ïï] pendant la lecture (classe is-playing posée par wavesurfer). */
+.ae-tp.play .ae-icon-pause { display: none; }
+.ae-tp.play.is-playing .ae-icon-play { display: none; }
+.ae-tp.play.is-playing .ae-icon-pause { display: block; }
 .ae-tp svg { width: 22px; height: 22px; }
 .ae-tp.play svg { width: 26px; height: 26px; }
 .ae-hint { color: #6e7682; font-size: .78rem; margin: 6px 2px 0; }
