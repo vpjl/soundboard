@@ -1403,6 +1403,7 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
 
 .master-option-badges {
   grid-area: badges;
+  grid-column: 1 / -1; /* étiquettes d'options alignées au bord gauche du bloc (studio + scène) */
   align-self: end;
   flex-wrap: nowrap;
   justify-content: flex-start;
@@ -3760,6 +3761,14 @@ body.no-cue-output .pad-live-row .pad-cue-button,
 #stopGroup svg,
 #cueStopAll svg {
   color: var(--color_status_stop);
+}
+
+/* Icône plus grande dans les boutons stop global / stop groupé, sans changer la
+   taille des boutons (% de --master-stop-size → suit studio, scène et mobile). */
+#stopAll svg,
+#stopGroup svg {
+  width: 58%;
+  height: 58%;
 }
 
 .pad-live-row .pad-mute-button.is-active {
@@ -7747,6 +7756,18 @@ body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
   position: absolute;
   right: 8px;
   bottom: 8px;
+}
+
+/* Studio : bouton « audio master » collé à gauche du bouton aide (coin bas-droite),
+   ce qui libère aussi le bord gauche pour les étiquettes d'options. En scène il est
+   masqué et en garage le strip entier est caché, donc on ne cible que le studio. */
+body:not(.stage-mode):not(.board-edit-mode) .master-audio-button {
+  grid-column: auto;
+  grid-row: auto;
+  position: absolute;
+  right: 58px; /* 8 (aide) + 42 (largeur aide) + 8 (écart) */
+  bottom: 8px;
+  z-index: 3;
 }
 
 .xfade-live-row {
