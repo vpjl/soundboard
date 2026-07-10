@@ -4408,6 +4408,12 @@ async function addBoard() {
   saveBoards();
   renderBoardOptions();
   await renderPads();
+  // Rester en garage sur le nouveau board, section GESTION ouverte, nom en édition
+  // (renommer est la première chose à faire).
+  setBoardPadEditing(true);
+  state.boardManageSectionOpen = true;
+  if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = false;
+  if (els.boardManageSectionToggle) els.boardManageSectionToggle.setAttribute("aria-expanded", "true");
   setBoardEditing(true);
 }
 
