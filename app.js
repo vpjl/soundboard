@@ -802,6 +802,9 @@ function bindEscapeClose(dialog, closeAction = null) {
 
 function closeOpenDialogFromEscape() {
   const entries = [
+    // L'éditeur audio est au premier plan (ouvert par-dessus le dialog audio) :
+    // Esc doit le fermer AVANT le dialog audio en arrière-plan.
+    { dialog: els.audioEditorDialog, action: () => aeDestroy() },
     { dialog: els.shortcutDialog, action: () => {
       restoreShortcutDraft();
       state.shortcutDraft = null;
@@ -11143,17 +11146,25 @@ function aeEnsureTrimEls() {
   return aeTrimEls;
 }
 
+// Bornes du trim (in/out) exprimées en temps d'origine — cohérentes avec l'overlay
+// grisé affiché. Sert à la fois à dessiner l'overlay et à borner la lecture.
+function aeTrimBoundsOrig() {
+  if (!aeWS || !aePad) return null;
+  const total = aeWS.getDuration() || 0;
+  if (!total) return null;
+  const dur = aePad.duration || total; // durée effective
+  const tIn = trimStart(aePad);
+  const tOut = aePad.trimEnd ? Math.min(trimEnd(aePad), dur) : dur;
+  return { total, origIn: aeEffToOrig(aePad, tIn), origOut: aeEffToOrig(aePad, tOut) };
+}
+
 // Matérialise dans l'éditeur le trim (in/out) réglé dans la fenêtre Réglages.
 function aeUpdateTrimOverlay() {
   if (!aeWS || !aePad) return;
   const o = aeEnsureTrimEls(); if (!o) return;
-  const total = aeWS.getDuration() || 0;
-  const dur = aePad.duration || total; // durée effective
-  const tIn = trimStart(aePad);
-  const tOut = aePad.trimEnd ? Math.min(trimEnd(aePad), dur) : dur;
-  if (!total) { o.root.hidden = true; return; }
-  const origIn = aeEffToOrig(aePad, tIn);
-  const origOut = aeEffToOrig(aePad, tOut);
+  const b = aeTrimBoundsOrig();
+  if (!b) { o.root.hidden = true; return; }
+  const { total, origIn, origOut } = b;
   let wrapper; let scrollEl; let contentW; let scrollLeft = 0; let viewW;
   try {
     wrapper = aeWS.getWrapper();
@@ -11179,6 +11190,19 @@ function aeUpdateTrimOverlay() {
 // Aperçu fidèle : pendant la lecture, saute les régions "cut" et coupe le son sur les "silence".
 function aeSyncPreview(t) {
   if (!aeWS || !aeRegions) return;
+  // Respecter le trim : la lecture ne joue que la région conservée [in, out].
+  if (aeWS.isPlaying?.()) {
+    const b = aeTrimBoundsOrig();
+    if (b) {
+      if (t >= b.origOut - 0.005) { // fin du trim → on arrête et on revient au début du trim
+        aeWS.pause();
+        aeWS.setTime(Math.max(0, b.origIn));
+        aeEl("aePlay")?.classList.remove("is-playing");
+        return;
+      }
+      if (t < b.origIn - 0.005) { aeWS.setTime(b.origIn); return; } // avant le trim → on saute au début
+    }
+  }
   let inSilence = false;
   for (const r of aeRegions.getRegions()) {
     if (t >= r.start && t < r.end) {
@@ -14807,8 +14831,19 @@ async function init() {
   aeEl("aeAddSilence")?.addEventListener("click", () => aeAdd("silence"));
   aeEl("aeReset")?.addEventListener("click", aeReset);
   aeEl("aeUndo")?.addEventListener("click", aeUndo);
-  aeEl("aePlay")?.addEventListener("click", () => aeWS?.playPause());
-  aeEl("aeToStart")?.addEventListener("click", () => aeWS?.seekTo(0));
+  aeEl("aePlay")?.addEventListener("click", () => {
+    if (!aeWS) return;
+    if (!aeWS.isPlaying?.()) { // au lancement, si le curseur est hors du trim, démarrer au début du trim
+      const b = aeTrimBoundsOrig();
+      const t = aeWS.getCurrentTime?.() || 0;
+      if (b && (t < b.origIn - 0.005 || t >= b.origOut - 0.005)) aeWS.setTime(Math.max(0, b.origIn));
+    }
+    aeWS.playPause();
+  });
+  aeEl("aeToStart")?.addEventListener("click", () => {
+    const b = aeTrimBoundsOrig(); // « revenir au début » = début de la région conservée
+    aeWS?.setTime(b ? Math.max(0, b.origIn) : 0);
+  });
   let aePx = 1;
   aeEl("aeZoomIn")?.addEventListener("click", () => { aePx = Math.min(600, aePx * 1.6); aeWS?.zoom(aePx); });
   aeEl("aeZoomOut")?.addEventListener("click", () => { aePx = Math.max(1, aePx / 1.6); aeWS?.zoom(aePx); });

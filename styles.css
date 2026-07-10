@@ -9609,12 +9609,10 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; font-weight: 700; font-size: 1.05rem; }
 .ae-help-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color_ui_help_border); background: var(--color_ui_help_background); color: var(--color_ui_help); cursor: pointer; display: grid; place-items: center; padding: 0; }
 .ae-help-btn svg { width: 16px; height: 16px; display: block; }
-.ae-help-btn:hover { border-color: #3a9bff; color: #cfe2ff; }
 .ae-help-panel { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(2,4,8,.78); border-radius: 10px; z-index: 5; }
 .ae-help-panel[hidden] { display: none; }
 .ae-help-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow: auto; background: #0b0e14; border: 1px solid #232938; border-radius: 12px; padding: 20px 22px; }
 .ae-help-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 7px; border: 1px solid #2c313c; background: #14171e; color: #9aa1ad; display: grid; place-items: center; padding: 0; cursor: pointer; }
-.ae-help-close:hover { border-color: #444b59; color: #e9ecf2; }
 .ae-help-close svg { width: 16px; height: 16px; display: block; }
 .ae-help-card h3 { margin: 0 0 8px; font-size: 1rem; }
 .ae-help-lead { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid #232938; color: #b9c0cb; font-size: .86rem; line-height: 1.45; }
@@ -9641,16 +9639,13 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-frame { border: 1px solid #2c313c; border-radius: 10px; padding: 5px 8px; }
 .ae-frame:has(.ae-mode.is-active) { border-color: #2f57a8; background: rgba(33, 64, 126, 0.12); }
 .ae-mode { padding: 7px 14px; border: 1px solid #2c313c; border-radius: 8px; background: #14171e; color: #9aa1ad; font-size: .82rem; cursor: pointer; }
-.ae-mode:hover { border-color: #444b59; }
 .ae-mode.is-active { background: #21407e; border-color: #2f57a8; color: #eaf1ff; }
 #aeWave.ae-mode-reg ::part(envelope) { opacity: .3; }
 #aeWave.ae-mode-reg ::part(envelope),
 #aeWave.ae-mode-reg ::part(polyline),
 #aeWave.ae-mode-reg ::part(envelope-circle) { pointer-events: none !important; }
 .ae-tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #c7ccd6; font-size: .82rem; cursor: pointer; }
-.ae-tbtn:hover { border-color: #444b59; }
 .ae-tbtn:disabled { opacity: .4; cursor: default; }
-.ae-tbtn:disabled:hover { border-color: #2c313c; }
 .ae-tbtn.cut { color: #ff5b5b; }
 .ae-tbtn.silence { color: #ffa83a; }
 .ae-tbtn svg { width: 15px; height: 15px; }
@@ -9683,3 +9678,15 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #1b1f27; }
 .ae-fbtn { padding: 9px 16px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #d6dae2; cursor: pointer; }
 .ae-fbtn.apply { background: #20242e; }
+
+/* Survol consolidé, net et uniforme sur tous les boutons de l'éditeur audio
+   (bordure claire + léger éclaircissement), comme dans le reste de l'app. */
+.ae-help-btn:hover:not(:disabled),
+.ae-help-close:hover:not(:disabled),
+.ae-tbtn:hover:not(:disabled),
+.ae-mode:hover:not(:disabled),
+.ae-tp:hover:not(:disabled),
+.ae-fbtn:hover:not(:disabled) {
+  border-color: #5b6474;
+  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.09);
+}
