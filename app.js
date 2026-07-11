@@ -27,8 +27,10 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_ui_background_secondary",
   "--color_ui_panel",
   "--color_ui_panel_secondary",
+  "--color_ui_frame_background",
   "--color_ui_text",
   "--color_ui_text_muted",
+  "--color_ui_button_icon",
   "--color_ui_border",
   "--color_ui_shadow",
   "--color_status_success",
@@ -58,6 +60,37 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_tag_background",
   "--color_pad_missing_background",
 ];
+
+// Alias historiques (--muted, --text, --line…) définis à :root par `var(--color_*)`.
+// Un custom property avec var() est résolu là où il est DÉCLARÉ (:root) puis hérité :
+// re-poser --color_* plus bas (skin perso / preview de l'éditeur) ne met donc PAS l'alias
+// à jour → réglages « sans action ». On re-déclare les alias sur le même root : `var(--color_*)`
+// s'y re-résout alors à chaque changement de la couleur correspondante.
+const SKIN_VAR_ALIASES = {
+  "--color_ui_background": "--bg",
+  "--color_ui_background_glow": "--bg-glow",
+  "--color_ui_background_secondary": "--bg-end",
+  "--color_ui_panel": "--panel",
+  "--color_ui_panel_secondary": "--panel-2",
+  "--color_ui_text": "--text",
+  "--color_ui_text_muted": "--muted",
+  "--color_ui_border": "--line",
+  "--color_status_success": "--accent",
+  "--color_status_progress": "--accent-2",
+  "--color_status_stop": "--stop",
+  "--color_status_danger": "--danger",
+  "--color_ui_shadow": "--shadow",
+};
+function reapplySkinAliases(root) {
+  if (!root) return;
+  Object.entries(SKIN_VAR_ALIASES).forEach(([colorVar, alias]) => {
+    root.style.setProperty(alias, `var(${colorVar})`);
+  });
+}
+function clearSkinAliases(root) {
+  if (!root) return;
+  Object.values(SKIN_VAR_ALIASES).forEach((alias) => root.style.removeProperty(alias));
+}
 const SKIN_HARMONY_STORAGE = "soundboard-skin-harmony";
 const SKIN_FONTS_STORAGE = "soundboard-skin-fonts";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
@@ -4987,6 +5020,9 @@ function clearCustomSkinVariables() {
     document.documentElement.style.removeProperty(name);
     document.body?.style.removeProperty(name);
   });
+  // Retirer aussi les alias inline, sinon ils masqueraient ceux d'un skin prédéfini.
+  clearSkinAliases(document.documentElement);
+  clearSkinAliases(document.body);
 }
 
 function applyCustomSkinVariables(skin) {
@@ -4999,6 +5035,9 @@ function applyCustomSkinVariables(skin) {
       document.body?.style.setProperty(name, value);
     }
   });
+  // Forcer les alias (--muted, --text…) à se re-résoudre sur les couleurs du skin perso.
+  reapplySkinAliases(document.documentElement);
+  reapplySkinAliases(document.body);
 }
 
 function snapshotCurrentSkinVariables(source = document.body) {
@@ -5034,14 +5073,12 @@ function saveCurrentSkinAsCustom() {
 
 const ESSENTIAL_SKIN_FIELD_GROUPS = [
   {
-    title: "Interface",
+    title: "Blocs",
     fields: [
       ["--color_ui_background", "Fond général"],
       ["--color_ui_panel", "Fond blocs"],
-      ["--color_ui_panel_secondary", "Fond boutons"],
-      ["--color_ui_border", "Bordures"],
-      ["--color_ui_text", "Texte"],
-      ["--color_ui_text_muted", "Texte secondaire"],
+      ["--color_ui_frame_background", "Fond cadres Board"],
+      ["--color_ui_text", "Titre blocs"],
     ],
   },
   {
@@ -5059,6 +5096,14 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
 ];
 
 const ADVANCED_SKIN_FIELD_GROUPS = [
+  {
+    title: "Blocs (expert)",
+    fields: [
+      ["--color_ui_text_muted", "Texte secondaire"],
+      ["--color_ui_button_icon", "Icônes boutons"],
+      ["--color_ui_border", "Bordures"],
+    ],
+  },
   {
     title: "Pads (expert)",
     fields: [
@@ -5219,30 +5264,35 @@ function buildSkinHarmonyBase() {
   const t = getSkinHarmonyColors(baseHex, type);
   const [bh, bs] = hexToHSL(baseHex);
 
-  // Text colors are derived for readability, tinted with the base hue.
-  const bgL = hexToHSL(t[5])[2];
+  // Palette 1→6 (t[0]..t[5]), rôles FIXES :
+  //  1 Fond général · 2 Fond blocs · 3 Fond cadres Board · 4 Fond pads · 5 Fond boutons · 6 Fond titre.
+  // La couleur 1 (= couleur de base) couvre la plus grande surface : le fond général.
+  // Textes dérivés pour la lisibilité, teintés par la teinte de base ; contraste calculé
+  // sur le fond général (palette 1) et non plus sur t[5].
+  const bgL = hexToHSL(t[0])[2];
   const darkBg = bgL < 50;
   const textHex  = darkBg ? hslToHex(bh, Math.min(bs, 15), 93) : hslToHex(bh, Math.min(bs, 25), 12);
   const mutedHex = darkBg ? hslToHex(bh, Math.min(bs, 18), 64) : hslToHex(bh, Math.min(bs, 30), 36);
 
   state.skinEditorHarmonyBase = {
-    // T5 → fond général ; T3 → panneaux ; T4 → bordures/boutons ; T2 → pads ;
-    // T1 → déclencheur ; T0 (base) → accent/lecture active + progression.
-    "--color_ui_background":                   t[5],
-    "--color_ui_panel":                        t[3],
-    "--color_ui_panel_secondary":              t[4],
-    "--color_ui_border":                       t[4],
+    "--color_ui_background":                   t[0], // palette 1 — fond général
+    "--color_ui_panel":                        t[1], // palette 2 — fond blocs
+    "--color_ui_panel_secondary":              t[2], // palette 3 — boutons des blocs
+    "--color_ui_frame_background":             t[2], // palette 3 — fond des cadres du Board
+    "--color_ui_border":                       t[2],
     "--color_ui_text":                         textHex,
     "--color_ui_text_muted":                   mutedHex,
-    "--color_pad_background":                  t[2],
-    "--color_pad_border":                      t[4],
-    "--color_pad_button_background":           t[4],
-    "--color_pad_button_text":                 mutedHex,
+    "--color_ui_button_icon":                  textHex, // icônes boutons ← titre blocs (défaut)
+    "--color_pad_background":                  t[3], // palette 4 — fond pads
+    "--color_pad_border":                      t[3],
+    "--color_pad_note_background":             t[3],
+    "--color_pad_button_background":           t[4], // palette 5 — fond boutons
+    "--color_pad_button_border":               t[4],
+    "--color_pad_button_text":                 textHex,
     "--color_pad_title_text":                  textHex,
-    "--color_pad_note_background":             t[2],
-    "--color_pad_trigger_background":          t[1],
-    "--color_pad_trigger_playing_background":  t[0],
-    "--color_pad_progress_fill":               t[0],
+    "--color_pad_trigger_background":          t[5], // palette 6 — fond titre
+    "--color_pad_trigger_playing_background":  t[5], // pad actif ← fond titre (défaut)
+    "--color_pad_progress_fill":               mutedHex, // progression : repli lisible, PAS la palette 1
   };
   return true;
 }
@@ -5324,12 +5374,12 @@ function clearSwatchHighlight() {
 // d'harmonie (cf. buildSkinHarmonyBase). Sert à l'édition d'une seule teinte en
 // mode « personnalisée ».
 const HARMONY_TINT_VARS = [
-  ["--color_pad_trigger_playing_background", "--color_pad_progress_fill"],          // t0
-  ["--color_pad_trigger_background"],                                                // t1
-  ["--color_pad_background", "--color_pad_note_background"],                         // t2
-  ["--color_ui_panel"],                                                             // t3
-  ["--color_ui_panel_secondary", "--color_ui_border", "--color_pad_border", "--color_pad_button_background"], // t4
-  ["--color_ui_background"],                                                         // t5
+  ["--color_ui_background"],                                                         // t0 = palette 1 — fond général
+  ["--color_ui_panel"],                                                             // t1 = palette 2 — fond blocs
+  ["--color_ui_panel_secondary", "--color_ui_frame_background", "--color_ui_border"], // t2 = palette 3 — cadres Board / boutons blocs
+  ["--color_pad_background", "--color_pad_border", "--color_pad_note_background"],  // t3 = palette 4 — fond pads
+  ["--color_pad_button_background", "--color_pad_button_border"],                   // t4 = palette 5 — fond boutons
+  ["--color_pad_trigger_background", "--color_pad_trigger_playing_background"],     // t5 = palette 6 — fond titre
 ];
 
 function handleSwatchClick(e) {
@@ -5432,6 +5482,9 @@ function renderSkinEditorFields() {
   // not on :root, so documentElement would only return classic defaults.
   const computed = getComputedStyle(document.body);
   const preview = skinPreviewRoot();
+  // Re-déclarer les alias sur le preview pour que --muted/--text/--line… se re-résolvent
+  // sur les couleurs éditées (sinon réglages comme « Texte secondaire » restent sans effet).
+  reapplySkinAliases(preview);
 
   function renderFieldGroup(group, container) {
     const title = document.createElement("h3");

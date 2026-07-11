@@ -9,11 +9,17 @@
   --bg-end: var(--color_ui_background_secondary);
   --color_ui_panel: #181a20;
   --color_ui_panel_secondary: #20232b;
+  /* Fond des cadres de boutons du Board (palette 3). Repli = l'ancien overlay translucide
+     rgba(17,19,25,0.42) composé sur le panel → color-mix sur le panel : rendu IDENTIQUE
+     sur tous les skins, mais désormais réglable/skinnable. */
+  --color_ui_frame_background: color-mix(in srgb, #111319 42%, var(--color_ui_panel));
 
   --panel: var(--color_ui_panel);
   --panel-2: var(--color_ui_panel_secondary);
   --color_ui_text: #f5f1e8;
   --color_ui_text_muted: #a8a69f;
+  /* Icônes des boutons des blocs (repli = couleur du texte « Titre blocs »). */
+  --color_ui_button_icon: var(--color_ui_text);
   --color_ui_border: #343842;
 
   --text: var(--color_ui_text);
@@ -1313,7 +1319,7 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   padding: 7px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.34);
+  background: var(--color_ui_frame_background);
 }
 
 .master-volume-control,
@@ -1426,7 +1432,7 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: var(--color_ui_frame_background);
 }
 
 .group-stop-control > span:first-child,
@@ -1503,7 +1509,7 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: var(--color_ui_frame_background);
 }
 
 #stopGroup {
@@ -1529,7 +1535,7 @@ input[type="range"] {
 .icon-button {
   border: 1px solid var(--color_ui_border);
   border-radius: 7px;
-  color: var(--color_ui_text);
+  color: var(--color_ui_button_icon); /* icônes des boutons de blocs — « Icônes boutons » (repli = Titre blocs) */
   background: var(--color_ui_panel_secondary);
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 90ms ease;
@@ -1578,7 +1584,8 @@ button.is-pressed {
 .pad-delete-button,
 .control-group .pad-delete-button {
   border-color: color-mix(in srgb, var(--color_status_stop) 55%, transparent);
-  background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
+  /* Pas de fond « stop » propre : la bordure rouge + l'icône rouge suffisent (et restent
+     lisibles quand l'environnement est rouge). Le fond reste celui d'un bouton normal. */
   color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
 }
 
@@ -3729,7 +3736,8 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 .pad-live-row .pad-stop-button,
 .pad-live-row .pad-mute-button {
   border-color: color-mix(in srgb, var(--color_status_stop) 55%, transparent);
-  background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
+  /* Pas de fond propre : bordure rouge + icône rouge suffisent. L'état actif (muté)
+     garde son fond (.pad-mute-button.is-active) pour rester distinguable. */
   color: color-mix(in srgb, var(--color_status_stop) 55%, #fff);
 }
 
@@ -8295,10 +8303,10 @@ body.stage-mode #boardName:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Style stop générique (comme la corbeille des pads / boutons stop) */
+  /* Style stop générique (comme la corbeille des pads / boutons stop) : bordure + icône
+     rouges, sans fond propre (cohérent avec .danger-button). */
   border: 1px solid color-mix(in srgb, var(--color_status_stop) 55%, transparent);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--color_status_stop) 13%, transparent);
   color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
