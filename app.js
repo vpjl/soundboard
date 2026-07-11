@@ -9447,8 +9447,11 @@ function syncStageVisiblePads() {
   let activeCount = 0;
   state.pads.forEach((pad) => {
     const active = cuePlayablePad(pad);
-    const missingButVisible = state.stageMode && !active && pad.node?.classList.contains("is-missing-audio");
-    pad.node?.classList.toggle("is-stage-hidden", state.stageMode && !active && !missingButVisible);
+    // En scène, on masque TOUT pad non jouable : vide OU média manquant (le message
+    // « pads défectueux ignorés » les annonce déjà, et le dialog de confirmation a
+    // prévenu). Régression PR#15 : les pads vidéo à lien rompu (désormais reconnus
+    // is-missing-audio) restaient visibles/grisés au lieu d'être masqués comme avant.
+    pad.node?.classList.toggle("is-stage-hidden", state.stageMode && !active);
     if (state.stageMode && active) activeCount += 1;
   });
   return activeCount;
