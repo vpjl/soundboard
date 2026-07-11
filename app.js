@@ -5101,6 +5101,7 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
     fields: [
       ["--color_ui_text_muted", "Texte secondaire"],
       ["--color_ui_button_icon", "Icônes boutons"],
+      ["--color_ui_panel_secondary", "Fond boutons de blocs"],
       ["--color_ui_border", "Bordures"],
     ],
   },
@@ -5277,7 +5278,6 @@ function buildSkinHarmonyBase() {
   state.skinEditorHarmonyBase = {
     "--color_ui_background":                   t[0], // palette 1 — fond général
     "--color_ui_panel":                        t[1], // palette 2 — fond blocs
-    "--color_ui_panel_secondary":              t[2], // palette 3 — boutons des blocs
     "--color_ui_frame_background":             t[2], // palette 3 — fond des cadres du Board
     "--color_ui_border":                       t[2],
     "--color_ui_text":                         textHex,
@@ -5286,7 +5286,8 @@ function buildSkinHarmonyBase() {
     "--color_pad_background":                  t[3], // palette 4 — fond pads
     "--color_pad_border":                      t[3],
     "--color_pad_note_background":             t[3],
-    "--color_pad_button_background":           t[4], // palette 5 — fond boutons
+    "--color_ui_panel_secondary":              t[4], // palette 5 — boutons des blocs (même teinte que les boutons pads)
+    "--color_pad_button_background":           t[4], // palette 5 — fond boutons pads
     "--color_pad_button_border":               t[4],
     "--color_pad_button_text":                 textHex,
     "--color_pad_title_text":                  textHex,
@@ -5376,9 +5377,9 @@ function clearSwatchHighlight() {
 const HARMONY_TINT_VARS = [
   ["--color_ui_background"],                                                         // t0 = palette 1 — fond général
   ["--color_ui_panel"],                                                             // t1 = palette 2 — fond blocs
-  ["--color_ui_panel_secondary", "--color_ui_frame_background", "--color_ui_border"], // t2 = palette 3 — cadres Board / boutons blocs
+  ["--color_ui_frame_background", "--color_ui_border"],                             // t2 = palette 3 — cadres Board + bordures
   ["--color_pad_background", "--color_pad_border", "--color_pad_note_background"],  // t3 = palette 4 — fond pads
-  ["--color_pad_button_background", "--color_pad_button_border"],                   // t4 = palette 5 — fond boutons
+  ["--color_ui_panel_secondary", "--color_pad_button_background", "--color_pad_button_border"], // t4 = palette 5 — boutons (blocs + pads)
   ["--color_pad_trigger_background", "--color_pad_trigger_playing_background"],     // t5 = palette 6 — fond titre
 ];
 
