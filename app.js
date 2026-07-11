@@ -5060,7 +5060,7 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
 
 const ADVANCED_SKIN_FIELD_GROUPS = [
   {
-    title: "Pads avancé",
+    title: "Pads (expert)",
     fields: [
       ["--color_pad_progress_fill", "Progression"],
       ["--color_pad_tag_background", "Fond tag"],
@@ -5480,7 +5480,7 @@ function renderSkinEditorFields() {
 
   const summary = document.createElement("summary");
   summary.className = "skin-editor-group-title skin-editor-advanced-summary";
-  summary.textContent = "Avancé";
+  summary.textContent = "Expert";
   details.append(summary);
 
   const advancedFields = document.createElement("div");

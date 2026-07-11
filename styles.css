@@ -8692,6 +8692,14 @@ details[open] > .skin-editor-advanced-summary::before {
   letter-spacing: 0.06em;
 }
 
+.skin-preview-mode-note {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  font-style: italic;
+}
+
 .skin-preview-mode-selector label {
   display: grid;
   place-items: center;
@@ -9110,11 +9118,14 @@ details[open] > .skin-editor-advanced-summary::before {
   cursor: pointer;
 }
 
+/* État actif du sélecteur de mode : surbrillance NEUTRE issue du skin (plus de vert
+   « succès » ni d'orange « progression » codés en dur). Identique pour Garage/Studio/Scène ;
+   la différenciation entre les trois vient des filtres brightness ci-dessous. */
 .board-mode-button.is-current {
-  border-color: var(--color_status_success);
-  background: color-mix(in srgb, var(--color_status_success) 36%, var(--color_ui_panel_secondary));
+  border-color: var(--color_ui_text_muted);
+  background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
   color: var(--color_ui_text);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_status_success) 42%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_ui_text) 30%, transparent);
 }
 
 /* #9 : forcer 3 paliers de luminosité distincts pour que Scène/Studio/Garage
@@ -9135,15 +9146,8 @@ details[open] > .skin-editor-advanced-summary::before {
   filter: grayscale(1);
 }
 
-body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"] {
-  border-color: var(--color_status_progress);
-  background: color-mix(in srgb, var(--color_status_progress) 32%, var(--color_ui_panel_secondary));
-}
-
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"] {
-  border-color: var(--color_status_success);
-  background: color-mix(in srgb, var(--color_status_success) 36%, var(--color_ui_panel_secondary));
-}
+/* (Retiré : l'état actif orange/vert par mode — remplacé par .is-current neutre ci-dessus,
+   le skin reste l'unique source des couleurs.) */
 
 .board-mode-help {
   display: grid;
