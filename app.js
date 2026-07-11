@@ -9098,6 +9098,20 @@ async function previewPadCue(pad, options = {}) {
   }
 }
 
+// Le test du dialogue « Réglages du pad » produit-il du son en ce moment ?
+function audioTestIsPlaying() {
+  const pad = state.audioPad;
+  if (pad && state.audioDialogStartedPad === pad && isPadPlaying(pad)) return true;
+  if (state.audioDialogStartedCue
+    && ((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance)) return true;
+  return false;
+}
+
+// Icône du bouton test : triangle à l'arrêt/pause, [ïï] pendant la lecture.
+function syncAudioTestPlayButton() {
+  els.audioTestPlay?.classList.toggle("is-playing", audioTestIsPlaying());
+}
+
 function stopAudioDialogStartedPlayback() {
   if (state.audioDialogStartedCue && state.cuePreviewPad === state.audioDialogStartedCue) {
     stopCuePreview();
@@ -9107,18 +9121,40 @@ function stopAudioDialogStartedPlayback() {
   }
   state.audioDialogStartedPad = null;
   state.audioDialogStartedCue = null;
+  syncAudioTestPlayButton();
 }
 
 async function playAudioDialogTest() {
   const pad = state.audioPad;
   if (!pad) return;
-  stopAudioDialogStartedPlayback();
+  // Reprise : si ce pad a été mis en pause via le bouton test, ne pas réinitialiser sa
+  // position (playbackOffset renverra resumeOffset). Sinon, repartir proprement.
+  const resuming = !state.cueOutputDeviceId && state.audioDialogStartedPad === pad && pad.isPaused;
+  if (!resuming) stopAudioDialogStartedPlayback();
   if (state.cueOutputDeviceId) {
     await previewPadCue(pad, { useSavedOutput: true, selectOutput: false, fromAudioDialog: true });
+    syncAudioTestPlayButton();
     return;
   }
   state.audioDialogStartedPad = pad;
   await playPad(pad, false, playbackOffset(pad));
+  syncAudioTestPlayButton();
+}
+
+// Bascule lecture/pause du bouton test, à l'image de l'éditeur audio.
+function toggleAudioDialogTest() {
+  const pad = state.audioPad;
+  if (!pad) return;
+  if (audioTestIsPlaying()) {
+    if (state.audioDialogStartedPad === pad && !state.audioDialogStartedCue && isPadPlaying(pad)) {
+      stopPad(pad, false, true, { triggerEnd: false }); // pause (conserve la position)
+      syncAudioTestPlayButton();
+    } else {
+      stopAudioDialogStartedPlayback(); // cue : arrêt (pas de reprise en pré-écoute)
+    }
+    return;
+  }
+  playAudioDialogTest().catch(() => setStatus("Test audio impossible"));
 }
 
 async function savePadMeta(pad, options = {}) {
@@ -10738,6 +10774,7 @@ function syncAudioDialog(pad = state.audioPad, options = {}) {
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   syncAudioDialogMediaAvailability(pad);
+  syncAudioTestPlayButton();
   if (options.renderWaveform !== false) renderAudioDialogWaveform(pad);
 }
 
@@ -13535,6 +13572,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   updatePadTime(pad);
   applyDucking();
   updateAllPadAlerts();
+  syncAudioTestPlayButton(); // fin/arrêt de lecture → icône du bouton test revient au triangle
   if (wasManualCrossfadeSource) {
     cancelManualCrossfade({ message: "Crossfade annulé : source arrêtée" });
   }
@@ -13951,6 +13989,7 @@ function startTimer() {
   const tick = () => {
     state.pads.forEach(updatePadTime);
     updateMeters();
+    syncAudioTestPlayButton();
     state.timerFrame = state.pads.some((pad) => isPadPlaying(pad)) || Boolean((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance)
       ? requestAnimationFrame(tick)
       : null;
@@ -14866,7 +14905,7 @@ async function init() {
     applyAutoTrimToAudioDialog().catch(() => setStatus("Trim auto impossible"));
   });
   els.audioTestPlay?.addEventListener("click", () => {
-    playAudioDialogTest().catch(() => setStatus("Test audio impossible"));
+    toggleAudioDialogTest();
   });
   els.audioTestStop?.addEventListener("click", () => {
     stopAudioDialogStartedPlayback();

@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=475">
+    <link rel="stylesheet" href="styles.css?v=476">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1204,9 +1204,12 @@
             </button>
             <span class="audio-head-transport" style="display:inline-flex; align-items:center; gap:6px; margin:0 14px;">
               <button id="audioAutoTrim" class="small-button" type="button">Trim auto</button>
-              <button id="audioTestPlay" class="icon-button" type="button" aria-label="Lire / Pause (test, sortie cue si sélectionnée)">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
+              <button id="audioTestPlay" class="icon-button audio-test-play" type="button" aria-label="Lire / Pause (test, sortie cue si sélectionnée)">
+                <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+                </svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/>
                 </svg>
               </button>
             </span>
@@ -2323,7 +2326,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=475"></script>
+    <script src="app.js?v=476"></script>
 
 
   </body>
