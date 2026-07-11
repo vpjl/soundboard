@@ -8517,7 +8517,7 @@ async function restorePad(pad) {
     summary.mediaSizeBytes = restorePadMediaSize(rawSaved, meta);
     log("video restore start");
     pad.audioUid = ensureAudioRecordUid(rawSaved, pad.uid);
-    pad.videoName = rawSaved.videoName || rawSaved.name || "";
+    pad.videoName = rawSaved.videoName || rawSaved.name || meta?.videoName || "";
     pad.videoPath = meta?.videoPath || rawSaved.videoPath || rawSaved.path || pad.videoName;
     pad.videoType = rawSaved.videoType || rawSaved.type || "video/mp4";
     pad.videoDuration = Number(rawSaved.videoDuration || meta?.videoDuration) || 0;
@@ -8528,6 +8528,13 @@ async function restorePad(pad) {
     pad.audioPath = "";
     pad.audioType = "";
     setPadTitle(pad, meta?.title || rawSaved.title || cleanName(pad.videoName || `Pad ${pad.index + 1}`));
+    // Filet de sécurité : le blob vidéo est bien présent mais tous les libellés
+    // sont vides (record historiquement corrompu). On garantit une identité vidéo
+    // non vide pour que padType() classe le pad en vidéo, et non en audio vide.
+    if (!pad.videoName && !pad.videoPath) {
+      pad.videoName = pad.title || `Vidéo ${pad.index + 1}`;
+      pad.videoPath = pad.videoName;
+    }
     setPadDuration(pad, pad.videoDuration);
     log("updatePadTime", { duration: pad.videoDuration });
     pad.node.classList.remove("is-empty", "is-missing-audio");
@@ -9111,7 +9118,7 @@ async function playAudioDialogTest() {
   await playPad(pad, false, playbackOffset(pad));
 }
 
-async function savePadMeta(pad) {
+async function savePadMeta(pad, options = {}) {
   if (!pad.uid) pad.uid = createId();
   const previousMeta = await dbGet(padMetaKey(pad));
   const previousSaved = await dbGet(padAudioKey(pad));
@@ -9119,6 +9126,16 @@ async function savePadMeta(pad) {
   const preservedVideoPath = pad.videoPath || previousMeta?.videoPath || previousSaved?.videoPath || "";
   const preservedVideoType = pad.videoType || previousMeta?.videoType || previousSaved?.videoType || "";
   const preservedVideoDuration = pad.videoDuration || previousMeta?.videoDuration || previousSaved?.videoDuration || 0;
+  // Un pad vidéo ne doit pas perdre sa référence vidéo persistée quand ses champs
+  // en mémoire sont momentanément vides (blob évincé/rompu) : sinon, au rechargement,
+  // plus rien n'indique que c'était une vidéo et l'indicateur « média manquant » ne
+  // s'affiche jamais. On préserve donc la réf. vidéo — SAUF si le pad porte désormais
+  // un autre média (audio/texte) ou qu'on le vide explicitement (forgetVideo).
+  const padHasOtherMedia = Boolean(
+    pad.hasDirectAudio || pad.buffer || pad.audioName || pad.audioPath
+    || pad.audioRefIndex != null || pad.textMode || pad.textContent,
+  );
+  const keepVideoRef = !options.forgetVideo && !padHasOtherMedia;
   const meta = {
     uid: pad.uid || createId(),
     title: pad.title,
@@ -9162,10 +9179,10 @@ async function savePadMeta(pad) {
     audioChannels: pad.audioChannels,
     audioByteLength: pad.audioByteLength,
     waveformPeaks: pad.waveformPeaks,
-    videoName: pad.videoName,
-    videoPath: pad.videoPath,
-    videoType: pad.videoType,
-    videoDuration: pad.videoDuration,
+    videoName: keepVideoRef ? preservedVideoName : pad.videoName,
+    videoPath: keepVideoRef ? preservedVideoPath : pad.videoPath,
+    videoType: keepVideoRef ? preservedVideoType : pad.videoType,
+    videoDuration: keepVideoRef ? preservedVideoDuration : pad.videoDuration,
     textContent: pad.textContent,
     textMode: pad.textMode,
     textName: pad.textName,
@@ -11543,7 +11560,7 @@ async function clearAudioPadMedia(pad = state.audioPad) {
     updatePadTime(pad);
     renderWaveform(pad);
     await dbDelete(padAudioKey(pad));
-    await savePadMeta(pad);
+    await savePadMeta(pad, { forgetVideo: true });
     syncAudioDialog(pad);
     refreshBoardTagFilterOptions();
     refreshCrossfadeTargetOptions();
@@ -11575,7 +11592,7 @@ async function clearAudioPadMedia(pad = state.audioPad) {
   pad.node.classList.add("is-empty");
   pad.node.classList.remove("is-missing-audio");
   await dbDelete(padAudioKey(pad));
-  await savePadMeta(pad);
+  await savePadMeta(pad, { forgetVideo: true });
   syncAudioDialog(pad);
   refreshBoardTagFilterOptions();
   refreshCrossfadeTargetOptions();
