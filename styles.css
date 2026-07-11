@@ -4790,6 +4790,28 @@ body[data-skin="contrast"] .color-field {
   min-width: 0;
 }
 
+/* Variante « Alerte fin » : MÊME grille que les fades → le champ nombre (col 4) et
+   « secondes » (col 5) s'alignent exactement avec ceux des fades. Le libellé (plus long)
+   occupe la place label + checkbox (col 2-3) et tient sur une seule ligne (nowrap +
+   police légèrement réduite). */
+.master-audio-control.no-check {
+  grid-template-columns: 18px 82px 22px 72px max-content !important;
+}
+.master-audio-control.no-check > span:not(.field-unit) {
+  grid-column: 2 / 4;
+  white-space: nowrap;
+  font-size: 0.62rem;
+}
+
+/* Précision sous le champ « Alerte fin » : petits caractères atténués. */
+.master-audio-hint {
+  display: block;
+  margin: 4px 0 0 26px; /* aligné sous le libellé (après l'icône) */
+  color: var(--muted);
+  font-size: 0.56rem;
+  line-height: 1.35;
+}
+
 .master-audio-control svg {
   width: 18px;
   height: 18px;
@@ -7432,9 +7454,20 @@ body.stage-mode .pad:not(.is-editing) .controls {
   display: none !important;
 }
 
+/* Flash de fin : entrée verte brève puis clignotement ROUGE de plus en plus RAPIDE,
+   sur toute la fenêtre restante (--preend-flash-duration = temps restant). forwards pour
+   tenir le rouge jusqu'à l'arrêt du son (la classe est retirée quand la lecture cesse). */
 .pad.is-preend-flash .pad-crossfade-flash {
   opacity: 1;
-  animation: end-green-red-flash var(--preend-flash-duration, 1.05s) linear 1;
+  animation: ending-red-accelerate var(--preend-flash-duration, 3s) linear 1 forwards;
+}
+
+/* Filet de sécurité : si le flash accéléré se termine une fraction avant l'arrêt du son,
+   garder du ROUGE (jamais de retour au vert) jusqu'au retrait de is-ending. Les propriétés
+   animées priment sur le vert statique de .pad.is-playing, la spécificité n'importe donc pas. */
+.pad.is-ending:not(.is-preend-flash) .pad-crossfade-flash {
+  opacity: 1;
+  animation: ending-red-blink 0.4s linear infinite;
 }
 
 .pad.is-stop-flash .pad-crossfade-flash {
@@ -7461,51 +7494,55 @@ body.stage-mode .pad:not(.is-editing) .controls {
   }
 }
 
-@keyframes end-green-red-flash {
-  0% {
-    opacity: 1;
-    background: #49d3a0;
-    box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.24);
-    transform: scale(1.08);
-  }
+/* Clignotement ROUGE qui accélère : premier cycle à 12 % (2× plus rapide qu'avant) puis
+   cycles de plus en plus courts (écarts 12,11,10,10,9,8,7,7,6,6,5,4,3,2 → accélération
+   marquée). background rouge défini à 0 % ET 100 % : sinon CSS synthétise la clé 100 %
+   manquante avec la valeur sous-jacente (vert de .pad.is-playing) → fond qui vire au vert. */
+@keyframes ending-red-accelerate {
+  0%   { opacity: 1;   transform: scale(1.08); background: #ff5f56; box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  6%   { opacity: 0.2; transform: scale(0.82); }
+  12%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  17%  { opacity: 0.2; transform: scale(0.82); }
+  23%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  28%  { opacity: 0.2; transform: scale(0.82); }
+  33%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  38%  { opacity: 0.2; transform: scale(0.82); }
+  43%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  47%  { opacity: 0.2; transform: scale(0.82); }
+  52%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  56%  { opacity: 0.2; transform: scale(0.82); }
+  60%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  63%  { opacity: 0.2; transform: scale(0.82); }
+  67%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  70%  { opacity: 0.2; transform: scale(0.82); }
+  74%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  77%  { opacity: 0.2; transform: scale(0.82); }
+  80%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  83%  { opacity: 0.2; transform: scale(0.82); }
+  86%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  88%  { opacity: 0.2; transform: scale(0.82); }
+  91%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  93%  { opacity: 0.2; transform: scale(0.82); }
+  95%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  96%  { opacity: 0.2; transform: scale(0.82); }
+  98%  { opacity: 1;   transform: scale(1.08); box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+  99%  { opacity: 0.2; transform: scale(0.82); }
+  100% { opacity: 1;   transform: scale(1.08); background: #ff5f56; box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24); }
+}
 
-  8%,
-  24%,
-  40% {
-    opacity: 0.22;
-    background: #49d3a0;
-    transform: scale(0.82);
-  }
-
-  16%,
-  32% {
-    opacity: 1;
-    background: #49d3a0;
-    box-shadow: 0 0 0 3px rgba(73, 211, 160, 0.24);
-    transform: scale(1.08);
-  }
-
-  48%,
-  64%,
-  80% {
+/* Clignotement rouge continu de fin de lecture (jusqu'à l'arrêt du son) — reste visible
+   (pas de fondu vers 0 comme pad-stop-blink) et rouge (pas de retour au vert). */
+@keyframes ending-red-blink {
+  0%, 100% {
     opacity: 1;
     background: #ff5f56;
     box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.24);
     transform: scale(1.08);
   }
-
-  56%,
-  72%,
-  88% {
+  50% {
     opacity: 0.22;
     background: #ff5f56;
     transform: scale(0.82);
-  }
-
-  100% {
-    opacity: 0;
-    background: #ff5f56;
-    transform: scale(0.84);
   }
 }
 

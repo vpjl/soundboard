@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=469">
+    <link rel="stylesheet" href="styles.css?v=475">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1537,6 +1537,19 @@
               <span class="field-unit">secondes</span>
             </label>
           </section>
+          <section class="audio-section" aria-label="Alerte fin de lecture">
+            <h3>Alerte fin</h3>
+            <label class="master-audio-control no-check" aria-label="Durée du clignotement rouge de fin de lecture">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Clignotement de fin</span>
+              <input id="endingAlertSeconds" type="number" min="1" max="60" step="1" value="10">
+              <span class="field-unit">secondes</span>
+            </label>
+            <small id="endingAlertHint" class="master-audio-hint">(pour les sons de plus de 10 secondes, ou la moitié de la durée du son pour les autres)</small>
+          </section>
           <section class="audio-section" aria-label="Ducking master">
             <h3>Ducking</h3>
             <label class="master-audio-control" aria-label="Ducking global">
@@ -2310,7 +2323,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=469"></script>
+    <script src="app.js?v=475"></script>
 
 
   </body>

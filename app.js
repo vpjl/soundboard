@@ -77,7 +77,8 @@ const DEFAULT_TEXT_RATE = 0.85;
 const MIN_TEXT_RATE = 0.35;
 const MAX_TEXT_RATE = 1.6;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const ENDING_ALERT_SECONDS = 5;
+const DEFAULT_ENDING_ALERT_SECONDS = 10;
+const ENDING_ALERT_STORAGE = "soundboard-live-ending-alert-seconds";
 const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
   white: "#f7f7f2",
@@ -275,6 +276,8 @@ const els = {
   masterAudioReset: document.querySelector("#masterAudioReset"),
   fadeInSeconds: document.querySelector("#fadeInSeconds"),
   fadeSeconds: document.querySelector("#fadeSeconds"),
+  endingAlertSeconds: document.querySelector("#endingAlertSeconds"),
+  endingAlertHint: document.querySelector("#endingAlertHint"),
   stopAll: document.querySelector("#stopAll"),
   cueStopAll: document.querySelector("#cueStopAll"),
   stopGroup: document.querySelector("#stopGroup"),
@@ -9661,11 +9664,29 @@ function updateAudioOptionBadges(pad = state.audioPad) {
   if (els.audioOptionBadges) els.audioOptionBadges.innerHTML = pad ? badgeMarkup(padOptionBadges(pad)) : "";
 }
 
+// Délai du clignotement de fin, réglable dans « audio master » (défaut 10s).
+function endingAlertSeconds() {
+  const raw = Number(els.endingAlertSeconds?.value);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  const stored = Number(localStorage.getItem(ENDING_ALERT_STORAGE));
+  return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_ENDING_ALERT_SECONDS;
+}
+
+// Précision affichée sous le champ « Alerte fin » (reflète la valeur choisie).
+function updateEndingAlertHint() {
+  if (!els.endingAlertHint) return;
+  const v = endingAlertSeconds();
+  els.endingAlertHint.textContent = `(pour les sons de plus de ${v} secondes, ou la moitié de la durée du son pour les autres)`;
+}
+
 function updatePadAlerts(pad) {
   if (!pad?.node) return;
   const remaining = remainingSeconds(pad);
   const duration = playableDuration(pad);
-  const endingThreshold = Math.min(ENDING_ALERT_SECONDS, Math.max(1, duration * 0.2));
+  // Clignotement de fin : pour un son plus long que le délai réglé (défaut 10s), on
+  // clignote sur ce délai ; pour un son plus court, sur la moitié de sa durée.
+  const alertWindow = endingAlertSeconds();
+  const endingThreshold = duration > alertWindow ? alertWindow : duration / 2;
   const playing = isPadPlaying(pad);
   const isEnding = Boolean(playing && !pad.loop && remaining > 0 && remaining <= endingThreshold);
   const isDuckSource = Boolean(playing && duckAmountForSource(pad) > 0 && pad.duckMode !== "global");
@@ -9719,7 +9740,9 @@ function updateAllPadAlerts() {
 function flashPadPreEnd(pad, durationSeconds = 1.35) {
   if (!pad?.crossfadeFlashEl) return;
   const remaining = Number(durationSeconds) || 1.05;
-  const duration = Math.min(1.05, Math.max(0.45, remaining));
+  // Le flash de fin couvre TOUTE la fenêtre restante (jusqu'au délai réglé) :
+  // clignotement rouge accéléré (lent → rapide) qui s'arrête avec le son.
+  const duration = Math.min(endingAlertSeconds(), Math.max(0.6, remaining));
   pad.node.classList.remove("is-preend-flash");
   pad.node.style.setProperty("--preend-flash-duration", `${duration}s`);
   void pad.node.offsetWidth;
@@ -11710,6 +11733,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.fadeSeconds) els.fadeSeconds.value = "2";
   if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = "2";
   if (els.duckPercent) els.duckPercent.value = "60";
+  if (els.endingAlertSeconds) els.endingAlertSeconds.value = String(DEFAULT_ENDING_ALERT_SECONDS);
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
   if (els.masterEqLow) els.masterEqLow.value = "0";
@@ -11723,6 +11747,8 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   localStorage.setItem(FADE_OUT_STORAGE, "2");
   localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, "2");
   localStorage.setItem(DUCKING_STORAGE, "60");
+  localStorage.setItem(ENDING_ALERT_STORAGE, String(DEFAULT_ENDING_ALERT_SECONDS));
+  updateEndingAlertHint();
   if (includeVolumes) {
     setMasterVolume(DEFAULT_MASTER_VOLUME, true);
     setCueVolume(DEFAULT_CUE_VOLUME, true);
@@ -11752,6 +11778,7 @@ function masterAudioDraftFromControls() {
     fadeOutSeconds: els.fadeSeconds?.value ?? "2",
     armedCrossfadeSeconds: els.armedCrossfadeSeconds?.value ?? "2",
     duckPercent: els.duckPercent?.value ?? "60",
+    endingAlertSeconds: els.endingAlertSeconds?.value ?? String(DEFAULT_ENDING_ALERT_SECONDS),
     reverbPreset: els.masterReverbPreset?.value || "none",
     reverbWet: els.masterReverbWet?.value ?? "0.5",
     eqLow: els.masterEqLow?.value ?? "0",
@@ -11769,6 +11796,8 @@ function persistMasterAudioControls() {
   localStorage.setItem(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
   localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(els.armedCrossfadeSeconds?.value ?? "2"));
   localStorage.setItem(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
+  localStorage.setItem(ENDING_ALERT_STORAGE, String(els.endingAlertSeconds?.value ?? DEFAULT_ENDING_ALERT_SECONDS));
+  updateEndingAlertHint();
   saveMasterReverbSettings();
   saveMasterEqSettings();
   updateMasterReverbValue();
@@ -11791,6 +11820,7 @@ function restoreMasterAudioDraft() {
   if (els.fadeSeconds) els.fadeSeconds.value = draft.fadeOutSeconds;
   if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = draft.armedCrossfadeSeconds;
   if (els.duckPercent) els.duckPercent.value = draft.duckPercent;
+  if (els.endingAlertSeconds) els.endingAlertSeconds.value = draft.endingAlertSeconds;
   if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
   if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
@@ -14081,6 +14111,10 @@ async function init() {
   if (els.duckPercent) {
     els.duckPercent.value = localStorage.getItem(DUCKING_STORAGE) || els.duckPercent.value;
   }
+  if (els.endingAlertSeconds) {
+    els.endingAlertSeconds.value = localStorage.getItem(ENDING_ALERT_STORAGE) || els.endingAlertSeconds.value;
+  }
+  updateEndingAlertHint();
   loadMasterReverbSettings();
   loadMasterEqSettings();
   loadCueVolume();
@@ -14708,6 +14742,7 @@ async function init() {
   });
   els.masterAudio?.addEventListener("click", () => {
     state.masterAudioDraft = masterAudioDraftFromControls();
+    updateEndingAlertHint();
     refreshMicrophoneDevices(false).catch(() => {});
     if (els.masterAudioDialog?.showModal) {
       els.masterAudioDialog.showModal();
@@ -14790,6 +14825,15 @@ async function init() {
     localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
     syncArmedCrossfadeControls();
     updateMasterOptionBadges();
+  });
+  ["input", "change"].forEach((evt) => {
+    els.endingAlertSeconds?.addEventListener(evt, () => {
+      const value = Math.max(1, Math.round(Number(els.endingAlertSeconds.value) || DEFAULT_ENDING_ALERT_SECONDS));
+      if (evt === "change") els.endingAlertSeconds.value = String(value);
+      localStorage.setItem(ENDING_ALERT_STORAGE, String(value));
+      updateEndingAlertHint();
+      updateAllPadAlerts();
+    });
   });
   [els.masterReverbPreset, els.masterReverbWet].forEach((element) => {
     element?.addEventListener("input", () => {
