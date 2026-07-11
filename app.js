@@ -7157,6 +7157,28 @@ function resetPadSpecificCrossfadeTargets(record) {
   return next;
 }
 
+// Un slot stocké est « vide » s'il n'a ni blob (audio/vidéo), ni nom/chemin média, ni texte.
+// NB : on n'utilise PAS audioRefIndex : savePadMeta convertit null → 0 (Number(null) === 0),
+// donc tout pad vide neuf a audioRefIndex: 0 et paraîtrait « lié à pad 0 ». Le vrai audio est
+// couvert par le blob et par audioName/audioPath (un pad lié a toujours un nom).
+function storedPadIsEmpty(meta, rawSaved) {
+  if (rawSaved?.audio || rawSaved?.video) return false; // blob présent
+  if (rawSaved?.videoName || rawSaved?.videoPath || meta?.videoName || meta?.videoPath) return false; // vidéo (réf.)
+  if (meta?.textMode || meta?.textContent) return false; // texte
+  if (rawSaved?.name || rawSaved?.path || meta?.audioName || meta?.audioPath) return false; // audio (réf. ou manquant)
+  return true;
+}
+
+// Premier pad vide du board (dans [0, padCount)) ; à défaut, padCount (= ajout à la fin).
+async function firstEmptyPadIndex(boardId, padCount) {
+  for (let i = 0; i < padCount; i += 1) {
+    const meta = await dbGet(padMetaKeyFor(boardId, i));
+    const rawSaved = await dbGet(padAudioKeyFor(boardId, i));
+    if (storedPadIsEmpty(meta, rawSaved)) return i;
+  }
+  return padCount;
+}
+
 async function copyPadToBoard(pad, targetBoardId) {
   const sourceBoardId = state.currentBoardId;
   const targetBoard = state.boards.find((board) => board.id === targetBoardId);
@@ -7167,7 +7189,8 @@ async function copyPadToBoard(pad, targetBoardId) {
   const sourceMeta = await dbGet(padMetaKeyFor(sourceBoardId, pad.index));
   const sourceAudio = await dbGet(padAudioKeyFor(sourceBoardId, pad.index));
   const resolvedAudio = await resolvePadAudioRecord(pad, sourceMeta, sourceAudio);
-  const targetIndex = targetBoard.padCount;
+  // Coller dans le premier pad VIDE du board cible (pas systématiquement à la fin).
+  const targetIndex = await firstEmptyPadIndex(targetBoard.id, targetBoard.padCount);
   const title = sourceMeta?.title || sourceAudio?.title || pad.title || `Pad ${pad.index + 1}`;
   const uid = createId();
   const targetMeta = resetPadSpecificCrossfadeTargets({
@@ -7190,7 +7213,8 @@ async function copyPadToBoard(pad, targetBoardId) {
   } else {
     await dbDelete(padAudioKeyFor(targetBoard.id, targetIndex));
   }
-  targetBoard.padCount += 1;
+  // N'agrandir le board que si on a ajouté à la fin (aucun pad vide réutilisé).
+  if (targetIndex >= targetBoard.padCount) targetBoard.padCount = targetIndex + 1;
   saveBoards();
   return { targetBoard, targetIndex, title };
 }
