@@ -5389,14 +5389,19 @@ function handleSwatchClick(e) {
   const index = parseInt(span.dataset.swatchIndex ?? 0);
   document.querySelectorAll("#skinHarmonySwatch span").forEach((s, i) => s.classList.toggle("is-active", i === index));
 
-  // En harmonie « personnalisée », cliquer une teinte l'édite (sans recalculer
-  // les autres). Dans les autres harmonies : surbrillance seule.
-  const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
-  if (type === "personnalisee") {
-    editHarmonyTinte(index, span);
-    return;
+  // Cliquer une teinte l'édite : on bascule en harmonie « personnalisée » (palette figée,
+  // édition manuelle, couleur de base désactivée) si ce n'est pas déjà le cas, puis on
+  // ouvre la roue chromatique pour CETTE teinte (les autres ne sont pas recalculées).
+  const typeRadio = document.querySelector("[name='skinHarmonyType']:checked");
+  if (typeRadio?.value !== "personnalisee") {
+    const perso = document.querySelector("[name='skinHarmonyType'][value='personnalisee']");
+    if (perso) {
+      perso.checked = true;
+      setHarmonyBaseColorEnabled(false);
+      saveSkinHarmonySettings();
+    }
   }
-  applySwatchHighlight(index);
+  editHarmonyTinte(index, span);
 }
 
 // Édite une seule teinte (mode personnalisé) : ouvre un color picker pour cette
@@ -14279,13 +14284,16 @@ async function init() {
   document.querySelector("#applySkinHarmony")?.addEventListener("click", applySkinHarmony);
   // Couleur de base : pendant qu'on bouge dans le picker (input) on ne fait que
   // prévisualiser le nuancier — aucune couleur de la simulation n'est touchée.
+  // Couleur de base : palette (nuancier) ET aperçu/variables mis à jour EN DIRECT pendant
+  // qu'on tourne la roue chromatique (input), pas seulement à sa fermeture. L'ouverture du
+  // picker ne déclenche pas d'input, donc pas d'application intempestive.
   document.querySelector("#skinHarmonyColor")?.addEventListener("input", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
     document.querySelectorAll("#skinHarmonySwatch span").forEach(s => s.classList.remove("is-active"));
     updateHarmonySwatch();
+    applySkinHarmony();
   });
-  // La palette d'harmonie n'est générée + appliquée qu'à la VALIDATION d'une
-  // nouvelle couleur de base (change), pas au simple clic d'ouverture du picker.
+  // À la validation (change) : on refait le rendu et on SAUVEGARDE (l'input ne sauvegarde pas).
   document.querySelector("#skinHarmonyColor")?.addEventListener("change", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
     skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
