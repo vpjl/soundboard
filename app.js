@@ -5464,6 +5464,49 @@ function editHarmonyTinte(index, span) {
   }
 }
 
+// Picker PARTAGÉ pour tous les champs couleur de la liste de réglages : un seul input
+// natif caché à position FIXE, ouvert via showPicker() → la roue s'ouvre toujours au même
+// endroit au lieu de suivre chaque champ cliqué (le picker natif par champ « se balade »).
+let skinFieldPickerInput = null;
+let skinFieldPickerTarget = null; // { name, fieldInput }
+function openSkinFieldPicker(name, fieldInput) {
+  skinFieldPickerTarget = { name, fieldInput };
+  const current = normalizeColorInputValue(fieldInput?.value) || "#ffffff";
+  if (!skinFieldPickerInput) {
+    skinFieldPickerInput = document.createElement("input");
+    skinFieldPickerInput.type = "color";
+    // Position fixe (coin haut-gauche de la liste des champs), posée une seule fois :
+    // showPicker() ancre la roue à l'input, donc elle ne bouge plus d'un champ à l'autre.
+    const list = els.skinEditorFields?.getBoundingClientRect();
+    Object.assign(skinFieldPickerInput.style, {
+      position: "fixed",
+      left: `${Math.round(list?.left ?? 12)}px`,
+      top: `${Math.round(list?.top ?? 12)}px`,
+      width: "1px",
+      height: "1px",
+      opacity: "0",
+      pointerEvents: "none",
+    });
+    document.body.appendChild(skinFieldPickerInput);
+    const apply = () => {
+      if (!skinFieldPickerTarget) return;
+      const color = skinFieldPickerInput.value;
+      const { name: n, fieldInput: fi } = skinFieldPickerTarget;
+      if (fi) fi.value = color; // garde le champ visible + les requêtes input[data-skin-variable] à jour
+      state.skinEditorVariables[n] = color;
+      skinPreviewRoot()?.style.setProperty(n, color);
+    };
+    skinFieldPickerInput.addEventListener("input", apply);
+    skinFieldPickerInput.addEventListener("change", apply);
+  }
+  skinFieldPickerInput.value = current;
+  if (typeof skinFieldPickerInput.showPicker === "function") {
+    try { skinFieldPickerInput.showPicker(); } catch { skinFieldPickerInput.click(); }
+  } else {
+    skinFieldPickerInput.click();
+  }
+}
+
 function normalizeColorInputValue(value) {
   const text = String(value || "").trim();
 
@@ -5536,10 +5579,13 @@ function renderSkinEditorFields() {
         preview?.style.setProperty(name, value);
         state.skinEditorVariables[name] = value;
       }
-      input.addEventListener("input", () => {
+      input.addEventListener("input", () => { // repli (clavier, ou si preventDefault échoue)
         state.skinEditorVariables[name] = input.value;
         preview?.style.setProperty(name, input.value);
       });
+      // Rediriger vers un picker PARTAGÉ à position fixe au lieu du picker natif du champ
+      // (qui s'ouvre à la position du champ cliqué → « se balade »).
+      input.addEventListener("click", (e) => { e.preventDefault(); openSkinFieldPicker(name, input); });
       container.append(row);
     });
   }
