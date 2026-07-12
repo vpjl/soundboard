@@ -48,6 +48,8 @@ const CUSTOM_SKIN_VARIABLES = [
   "--color_pad_button_border",
   "--color_pad_button_text",
   "--color_pad_title_text",
+  "--color_pad_secondary_text",
+  "--color_pad_tag_text",
   "--color_pad_trigger_background",
   "--color_pad_trigger_playing_background",
   "--color_pad_progress_background",
@@ -5084,13 +5086,12 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
   {
     title: "Pads",
     fields: [
-      ["--color_pad_background", "Fond pad"],
+      ["--color_pad_background", "Fond pads"],
       ["--color_pad_trigger_background", "Fond titre"],
-      ["--color_pad_title_text", "Titre"],
-      ["--color_pad_border", "Bordure pad"],
-      ["--color_pad_button_background", "Boutons"],
-      ["--color_pad_button_border", "Bordure boutons"],
+      ["--color_pad_title_text", "Texte titre"],
+      ["--color_pad_button_background", "Fond boutons"],
       ["--color_pad_button_text", "Textes boutons"],
+      ["--color_pad_secondary_text", "Texte secondaire"],
     ],
   },
 ];
@@ -5108,9 +5109,13 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
   {
     title: "Pads (expert)",
     fields: [
+      ["--color_pad_trigger_playing_background", "Pad actif"],
+      ["--color_pad_border", "Bordure pad"],
+      ["--color_pad_button_border", "Bordure boutons"],
       ["--color_pad_progress_fill", "Progression"],
-      ["--color_pad_tag_background", "Fond tag"],
       ["--color_pad_progress_background", "Fond progression"],
+      ["--color_pad_tag_background", "Fond tag"],
+      ["--color_pad_tag_text", "Texte tags"],
     ],
   },
   {
@@ -5291,6 +5296,8 @@ function buildSkinHarmonyBase() {
     "--color_pad_button_border":               t[4],
     "--color_pad_button_text":                 textHex,
     "--color_pad_title_text":                  textHex,
+    "--color_pad_secondary_text":              textHex, // texte secondaire pads (durée, tags, libellés)
+    "--color_pad_tag_text":                    textHex, // texte des tags (garage)
     "--color_pad_trigger_background":          t[5], // palette 6 — fond titre
     "--color_pad_trigger_playing_background":  t[5], // pad actif ← fond titre (défaut)
     "--color_pad_progress_fill":               mutedHex, // progression : repli lisible, PAS la palette 1
@@ -5406,35 +5413,54 @@ function handleSwatchClick(e) {
 
 // Édite une seule teinte (mode personnalisé) : ouvre un color picker pour cette
 // teinte et applique sa nouvelle couleur AUX seules variables qu'elle pilote.
+// Un SEUL input color réutilisé pour éditer les teintes. On ne le recrée pas (ni ne le
+// repositionne) à chaque clic : sinon le panneau de couleur (Firefox/macOS) se ré-ancre et
+// « saute » / se redimensionne. Position fixe posée une fois près du nuancier.
+let skinTintPickerInput = null;
+let skinTintPickerTarget = { index: 0, span: null };
+
 function editHarmonyTinte(index, span) {
+  skinTintPickerTarget = { index, span };
   const current = normalizeColorInputValue(getComputedStyle(span).backgroundColor) || "#ffffff";
-  const input = document.createElement("input");
-  input.type = "color";
-  input.value = current;
-  const rect = span.getBoundingClientRect();
-  Object.assign(input.style, { position: "fixed", left: `${Math.round(rect.left)}px`, top: `${Math.round(rect.bottom)}px`, width: "1px", height: "1px", opacity: "0", pointerEvents: "none" });
-  document.body.appendChild(input);
 
-  const apply = () => {
-    const color = input.value;
-    span.style.background = color;
-    span.title = color;
-    const preview = skinPreviewRoot();
-    (HARMONY_TINT_VARS[index] || []).forEach((v) => {
-      state.skinEditorVariables[v] = color;
-      if (state.skinEditorHarmonyBase) state.skinEditorHarmonyBase[v] = color; // base des curseurs sat/lum
-      preview?.style.setProperty(v, color);
-      const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(v)}"]`);
-      if (field) field.value = color;
+  if (!skinTintPickerInput) {
+    skinTintPickerInput = document.createElement("input");
+    skinTintPickerInput.type = "color";
+    // Position FIXE près du nuancier, posée une seule fois et jamais changée : showPicker()
+    // ouvre alors le panneau toujours au même endroit (et non sur la teinte cliquée).
+    const sw = document.querySelector("#skinHarmonySwatch")?.getBoundingClientRect();
+    Object.assign(skinTintPickerInput.style, {
+      position: "fixed",
+      left: `${Math.round(sw?.left ?? 12)}px`,
+      top: `${Math.round(sw?.bottom ?? 12)}px`,
+      width: "1px", height: "1px", opacity: "0", pointerEvents: "none",
     });
-  };
-  input.addEventListener("input", apply);
-  input.addEventListener("change", () => { apply(); input.remove(); });
+    document.body.appendChild(skinTintPickerInput);
 
-  if (typeof input.showPicker === "function") {
-    try { input.showPicker(); } catch { input.click(); }
+    const apply = () => {
+      const color = skinTintPickerInput.value;
+      const { index: idx, span: sp } = skinTintPickerTarget;
+      if (sp) { sp.style.background = color; sp.title = color; }
+      const preview = skinPreviewRoot();
+      (HARMONY_TINT_VARS[idx] || []).forEach((v) => {
+        state.skinEditorVariables[v] = color;
+        if (state.skinEditorHarmonyBase) state.skinEditorHarmonyBase[v] = color; // base des curseurs sat/lum
+        preview?.style.setProperty(v, color);
+        const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(v)}"]`);
+        if (field) field.value = color;
+      });
+    };
+    skinTintPickerInput.addEventListener("input", apply);
+    skinTintPickerInput.addEventListener("change", apply);
+  }
+
+  skinTintPickerInput.value = current;
+  // showPicker() ancre le picker à l'INPUT (position fixe ci-dessus), pas au curseur —
+  // sinon (.click) le panneau s'ouvre sur la teinte cliquée et « se balade ».
+  if (typeof skinTintPickerInput.showPicker === "function") {
+    try { skinTintPickerInput.showPicker(); } catch { skinTintPickerInput.click(); }
   } else {
-    input.click();
+    skinTintPickerInput.click();
   }
 }
 
@@ -5654,12 +5680,10 @@ function syncSkinPreviewMode() {
   const hiddenFieldsByMode = {
     // Garage = edit mode: progress bar and VU meter are hidden.
     basic: ["--color_pad_progress_fill", "--color_pad_progress_background"],
-    // Scène = playing: pad-actions buttons and controls are hidden.
-    stage: [
-      "--color_pad_button_background",
-      "--color_pad_button_border",
-      "--color_pad_button_text",
-    ],
+    // Scène : les boutons live (mute/stop/cue/mode) restent visibles (body.stage-mode
+    // .pad-actions {opacity:1}) → les réglages Fond/Bordure/Textes boutons s'appliquent
+    // aussi en scène (mission §5.2/§5.4/§5.9). On ne masque donc plus ces champs.
+    stage: [],
     studio: [],
   };
   const toHide = new Set(hiddenFieldsByMode[selected] || []);

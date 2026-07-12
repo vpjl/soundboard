@@ -43,6 +43,11 @@
   --color_pad_button_border: var(--color_ui_border);
   --color_pad_button_text: var(--color_ui_text_muted);
   --color_pad_title_text: var(--color_ui_text);
+  /* Texte secondaire des pads (durée, tags, libellés Tags/Volume%/Pan%, icône type) —
+     indépendant du « Texte secondaire » des blocs (résout #3.1). Défaut blanc (mission §5.5). */
+  --color_pad_secondary_text: #ffffff;
+  /* Texte des tags en garage (et tags actifs sélection/modif) — défaut = texte secondaire pads. */
+  --color_pad_tag_text: var(--color_pad_secondary_text);
   --color_pad_trigger_background: linear-gradient(145deg, #252a32, #1c1f27);
   --color_pad_trigger_playing_background: linear-gradient(145deg, rgba(73, 211, 160, 0.3), #20272a);
   --color_pad_progress_background: rgba(5, 7, 11, 0.58);
@@ -1655,7 +1660,9 @@ body.show-cables .cable-overlay {
 }
 
 .pad.is-playing {
-  border-color: var(--color_status_success);
+  /* La bordure reste « Bordure pad » (--color_pad_border) même en lecture : l'état lecture
+     est indiqué par « Pad actif » (fond du titre) + le halo ci-dessous. Avant, border-color
+     = Succès masquait « Bordure pad » (surtout en scène où les pads jouent). */
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color_status_success) 18%, transparent), 0 18px 38px var(--color_ui_shadow);
 }
 
@@ -2607,7 +2614,7 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   left: 0;
   margin: 0;
   border-color: var(--color_ui_border);
-  color: var(--color_ui_text_muted);
+  color: var(--color_pad_secondary_text);
 }
 
 .pad-type svg {
@@ -2623,7 +2630,7 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   grid-column: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--color_status_progress);
+  color: var(--color_pad_secondary_text);
   font-size: 0.72rem;
   font-weight: 400;
   text-overflow: ellipsis;
@@ -2677,7 +2684,7 @@ select:disabled,
   right: auto !important;
   transform: translateX(-50%) !important;
   align-self: start;
-  color: var(--muted);
+  color: var(--color_pad_secondary_text);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -3694,7 +3701,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   place-items: center;
   min-width: 0;
   min-height: 38px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color_pad_button_border); /* « Bordure boutons » (pads) dans les 3 modes ; avant : var(--line) = Blocs, donc sans effet hors garage */
   border-radius: 8px;
   background: var(--color_pad_button_background); /* « Boutons » skinnable dans les 3 modes (garage l'utilisait déjà ; studio/scène avaient un fond en dur) */
   color: var(--color_pad_button_text); /* « Textes boutons » skinnable en studio/scène aussi (garage l'utilisait déjà) */
