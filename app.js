@@ -5119,14 +5119,17 @@ const ADVANCED_SKIN_FIELD_GROUPS = [
     ],
   },
   {
-    title: "Messages",
+    title: "Messages / Cues",
+    note: "Ces couleurs pilotent aussi les blocs de cue, la condition et le (dé)mute (accessibilité daltonisme).",
     fields: [
       // Avertissement/Danger supprimés (mission #8) : convertis en Stop. Les variables
       // --color_status_warning/_danger restent définies (compat skins + CSS fonctionnel)
       // mais ne sont plus éditables ici.
-      ["--color_status_success", "Succès"],
-      ["--color_status_progress", "Progression"],
-      ["--color_status_stop", "Stop"],
+      // Double rôle signalé : ces statuts colorent aussi les blocs de cue et le
+      // (dé)mute (lance/démute=Succès, stoppe/mute=Stop, attente/condition=Progression).
+      ["--color_status_success", "Succès · Cue lance / démute"],
+      ["--color_status_progress", "Progression · Cue attente / condition"],
+      ["--color_status_stop", "Stop · Cue stoppe / mute"],
     ],
   },
   {
@@ -5566,6 +5569,13 @@ function renderSkinEditorFields() {
     title.className = "skin-editor-group-title";
     title.textContent = group.title;
     container.append(title);
+
+    if (group.note) {
+      const note = document.createElement("p");
+      note.className = "skin-editor-group-note";
+      note.textContent = group.note;
+      container.append(note);
+    }
 
     group.fields.forEach(([name, label]) => {
       const value = normalizeColorInputValue(resolveComputedSkinVar(computed, name));
@@ -12799,10 +12809,15 @@ function handleManualCrossfadePadClick(pad, event) {
 }
 
 function cableColor(action) {
-  if (action === "play") return "#49d3a0";
-  if (action === "stop") return "#ff5f56";
-  if (action === "duck") return "#f6c451";
-  if (action === "mute") return "#8b7cff";
+  // Câbles crossfade = statuts du skin (résolus en valeur calculée car `stroke` est un
+  // attribut SVG, où var() ne se résout pas) : lance=Succès, stoppe/mute=Stop,
+  // duck/condition=Progression. Repli sur les anciennes teintes si la variable est vide.
+  const cs = getComputedStyle(document.body);
+  const v = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+  if (action === "play") return v("--color_status_success", "#49d3a0");
+  if (action === "stop") return v("--color_status_stop", "#ff5f56");
+  if (action === "duck") return v("--color_status_progress", "#f6c451");
+  if (action === "mute") return v("--color_status_stop", "#8b7cff");
   return "#8db5ff";
 }
 

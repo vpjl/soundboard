@@ -427,9 +427,10 @@ textarea *,
 .cue-editor-button.is-active,
 .cue-run-button.is-active,
 .show-cables-button.is-active {
-  border-color: rgba(255, 206, 92, 0.82);
-  background: rgba(255, 206, 92, 0.22);
-  color: #fff0c2;
+  border-color: var(--color_ui_text_muted);
+  background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
+  color: var(--color_ui_text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_ui_text) 30%, transparent);
 }
 
 .mark {
@@ -747,20 +748,20 @@ body.show-cables .cable-legend-panel {
 }
 
 .cable-play {
-  color: #49d3a0;
+  color: var(--color_status_success);
 }
 
 .cable-stop {
-  color: #ff5f56;
+  color: var(--color_status_stop);
 }
 
 .cable-duck {
-  color: #f6c451;
+  color: var(--color_status_progress);
   border-top-style: dashed;
 }
 
 .cable-mute {
-  color: #8b7cff;
+  color: var(--color_status_stop);
   border-top-style: dotted;
 }
 
@@ -1968,9 +1969,9 @@ body.filter-compact .pad.is-tag-dimmed {
 }
 
 .tag-filter-chip.is-active {
-  background: var(--accent, #f0b429);
-  border-color: var(--accent, #f0b429);
-  color: #000;
+  background: var(--color_pad_tag_background);
+  border-color: var(--color_pad_tag_background);
+  color: var(--color_pad_tag_text);
 }
 
 .tag-filter-chip.is-universal:not(.is-active),
@@ -2016,8 +2017,8 @@ body.filter-compact .pad.is-tag-dimmed {
 }
 
 .tag-filter-logic-btn.is-active {
-  background: var(--accent, #f0b429);
-  color: #000;
+  background: var(--color_pad_tag_background);
+  color: var(--color_pad_tag_text);
 }
 
 /* Bouton « inverser la sélection » : à côté de OU/ET, autonome (icône). */
@@ -2351,16 +2352,20 @@ body.stage-mode .tag-filter-section-header {
 .pad-alert-fade-in,
 .pad-alert-fade-out,
 .pad-alert-duck-source {
-  color: #2dd4bf; /* turquoise */
+  color: var(--color_status_progress); /* duck = Progression (comme le câble duck) */
 }
 
 .pad-alert-ducked {
   color: var(--color_ui_text_muted);
 }
 
-.pad-alert-xfade-source,
+/* Crossfade = pastille de flash : source (sortant) = Stop, cible (entrant) = Succès. */
+.pad-alert-xfade-source {
+  color: var(--color_status_stop);
+}
+
 .pad-alert-xfade-target {
-  color: #fb923c; /* orange */
+  color: var(--color_status_success);
 }
 
 .pad-alert-missing {
@@ -2415,10 +2420,10 @@ body.crossfade-armed::after {
   z-index: 119;
   max-width: min(420px, calc(100vw - 28px));
   padding: 10px 12px;
-  border: 1px solid rgba(255, 206, 92, 0.6);
+  border: 1px solid var(--color_ui_border);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.92);
-  color: #fff0c2;
+  background: var(--color_ui_panel);
+  color: var(--color_ui_text);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -2427,9 +2432,10 @@ body.crossfade-armed::after {
 }
 
 body:not(.board-edit-mode) #showCables.show-cables-button {
-  border-color: rgba(255, 206, 92, 0.82);
-  background: rgba(255, 206, 92, 0.22);
-  color: #fff0c2;
+  border-color: var(--color_ui_text_muted);
+  background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
+  color: var(--color_ui_text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color_ui_text) 30%, transparent);
 }
 
 body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
@@ -2632,7 +2638,7 @@ body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
   grid-column: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--color_pad_secondary_text);
+  color: var(--color_pad_tag_text);
   font-size: 0.72rem;
   font-weight: 400;
   text-overflow: ellipsis;
@@ -3031,7 +3037,7 @@ body.board-edit-mode .pad-tags-chips {
   border-radius: 10px;
   border: 1px solid var(--color_ui_border);
   background: var(--color_pad_tag_background);
-  color: var(--color_ui_text_muted);
+  color: var(--color_pad_tag_text);
   font-size: 0.65rem;
   font-weight: 600;
 }
@@ -3754,15 +3760,17 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 }
 
 .pad-live-row .pad-cue-button {
-  border-color: rgba(120, 180, 255, 0.45);
-  color: #cfe5ff;
+  border-color: var(--color_pad_button_border);
+  color: var(--color_pad_button_text);
 }
 
+/* Aperçu casque/cue actif : surlignage dérivé de « Progression » du skin (au lieu
+   d'un bleu figé), pour rester un indicateur clair mais adapté à la palette. */
 .pad-live-row .pad-cue-button.is-active,
 .pad.is-cue-previewing .pad-cue-button {
-  border-color: rgba(130, 207, 255, 0.9);
-  background: rgba(130, 207, 255, 0.22);
-  color: #ffffff;
+  border-color: var(--color_status_progress);
+  background: color-mix(in srgb, var(--color_status_progress) 22%, transparent);
+  color: var(--color_pad_button_text);
 }
 
 body.no-cue-output .pad-live-row .pad-cue-button,
@@ -4231,16 +4239,17 @@ body[data-skin="contrast"] .color-field {
   display: none;
 }
 
+/* Types de cue = statuts du skin : play=Succès, stop=Stop, attente=Progression. */
 .cue-block-play {
-  --cue-color: #49d3a0;
+  --cue-color: var(--color_status_success);
 }
 
 .cue-block-stop {
-  --cue-color: #ff5f56;
+  --cue-color: var(--color_status_stop);
 }
 
 .cue-block-wait {
-  --cue-color: #f6c451;
+  --cue-color: var(--color_status_progress);
   width: 132px;
 }
 
@@ -4281,11 +4290,11 @@ body[data-skin="contrast"] .color-field {
   margin-top: 4px;
   border-top: 1px dotted rgba(255, 255, 255, 0.2);
   padding-top: 7px;
-  color: #d6d0ff;
+  color: var(--color_status_progress); /* condition = Progression du skin */
 }
 
 .cue-block.has-condition {
-  --cue-border-color: #8b7cff;
+  --cue-border-color: var(--color_status_progress);
 }
 
 .cue-rows {
@@ -8173,6 +8182,14 @@ body.stage-mode #boardName:focus {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.skin-editor-group-note {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
 }
 
 .skin-preview-status.is-progress {
