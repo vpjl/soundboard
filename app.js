@@ -4997,10 +4997,27 @@ function readCustomSkins() {
     return parsed
       .filter((skin) => skin && skin.id && skin.name && skin.variables)
       .map((skin) => {
+        const v = skin.variables;
         // Migrate the old light help background (illegible with the light help text)
-        const old = String(skin.variables["--color_ui_help_background"] || "").replace(/\s/g, "");
+        const old = String(v["--color_ui_help_background"] || "").replace(/\s/g, "");
         if (old === "rgba(255,206,92,0.12)") {
-          skin.variables["--color_ui_help_background"] = "#23262d";
+          v["--color_ui_help_background"] = "#23262d";
+        }
+        // Migration refonte skins : les skins sauvegardés avant l'ajout de ces 4 variables
+        // ne les contiennent pas. Comme leurs défauts :root en var() ne se re-résolvent pas
+        // sur les overrides inline (piège d'alias), on les dérive ici depuis les clés du skin
+        // pour que le skin reste cohérent (cadres Board = fond blocs, icônes = titre, etc.).
+        if (!v["--color_ui_frame_background"] && v["--color_ui_panel"]) {
+          v["--color_ui_frame_background"] = `color-mix(in srgb, #111319 42%, ${v["--color_ui_panel"]})`;
+        }
+        if (!v["--color_ui_button_icon"] && v["--color_ui_text"]) {
+          v["--color_ui_button_icon"] = v["--color_ui_text"];
+        }
+        if (!v["--color_pad_secondary_text"]) {
+          v["--color_pad_secondary_text"] = "#ffffff";
+        }
+        if (!v["--color_pad_tag_text"]) {
+          v["--color_pad_tag_text"] = v["--color_pad_secondary_text"];
         }
         return skin;
       });
@@ -5090,7 +5107,7 @@ const ESSENTIAL_SKIN_FIELD_GROUPS = [
       ["--color_pad_trigger_background", "Fond titre"],
       ["--color_pad_title_text", "Texte titre"],
       ["--color_pad_button_background", "Fond boutons"],
-      ["--color_pad_button_text", "Textes boutons"],
+      ["--color_pad_button_text", "Icônes boutons"],
       ["--color_pad_secondary_text", "Texte secondaire"],
     ],
   },
@@ -5638,7 +5655,11 @@ function renderSkinEditorFields() {
 }
 
 function skinVariableSelector(variable) {
-  return `[data-skin-variable="${CSS.escape(variable)}"]`;
+  // Primaire (data-skin-variable, aussi cible du clic) OU secondaire (data-skin-variable-extra,
+  // liste séparée par espaces) : permet à un même élément d'être surligné par plusieurs champs
+  // (ex. les boutons de pad = Fond boutons au clic, + Bordure/Textes boutons au survol).
+  const v = CSS.escape(variable);
+  return `[data-skin-variable="${v}"], [data-skin-variable-extra~="${v}"]`;
 }
 
 function clearSkinEditorVariableHighlight() {
@@ -5738,8 +5759,9 @@ function syncSkinPreviewMode() {
     basic: ["--color_pad_progress_fill", "--color_pad_progress_background"],
     // Scène : les boutons live (mute/stop/cue/mode) restent visibles (body.stage-mode
     // .pad-actions {opacity:1}) → les réglages Fond/Bordure/Textes boutons s'appliquent
-    // aussi en scène (mission §5.2/§5.4/§5.9). On ne masque donc plus ces champs.
-    stage: [],
+    // aussi en scène (mission §5.2/§5.4/§5.9). Mais l'aide n'existe pas en scène :
+    // on masque donc les 3 champs Aide (Garage + Studio seulement).
+    stage: ["--color_ui_help_background", "--color_ui_help_border", "--color_ui_help"],
     studio: [],
   };
   const toHide = new Set(hiddenFieldsByMode[selected] || []);
@@ -5917,17 +5939,19 @@ const SKIN_PREVIEW_PAD_VARS = [
   [".pad-head", "--color_pad_background"],
   [".pad-trigger", "--color_pad_trigger_background"],
   [".pad-title", "--color_pad_title_text"],
-  ["[data-tags-display]", "--color_pad_tag_background"],
+  // Texte des tags affichés = « Texte tags » ; les chips (garage) = « Fond tag ».
+  ["[data-tags-display]", "--color_pad_tag_text"],
   [".pad-tag-chip", "--color_pad_tag_background"],
   [".pad-stop-button", "--color_status_stop"],
   [".pad-mute-button", "--color_status_stop"],
   [".pad-note-button", "--color_pad_button_background"],
-  [".pad-time", "--color_ui_text_muted"],
+  // Durée + type = « Texte secondaire » des pads (et non « Texte secondaire » des blocs).
+  [".pad-time", "--color_pad_secondary_text"],
   [".pad-progress", "--color_pad_progress_background"],
   [".pad-progress-fill", "--color_pad_progress_fill"],
   [".pad-vu", "--color_pad_progress_background"],
   [".pad-shortcut", "--color_pad_button_background"],
-  [".pad-type", "--color_ui_text_muted"],
+  [".pad-type", "--color_pad_secondary_text"],
 ];
 
 // Build a real pad (clone of #padTemplate) with demo content for the preview.
@@ -5961,6 +5985,17 @@ function buildSkinPreviewPad() {
   // Annotate for the highlight/click feature
   SKIN_PREVIEW_PAD_VARS.forEach(([sel, v]) => pad.querySelectorAll(sel).forEach((el) => { el.dataset.skinVariable = v; }));
   pad.querySelectorAll(".pad-actions button").forEach((b) => { b.dataset.skinVariable = "--color_pad_button_background"; });
+  // « Bordure boutons » : cible SECONDAIRE sur les boutons (survol du champ → surligne les
+  // boutons ; viser la bordure seule est difficile, acceptable). Clic = « Fond boutons ».
+  pad.querySelectorAll(".pad-actions button, .pad-note-button, .pad-shortcut").forEach((b) => {
+    b.dataset.skinVariableExtra = "--color_pad_button_border";
+  });
+  // « Icônes boutons » = couleur de l'icône : cible PRIMAIRE sur les SVG des boutons qui
+  // utilisent --color_pad_button_text (donc PAS stop/mute/suppression, en --color_status_stop),
+  // pour un lien bidirectionnel (survol icône ↔ champ, clic icône ouvre le champ).
+  pad.querySelectorAll(
+    ".pad-actions button:not(.pad-stop-button):not(.pad-mute-button):not(.pad-delete-button) svg"
+  ).forEach((svg) => { svg.dataset.skinVariable = "--color_pad_button_text"; });
 
   return pad;
 }
