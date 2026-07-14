@@ -8532,7 +8532,8 @@ async function toggleRecording(pad) {
 
       const blob = new Blob(chunks, { type });
       const buffer = await blob.arrayBuffer();
-      await loadAudioIntoPad(recordedPad, buffer, `Enregistrement ${recordedPad.index + 1}.${extension}`, type);
+      // Conserver un titre personnalisé donné au pad ; sinon nommer « Enregistrement N ».
+      await loadAudioIntoPad(recordedPad, buffer, `Enregistrement ${recordedPad.index + 1}.${extension}`, type, "", false, { keepTitle: !isDefaultTitleForPad(recordedPad) });
       setStatus(`${recordedPad.title} enregistre`);
     });
 

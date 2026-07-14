@@ -9726,7 +9726,11 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   background: #04060a;
   color: #e9ecf2;
 }
-.audio-editor-dialog { position: relative; }
+/* Centrage explicite (fixed + inset:0 + margin:auto) : ne PAS utiliser position:relative,
+   qui casse le centrage d'un <dialog> modal sur iOS Safari (dialog hors écran alors que
+   son backdrop assombrit la fenêtre réglages → « on n'a plus la main »). `fixed` reste un
+   contexte de positionnement pour le panneau d'aide .ae-help-panel (inset:0). */
+.audio-editor-dialog { position: fixed; inset: 0; margin: auto; }
 .audio-editor-dialog::backdrop { background: rgba(0,0,0,.6); }
 .ae-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; font-weight: 700; font-size: 1.05rem; }
 .ae-help-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--color_ui_help_border); background: var(--color_ui_help_background); color: var(--color_ui_help); cursor: pointer; display: grid; place-items: center; padding: 0; }
