@@ -5272,6 +5272,65 @@ function setHarmonyBaseColorEnabled(enabled) {
   document.querySelector(".skin-harmony-color-wrap")?.classList.toggle("is-disabled", !enabled);
 }
 
+// La couleur de base REPRÉSENTE la palette 1 (Fond général = teinte 0). On synchronise le
+// champ « Couleur de base » dessus (en entrant en personnalisée et quand la teinte 0 est
+// éditée à la main), pour qu'il reflète toujours le fond général courant.
+function syncHarmonyBaseToPalette1() {
+  const baseInput = document.querySelector("#skinHarmonyColor");
+  const c = normalizeColorInputValue(state.skinEditorVariables?.["--color_ui_background"]);
+  if (baseInput && /^#[0-9a-fA-F]{6}$/.test(c)) {
+    baseInput.value = c;
+    document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
+  }
+}
+
+// Harmonie « personnalisée » : modifier la couleur de base DÉCALE toute la palette — les 6
+// teintes pivotent du même Δteinte/Δsaturation/Δluminosité (relations préservées), sans
+// régénérer. Référence de l'ancienne base = la teinte 0 courante (Fond général).
+function shiftCustomPaletteByBase() {
+  const newBase = normalizeColorInputValue(document.querySelector("#skinHarmonyColor")?.value);
+  const oldBase = normalizeColorInputValue(state.skinEditorVariables?.["--color_ui_background"]);
+  if (!/^#[0-9a-fA-F]{6}$/.test(newBase) || !/^#[0-9a-fA-F]{6}$/.test(oldBase)) return;
+  const [nh, ns, nl] = hexToHSL(newBase);
+  const [oh, os, ol] = hexToHSL(oldBase);
+  const dh = nh - oh, ds = ns - os, dl = nl - ol;
+  const clamp = (x) => Math.max(0, Math.min(100, x));
+  const preview = skinPreviewRoot();
+  HARMONY_TINT_VARS.forEach((vars, i) => {
+    const cur = normalizeColorInputValue(state.skinEditorVariables?.[vars[0]]);
+    if (!/^#[0-9a-fA-F]{6}$/.test(cur)) return; // gradient/valeur non-hex : on ne décale pas
+    const [h, s, l] = hexToHSL(cur);
+    const shifted = hslToHex(((h + dh) % 360 + 360) % 360, clamp(s + ds), clamp(l + dl));
+    vars.forEach((name) => {
+      state.skinEditorVariables[name] = shifted;
+      if (state.skinEditorHarmonyBase) state.skinEditorHarmonyBase[name] = shifted;
+      preview?.style.setProperty(name, shifted);
+      const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(name)}"]`);
+      if (field) field.value = shifted;
+    });
+    const span = document.querySelector(`#skinHarmonySwatch span[data-swatch-index="${i}"]`);
+    if (span) { span.style.background = shifted; span.title = shifted; }
+  });
+}
+
+// Éditer un CHAMP couleur directement rend la palette « faite main » : elle ne correspond
+// plus à une harmonie pure (monochromatique…). On bascule donc en « personnalisée » — comme
+// un clic sur une pastille du nuancier — pour que le type ENREGISTRÉ reflète la réalité (sinon
+// couleurs et type sont sauvegardés désynchronisés). Puis on rafraîchit le nuancier.
+function markSkinPaletteCustom() {
+  const typeRadio = document.querySelector("[name='skinHarmonyType']:checked");
+  if (typeRadio?.value !== "personnalisee") {
+    const perso = document.querySelector("[name='skinHarmonyType'][value='personnalisee']");
+    if (perso) {
+      perso.checked = true;
+      setHarmonyBaseColorEnabled(true);
+      syncHarmonyBaseToPalette1();
+      saveSkinHarmonySettings();
+    }
+  }
+  populateCustomSwatchFromCurrent();
+}
+
 // Construit la table des teintes d'harmonie (state.skinEditorHarmonyBase) à
 // partir de la couleur/type courants, SANS toucher aux champs ni à l'aperçu.
 // Séparé d'applySkinHarmony pour pouvoir préparer la base à l'ouverture de
@@ -5424,7 +5483,9 @@ function handleSwatchClick(e) {
     const perso = document.querySelector("[name='skinHarmonyType'][value='personnalisee']");
     if (perso) {
       perso.checked = true;
-      setHarmonyBaseColorEnabled(false);
+      // La couleur de base reste modifiable en personnalisée (elle y décale toute la palette).
+      setHarmonyBaseColorEnabled(true);
+      syncHarmonyBaseToPalette1();
       saveSkinHarmonySettings();
     }
   }
@@ -5469,6 +5530,8 @@ function editHarmonyTinte(index, span) {
         const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(v)}"]`);
         if (field) field.value = color;
       });
+      // Teinte 0 = Fond général = couleur de base : garder le champ base synchronisé.
+      if (idx === 0) syncHarmonyBaseToPalette1();
     };
     skinTintPickerInput.addEventListener("input", apply);
     skinTintPickerInput.addEventListener("change", apply);
@@ -5515,6 +5578,7 @@ function openSkinFieldPicker(name, fieldInput) {
       if (fi) fi.value = color; // garde le champ visible + les requêtes input[data-skin-variable] à jour
       state.skinEditorVariables[n] = color;
       skinPreviewRoot()?.style.setProperty(n, color);
+      markSkinPaletteCustom(); // édition manuelle → harmonie « personnalisée »
     };
     skinFieldPickerInput.addEventListener("input", apply);
     skinFieldPickerInput.addEventListener("change", apply);
@@ -5615,6 +5679,7 @@ function renderSkinEditorFields() {
       input.addEventListener("input", () => { // repli (clavier, ou si preventDefault échoue)
         state.skinEditorVariables[name] = input.value;
         preview?.style.setProperty(name, input.value);
+        markSkinPaletteCustom(); // édition manuelle → harmonie « personnalisée »
       });
       // Rediriger vers un picker PARTAGÉ à position fixe au lieu du picker natif du champ
       // (qui s'ouvre à la position du champ cliqué → « se balade »).
@@ -5820,26 +5885,14 @@ function loadSkinHarmonySettings() {
   } catch { return null; }
 }
 
+// Skin sans harmonie mémorisée (prédéfini, ou perso ancien) : sa palette est faite main,
+// elle ne dérive PAS d'une base + type d'harmonie calculé. On se met donc en « personnalisée »,
+// base = Fond général (palette 1), et le nuancier reflète les couleurs réelles du skin.
 function deriveSkinHarmonyFromCurrentSkin() {
-  const computed = getComputedStyle(document.body);
-  const candidates = [
-    "--color_pad_trigger_background",
-    "--color_pad_progress_fill",
-    "--color_ui_border",
-    "--color_ui_panel",
-  ];
-  let baseHex = "";
-  for (const v of candidates) {
-    baseHex = normalizeColorInputValue(computed.getPropertyValue(v));
-    if (baseHex) break;
-  }
-  if (!baseHex) return;
-  const colorInput = document.querySelector("#skinHarmonyColor");
-  const colorWrap = document.querySelector(".skin-harmony-color-wrap");
-  if (colorInput) colorInput.value = baseHex;
-  if (colorWrap) colorWrap.classList.remove("is-unset");
-  // Only update swatch display — don't overwrite skin colors with harmony
-  updateHarmonySwatch();
+  const perso = document.querySelector("[name='skinHarmonyType'][value='personnalisee']");
+  if (perso) perso.checked = true;
+  populateCustomSwatchFromCurrent();
+  syncHarmonyBaseToPalette1();
 }
 
 function restoreSkinHarmonyFromSettings(settings) {
@@ -6072,10 +6125,12 @@ function openSkinEditor() {
   // Base des curseurs sat/lum = couleurs courantes du skin (les curseurs ajustent
   // S/L de l'existant, ils ne régénèrent pas la palette).
   captureSkinSatLumBase();
-  // Couleur de base désactivée si l'harmonie restaurée est « personnalisée ».
+  // Couleur de base toujours modifiable ; dans TOUTES les harmonies elle décale la palette.
   const restoredType = document.querySelector("[name='skinHarmonyType']:checked")?.value;
-  setHarmonyBaseColorEnabled(restoredType !== "personnalisee");
+  setHarmonyBaseColorEnabled(true);
   if (restoredType === "personnalisee") populateCustomSwatchFromCurrent();
+  // Base = Fond général (palette 1) : référence du décalage, cohérente pour tous les types.
+  syncHarmonyBaseToPalette1();
 
   loadSkinFonts();
 
@@ -14429,16 +14484,17 @@ async function init() {
   // picker ne déclenche pas d'input, donc pas d'application intempestive.
   document.querySelector("#skinHarmonyColor")?.addEventListener("input", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
+    // Quelle que soit l'harmonie, la base DÉCALE toute la palette (préserve la structure de
+    // l'harmonie + les réglages), au lieu de régénérer. Picker un type d'harmonie régénère.
     document.querySelectorAll("#skinHarmonySwatch span").forEach(s => s.classList.remove("is-active"));
-    updateHarmonySwatch();
-    applySkinHarmony();
+    shiftCustomPaletteByBase();
   });
   // À la validation (change) : on refait le rendu et on SAUVEGARDE (l'input ne sauvegarde pas).
   document.querySelector("#skinHarmonyColor")?.addEventListener("change", () => {
     document.querySelector(".skin-harmony-color-wrap")?.classList.remove("is-unset");
+    // La base décale toute la palette dans toutes les harmonies (voir handler input).
     skinPreviewFrameDoc()?.querySelectorAll("[data-skin-variable]").forEach(el => el.classList.remove("skin-hue-match"));
-    updateHarmonySwatch();
-    applySkinHarmony();
+    shiftCustomPaletteByBase();
     saveSkinHarmonySettings();
   });
   // Changer l'harmonie est un choix délibéré : on recalcule la palette avec les
@@ -14447,8 +14503,9 @@ async function init() {
   // de base — on ne recalcule alors rien.
   document.querySelector(".skin-harmony-types")?.addEventListener("change", () => {
     const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
-    setHarmonyBaseColorEnabled(type !== "personnalisee");
-    if (type === "personnalisee") { populateCustomSwatchFromCurrent(); saveSkinHarmonySettings(); return; }
+    // La base reste modifiable même en personnalisée (elle y décale toute la palette).
+    setHarmonyBaseColorEnabled(true);
+    if (type === "personnalisee") { populateCustomSwatchFromCurrent(); syncHarmonyBaseToPalette1(); saveSkinHarmonySettings(); return; }
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();
