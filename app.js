@@ -5563,6 +5563,12 @@ function resolveComputedSkinVar(computed, name, depth = 0) {
 
 function renderSkinEditorFields() {
   if (!els.skinEditorFields) return;
+  // Le bloc police est déplacé dans la section Expert (dans #skinEditorFields) en fin de
+  // rendu ; le ressortir avant de vider, sinon innerHTML="" le détruirait au re-rendu.
+  const fontsBlockSaved = document.querySelector(".skin-fonts-block");
+  if (fontsBlockSaved && els.skinEditorFields.contains(fontsBlockSaved)) {
+    els.skinEditorFields.parentElement?.insertBefore(fontsBlockSaved, els.skinEditorFields);
+  }
   els.skinEditorFields.innerHTML = "";
 
   // Ensure current skin is applied to body before reading color values
@@ -5646,6 +5652,17 @@ function renderSkinEditorFields() {
   advancedFields.className = "skin-editor-advanced-fields";
   ADVANCED_SKIN_FIELD_GROUPS.forEach((group) => renderFieldGroup(group, advancedFields));
   details.append(advancedFields);
+
+  // Intégrer le bloc « Police / Taille titres » aux réglages Expert (masqué en basique,
+  // affiché quand la section Expert est ouverte). On DÉPLACE le bloc HTML statique existant
+  // (préserve ses IDs #skinFontFamily/#skinFontSize, écouteurs et valeurs chargées).
+  const fontsBlock = document.querySelector(".skin-fonts-block");
+  if (fontsBlock) {
+    const fontsTitle = document.createElement("h3");
+    fontsTitle.className = "skin-editor-group-title";
+    fontsTitle.textContent = "Titres (police / taille)";
+    details.append(fontsTitle, fontsBlock);
+  }
 
   details.addEventListener("toggle", () => {
     state.skinEditorAdvancedOpen = details.open;
@@ -7990,7 +8007,8 @@ async function loadFileIntoPad(pad, file) {
   await ensureAudio();
   const arrayBuffer = await file.arrayBuffer();
   const exposedPath = file.path || file.webkitRelativePath || "";
-  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath));
+  // Conserver un titre personnalisé ; sinon nommer d'après le fichier.
+  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: !isDefaultTitleForPad(pad) });
 }
 
 async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false, options = {}) {
@@ -8097,7 +8115,8 @@ async function importAudioFileIntoPad(pad, file, index, total) {
   try {
     const buffer = await file.arrayBuffer();
     const exposedPath = file.webkitRelativePath || file.path || file.name;
-    await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath));
+    // Conserver un titre personnalisé ; sinon nommer d'après le fichier.
+    await loadAudioIntoPad(pad, buffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: !isDefaultTitleForPad(pad) });
     if (total > 12) setStatus(`Import dossier: ${index + 1}/${total}`);
     await yieldFolderImportBatch(index);
     return true;
