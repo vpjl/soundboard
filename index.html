@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=501">
+    <link rel="stylesheet" href="styles.css?v=502">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1980,6 +1980,22 @@
           <div class="skin-editor-header-actions">
             <button id="saveSkinEditor" type="button">Enregistrer</button>
             <button id="saveSkinEditorAs" type="button">Enregistrer sous…</button>
+            <button id="exportSkinEditor" type="button" title="Exporter ce skin dans un fichier" aria-label="Exporter ce skin dans un fichier">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+                <path d="M12 4v10M8 10l4 4 4-4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </button>
+            <button id="exportAllSkins" type="button" title="Exporter tous les skins perso dans un fichier" aria-label="Exporter tous les skins perso dans un fichier">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+                <path d="M12 2v8M9 7l3 3 3-3M4 14l8 4 8-4M4 18l8 4 8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </button>
+            <button id="importSkinEditor" type="button" title="Importer un skin depuis un fichier" aria-label="Importer un skin depuis un fichier">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+                <path d="M12 14V4M8 8l4-4 4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </button>
+            <input id="importSkinFile" type="file" accept="application/json,.json" hidden>
             <button id="cancelSkinEditor" type="button">Annuler</button>
             <button id="deleteSkinEditor" type="button" title="Supprimer ce skin" aria-label="Supprimer ce skin">
               <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
@@ -2325,7 +2341,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=501"></script>
+    <script src="app.js?v=502"></script>
 
 
   </body>

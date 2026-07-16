@@ -272,6 +272,10 @@ const els = {
   skinEditorName: document.querySelector("#skinEditorName"),
   saveSkinEditor: document.querySelector("#saveSkinEditor"),
   saveSkinEditorAs: document.querySelector("#saveSkinEditorAs"),
+  exportSkinEditor: document.querySelector("#exportSkinEditor"),
+  exportAllSkins: document.querySelector("#exportAllSkins"),
+  importSkinEditor: document.querySelector("#importSkinEditor"),
+  importSkinFile: document.querySelector("#importSkinFile"),
   deleteSkinEditor: document.querySelector("#deleteSkinEditor"),
   cancelSkinEditor: document.querySelector("#cancelSkinEditor"),
   closeSkinEditor: document.querySelector("#closeSkinEditor"),
@@ -6274,6 +6278,89 @@ function saveSkinEditorAs() {
   applySkin(`${CUSTOM_SKIN_PREFIX}${skin.id}`);
   saveSkinToCurrentBoard();
   closeSkinEditor();
+}
+
+// Ne garder que les variables de skin connues (évite d'exporter/importer du bruit).
+function sanitizeSkinVariables(source) {
+  const clean = {};
+  CUSTOM_SKIN_VARIABLES.forEach((k) => {
+    const v = source?.[k];
+    if (typeof v === "string" && v.trim()) clean[k] = v.trim();
+  });
+  return clean;
+}
+
+// Exporte le skin en cours d'édition (état courant de l'éditeur) dans un fichier .json.
+function exportCurrentSkin() {
+  const name = String(els.skinEditorName?.value || "").trim() || "skin";
+  const variables = sanitizeSkinVariables(_snapshotEditorVariables());
+  if (!Object.keys(variables).length) { setStatus("Rien à exporter", "stop"); return; }
+  const payload = {
+    type: "soundboard-skin",
+    version: 1,
+    skin: { name, variables, harmony: _snapshotHarmonySettings(), exportedAt: new Date().toISOString() },
+  };
+  const safe = name.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "skin";
+  downloadBlob(JSON.stringify(payload, null, 2), `skin-${safe}.json`, "application/json");
+  setStatus(`Skin « ${name} » exporté`);
+}
+
+// Exporte TOUS les skins perso enregistrés dans un seul fichier .json (réimportable).
+function exportAllSkins() {
+  const skins = readCustomSkins();
+  if (!skins.length) { setStatus("Aucun skin perso à exporter", "stop"); return; }
+  const payload = {
+    type: "soundboard-skins",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    skins: skins.map((s) => ({ name: s.name, variables: sanitizeSkinVariables(s.variables), harmony: s.harmony || null })),
+  };
+  downloadBlob(JSON.stringify(payload, null, 2), `skins-perso-${skins.length}.json`, "application/json");
+  setStatus(`${skins.length} skins perso exportés`);
+}
+
+// Importe un/des skin(s) depuis un fichier .json (accepte { skin }, { skins:[] },
+// un tableau, ou un skin brut). Ids régénérés, noms dédoublonnés.
+function importSkinsFromFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let incoming = [];
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      if (parsed?.skin) incoming = [parsed.skin];
+      else if (Array.isArray(parsed?.skins)) incoming = parsed.skins;
+      else if (Array.isArray(parsed)) incoming = parsed;
+      else if (parsed?.variables) incoming = [parsed];
+    } catch {
+      setStatus("Fichier de skin illisible (JSON invalide)", "stop");
+      return;
+    }
+    incoming = incoming.filter((s) => s && s.variables && typeof s.variables === "object");
+    const skins = readCustomSkins();
+    let lastId = "";
+    let added = 0;
+    incoming.forEach((s) => {
+      const variables = sanitizeSkinVariables(s.variables);
+      if (!Object.keys(variables).length) return;
+      let name = String(s.name || "Skin importé").trim() || "Skin importé";
+      if (isBuiltInSkinDisplayName(name)) name = `${name} (importé)`;
+      const base = name;
+      let n = 2;
+      while (skins.some((x) => String(x.name || "").trim().toLowerCase() === name.toLowerCase())) name = `${base} (${n++})`;
+      lastId = createId();
+      const harmony = (s.harmony && typeof s.harmony === "object") ? s.harmony : null;
+      skins.push({ id: lastId, name, createdAt: new Date().toISOString(), variables, harmony });
+      added += 1;
+    });
+    if (!added) { setStatus("Aucun skin valide dans le fichier", "stop"); return; }
+    writeCustomSkins(skins);
+    updateSkinOptions();
+    applySkin(`${CUSTOM_SKIN_PREFIX}${lastId}`);
+    if (els.skinEditorDialog?.open) openSkinEditor(); // recharger l'éditeur sur le skin importé
+    setStatus(added === 1 ? "Skin importé" : `${added} skins importés`);
+  };
+  reader.readAsText(file);
 }
 
 function deleteCurrentCustomSkin() {
@@ -14533,6 +14620,13 @@ async function init() {
 
   els.saveSkinEditor?.addEventListener("click", saveSkinEditorOverwrite);
   els.saveSkinEditorAs?.addEventListener("click", saveSkinEditorAs);
+  els.exportSkinEditor?.addEventListener("click", exportCurrentSkin);
+  els.exportAllSkins?.addEventListener("click", exportAllSkins);
+  els.importSkinEditor?.addEventListener("click", () => els.importSkinFile?.click());
+  els.importSkinFile?.addEventListener("change", (e) => {
+    importSkinsFromFile(e.target.files?.[0]);
+    e.target.value = ""; // permet de ré-importer le même fichier
+  });
   els.deleteSkinEditor?.addEventListener("click", deleteCurrentCustomSkin);
   // Preview click/hover listeners are attached inside the iframe (buildSkinPreviewFrame).
   // Only the mode-radio change listener stays on the editor section.

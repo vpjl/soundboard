@@ -8352,6 +8352,19 @@ body.stage-mode #boardName:focus {
   color: color-mix(in srgb, var(--color_status_stop) 12%, #fff);
 }
 
+/* Export / Import : boutons-icônes carrés neutres (couleurs héritées de l'en-tête). */
+#exportSkinEditor,
+#exportAllSkins,
+#importSkinEditor {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+}
+
 .skin-editor-layout {
   grid-template-columns: minmax(390px, 42fr) minmax(560px, 58fr);
   align-items: start;
