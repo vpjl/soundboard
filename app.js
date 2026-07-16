@@ -276,6 +276,10 @@ const els = {
   exportAllSkins: document.querySelector("#exportAllSkins"),
   importSkinEditor: document.querySelector("#importSkinEditor"),
   importSkinFile: document.querySelector("#importSkinFile"),
+  importSkinConfirmDialog: document.querySelector("#importSkinConfirmDialog"),
+  importSkinSave: document.querySelector("#importSkinSave"),
+  importSkinDiscard: document.querySelector("#importSkinDiscard"),
+  importSkinCancel: document.querySelector("#importSkinCancel"),
   deleteSkinEditor: document.querySelector("#deleteSkinEditor"),
   cancelSkinEditor: document.querySelector("#cancelSkinEditor"),
   closeSkinEditor: document.querySelector("#closeSkinEditor"),
@@ -6160,7 +6164,12 @@ function openSkinEditor() {
     els.saveSkinEditor.disabled = !customSkin;
   }
 
-  if (els.skinEditorDialog?.showModal) {
+  // Instantané de référence : sert à détecter des modifications non enregistrées (avant import).
+  captureSkinEditorBaseline();
+
+  // showModal() lève une erreur si le dialog est déjà ouvert (cas d'un rechargement de
+  // l'éditeur après import) → on ne l'appelle que s'il est fermé.
+  if (els.skinEditorDialog?.showModal && !els.skinEditorDialog.open) {
     els.skinEditorDialog.showModal();
   }
 }
@@ -6256,16 +6265,16 @@ function saveSkinEditorAs() {
   const suggested = field && !isBuiltInSkinDisplayName(field) ? field : "Mon skin";
 
   const entered = window.prompt("Nom du skin", suggested);
-  if (entered === null) return;
+  if (entered === null) return false;
   const name = String(entered).trim();
 
-  if (!name) { window.alert("Nom du skin obligatoire"); return; }
-  if (isBuiltInSkinDisplayName(name)) { window.alert("Ce nom est réservé à un skin intégré"); return; }
+  if (!name) { window.alert("Nom du skin obligatoire"); return false; }
+  if (isBuiltInSkinDisplayName(name)) { window.alert("Ce nom est réservé à un skin intégré"); return false; }
 
   const skins = readCustomSkins();
   const existing = skins.find((skin) => String(skin.name || "").trim().toLowerCase() === name.toLowerCase());
   if (existing) {
-    if (!window.confirm(`Un skin « ${existing.name} » existe déjà. Le remplacer ?`)) return;
+    if (!window.confirm(`Un skin « ${existing.name} » existe déjà. Le remplacer ?`)) return false;
     const idx = skins.findIndex((s) => s.id === existing.id);
     if (idx !== -1) skins.splice(idx, 1);
   }
@@ -6278,6 +6287,7 @@ function saveSkinEditorAs() {
   applySkin(`${CUSTOM_SKIN_PREFIX}${skin.id}`);
   saveSkinToCurrentBoard();
   closeSkinEditor();
+  return true;
 }
 
 // Ne garder que les variables de skin connues (évite d'exporter/importer du bruit).
@@ -6319,6 +6329,46 @@ function exportAllSkins() {
   setStatus(`${skins.length} skins perso exportés`);
 }
 
+// Instantané de l'état de l'éditeur, pour détecter des modifications non enregistrées.
+// On se base sur state.skinEditorVariables (source synchrone des couleurs éditables) et
+// non sur l'aperçu (iframe chargée en asynchrone → comparaison instable).
+function captureSkinEditorBaseline() {
+  state.skinEditorBaseline = {
+    vars: sanitizeSkinVariables(state.skinEditorVariables),
+    name: String(els.skinEditorName?.value || "").trim(),
+    harmony: JSON.stringify(_snapshotHarmonySettings()),
+  };
+}
+
+// Vrai si l'éditeur a des modifications non enregistrées depuis l'ouverture/la sauvegarde.
+function isSkinEditorDirty() {
+  const b = state.skinEditorBaseline;
+  if (!b) return false;
+  if (JSON.stringify(_snapshotHarmonySettings()) !== b.harmony) return true;
+  if (String(els.skinEditorName?.value || "").trim() !== b.name) return true;
+  const cur = sanitizeSkinVariables(state.skinEditorVariables);
+  const keys = new Set([...Object.keys(cur), ...Object.keys(b.vars)]);
+  for (const k of keys) if (cur[k] !== b.vars[k]) return true;
+  return false;
+}
+
+// Enregistre le skin custom courant EN PLACE sans fermer l'éditeur. Renvoie false si le
+// skin courant n'est pas un skin custom (skin intégré → rien à écraser).
+function saveSkinEditorInPlace() {
+  const current = String(localStorage.getItem(SKIN_STORAGE) || "");
+  const currentId = current.startsWith(CUSTOM_SKIN_PREFIX) ? current.slice(CUSTOM_SKIN_PREFIX.length) : "";
+  if (!currentId) return false;
+  const skins = readCustomSkins();
+  const index = skins.findIndex((s) => s.id === currentId);
+  if (index === -1) return false;
+  const name = String(els.skinEditorName?.value || skins[index].name).trim() || skins[index].name;
+  skins[index] = { ...skins[index], name, updatedAt: new Date().toISOString(), variables: _snapshotEditorVariables(), harmony: _snapshotHarmonySettings() };
+  writeCustomSkins(skins);
+  updateSkinOptions();
+  captureSkinEditorBaseline(); // plus de modifications en attente
+  return true;
+}
+
 // Importe un/des skin(s) depuis un fichier .json (accepte { skin }, { skins:[] },
 // un tableau, ou un skin brut). Ids régénérés, noms dédoublonnés.
 function importSkinsFromFile(file) {
@@ -6357,7 +6407,11 @@ function importSkinsFromFile(file) {
     writeCustomSkins(skins);
     updateSkinOptions();
     applySkin(`${CUSTOM_SKIN_PREFIX}${lastId}`);
-    if (els.skinEditorDialog?.open) openSkinEditor(); // recharger l'éditeur sur le skin importé
+    if (added > 1) {
+      closeSkinEditor(); // import d'un ENSEMBLE de skins → fermer l'éditeur
+    } else if (els.skinEditorDialog?.open) {
+      openSkinEditor(); // skin unique → recharger l'éditeur sur le skin importé
+    }
     setStatus(added === 1 ? "Skin importé" : `${added} skins importés`);
   };
   reader.readAsText(file);
@@ -14622,7 +14676,28 @@ async function init() {
   els.saveSkinEditorAs?.addEventListener("click", saveSkinEditorAs);
   els.exportSkinEditor?.addEventListener("click", exportCurrentSkin);
   els.exportAllSkins?.addEventListener("click", exportAllSkins);
-  els.importSkinEditor?.addEventListener("click", () => els.importSkinFile?.click());
+  // Import : si l'éditeur a des modifs non enregistrées, proposer 3 choix (Oui/Non/Annuler).
+  // Sinon, ouvrir directement le sélecteur de fichier.
+  els.importSkinEditor?.addEventListener("click", () => {
+    if (isSkinEditorDirty() && els.importSkinConfirmDialog?.showModal) {
+      els.importSkinConfirmDialog.showModal();
+    } else {
+      els.importSkinFile?.click();
+    }
+  });
+  // Oui → enregistrer (custom = en place ; intégré = « Enregistrer sous… »), puis importer.
+  els.importSkinSave?.addEventListener("click", () => {
+    els.importSkinConfirmDialog?.close();
+    if (!saveSkinEditorInPlace() && !saveSkinEditorAs()) return; // « Enregistrer sous… » annulé → abandonner
+    els.importSkinFile?.click();
+  });
+  // Non → importer sans enregistrer les modifications en cours.
+  els.importSkinDiscard?.addEventListener("click", () => {
+    els.importSkinConfirmDialog?.close();
+    els.importSkinFile?.click();
+  });
+  // Annuler (ou Échap) → abandonner l'import, rien n'est perdu ni importé.
+  els.importSkinCancel?.addEventListener("click", () => els.importSkinConfirmDialog?.close());
   els.importSkinFile?.addEventListener("change", (e) => {
     importSkinsFromFile(e.target.files?.[0]);
     e.target.value = ""; // permet de ré-importer le même fichier
