@@ -270,6 +270,8 @@ const els = {
   skinEditorDialog: document.querySelector("#skinEditorDialog"),
   skinEditorFields: document.querySelector("#skinEditorFields"),
   skinEditorName: document.querySelector("#skinEditorName"),
+  skinUndo: document.querySelector("#skinUndo"),
+  skinRedo: document.querySelector("#skinRedo"),
   saveSkinEditor: document.querySelector("#saveSkinEditor"),
   saveSkinEditorAs: document.querySelector("#saveSkinEditorAs"),
   exportSkinEditor: document.querySelector("#exportSkinEditor"),
@@ -5319,6 +5321,7 @@ function shiftCustomPaletteByBase() {
     const span = document.querySelector(`#skinHarmonySwatch span[data-swatch-index="${i}"]`);
     if (span) { span.style.background = shifted; span.title = shifted; }
   });
+  scheduleSkinHistory();
 }
 
 // Éditer un CHAMP couleur directement rend la palette « faite main » : elle ne correspond
@@ -5337,6 +5340,7 @@ function markSkinPaletteCustom() {
     }
   }
   populateCustomSwatchFromCurrent();
+  scheduleSkinHistory();
 }
 
 // Construit la table des teintes d'harmonie (state.skinEditorHarmonyBase) à
@@ -5421,6 +5425,7 @@ function applyHarmonyAdjustments() {
     const input = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(name)}"]`);
     if (input) input.value = adjusted;
   });
+  scheduleSkinHistory();
 }
 
 // Base des curseurs sat/lum = couleurs courantes du skin (delta 0). Les curseurs
@@ -5540,6 +5545,7 @@ function editHarmonyTinte(index, span) {
       });
       // Teinte 0 = Fond général = couleur de base : garder le champ base synchronisé.
       if (idx === 0) syncHarmonyBaseToPalette1();
+      scheduleSkinHistory();
     };
     skinTintPickerInput.addEventListener("input", apply);
     skinTintPickerInput.addEventListener("change", apply);
@@ -6166,6 +6172,8 @@ function openSkinEditor() {
 
   // Instantané de référence : sert à détecter des modifications non enregistrées (avant import).
   captureSkinEditorBaseline();
+  // Historique undo/redo : repart de zéro avec l'état initial du skin ouvert.
+  initSkinHistory();
 
   // showModal() lève une erreur si le dialog est déjà ouvert (cas d'un rechargement de
   // l'éditeur après import) → on ne l'appelle que s'il est fermé.
@@ -6350,6 +6358,111 @@ function isSkinEditorDirty() {
   const keys = new Set([...Object.keys(cur), ...Object.keys(b.vars)]);
   for (const k of keys) if (cur[k] !== b.vars[k]) return true;
   return false;
+}
+
+// ===== Historique undo/redo de l'éditeur de skin (pas à pas) =====
+// Un « pas » = un état complet éditable { couleurs, nom, harmonie }. Les changements
+// rapides (glissement de roue…) sont regroupés par débounce en une seule étape.
+const SKIN_HISTORY_MAX = 80;
+let skinHistoryTimer = null;
+
+function currentSkinFontState() {
+  return {
+    family: document.querySelector("#skinFontFamily")?.value || "",
+    size: document.querySelector("#skinFontSize")?.value || "14",
+  };
+}
+function snapshotSkinEditorState() {
+  return {
+    vars: sanitizeSkinVariables(state.skinEditorVariables),
+    name: String(els.skinEditorName?.value || "").trim(),
+    harmony: _snapshotHarmonySettings(),
+    fonts: currentSkinFontState(),
+  };
+}
+function skinSnapshotKey(s) { return s ? JSON.stringify([s.vars, s.name, s.harmony, s.fonts]) : ""; }
+
+// Réapplique un instantané à TOUT l'éditeur (état + champs + aperçu + nuancier + harmonie + nom).
+function restoreSkinEditorState(snap) {
+  if (!snap) return;
+  if (els.skinEditorName) els.skinEditorName.value = snap.name || "";
+  if (snap.harmony) restoreSkinHarmonyFromSettings(snap.harmony); // base / type / curseurs
+  const preview = skinPreviewRoot();
+  Object.entries(snap.vars || {}).forEach(([name, value]) => {
+    state.skinEditorVariables[name] = value;
+    preview?.style.setProperty(name, value);
+    const field = els.skinEditorFields?.querySelector(`input[data-skin-variable="${CSS.escape(name)}"]`);
+    if (field) field.value = value;
+  });
+  setHarmonyBaseColorEnabled(true);
+  syncHarmonyBaseToPalette1();
+  populateCustomSwatchFromCurrent(); // nuancier reflète les couleurs réelles restaurées
+  if (snap.fonts) {
+    const fam = document.querySelector("#skinFontFamily");
+    const size = document.querySelector("#skinFontSize");
+    if (fam) fam.value = snap.fonts.family || "";
+    if (size) size.value = snap.fonts.size || "14";
+    applySkinFonts(); // applique aperçu + board + met à jour le libellé/stockage
+  }
+}
+
+function initSkinHistory() {
+  window.clearTimeout(skinHistoryTimer);
+  skinHistoryTimer = null;
+  state.skinEditorHistory = [snapshotSkinEditorState()];
+  state.skinEditorHistoryIndex = 0;
+  updateSkinHistoryButtons();
+}
+
+function commitSkinHistory() {
+  skinHistoryTimer = null;
+  if (!Array.isArray(state.skinEditorHistory)) return;
+  const snap = snapshotSkinEditorState();
+  const top = state.skinEditorHistory[state.skinEditorHistoryIndex];
+  if (top && skinSnapshotKey(top) === skinSnapshotKey(snap)) return; // aucun changement réel
+  // Tronquer la branche « redo » puis empiler.
+  state.skinEditorHistory = state.skinEditorHistory.slice(0, state.skinEditorHistoryIndex + 1);
+  state.skinEditorHistory.push(snap);
+  if (state.skinEditorHistory.length > SKIN_HISTORY_MAX) state.skinEditorHistory.shift();
+  state.skinEditorHistoryIndex = state.skinEditorHistory.length - 1;
+  updateSkinHistoryButtons();
+}
+
+// Appelé depuis chaque point de modification : regroupe les changements rapides.
+function scheduleSkinHistory() {
+  if (state.skinHistoryRestoring) return; // ne pas ré-enregistrer pendant un undo/redo
+  window.clearTimeout(skinHistoryTimer);
+  skinHistoryTimer = window.setTimeout(commitSkinHistory, 350);
+}
+function flushSkinHistory() {
+  if (skinHistoryTimer) { window.clearTimeout(skinHistoryTimer); commitSkinHistory(); }
+}
+
+function applySkinHistoryAt(index) {
+  const snap = state.skinEditorHistory?.[index];
+  if (!snap) return;
+  state.skinHistoryRestoring = true;
+  restoreSkinEditorState(snap);
+  state.skinHistoryRestoring = false;
+  updateSkinHistoryButtons();
+}
+function skinHistoryUndo() {
+  flushSkinHistory(); // capturer un changement encore en attente avant de reculer
+  if (!(state.skinEditorHistoryIndex > 0)) return;
+  state.skinEditorHistoryIndex -= 1;
+  applySkinHistoryAt(state.skinEditorHistoryIndex);
+}
+function skinHistoryRedo() {
+  flushSkinHistory();
+  if (!(state.skinEditorHistoryIndex < (state.skinEditorHistory?.length || 0) - 1)) return;
+  state.skinEditorHistoryIndex += 1;
+  applySkinHistoryAt(state.skinEditorHistoryIndex);
+}
+function updateSkinHistoryButtons() {
+  const i = state.skinEditorHistoryIndex ?? 0;
+  const len = state.skinEditorHistory?.length ?? 0;
+  if (els.skinUndo) els.skinUndo.disabled = i <= 0;
+  if (els.skinRedo) els.skinRedo.disabled = i >= len - 1;
 }
 
 // Enregistre le skin custom courant EN PLACE sans fermer l'éditeur. Renvoie false si le
@@ -14646,7 +14759,7 @@ async function init() {
     const type = document.querySelector("[name='skinHarmonyType']:checked")?.value;
     // La base reste modifiable même en personnalisée (elle y décale toute la palette).
     setHarmonyBaseColorEnabled(true);
-    if (type === "personnalisee") { populateCustomSwatchFromCurrent(); syncHarmonyBaseToPalette1(); saveSkinHarmonySettings(); return; }
+    if (type === "personnalisee") { populateCustomSwatchFromCurrent(); syncHarmonyBaseToPalette1(); saveSkinHarmonySettings(); scheduleSkinHistory(); return; }
     updateHarmonySwatch();
     applySkinHarmony();
     saveSkinHarmonySettings();
@@ -14667,11 +14780,14 @@ async function init() {
     applyHarmonyAdjustments();
     saveSkinHarmonySettings();
   });
-  document.querySelector("#skinFontFamily")?.addEventListener("change", applySkinFonts);
-  document.querySelector("#skinFontSize")?.addEventListener("input", applySkinFonts);
+  document.querySelector("#skinFontFamily")?.addEventListener("change", () => { applySkinFonts(); scheduleSkinHistory(); });
+  document.querySelector("#skinFontSize")?.addEventListener("input", () => { applySkinFonts(); scheduleSkinHistory(); });
   document.querySelector("#skinPreviewTags")?.addEventListener("input", applySkinPreviewTags);
   els.cancelSkinEditor?.addEventListener("click", closeSkinEditor);
 
+  els.skinUndo?.addEventListener("click", skinHistoryUndo);
+  els.skinRedo?.addEventListener("click", skinHistoryRedo);
+  els.skinEditorName?.addEventListener("input", scheduleSkinHistory);
   els.saveSkinEditor?.addEventListener("click", saveSkinEditorOverwrite);
   els.saveSkinEditorAs?.addEventListener("click", saveSkinEditorAs);
   els.exportSkinEditor?.addEventListener("click", exportCurrentSkin);

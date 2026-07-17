@@ -8352,7 +8352,9 @@ body.stage-mode #boardName:focus {
   color: color-mix(in srgb, var(--color_status_stop) 12%, #fff);
 }
 
-/* Export / Import : boutons-icônes carrés neutres (couleurs héritées de l'en-tête). */
+/* Undo/Redo + Export / Import : boutons-icônes carrés neutres (couleurs héritées de l'en-tête). */
+#skinUndo,
+#skinRedo,
 #exportSkinEditor,
 #exportAllSkins,
 #importSkinEditor {
@@ -8363,6 +8365,12 @@ body.stage-mode #boardName:focus {
   align-items: center;
   justify-content: center;
   border-radius: 7px;
+}
+
+#skinUndo:disabled,
+#skinRedo:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .skin-editor-layout {
