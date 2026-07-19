@@ -9224,6 +9224,14 @@ details[open] > .skin-editor-advanced-summary::before {
   margin: 0;
 }
 
+/* Explication « Mode garage » de l'aide : même aspect que les dd du help-grid. */
+.board-mode-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 @media (max-width: 720px) {
   .board-mode-selector {
     grid-template-columns: 1fr 1fr 1fr;

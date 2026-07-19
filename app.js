@@ -15303,7 +15303,7 @@ async function init() {
 
   els.helpButton?.addEventListener("click", () => {
     if (state.boardEditMode) {
-      openContextHelp(["board-edit", "pad-edit"], "Aide Board / Pad (Edit)");
+      openContextHelp(["board-edit", "pad-edit"], "Aide Board & pads (garage)");
     } else {
       openContextHelp(["board-live", "pad-live"], "Aide Board / Pad (Live)");
     }
