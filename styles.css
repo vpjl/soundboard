@@ -608,6 +608,10 @@ body.board-edit-mode .board-edit-actions {
 .master-strip {
   --master-stop-size: 70px;
   --master-stop-panel-height: 112px;
+  /* Taille des boutons absolus du coin bas-droite (aide / audio master). Sert à réserver
+     leur bande via .master-option-badges — à garder synchronisé si on change leur taille
+     (cf. media query portrait qui les passe à 54px). */
+  --master-corner-btn: 42px;
   display: grid;
   grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
   grid-template-rows: auto auto auto auto;
@@ -1427,6 +1431,20 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   flex-wrap: nowrap;
   justify-content: flex-start;
   overflow: hidden;
+}
+
+/* Bande basse réservée aux boutons absolus du coin (aide / audio master, bottom:8px) :
+   cette 4e rangée porte leur hauteur. Sans elle ils remontent et chevauchent STOP GROUPÉ.
+   La réserve est calculée depuis la taille réelle des boutons (54px en portrait).
+   Sélecteurs volontairement PLUS SPÉCIFIQUES que `.option-badges { min-height: 20px }` et
+   `.option-badges:empty { display: none }` : ces deux règles sont plus bas dans le fichier
+   et l'emporteraient à spécificité égale. */
+.master-strip .master-option-badges {
+  min-height: calc(var(--master-corner-btn, 42px) + 8px);
+}
+
+.master-strip .master-option-badges:empty {
+  display: flex;
 }
 
 .stop-all-control {
@@ -6556,6 +6574,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     aspect-ratio: 1 / 1;
   }
 
+  /* Bouton du coin agrandi → agrandir d'autant la bande réservée en bas du master,
+     sinon il chevauche le bloc STOP GROUPÉ (cf. .master-option-badges). */
+  .master-strip {
+    --master-corner-btn: 54px;
+  }
+
   .audio-toggle-row {
     flex-wrap: wrap;
     overflow-x: visible;
@@ -8917,6 +8941,12 @@ details[open] > .skin-editor-advanced-summary::before {
 .skin-editor-preview .master-output-name,
 .skin-editor-preview .master-vu {
   display: none;
+}
+
+/* Aperçu : le bouton d'aide y est masqué, pas besoin de réserver sa bande basse.
+   (Spécificité alignée sur `.master-strip .master-option-badges` pour l'emporter.) */
+.skin-editor-preview .master-strip .master-option-badges {
+  min-height: 0;
 }
 
 .skin-editor-preview .master-output-group {
