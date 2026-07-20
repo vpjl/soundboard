@@ -15305,7 +15305,7 @@ async function init() {
     if (state.boardEditMode) {
       openContextHelp(["board-edit", "pad-edit"], "Aide Board & pads (garage)");
     } else {
-      openContextHelp(["board-live", "pad-live"], "Aide Board / Pad (Live)");
+      openContextHelp(["board-live", "pad-live"], "Aide Board & pads (studio & scène)");
     }
   });
   els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));

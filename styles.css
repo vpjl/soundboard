@@ -9254,6 +9254,20 @@ details[open] > .skin-editor-advanced-summary::before {
   margin: 0;
 }
 
+/* Aide studio/scène : l'explication des modes est présentée dans un cadre. */
+.board-mode-frame {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111319;
+}
+
+.board-mode-frame p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 /* Explication « Mode garage » de l'aide : même aspect que les dd du help-grid. */
 .board-mode-text {
   margin: 0;
