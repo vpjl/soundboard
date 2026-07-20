@@ -16154,6 +16154,16 @@ function applyStageStudioLayout() {
     return;
   }
 
+  // Mobile/tactile : la grille CSS positionne déjà la scène correctement. Toute
+  // compensation JS (styles inline hérités du studio + transform de la topbar) se
+  // bat avec la cascade → marge haute anormale, bloc cues/crossfade sous les pads,
+  // trou entre master et pads au scroll. On NETTOIE et on sort AVANT d'appliquer
+  // quoi que ce soit (le garde était placé trop tard : la topbar était déjà décalée).
+  if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) {
+    clearStageStudioLayout();
+    return;
+  }
+
   stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
     props.forEach(([prop, value]) => {
       element.style.setProperty(prop, value, "important");
@@ -16172,11 +16182,6 @@ function applyStageStudioLayout() {
 
     topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
   }
-
-  // On mobile the CSS grid already positions the board-strip correctly in stage
-  // mode (position: static; transform: none via skin CSS). Skip JS transforms
-  // so they don't fight the cascade and misplace the board.
-  if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) return;
 
   const boardStrip = document.querySelector(".board-strip");
   const selector = document.querySelector(".board-mode-selector");
