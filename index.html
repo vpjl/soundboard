@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=510">
+    <link rel="stylesheet" href="styles.css?v=511">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1131,29 +1131,27 @@
             </section>
 
             <section class="help-section" data-help-section="audio-pad" aria-label="Audio pad">
-              <h3>Audio (pad)</h3>
+              <h3>Import</h3>
               <dl class="help-grid">
-                <dt aria-label="Play audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Teste les réglages audio.</dd>
-                <dt aria-label="Stop audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                  </svg>
-                </dt><dd>Arrête le test audio.</dd>
                 <dt aria-label="Micro">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
                     <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Enregistre au micro.</dd>
-                <dt aria-label="Importer un son">
+                <dt aria-label="Importer un fichier audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 17V6l9-2v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <ellipse cx="7" cy="17" rx="3" ry="2.5" fill="currentColor"/>
+                    <ellipse cx="16" cy="13" rx="3" ry="2.5" fill="currentColor"/>
                   </svg>
                 </dt><dd>Importe un fichier audio.</dd>
+                <dt aria-label="Importer un fichier vidéo">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Importe un fichier vidéo.</dd>
                 <dt aria-label="Lecture de texte">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -1161,11 +1159,31 @@
                     <path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </dt><dd>Importe ou saisit un texte à lire.</dd>
+              </dl>
+
+              <h3 style="margin-top: 16px;">Réglages</h3>
+              <dl class="help-grid">
+                <dt aria-label="Trim auto">Trim</dt><dd>Détecte et coupe automatiquement les silences en début et fin de son.</dd>
+                <dt aria-label="Lire / Pause (test)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
+                  </svg>
+                </dt><dd>Teste les réglages audio (lecture / pause).</dd>
+                <dt aria-label="Éditeur audio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>Ouvre l’éditeur audio (trim, cut, mute, enveloppe).</dd>
                 <dt aria-label="Reset audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </dt><dd>Réinitialise les paramètres audio du pad.</dd>
+                <dt aria-label="Effacer le média du pad">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Efface le média du pad (son, vidéo ou texte).</dd>
                 <dt aria-label="Loop">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1221,7 +1239,7 @@
       <div class="audio-panel">
         <div class="audio-head">
           <div>
-            <h2 id="audioTitle">Réglages du pad</h2>
+            <h2 id="audioTitle">Réglages audio du pad</h2>
             <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span><span id="audioCueOutputName" class="audio-output-name">Sortie cue : par défaut</span></p>
           </div>
           <div class="audio-head-actions">
@@ -1277,7 +1295,7 @@
                 <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button id="audioHelp" class="icon-button help-button audio-help-button" type="button" aria-label="Aide Réglages du pad">
+            <button id="audioHelp" class="icon-button help-button audio-help-button" type="button" aria-label="Aide Réglages audio du pad">
               <svg viewBox="6 5 12 15" aria-hidden="true">
                 <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
@@ -2383,24 +2401,90 @@
           <button id="aeHelpClose" class="ae-help-close" type="button" aria-label="Fermer l'aide">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-          <h3>Aide — Éditeur audio</h3>
+          <h2>Aide Éditeur audio</h2>
           <p class="ae-help-lead">L'audio d'origine n'est jamais modifié : les régions cut ou mute peuvent être rétablies.</p>
-          <dl>
-            <dt><span class="ae-help-tag cut">Cut</span></dt>
-            <dd>L'intervalle est retiré : le son est raccourci (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
-            <dt><span class="ae-help-tag silence">Mute</span></dt>
-            <dd>L'intervalle est mis à zéro ; la durée ne change pas.</dd>
-            <dt>↶ Défaire</dt>
-            <dd>Retire la dernière région ajoutée.</dd>
-            <dt>↻ Réinit.</dt>
-            <dd>Supprime toutes les régions coupées ou mutées.</dd>
-            <dt>Annuler</dt>
-            <dd>Ferme l'éditeur sans appliquer les changements.</dd>
-            <dt>Appliquer</dt>
-            <dd>Ferme l'éditeur en appliquant les changements.</dd>
-            <dt>In / Out</dt>
-            <dd>Premier et dernier instant réellement entendu, après cut et mute. Sélection = durée audible totale.</dd>
+
+          <h3>Régions</h3>
+          <dl class="help-grid">
+            <dt aria-label="Mode Régions">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5H4v14h3M17 5h3v14h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 9v6M14 9v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </dt><dd>Mode Régions : dessine des zones à couper ou à muter sur la waveform.</dd>
+            <dt aria-label="Cut">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="6" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M20 4 8.5 15.5M20 20 8.5 8.5" fill="none" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </dt><dd><strong>Cut</strong> : l'intervalle est retiré, le son est raccourci (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
+            <dt aria-label="Mute">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="m17 9 4 6M21 9l-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </dt><dd><strong>Mute</strong> : l'intervalle est mis à zéro, la durée ne change pas.</dd>
           </dl>
+
+          <h3>Enveloppe</h3>
+          <dl class="help-grid">
+            <dt aria-label="Mode Enveloppe">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 18C8 6 16 6 21 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="8" cy="10" r="1.6" fill="currentColor"/>
+                <circle cx="16" cy="10" r="1.6" fill="currentColor"/>
+              </svg>
+            </dt><dd>Mode Enveloppe : dessine la courbe de volume au fil du son.</dd>
+            <dt aria-label="Appliquer les fades">↧</dt>
+            <dd>Régénère le début et la fin de la courbe à partir des fades in/out du pad.</dd>
+          </dl>
+
+          <h3>Outils</h3>
+          <dl class="help-grid">
+            <dt aria-label="Trim auto">Trim</dt>
+            <dd>Détecte et coupe automatiquement les silences en début et fin de son.</dd>
+            <dt aria-label="Défaire">↶</dt>
+            <dd>Retire la dernière région ajoutée.</dd>
+            <dt aria-label="Réinitialiser">↻</dt>
+            <dd>Supprime toutes les régions coupées ou mutées.</dd>
+          </dl>
+
+          <h3>Lecture</h3>
+          <dl class="help-grid">
+            <dt aria-label="Début">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h2v14H7zM20 5 9 12l11 7z" fill="currentColor"/>
+              </svg>
+            </dt><dd>Revient au début du son.</dd>
+            <dt aria-label="Lire / Pause">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" fill="currentColor"/>
+              </svg>
+            </dt><dd>Lit ou met en pause (bascule play / pause).</dd>
+            <dt aria-label="Dézoomer">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="m21 21-4-4M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </dt><dd>Dézoome la waveform.</dd>
+            <dt aria-label="Zoomer">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="m21 21-4-4M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </dt><dd>Zoome la waveform.</dd>
+          </dl>
+
+          <h3>Fenêtre</h3>
+          <dl class="help-grid">
+            <dt aria-label="Annuler">✕</dt>
+            <dd>Ferme l'éditeur sans appliquer les changements.</dd>
+            <dt aria-label="Appliquer">✓</dt>
+            <dd>Ferme l'éditeur en appliquant les changements.</dd>
+          </dl>
+
+          <p class="ae-help-note"><strong>In / Out</strong> : premier et dernier instant réellement entendu, après cut et mute. Sélection = durée audible totale.</p>
         </div>
       </div>
     </dialog>
@@ -2414,7 +2498,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=510"></script>
+    <script src="app.js?v=511"></script>
 
 
   </body>

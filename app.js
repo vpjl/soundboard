@@ -15309,7 +15309,7 @@ async function init() {
     }
   });
   els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));
-  document.querySelector("#audioHelp")?.addEventListener("click", () => openContextHelp(["audio-pad"], "Aide Réglages du pad"));
+  document.querySelector("#audioHelp")?.addEventListener("click", () => openContextHelp(["audio-pad"], "Aide Réglages audio du pad"));
   els.masterHelp?.addEventListener("click", () => openContextHelp(["master"], "Aide Master"));
   els.cuesHelp?.addEventListener("click", () => openContextHelp(["cues-crossfade"], "Aide Cues / Crossfade"));
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());

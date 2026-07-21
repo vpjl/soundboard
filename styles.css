@@ -9810,16 +9810,22 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-help-btn svg { width: 16px; height: 16px; display: block; }
 .ae-help-panel { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(2,4,8,.78); border-radius: 10px; z-index: 5; }
 .ae-help-panel[hidden] { display: none; }
-.ae-help-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow: auto; background: #0b0e14; border: 1px solid #232938; border-radius: 12px; padding: 20px 22px; }
-.ae-help-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 7px; border: 1px solid #2c313c; background: #14171e; color: #9aa1ad; display: grid; place-items: center; padding: 0; cursor: pointer; }
+/* Aide de l'éditeur audio : même aspect que les autres fenêtres d'aide — titres + grille
+   .help-grid (cellule icône 38px + description) et couleurs du skin, au lieu des couleurs
+   figées et du dl texte d'origine. Les surcharges .ae-help-card dl/dt/dd ont été retirées :
+   elles écrasaient .help-grid (spécificité 0,2,0 contre 0,1,0). */
+.ae-help-card { position: relative; width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+.ae-help-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); display: grid; place-items: center; padding: 0; cursor: pointer; }
 .ae-help-close svg { width: 16px; height: 16px; display: block; }
-.ae-help-card h3 { margin: 0 0 8px; font-size: 1rem; }
-.ae-help-lead { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid #232938; color: #b9c0cb; font-size: .86rem; line-height: 1.45; }
-.ae-help-lead strong { color: #e9ecf2; }
-.ae-help-card dl { margin: 0 0 16px; display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; }
-.ae-help-card dt { color: #cfd4dd; font-weight: 700; white-space: nowrap; }
-.ae-help-card dd { margin: 0; color: #9aa1ad; font-size: .86rem; line-height: 1.4; }
-.ae-help-card strong { color: #d6dae2; }
+.ae-help-card h2 { margin: 0 0 8px; color: var(--text); font-size: 1.05rem; }
+.ae-help-card h3 { margin: 16px 0 8px; color: var(--color_status_progress); font-size: 0.78rem; letter-spacing: 0; text-transform: uppercase; }
+.ae-help-lead { margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .86rem; line-height: 1.45; }
+.ae-help-lead strong { color: var(--text); }
+.ae-help-note { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; line-height: 1.4; }
+.ae-help-note strong { color: var(--text); }
+.ae-help-card strong { color: var(--text); }
+/* Cellules d'icône contenant du texte (Trim, ↶, ↻, ✕, ✓) : réduire pour tenir dans 38px. */
+.ae-help-card .help-grid dt { font-size: .72rem; line-height: 1.1; padding: 0 2px; text-align: center; }
 .ae-help-tag { display: inline-block; padding: 1px 8px; border-radius: 5px; font-size: .72rem; font-weight: 800; letter-spacing: .05em; color: #fff; }
 .ae-help-tag.cut { background: #ff5b5b; }
 .ae-help-tag.silence { background: #ffa83a; color: #2a1700; }
