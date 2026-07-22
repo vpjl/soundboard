@@ -7197,10 +7197,39 @@ function normalizeExportMode(modeOrIncludeAudio = "full") {
   return ["full", "audioOnly", "settings"].includes(modeOrIncludeAudio) ? modeOrIncludeAudio : "full";
 }
 
+// Les vidéos ne sont pas incluses dans l'archive JSON : le base64 gonfle de +33 % et
+// l'encodage, synchrone, fige l'onglet au-delà de ~50 Mo (mesuré). Tant qu'un format
+// conteneur (ZIP) n'est pas en place, on prévient l'utilisateur AVANT d'exporter plutôt
+// que de perdre les vidéos silencieusement, et on lui donne la marche à suivre.
+// TODO (option 1) : export complet réglages + audio + vidéo via archive ZIP (méthode
+// « store », sans compression) côté export ET import, pour lever cette limite.
+function confirmExportWithoutVideos(includeVideo) {
+  if (includeVideo) return true;
+  const videoPads = state.pads.filter((pad) => padType(pad) === "video");
+  if (!videoPads.length) return true;
+  const n = videoPads.length;
+  const titres = videoPads.slice(0, 5).map((pad) => `• ${pad.title || `Pad ${pad.index + 1}`}`).join("\n");
+  const reste = n > 5 ? `\n• … et ${n - 5} autre${n - 5 > 1 ? "s" : ""}` : "";
+  return window.confirm(
+    `Ce board contient ${n} pad${n > 1 ? "s" : ""} vidéo :\n${titres}${reste}\n\n`
+    + `Les vidéos ne sont PAS incluses dans le fichier exporté (réglages et sons uniquement).\n\n`
+    + `Marche à suivre :\n`
+    + `1. Copier les fichiers vidéo à part (Finder) et les garder avec l'export.\n`
+    + `2. Après l'import du board, passer en garage, ouvrir « Gestion du board et des pads »\n`
+    + `   puis cliquer « Sélectionner un dossier de vidéos » et désigner ce dossier :\n`
+    + `   les vidéos seront re-reliées aux pads automatiquement.\n\n`
+    + `Continuer l'export ?`
+  );
+}
+
 async function exportCurrentBoard(modeOrIncludeAudio = "full") {
   const exportMode = normalizeExportMode(modeOrIncludeAudio);
   const includeAudio = exportMode !== "settings";
   const includeVideo = exportMode === "full";
+  if (!confirmExportWithoutVideos(includeVideo)) {
+    setStatus("Export annulé");
+    return;
+  }
   const board = currentBoard();
   // Immediate feedback: the prep step (persist) can take a moment with no UI.
   setStatus("Préparation de l'export…", "progress");
