@@ -2757,10 +2757,11 @@ select:disabled,
   color: var(--color_ui_help);
 }
 
-/* Studio : léger recentrage (le badge numéro à gauche décale le ressenti). */
-body:not(.stage-mode) .pad:not(.is-editing) .pad-time {
-  left: calc(50% + 7px) !important;
-}
+/* Ancien nudge empirique `left: calc(50% + 7px)` retiré : la vraie cause du décalage
+   studio était un `position: static !important` concurrent qui neutralisait le
+   positionnement absolu sans neutraliser le `transform: translateX(-50%)` (cf. la règle
+   `.pad-time, body.stage-mode .pad-time` plus bas). Le centrage absolu suffit désormais :
+   mesuré à 0 px d'écart dans les trois modes. */
 
 .pad-note-button {
   position: absolute;
@@ -7225,12 +7226,15 @@ body.stage-mode .pad-title {
   text-align: center;
 }
 
+/* NE PAS remettre `position: static !important` ici : la règle de base .pad-time centre
+   la durée en absolu (left:50% + translateX(-50%)), et son `transform` est en !important.
+   Forcer `static` ne désactivait que le positionnement, PAS le transform → la durée était
+   auto-placée puis décalée de la moitié de sa largeur vers la gauche (−15px mesurés en
+   studio et en scène). Le garage y échappait seulement parce qu'il re-force `absolute`.
+   `grid-area: time` est de toute façon battu par le `grid-area: auto !important` de base,
+   et justify/align-self sont sans effet sur un élément absolu. */
 .pad-time,
 body.stage-mode .pad-time {
-  grid-area: time;
-  position: static !important;
-  justify-self: center;
-  align-self: center;
   font-size: 0.76rem;
 }
 
