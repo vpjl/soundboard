@@ -1930,6 +1930,26 @@ body.filter-compact .pad.is-tag-dimmed {
   display: none;
 }
 
+/* Mode « sélection manuelle » armé : le clic sur un pad l'ajoute/le retire de la
+   sélection au lieu de le jouer (cf. handleManualSelectPadClick). Repères visuels :
+   curseur de copie + liseré discret sur les pads cliquables. */
+body.manual-select-mode .pad,
+body.manual-select-mode .pad .pad-trigger,
+body.manual-select-mode .pad .pad-title {
+  cursor: copy;
+}
+
+body.manual-select-mode .pad:not(.is-tag-match) {
+  outline: 1px dashed color-mix(in srgb, var(--color_status_progress) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* Les pads masqués par « masquer les pads non sélectionnés » restent hors-jeu. */
+body.manual-select-mode.filter-compact .pad.is-tag-dimmed {
+  display: none;
+}
+
+
 .tag-filter-chips-row {
   display: flex;
   flex-direction: column;
@@ -2046,8 +2066,11 @@ body.filter-compact .pad.is-tag-dimmed {
   color: var(--color_pad_tag_text);
 }
 
-/* Bouton « inverser la sélection » : à côté de OU/ET, autonome (icône). */
-.filter-invert-btn {
+/* Boutons-icônes autonomes de la barre Sélection (« inverser », « sélection manuelle »),
+   à côté de OU/ET. À garder APRÈS .tag-filter-logic-btn : même spécificité, donc c'est
+   l'ordre du fichier qui tranche (sinon border/padding de OU-ET l'emportent). */
+.filter-invert-btn,
+.filter-manual-select-btn {
   display: inline-grid;
   place-items: center;
   padding: 3px 6px;
@@ -2057,10 +2080,18 @@ body.filter-compact .pad.is-tag-dimmed {
   color: var(--color_ui_text_muted);
 }
 
-.filter-invert-btn svg {
+.filter-invert-btn svg,
+.filter-manual-select-btn svg {
   width: 16px;
   height: 16px;
   display: block;
+}
+
+/* Mode armé : le clic sur un pad sélectionne au lieu de jouer. */
+.filter-manual-select-btn.is-active {
+  background: var(--color_pad_tag_background);
+  border-color: var(--color_pad_tag_background);
+  color: var(--color_pad_tag_text);
 }
 
 .filter-invert-btn.is-active {

@@ -212,6 +212,11 @@ const state = {
   activeTagFilters: [],
   tagFilterLogic: "or",
   invertSelection: false,
+  // Sélection manuelle (clic sur les pads) : mode d'armement + exceptions qui se
+  // superposent à la sélection issue des filtres (ajouts / retraits explicites).
+  manualSelectMode: false,
+  manualSelectAdded: new Set(),
+  manualSelectRemoved: new Set(),
   filterCompact: false,
   filterSectionOpen: false,
   versionsSectionOpen: false,
@@ -335,6 +340,7 @@ const els = {
   tagFilterChips: document.querySelector("#tagFilterChips"),
   tagFilterLogicGroup: document.querySelector("#tagFilterLogicGroup"),
   filterTousBtn: document.querySelector("#filterTousBtn"),
+  filterManualSelectBtn: document.querySelector("#filterManualSelectBtn"),
   filterCompactToggle: document.querySelector("#filterCompactToggle"),
   filterCompactCount: document.querySelector("#filterCompactCount"),
   filterSectionToggle: document.querySelector("#filterSectionToggle"),
@@ -2274,6 +2280,8 @@ function makePad(index) {
 
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
+    // Mode sélection manuelle d'abord : il doit primer sur lecture/édition.
+    if (handleManualSelectPadClick(pad, event)) return;
     handleManualCrossfadePadClick(pad, event);
   }, { capture: true });
   node.addEventListener("click", (event) => {
@@ -2636,9 +2644,10 @@ function activeFilterLabels() {
 function applyBoardTagFilter() {
   const hasFilter = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
   const invert = state.invertSelection;
-  // La sélection s'applique dès qu'il y a un filtre OU l'inversion (qui, sans
-  // filtre, sélectionne tous les pads).
-  const active = hasFilter || invert;
+  const manual = hasManualSelection();
+  // La sélection s'applique dès qu'il y a un filtre, l'inversion (qui sans filtre
+  // sélectionne tous les pads), OU une sélection manuelle au clic.
+  const active = hasFilter || invert || manual;
   const selectedPads = selectedPadsForCurrentFilter();
   const selectedSet = new Set(selectedPads);
   state.pads.forEach((pad) => {
@@ -2647,6 +2656,10 @@ function applyBoardTagFilter() {
   });
   if (!active) {
     // Pas de message « Mode … » (redondant avec les boutons de mode).
+  } else if (!hasFilter && !invert) {
+    // Sélection purement manuelle (clics sur les pads).
+    const n = selectedPads.length;
+    setStatus(`${n} pad${n > 1 ? "s" : ""} sur ${state.pads.length} sélectionné${n > 1 ? "s" : ""}`);
   } else if (!hasFilter) {
     // Inversion sans filtre = tous les pads sélectionnés.
     const n = selectedPads.length;
@@ -3410,11 +3423,70 @@ function matchingPadsForCurrentFilter() {
 // l'inversion de sélection est active (sélectionne les pads NON sélectionnés).
 function selectedPadsForCurrentFilter() {
   const matching = matchingPadsForCurrentFilter();
-  // Sans inversion : les pads du filtre (vide si aucun filtre).
-  if (!state.invertSelection) return matching;
-  // Avec inversion : le complément — donc TOUS les pads s'il n'y a pas de filtre.
-  const set = new Set(matching);
-  return state.pads.filter((pad) => !set.has(pad));
+  let base;
+  if (!state.invertSelection) {
+    // Sans inversion : les pads du filtre (vide si aucun filtre).
+    base = matching;
+  } else {
+    // Avec inversion : le complément — donc TOUS les pads s'il n'y a pas de filtre.
+    const set = new Set(matching);
+    base = state.pads.filter((pad) => !set.has(pad));
+  }
+  // Sélection manuelle : exceptions explicites qui se superposent aux filtres. Un pad
+  // n'est jamais dans les deux ensembles à la fois (cf. toggleManualPadSelection).
+  if (!state.manualSelectAdded.size && !state.manualSelectRemoved.size) return base;
+  const set = new Set(base);
+  state.pads.forEach((pad) => {
+    if (state.manualSelectAdded.has(pad.uid)) set.add(pad);
+    else if (state.manualSelectRemoved.has(pad.uid)) set.delete(pad);
+  });
+  return state.pads.filter((pad) => set.has(pad));
+}
+
+function hasManualSelection() {
+  return state.manualSelectAdded.size > 0 || state.manualSelectRemoved.size > 0;
+}
+
+function clearManualSelection() {
+  state.manualSelectAdded.clear();
+  state.manualSelectRemoved.clear();
+}
+
+// Clic sur un pad en mode sélection : bascule son appartenance à la sélection.
+function toggleManualPadSelection(pad) {
+  if (!pad?.uid) return;
+  const selected = new Set(selectedPadsForCurrentFilter());
+  if (selected.has(pad)) {
+    state.manualSelectAdded.delete(pad.uid);
+    state.manualSelectRemoved.add(pad.uid);
+  } else {
+    state.manualSelectRemoved.delete(pad.uid);
+    state.manualSelectAdded.add(pad.uid);
+  }
+  applyBoardTagFilter();
+}
+
+// Interception du clic pad quand le mode sélection est armé (même motif que le
+// crossfade manuel) : on sélectionne au lieu de jouer/éditer.
+function handleManualSelectPadClick(pad, event) {
+  if (!state.manualSelectMode) return false;
+  if (event.target.closest("input, select, textarea, dialog, .pad-progress")) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation?.();
+  toggleManualPadSelection(pad);
+  return true;
+}
+
+// Mode « sélection manuelle » : classe sur body (curseur + surbrillance des pads) et
+// état visuel du bouton. Le mode n'a pas de sens en scène (on y joue) → désarmé.
+function syncManualSelectMode() {
+  if (state.stageMode && state.manualSelectMode) state.manualSelectMode = false;
+  const on = state.manualSelectMode;
+  document.body.classList.toggle("manual-select-mode", on);
+  els.filterManualSelectBtn?.classList.toggle("is-active", on);
+  els.filterManualSelectBtn?.setAttribute("aria-pressed", String(on));
+  if (on) setStatus("Sélection manuelle : cliquer les pads pour les ajouter ou les retirer");
 }
 
 function syncFilterCompact() {
@@ -10018,11 +10090,15 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     // Stop global immédiat avant d'entrer en scène (si un son est en lecture).
     state.pads.forEach((pad) => { if (isPadPlaying(pad)) stopPad(pad, false, false, { triggerEnd: false, noFlash: true }); });
     state.stageMode = true;
-    // Entrée en scène : désélectionner les pads (aucune sélection/filtre actif).
+    // Entrée en scène : désélectionner les pads (aucune sélection/filtre actif) et
+    // désarmer la sélection manuelle (en scène, un clic doit jouer le pad).
     state.activeStructuralFilters = [];
     state.activeTagFilters = [];
     state.invertSelection = false;
     state.filterCompact = false;
+    clearManualSelection();
+    state.manualSelectMode = false;
+    syncManualSelectMode();
     refreshTagFilterChips();
     applyBoardTagFilter();
     // Entrée en scène : repositionner les cues au début (cue 1 / index 0).
@@ -14890,10 +14966,15 @@ async function init() {
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
+  els.filterManualSelectBtn?.addEventListener("click", () => {
+    state.manualSelectMode = !state.manualSelectMode;
+    syncManualSelectMode();
+  });
   els.filterTousBtn?.addEventListener("click", () => {
     state.activeStructuralFilters = [];
     state.activeTagFilters = [];
     state.invertSelection = false;
+    clearManualSelection();
     refreshTagFilterChips();
     applyBoardTagFilter();
   });
@@ -14903,6 +14984,7 @@ async function init() {
       state.activeStructuralFilters = [];
       state.activeTagFilters = [];
       state.invertSelection = false;
+      clearManualSelection();
       state.filterCompact = false;
       refreshTagFilterChips();
       applyBoardTagFilter();
