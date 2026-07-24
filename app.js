@@ -2677,6 +2677,10 @@ function applyBoardTagFilter() {
   }
   if (els.bulkEditPads) {
     els.bulkEditPads.disabled = !active || selectedPads.length === 0;
+    // Sélection composée UNIQUEMENT de pads vides → l'action devient une suppression.
+    const onlyEmpty = selectedPads.length > 0 && selectedPads.every(isEmptyPad);
+    els.bulkEditPads.textContent = onlyEmpty ? "Supprimer" : "Modifier";
+    els.bulkEditPads.classList.toggle("is-delete", onlyEmpty);
   }
   syncFilterCompact();
   syncCompactToggleVisibility();
@@ -4025,13 +4029,17 @@ function openBulkEditDialog() {
     setStatus(activeFilterLabels().length ? `Aucun pad avec ${activeFilterLabels().join(", ")}` : "Sélectionner des pads avec les filtres");
     return;
   }
-  if (singleStructural === "state:empty") {
+  // Sélection uniquement de pads vides (via le filtre « vides » OU des clics manuels) →
+  // l'action est une suppression, pas une modification.
+  if (pads.length && pads.every(isEmptyPad)) {
     confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible", "stop"));
     return;
   }
 
   const isAspectPreset = Boolean(singleStructural?.startsWith("aspect:"));
-  if (!isAspectPreset && !state.activeStructuralFilters.length && !state.activeTagFilters.length) {
+  // Sans filtre NI sélection manuelle : proposer de modifier tous les pads. Une sélection
+  // manuelle (clics) doit au contraire être respectée telle quelle.
+  if (!isAspectPreset && !state.activeStructuralFilters.length && !state.activeTagFilters.length && !hasManualSelection()) {
     const shouldEditAll = window.confirm("Modifier tous les pads ?");
     if (!shouldEditAll) return;
     pads = state.pads;
@@ -8069,8 +8077,12 @@ async function deleteCurrentBoard() {
   state.currentBoardId = state.boards[nextIndex].id;
   saveBoards();
   renderBoardOptions();
-  await renderPads();
-  setBoardPadEditing(false);
+  // Rester en garage après suppression, SANS clignotement : renderPads() sort du garage
+  // par défaut (retire board-edit-mode), ce qui affichait brièvement le studio avant d'y
+  // revenir. preserveEditMode conserve le mode pendant le rendu, puis setBoardPadEditing
+  // réapplique l'UI garage aux pads reconstruits (même motif que switchBoard).
+  await renderPads({ preserveEditMode: true });
+  setBoardPadEditing(true);
   setStatus(`${board.name} supprime`);
   offerAudioCleanupAfterDeletion().catch(() => setStatus(`${board.name} supprime · nettoyage indisponible`, "stop"));
 }

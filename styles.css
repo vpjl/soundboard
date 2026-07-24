@@ -704,7 +704,10 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   background: var(--color_ui_panel);
   box-shadow: 0 12px 34px var(--shadow);
   min-width: 0;
-  max-width: 360px;
+  /* Plafond relevé (360 → 380) pour laisser le bloc s'élargir et garder la rangée
+     Sélection sur une seule ligne, y compris quand le bouton devient « Supprimer »
+     (plus large que « Modifier »). */
+  max-width: 380px;
   box-sizing: border-box;
 }
 
@@ -2030,7 +2033,7 @@ body.manual-select-mode.filter-compact .pad.is-tag-dimmed {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px; /* resserré (5→4) : la rangée Sélection tient mieux sur une ligne à largeur contrainte */
   flex-shrink: 0;
 }
 
@@ -2233,6 +2236,20 @@ body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:hover:not(:disabled
 body.board-edit-mode .tag-filter-chips-row .bulk-edit-button:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* Sélection uniquement de pads vides : le bouton « Supprimer » signale l'action destructrice
+   (convention stop : bordure + texte rouges, sans fond propre). Sélecteur volontairement plus
+   spécifique (0,4,1) que la règle de base ci-dessus (0,3,1). */
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button.is-delete {
+  border-color: color-mix(in srgb, var(--color_status_stop) 55%, transparent);
+  color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
+}
+
+body.board-edit-mode .tag-filter-chips-row .bulk-edit-button.is-delete:hover:not(:disabled) {
+  border-color: var(--color_status_stop);
+  color: color-mix(in srgb, var(--color_status_stop) 12%, #fff);
+  background: var(--color_ui_panel_secondary);
 }
 
 /* scène : masquer les filtres tags (mais garder le menu skin, seul enfant de .board-filter-row) */
@@ -6576,6 +6593,16 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  /* Cues/Crossfade en portrait : tous les boutons sur UNE ligne, le statut sur la 2e.
+     Les deux rangées (.cue-live-row / .xfade-live-row) étant en display:contents, les
+     boutons sont déjà frères dans le flex .live-tools ; il suffit d'envoyer le statut
+     en fin d'ordre et de lui donner une ligne entière (mesuré : 306px de boutons pour
+     352px disponibles, ils tiennent). */
+  .live-tools .cue-status {
+    order: 1;
+    flex-basis: 100%;
+  }
+
   .pads,
   .pads.has-pad-layout,
   body.stage-mode .pads,
