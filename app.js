@@ -1,10 +1,15 @@
 const DEFAULT_PAD_COUNT = 12;
 const KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+// Nombre de pads proposé à la création d'un board : borné par KEYS (au-delà, les pads
+// n'ont plus de raccourci clavier par défaut). Des pads peuvent toujours être ajoutés
+// ensuite un par un avec « Ajouter un pad ».
+const MAX_NEW_BOARD_PAD_COUNT = KEYS.length;
 const DB_NAME = "soundboard-live";
 const STORE = "sounds";
 const PRESS_MS = 180;
 const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
+const NEW_BOARD_PAD_COUNT_STORAGE = "soundboard-live-new-board-pad-count";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const MASTER_DUCK_ENABLED_STORAGE = "soundboard-live-ducking-enabled";
@@ -4515,14 +4520,43 @@ async function switchBoard(boardId) {
   if (wasEditing) setBoardPadEditing(true);
 }
 
+// Dernier nombre de pads choisi à la création d'un board (sert de valeur pré-remplie).
+function lastNewBoardPadCount() {
+  const saved = Number(localStorage.getItem(NEW_BOARD_PAD_COUNT_STORAGE));
+  return Number.isInteger(saved) && saved >= 1 && saved <= MAX_NEW_BOARD_PAD_COUNT
+    ? saved
+    : DEFAULT_PAD_COUNT;
+}
+
+// Demande le nombre de pads du nouveau board, pré-rempli avec la dernière valeur utilisée
+// (mémorisée). Renvoie null si l'utilisateur annule ou saisit une valeur invalide.
+function askNewBoardPadCount() {
+  const entered = window.prompt(
+    `Nombre de pads du nouveau board (1 à ${MAX_NEW_BOARD_PAD_COUNT}) ?\n\n`
+    + `Des pads pourront être ajoutés ou supprimés ensuite.`,
+    String(lastNewBoardPadCount()),
+  );
+  if (entered === null) return null;
+  const count = Math.round(Number(String(entered).trim().replace(",", ".")));
+  if (!Number.isFinite(count) || count < 1 || count > MAX_NEW_BOARD_PAD_COUNT) {
+    window.alert(`Nombre de pads invalide : indiquer un entier entre 1 et ${MAX_NEW_BOARD_PAD_COUNT}.`);
+    return null;
+  }
+  localStorage.setItem(NEW_BOARD_PAD_COUNT_STORAGE, String(count));
+  return count;
+}
+
 async function addBoard() {
+  // Demander AVANT toute modification d'état : annuler ne doit rien changer.
+  const padCount = askNewBoardPadCount();
+  if (padCount === null) return;
   setBoardPadEditing(false);
   const name = nextBoardName();
   const board = {
     id: createId(),
     name,
     createdAt: new Date().toISOString(),
-    padCount: DEFAULT_PAD_COUNT,
+    padCount,
     masterVolume: DEFAULT_MASTER_VOLUME,
     layoutMode: "auto",
     padColumns: 0,
