@@ -15182,6 +15182,9 @@ async function init() {
   });
   els.filterManualSelectBtn?.addEventListener("click", () => {
     state.manualSelectMode = !state.manualSelectMode;
+    // Désactiver la sélection manuelle vide la sélection (contrairement à une
+    // sortie de garage, qui la conserve intentionnellement).
+    if (!state.manualSelectMode) clearManualSelection();
     syncManualSelectMode();
   });
   els.filterTousBtn?.addEventListener("click", () => {

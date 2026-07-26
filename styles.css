@@ -2122,17 +2122,19 @@ body.manual-select-mode.filter-compact .pad.is-tag-dimmed {
 .filter-manual-select-btn {
   display: inline-grid;
   place-items: center;
-  padding: 3px 6px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
   border: 1px solid var(--color_ui_border);
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--color_ui_panel_secondary);
   color: var(--color_ui_text_muted);
 }
 
 .filter-invert-btn svg,
 .filter-manual-select-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 
