@@ -10229,6 +10229,24 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   applyPadLayout(currentBoard());
 
   if (state.stageMode) {
+    // Le bloc cues est ancré via syncCueControls() (ligne ~10184), avant le
+    // basculement body.stage-mode et la compensation desktop
+    // (applyStageStudioLayout, appliquée en rAF via le MutationObserver sur la
+    // classe body). L'ancre capturée trop tôt reste calée sur la géométrie
+    // studio → bloc mal positionné jusqu'au prochain rescan (ex: refresh). On
+    // recalibre ici, un rAF après la compensation de layout pour être sûr
+    // qu'elle a déjà tourné.
+    requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
+    // Relâche le gel de mise en page studio (voir stageStudioLayoutReleased)
+    // une fois la transition visuelle passée, pour que .live-tools retrouve
+    // la largeur réelle de la scène au lieu de rester bridé par les
+    // dimensions studio figées.
+    window.setTimeout(() => {
+      if (state.stageMode) {
+        stageStudioLayoutReleased = true;
+        applyStageStudioLayoutSoon();
+      }
+    }, 500);
     setBoardPadEditing(false);
     const activeCount = syncStageVisiblePads();
     setStatus(`Board prêt pour la scène : ${activeCount} pad${activeCount > 1 ? "s" : ""} actif${activeCount > 1 ? "s" : ""}`, "success");
@@ -16244,6 +16262,11 @@ const stageStudioLayoutSnapshot = {
   topbarRect: null,
   inlineStyles: [],
 };
+// Le gel évite un saut visuel du logo au clic sur "Scène", mais bride ensuite
+// la largeur dispo pour .live-tools (ex. bouton crossfade armé qui passe à la
+// ligne). On le relâche après la transition ; tant qu'il n'est pas relâché,
+// toute mutation de classe (cues-enabled, etc.) le regèlerait sinon.
+let stageStudioLayoutReleased = false;
 
 function stageStudioLayoutElements() {
   return [
@@ -16265,6 +16288,8 @@ function captureStudioLayoutForStage() {
     : (document.body.classList.contains("stage-mode") ? "stage" : "studio");
 
   if (!selector || currentMode !== "studio") return;
+
+  stageStudioLayoutReleased = false;
 
   // Flush any pending stage transforms so positions are measured clean
   clearStageStudioLayout();
@@ -16307,6 +16332,11 @@ function clearStageStudioLayout() {
 
 function applyStageStudioLayout() {
   if (!document.body.classList.contains("stage-mode")) {
+    clearStageStudioLayout();
+    return;
+  }
+
+  if (stageStudioLayoutReleased) {
     clearStageStudioLayout();
     return;
   }

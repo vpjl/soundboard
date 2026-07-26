@@ -5615,7 +5615,7 @@ body.stage-mode .live-tools {
   gap: 12px;
 }
 
-body.stage-mode .cue-live-row .icon-button {
+body.stage-mode.cues-enabled .cue-live-row .icon-button {
   width: 84px;
   height: 84px;
   min-width: 84px;
@@ -5623,13 +5623,13 @@ body.stage-mode .cue-live-row .icon-button {
 }
 
 
-body.stage-mode .cue-live-row .icon-button svg {
+body.stage-mode.cues-enabled .cue-live-row .icon-button svg {
   width: 42px;
   height: 42px;
 }
 
-body.stage-mode .xfade-live-row .icon-button,
-body.stage-mode #openCueDialog {
+body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+body.stage-mode.cues-enabled #openCueDialog {
   width: 42px;
   height: 42px;
   min-width: 42px;
@@ -6816,7 +6816,7 @@ body.stage-mode .secondary-live-group {
     grid-column: 5 !important;
   }
 
-  body.stage-mode .cue-live-row .icon-button {
+  body.stage-mode.cues-enabled .cue-live-row .icon-button {
     width: 46px !important;
     height: 46px !important;
     min-width: 46px !important;
@@ -6830,8 +6830,8 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode .xfade-live-row .icon-button,
-  body.stage-mode #openCueDialog {
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+  body.stage-mode.cues-enabled #openCueDialog {
     width: 34px !important;
     height: 34px !important;
     min-width: 34px !important;
@@ -6890,7 +6890,7 @@ body.stage-mode .secondary-live-group {
     align-items: center;
   }
 
-  body.stage-mode .cue-live-row .icon-button {
+  body.stage-mode.cues-enabled .cue-live-row .icon-button {
     width: 44px !important;
     min-width: 44px !important;
     height: 44px !important;
@@ -6905,8 +6905,8 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode .xfade-live-row .icon-button,
-  body.stage-mode #openCueDialog {
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+  body.stage-mode.cues-enabled #openCueDialog {
     width: 34px !important;
     min-width: 34px !important;
   }
@@ -9558,6 +9558,16 @@ body.stage-mode .live-tools {
   max-width: none !important;
   min-width: 0 !important;
   align-self: stretch !important;
+}
+
+/* Scène, bloc cues pas encore "stuck" : ~568px seulement (largeur de la
+   colonne board+master), pas assez pour les 9 boutons → on ne garde que
+   l'essentiel jouable et on masque les réglages secondaires (déjà masqués
+   sur mobile / une fois stuck sur desktop pour cue-window et aide). */
+body.stage-mode:not(.cues-stuck) .live-tools .cue-window-button,
+body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button,
+body.stage-mode:not(.cues-stuck) .live-tools .patch-bay-button {
+  display: none !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
