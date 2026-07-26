@@ -505,6 +505,7 @@ const els = {
   bulkEditDialog: document.querySelector("#bulkEditDialog"),
   closeBulkEdit: document.querySelector("#closeBulkEdit"),
   cancelBulkEdit: document.querySelector("#cancelBulkEdit"),
+  deleteBulkEditPads: document.querySelector("#deleteBulkEditPads"),
   applyBulkEdit: document.querySelector("#applyBulkEdit"),
   bulkEditCount: document.querySelector("#bulkEditCount"),
   bulkTemplatePad: document.querySelector("#bulkTemplatePad"),
@@ -1621,6 +1622,7 @@ function setBoardPadEditing(editing) {
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
   refreshBoardTagFilterOptions();
+  syncPadSelectionLocks();
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
@@ -2249,25 +2251,22 @@ function makePad(index) {
     event.preventDefault();
     const files = [...(event.dataTransfer?.files || [])];
     if (!files.length) return;
-    const isTextDoc = (f) => /^text\//.test(f.type) || /\.(rtf|docx|md|txt|text)$/i.test(f.name || "");
-    const contentFile = files.find((f) => /^(audio|video|text)\//.test(f.type) || isTextDoc(f));
+    if (document.body.classList.contains("board-edit-mode")) {
+      const contentCount = files.filter((f) => contentFileKind(f)).length;
+      if (contentCount > 1) {
+        await distributeFilesAcrossEmptyPads(files, { preferredPad: pad });
+        return;
+      }
+    }
+    const contentFile = files.find((f) => contentFileKind(f));
     const imageFile = files.find((f) => /^image\//.test(f.type));
     if (contentFile) {
-      if (/^video\//.test(contentFile.type)) {
-        await loadVideoIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger la vidéo", "stop"));
-      } else if (isTextDoc(contentFile)) {
-        try {
-          const text = await readTextFile(contentFile);
-          pad.textName = contentFile.name;
-          setPadAsTextFromControls(pad, text);
-          if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(contentFile.name));
-          savePadMeta(pad);
-          setStatus("Texte importé");
-        } catch {
-          setStatus("Import texte impossible", "stop");
-        }
+      const isDuplicate = document.body.classList.contains("board-edit-mode")
+        && boardContentFileNames({ excludePad: pad }).has(contentFile.name.trim().toLowerCase());
+      if (isDuplicate) {
+        setStatus(`"${contentFile.name}" est déjà présent dans le board`, "stop");
       } else {
-        await loadFileIntoPad(pad, contentFile).catch(() => setStatus("Impossible de charger l'audio", "stop"));
+        await loadContentFileIntoPad(pad, contentFile);
       }
     }
     if (imageFile) {
@@ -2646,6 +2645,31 @@ function activeFilterLabels() {
   return labels;
 }
 
+// Verrouille/déverrouille les contrôles d'un pad (garage, sélection manuelle) :
+// en plus du pointer-events géré en CSS, on retire du tab-index les contrôles
+// (sauf la corbeille) pour bloquer aussi l'activation clavier, et on enlève le
+// focus s'il était déjà dedans.
+function setPadSelectionLocked(pad, locked) {
+  const wasLocked = pad.node.classList.contains("is-selection-locked");
+  if (locked === wasLocked) return;
+  pad.node.classList.toggle("is-selection-locked", locked);
+  const controls = pad.node.querySelectorAll('button:not([data-action="delete-pad"]), input, select, textarea');
+  if (locked) {
+    if (pad.node.contains(document.activeElement)) document.activeElement.blur();
+    controls.forEach((el) => el.setAttribute("tabindex", "-1"));
+  } else {
+    controls.forEach((el) => el.removeAttribute("tabindex"));
+  }
+}
+
+// Tant que la sélection manuelle est armée en garage, tous les pads sont
+// inactifs (sauf leur corbeille) — pas seulement ceux déjà sélectionnés : le
+// clic sert à sélectionner/désélectionner, pas à éditer les réglages.
+function syncPadSelectionLocks() {
+  const locked = state.boardEditMode && state.manualSelectMode;
+  state.pads.forEach((pad) => setPadSelectionLocked(pad, locked));
+}
+
 function applyBoardTagFilter() {
   const hasFilter = state.activeStructuralFilters.length > 0 || state.activeTagFilters.length > 0;
   const invert = state.invertSelection;
@@ -2659,6 +2683,7 @@ function applyBoardTagFilter() {
     pad.node.classList.toggle("is-tag-match", active ? selectedSet.has(pad) : false);
     pad.node.classList.toggle("is-tag-dimmed", active ? !selectedSet.has(pad) : false);
   });
+  syncPadSelectionLocks();
   if (!active) {
     // Pas de message « Mode … » (redondant avec les boutons de mode).
   } else if (!hasFilter && !invert) {
@@ -2684,7 +2709,7 @@ function applyBoardTagFilter() {
     els.bulkEditPads.disabled = !active || selectedPads.length === 0;
     // Sélection composée UNIQUEMENT de pads vides → l'action devient une suppression.
     const onlyEmpty = selectedPads.length > 0 && selectedPads.every(isEmptyPad);
-    els.bulkEditPads.textContent = onlyEmpty ? "Supprimer" : "Modifier";
+    els.bulkEditPads.textContent = onlyEmpty ? "Supprimer" : "Modifier/Supprimer";
     els.bulkEditPads.classList.toggle("is-delete", onlyEmpty);
   }
   syncFilterCompact();
@@ -3479,7 +3504,7 @@ function toggleManualPadSelection(pad) {
 // crossfade manuel) : on sélectionne au lieu de jouer/éditer.
 function handleManualSelectPadClick(pad, event) {
   if (!state.manualSelectMode) return false;
-  if (event.target.closest("input, select, textarea, dialog, .pad-progress")) return false;
+  if (event.target.closest('input, select, textarea, dialog, .pad-progress, [data-action="delete-pad"]')) return false;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation?.();
@@ -3496,6 +3521,9 @@ function syncManualSelectMode() {
   els.filterManualSelectBtn?.classList.toggle("is-active", on);
   els.filterManualSelectBtn?.setAttribute("aria-pressed", String(on));
   if (on) setStatus("Sélection manuelle : cliquer les pads pour les ajouter ou les retirer");
+  // Recalcule le verrouillage des pads sélectionnés (cf. setPadSelectionLocked) :
+  // sortir du mode sélection doit déverrouiller même si la sélection persiste.
+  applyBoardTagFilter();
 }
 
 function syncFilterCompact() {
@@ -4037,7 +4065,7 @@ function openBulkEditDialog() {
   // Sélection uniquement de pads vides (via le filtre « vides » OU des clics manuels) →
   // l'action est une suppression, pas une modification.
   if (pads.length && pads.every(isEmptyPad)) {
-    confirmDeleteEmptyPads(pads).catch(() => setStatus("Suppression des pads vides impossible", "stop"));
+    confirmDeletePads(pads, { requireEmpty: true }).catch(() => setStatus("Suppression des pads vides impossible", "stop"));
     return;
   }
 
@@ -4091,19 +4119,19 @@ function openBulkEditDialog() {
   }
 }
 
-async function confirmDeleteEmptyPads(pads) {
-  const uniquePads = [...new Set(pads)].filter(Boolean);
+async function confirmDeletePads(pads, { requireEmpty = false } = {}) {
+  const uniquePads = [...new Set(pads)].filter(Boolean).filter((pad) => !requireEmpty || isEmptyPad(pad));
   if (!uniquePads.length) {
-    window.alert("Aucun pad vide sélectionné");
-    return;
+    window.alert(requireEmpty ? "Aucun pad vide sélectionné" : "Aucun pad sélectionné");
+    return false;
   }
   const count = uniquePads.length;
-  const label = `${count} pad${count > 1 ? "s" : ""} vide${count > 1 ? "s" : ""}`;
+  const label = `${count} pad${count > 1 ? "s" : ""}${requireEmpty ? ` vide${count > 1 ? "s" : ""}` : ""}`;
   const remainingCount = Math.max(1, currentBoard().padCount - count);
   const suffix = count >= currentBoard().padCount
     ? "\n\nLe dernier pad du board sera conservé."
     : "";
-  if (!window.confirm(`Supprimer ${label} ?${suffix}`)) return;
+  if (!window.confirm(`Supprimer ${label} ?${suffix}`)) return false;
 
   const indexes = uniquePads
     .map((pad) => pad.index)
@@ -4113,21 +4141,29 @@ async function confirmDeleteEmptyPads(pads) {
   for (const index of indexes) {
     if (currentBoard().padCount <= 1) break;
     const pad = state.pads[index];
-    if (!pad || !isEmptyPad(pad)) continue;
+    if (!pad || (requireEmpty && !isEmptyPad(pad))) continue;
     const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: false, status: false });
     if (removed) deletedCount += 1;
   }
 
   if (deletedCount) {
-    await renderPads();
+    await renderPads({ preserveEditMode: true });
     setBoardPadEditing(true);
   }
   state.activeStructuralFilters = [];
   state.activeTagFilters = [];
+  // Les pads sélectionnés viennent de disparaître (leurs uid ne correspondent
+  // plus à rien après le renderPads ci-dessus) : on quitte le mode sélection
+  // au lieu de laisser le curseur "+" armé sur une sélection fantôme.
+  clearManualSelection();
+  state.manualSelectMode = false;
+  syncManualSelectMode();
   refreshBoardTagFilterOptions();
   applyBoardTagFilter();
   const keptLast = count > deletedCount && remainingCount === 1;
-  setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""} vide${deletedCount > 1 ? "s" : ""} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
+  const emptyWord = requireEmpty ? ` vide${deletedCount > 1 ? "s" : ""}` : "";
+  setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""}${emptyWord} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
+  return true;
 }
 
 async function applyBulkEdit() {
@@ -7695,6 +7731,7 @@ async function addPad() {
   bindButtonFeedback(pad.node);
   if (state.boardEditMode) setPadEditing(pad, true);
   refreshStopGroupOptions();
+  updateShortcutIndicators();
   setStatus(`Pad ${board.padCount} ajoute`);
 }
 
@@ -8063,7 +8100,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   }
   saveBoards();
   if (shouldRender) {
-    await renderPads();
+    await renderPads({ preserveEditMode: true });
     setBoardPadEditing(true);
   }
   if (shouldStatus) setStatus(`${pad.title} supprime`);
@@ -8457,6 +8494,90 @@ async function readTextFile(file) {
   if (name.endsWith(".docx")) return extractDocxText(await file.arrayBuffer());
   if (name.endsWith(".rtf")) return rtfToText(await file.text());
   return file.text();
+}
+
+function isTextDocFile(file) {
+  return /^text\//.test(file.type) || /\.(rtf|docx|md|txt|text)$/i.test(file.name || "");
+}
+
+function contentFileKind(file) {
+  if (/^video\//.test(file.type)) return "video";
+  if (isTextDocFile(file)) return "text";
+  if (/^audio\//.test(file.type)) return "audio";
+  return null;
+}
+
+async function loadContentFileIntoPad(pad, file) {
+  const kind = contentFileKind(file);
+  if (kind === "video") {
+    await loadVideoIntoPad(pad, file).catch(() => setStatus("Impossible de charger la vidéo", "stop"));
+  } else if (kind === "text") {
+    try {
+      const text = await readTextFile(file);
+      pad.textName = file.name;
+      setPadAsTextFromControls(pad, text);
+      if (isDefaultPadTitle(pad.title)) setPadTitle(pad, cleanName(file.name));
+      savePadMeta(pad);
+      setStatus("Texte importé");
+    } catch {
+      setStatus("Import texte impossible", "stop");
+    }
+  } else if (kind === "audio") {
+    await loadFileIntoPad(pad, file).catch(() => setStatus("Impossible de charger l'audio", "stop"));
+  }
+}
+
+// Garage : dépose de plusieurs fichiers (sur un pad ou dans une zone vide du
+// board) → répartis sur les pads vides existants (celui ciblé en priorité),
+// puis de nouveaux pads sont créés pour le reste. Les fichiers déjà présents
+// sur un pad du board (même nom) sont ignorés.
+function boardContentFileNames({ excludePad = null } = {}) {
+  const names = new Set();
+  state.pads.forEach((p) => {
+    if (p === excludePad) return;
+    [p.audioName, p.videoName, p.textName].forEach((n) => {
+      if (n) names.add(n.trim().toLowerCase());
+    });
+  });
+  return names;
+}
+
+async function distributeFilesAcrossEmptyPads(files, { preferredPad = null } = {}) {
+  const allContentFiles = files.filter((file) => contentFileKind(file));
+  if (!allContentFiles.length) return false;
+
+  const existingNames = boardContentFileNames();
+  const contentFiles = allContentFiles.filter((file) => !existingNames.has(file.name.trim().toLowerCase()));
+  const duplicateCount = allContentFiles.length - contentFiles.length;
+  if (!contentFiles.length) {
+    setStatus(`${duplicateCount} fichier${duplicateCount > 1 ? "s" : ""} déjà présent${duplicateCount > 1 ? "s" : ""} dans le board, ignoré${duplicateCount > 1 ? "s" : ""}`, "stop");
+    return true;
+  }
+
+  let emptyPads = [...state.pads]
+    .sort((a, b) => a.index - b.index)
+    .filter((p) => p.node?.classList.contains("is-empty"));
+  if (preferredPad?.node?.classList.contains("is-empty")) {
+    emptyPads = [preferredPad, ...emptyPads.filter((p) => p !== preferredPad)];
+  }
+
+  const missing = contentFiles.length - emptyPads.length;
+  for (let i = 0; i < missing; i += 1) {
+    await addPad();
+    emptyPads.push(state.pads[state.pads.length - 1]);
+  }
+
+  let loaded = 0;
+  for (let i = 0; i < contentFiles.length; i += 1) {
+    const pad = emptyPads[i];
+    if (!pad) continue;
+    await loadContentFileIntoPad(pad, contentFiles[i]);
+    loaded += 1;
+  }
+  const createdMsg = missing > 0 ? ` (${missing} nouveau${missing > 1 ? "x" : ""} pad${missing > 1 ? "s" : ""})` : "";
+  const dupMsg = duplicateCount > 0 ? ` · ${duplicateCount} doublon${duplicateCount > 1 ? "s" : ""} ignoré${duplicateCount > 1 ? "s" : ""}` : "";
+  setStatus(`${loaded} pad${loaded > 1 ? "s" : ""} rempli${loaded > 1 ? "s" : ""}${createdMsg}${dupMsg}`);
+  return true;
 }
 
 async function loadFileIntoPad(pad, file) {
@@ -15246,6 +15367,15 @@ async function init() {
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
   els.cancelBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
+  els.deleteBulkEditPads?.addEventListener("click", () => {
+    // Le confirm() natif est demandé pendant que la dialog reste ouverte (les
+    // deux se superposent normalement) ; on ne ferme la dialog qu'une fois la
+    // suppression terminée, sinon confirm() juste après un close() peut rester
+    // bloqué en arrière-plan (page qui semble figée).
+    confirmDeletePads(state.bulkEditPads)
+      .then((done) => { if (done) els.bulkEditDialog?.close(); })
+      .catch(() => setStatus("Suppression impossible", "stop"));
+  });
   // Activation du bouton « Appliquer » dès qu'un champ est coché.
   els.bulkEditDialog?.addEventListener("change", syncBulkApplyState);
   // Valeur chiffrée volume/pan qui suit les curseurs.
@@ -15956,6 +16086,24 @@ async function init() {
     setImageDialogMode("image");
     state.imagePad?.cameraInput?.click();
   });
+  // Garage : dépose de fichiers sur une zone vide du board (hors d'un pad) →
+  // répartition sur les pads vides / création de nouveaux pads. Les drops sur
+  // un pad lui-même sont déjà gérés par son propre listener (makePad).
+  els.pads?.addEventListener("dragover", (event) => {
+    if (!document.body.classList.contains("board-edit-mode")) return;
+    if (event.target.closest("[data-pad]")) return;
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  els.pads?.addEventListener("drop", async (event) => {
+    if (!document.body.classList.contains("board-edit-mode")) return;
+    if (event.target.closest("[data-pad]")) return;
+    event.preventDefault();
+    const files = [...(event.dataTransfer?.files || [])];
+    if (files.length) await distributeFilesAcrossEmptyPads(files);
+  });
+
   els.imageDialog?.addEventListener("dragover", (event) => {
     if (!event.dataTransfer?.types.includes("Files")) return;
     event.preventDefault();

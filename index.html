@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=525">
+    <link rel="stylesheet" href="styles.css?v=537">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -286,7 +286,7 @@
                     <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </button>
-                <button id="bulkEditPads" class="bulk-edit-button" type="button">Modifier</button>
+                <button id="bulkEditPads" class="bulk-edit-button" type="button">Modifier/Supprimer</button>
               </div>
             </div>
           </div>
@@ -1866,6 +1866,7 @@
         </div>
         <div class="dialog-actions">
           <button id="cancelBulkEdit" class="small-button" type="button">Annuler</button>
+          <button id="deleteBulkEditPads" class="small-button danger-button" type="button">Supprimer</button>
           <button id="applyBulkEdit" class="small-button" type="button" disabled>Appliquer</button>
         </div>
       </div>
@@ -2503,7 +2504,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=525"></script>
+    <script src="app.js?v=537"></script>
 
 
   </body>

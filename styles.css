@@ -1942,9 +1942,55 @@ body.manual-select-mode .pad .pad-title {
   cursor: copy;
 }
 
+/* Pad déjà sélectionné : curseur « retirer » (rond avec un -) au lieu du
+   curseur « ajouter » (copy, affiché en +) ci-dessus. */
+body.manual-select-mode .pad.is-tag-match,
+body.manual-select-mode .pad.is-tag-match .pad-trigger,
+body.manual-select-mode .pad.is-tag-match .pad-title {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23222' stroke='%23fff' stroke-width='2'/%3E%3Crect x='5' y='9' width='10' height='2' rx='1' fill='%23fff'/%3E%3C/svg%3E") 10 10, pointer;
+}
+
 body.manual-select-mode .pad:not(.is-tag-match) {
   outline: 1px dashed color-mix(in srgb, var(--color_status_progress) 55%, transparent);
   outline-offset: 2px;
+}
+
+/* Garage, sélection manuelle armée : tous les pads (sélectionnés ou non)
+   deviennent inactifs, sauf leur corbeille — le clic sert à sélectionner, pas
+   à éditer (cf. syncPadSelectionLocks). L'overlay (pointer-events: auto) capte
+   le clic à la place des contrôles/texte en dessous SANS passer le pad entier
+   en pointer-events: none — sinon le pad ne recevrait plus lui-même le clic
+   qui doit sélectionner/désélectionner (cf. handleManualSelectPadClick).
+   L'overlay empêche aussi la sélection de texte sous-jacente (waveform…). */
+.pad.is-selection-locked::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  background: rgba(10, 10, 14, 0.55);
+  cursor: copy;
+  user-select: none;
+}
+
+/* L'overlay est au-dessus du pad : c'est lui qui doit porter le curseur
+   « retirer » quand le pad est déjà sélectionné, sinon le + reste affiché. */
+.pad.is-selection-locked.is-tag-match::before {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23222' stroke='%23fff' stroke-width='2'/%3E%3Crect x='5' y='9' width='10' height='2' rx='1' fill='%23fff'/%3E%3C/svg%3E") 10 10, pointer;
+}
+
+.pad.is-selection-locked [data-action="delete-pad"] {
+  position: relative;
+  z-index: 6;
+}
+
+/* L'overlay suffit à bloquer le clic, mais pas le focus clavier (Tab + Entrée) :
+   on désactive aussi explicitement les contrôles eux-mêmes, sauf la corbeille. */
+.pad.is-selection-locked button:not([data-action="delete-pad"]),
+.pad.is-selection-locked input,
+.pad.is-selection-locked select,
+.pad.is-selection-locked textarea {
+  pointer-events: none;
 }
 
 /* Les pads masqués par « masquer les pads non sélectionnés » restent hors-jeu. */
@@ -2090,11 +2136,14 @@ body.manual-select-mode.filter-compact .pad.is-tag-dimmed {
   display: block;
 }
 
-/* Mode armé : le clic sur un pad sélectionne au lieu de jouer. */
+/* Mode armé : le clic sur un pad sélectionne au lieu de jouer — l'impact est
+   important (tous les pads deviennent inertes), le bouton doit se voir de loin.
+   Même habillage que les boutons « aide » (déjà personnalisable dans le skin
+   via --color_ui_help*), plutôt qu'une couleur/animation ad hoc. */
 .filter-manual-select-btn.is-active {
-  background: var(--color_pad_tag_background);
-  border-color: var(--color_pad_tag_background);
-  color: var(--color_pad_tag_text);
+  border-color: var(--color_ui_help_border);
+  background: var(--color_ui_help_background);
+  color: var(--color_ui_help);
 }
 
 .filter-invert-btn.is-active {
