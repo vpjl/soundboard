@@ -1655,12 +1655,16 @@ async function cancelBoardEdit() {
   const snapshot = state.boardEditSnapshot;
   if (!snapshot) {
     setBoardPadEditing(false);
+    syncBoardModeSelectorSoon();
     return;
   }
   await applyBoardSnapshot(snapshot);
   state.boardEditSnapshot = null;
   resetUndoStack();
   setStatus("Modifications annulées");
+  // Reset board = sortie explicite du garage, toujours vers Studio (pas de
+  // retour tacite qui pourrait laisser le sélecteur de mode désynchronisé).
+  syncBoardModeSelectorSoon();
 }
 
 function comparableBoardSnapshot(snapshot) {

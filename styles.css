@@ -9639,6 +9639,21 @@ body.board-edit-mode .board-mode-selector-extra {
   display: grid;
 }
 
+/* Sur portable, le board-strip passe en pleine largeur mais reste étroit :
+   les 3 boutons de mode + les 2 boutons "extra" ne tiennent pas sur une seule
+   ligne en nowrap (ils débordaient hors de l'écran, invisibles). On autorise
+   le retour à la ligne à partir du même seuil que .board-area (700px). */
+@media (max-width: 700px), (pointer: coarse) {
+  .board-mode-selector {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+
+  .board-mode-selector-extra {
+    margin-left: auto;
+  }
+}
+
 /* Sélecteur de modes : sous le nom du board, aligné à gauche */
 .board-main > .board-mode-selector {
   grid-column: 1 / -1 !important;
