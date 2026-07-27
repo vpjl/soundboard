@@ -226,6 +226,7 @@ const state = {
   filterSectionOpen: false,
   versionsSectionOpen: false,
   boardManageSectionOpen: false,
+  boardInfoSectionOpen: false,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -265,7 +266,7 @@ const state = {
   notePad: null,
   noteOverlayPad: null,
   versionNotesDraft: null,
-  audioCleanupCandidates: [],
+  audioLibraryOrphans: [],
   cueFloatAnchorTop: null,
   skinEditorVariables: {},
 };
@@ -564,10 +565,8 @@ const els = {
   deleteVersion: document.querySelector("#deleteVersion"),
   versionNotes: document.querySelector("#versionNotes"),
   versionSelect: document.querySelector("#versionSelect"),
-  deleteBoard: document.querySelector("#deleteBoard"),
   addBoard: document.querySelector("#addBoard"),
   duplicateBoard: document.querySelector("#duplicateBoard"),
-  boardNotice: document.querySelector("#boardNotice"),
   addPad: document.querySelector("#addPad"),
   exportBoardAudioOnly: document.querySelector("#exportBoardAudioOnly"),
   exportBoardLite: document.querySelector("#exportBoardLite"),
@@ -582,12 +581,23 @@ const els = {
   folderImportSummary: document.querySelector("#folderImportSummary"),
   applyFolderImport: document.querySelector("#applyFolderImport"),
   cancelFolderImport: document.querySelector("#cancelFolderImport"),
-  audioCleanupDialog: document.querySelector("#audioCleanupDialog"),
-  audioCleanupList: document.querySelector("#audioCleanupList"),
-  audioCleanupSummary: document.querySelector("#audioCleanupSummary"),
-  exportCleanupAudio: document.querySelector("#exportCleanupAudio"),
-  confirmAudioCleanup: document.querySelector("#confirmAudioCleanup"),
-  cancelAudioCleanup: document.querySelector("#cancelAudioCleanup"),
+  audioLibraryDialog: document.querySelector("#audioLibraryDialog"),
+  audioLibrarySummary: document.querySelector("#audioLibrarySummary"),
+  audioLibraryUsedList: document.querySelector("#audioLibraryUsedList"),
+  audioLibraryOrphanList: document.querySelector("#audioLibraryOrphanList"),
+  closeAudioLibrary: document.querySelector("#closeAudioLibrary"),
+  closeAudioLibraryBtn: document.querySelector("#closeAudioLibraryBtn"),
+  deleteSelectedUnusedSounds: document.querySelector("#deleteSelectedUnusedSounds"),
+  boardInfoSectionToggle: document.querySelector("#boardInfoSectionToggle"),
+  boardInfoSectionBody: document.querySelector("#boardInfoSectionBody"),
+  boardInfoName: document.querySelector("#boardInfoName"),
+  boardInfoCreatedAt: document.querySelector("#boardInfoCreatedAt"),
+  boardInfoPadCounts: document.querySelector("#boardInfoPadCounts"),
+  boardInfoMediaCounts: document.querySelector("#boardInfoMediaCounts"),
+  boardInfoNotice: document.querySelector("#boardInfoNotice"),
+  boardInfoDelete: document.querySelector("#boardInfoDelete"),
+  boardInfoAudioLibrary: document.querySelector("#boardInfoAudioLibrary"),
+  boardInfoAudioLibraryBadge: document.querySelector("#boardInfoAudioLibraryBadge"),
   microphoneDialog: document.querySelector("#microphoneDialog"),
   microphoneSummary: document.querySelector("#microphoneSummary"),
   microphoneSelect: document.querySelector("#microphoneSelect"),
@@ -1612,6 +1622,9 @@ function setBoardPadEditing(editing) {
     state.boardManageSectionOpen = false;
     if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = true;
     if (els.boardManageSectionToggle) els.boardManageSectionToggle.setAttribute("aria-expanded", "false");
+    state.boardInfoSectionOpen = false;
+    if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = true;
+    if (els.boardInfoSectionToggle) els.boardInfoSectionToggle.setAttribute("aria-expanded", "false");
   } else {
     state.versionsSectionOpen = false;
     if (els.boardVersionRow) els.boardVersionRow.hidden = true;
@@ -1623,6 +1636,7 @@ function setBoardPadEditing(editing) {
   updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
   refreshBoardTagFilterOptions();
   syncPadSelectionLocks();
+  renderBoardInfoSection();
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
@@ -4238,6 +4252,33 @@ async function applyBulkEdit() {
   setStatus(`${pads.length} pad${pads.length > 1 ? "s" : ""} modifié${pads.length > 1 ? "s" : ""}`);
 }
 
+// Tableau de bord "Infos board" (garage) : dupliqué à côté des contrôles
+// existants (nom, notice, supprimer) plutôt que de les déplacer.
+function renderBoardInfoSection() {
+  const board = currentBoard();
+  if (!board) return;
+  if (els.boardInfoName) els.boardInfoName.textContent = board.name || "—";
+  if (els.boardInfoCreatedAt) els.boardInfoCreatedAt.textContent = formatBoardCreatedAt(board.createdAt);
+  if (els.boardInfoPadCounts) {
+    const activeCount = state.pads.filter((pad) => !isEmptyPad(pad)).length;
+    const emptyCount = state.pads.length - activeCount;
+    els.boardInfoPadCounts.textContent = `${activeCount} actif${activeCount > 1 ? "s" : ""} / ${emptyCount} vide${emptyCount > 1 ? "s" : ""}`;
+  }
+  if (els.boardInfoMediaCounts) {
+    let audioCount = 0;
+    let videoCount = 0;
+    let textCount = 0;
+    state.pads.forEach((pad) => {
+      if (isEmptyPad(pad)) return;
+      const type = padType(pad);
+      if (type === "video") videoCount += 1;
+      else if (type === "text") textCount += 1;
+      else audioCount += 1;
+    });
+    els.boardInfoMediaCounts.textContent = `${audioCount} son${audioCount > 1 ? "s" : ""} · ${videoCount} vidéo${videoCount > 1 ? "s" : ""} · ${textCount} texte${textCount > 1 ? "s" : ""}`;
+  }
+}
+
 function renderBoardLayoutControls() {
   const board = currentBoard();
   if (!board) return;
@@ -4530,6 +4571,8 @@ async function renderPads(options = {}) {
   state.pads.forEach(fitPadTitle);
   updateAllPadAlerts(); // calcule les badges (dont source/cible crossfade) après restauration
   if (!state.stageMode) backfillPadDurations(); // durées affichées sans passer par la scène
+  updateAudioLibraryBadge().catch(() => {});
+  renderBoardInfoSection();
 }
 
 async function switchBoard(boardId) {
@@ -7732,6 +7775,7 @@ async function addPad() {
   if (state.boardEditMode) setPadEditing(pad, true);
   refreshStopGroupOptions();
   updateShortcutIndicators();
+  renderBoardInfoSection();
   setStatus(`Pad ${board.padCount} ajoute`);
 }
 
@@ -8104,7 +8148,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     setBoardPadEditing(true);
   }
   if (shouldStatus) setStatus(`${pad.title} supprime`);
-  if (shouldStatus) offerAudioCleanupAfterDeletion().catch(() => {});
+  updateAudioLibraryBadge().catch(() => {});
   return true;
 }
 
@@ -8155,7 +8199,7 @@ async function deleteCurrentBoard() {
   await renderPads({ preserveEditMode: true });
   setBoardPadEditing(true);
   setStatus(`${board.name} supprime`);
-  offerAudioCleanupAfterDeletion().catch(() => setStatus(`${board.name} supprime · nettoyage indisponible`, "stop"));
+  updateAudioLibraryBadge().catch(() => {});
 }
 
 function isAudioStoreKey(key) {
@@ -8237,16 +8281,37 @@ function cleanupSourceBoardName(record) {
   return source || currentBoard()?.name || "board";
 }
 
-async function orphanAudioCandidates() {
-  const [keys, referenced] = await Promise.all([
+// Empreinte (nom + taille) plutôt que clé de stockage précise : recharger le
+// même fichier dans un nouveau pad produit un tout nouvel enregistrement,
+// mais c'est bien « le même son » — sert au regroupement des doublons et à
+// la purge automatique des orphelins déjà utilisés ailleurs.
+function audioFingerprint(record) {
+  const name = String(record?.name || record?.audioName || "").trim().toLowerCase();
+  const size = Number(record?.audioByteLength) || 0;
+  return `${name}::${size}`;
+}
+
+async function orphanAudioCandidates(usedEntries = null) {
+  const [keys, referenced, resolvedUsedEntries] = await Promise.all([
     dbKeys(),
     referencedAudioKeysForAllBoards(),
+    usedEntries || usedAudioEntries(),
   ]);
+  const usedFingerprints = new Set(resolvedUsedEntries.map((entry) => audioFingerprint(entry.record)));
   const candidates = [];
   for (const key of keys) {
     if (!isAudioStoreKey(key) || referenced.has(key)) continue;
     const record = await dbGet(key);
     if (!recordContainsAudio(record)) continue;
+    const fingerprint = audioFingerprint(record);
+    // Doublon d'un son déjà utilisé par au moins un pad : le supprimer ne
+    // fait courir aucun risque de perte (une copie fonctionnelle existe
+    // toujours ailleurs), donc pas besoin de passer par la validation
+    // utilisateur — on nettoie directement.
+    if (usedFingerprints.has(fingerprint)) {
+      await dbDelete(key);
+      continue;
+    }
     candidates.push({
       key,
       record,
@@ -8257,88 +8322,356 @@ async function orphanAudioCandidates() {
   return candidates.sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
 }
 
-function selectedCleanupCandidates() {
-  const selectedKeys = new Set([...els.audioCleanupList?.querySelectorAll("input:checked") || []].map((input) => input.value));
-  return (state.audioCleanupCandidates || []).filter((candidate) => selectedKeys.has(candidate.key));
+// Regroupe les orphelins de même empreinte (nom+taille) : plusieurs pads/boards
+// dupliqués peuvent avoir stocké des copies octet-identiques du même son, qui
+// n'ont pas de raison de s'afficher comme des lignes distinctes à traiter une
+// à une.
+function groupCandidatesByFingerprint(candidates) {
+  const groups = new Map();
+  candidates.forEach((candidate) => {
+    const fp = audioFingerprint(candidate.record);
+    if (!groups.has(fp)) groups.set(fp, { fingerprint: fp, label: candidate.label, candidates: [] });
+    groups.get(fp).candidates.push(candidate);
+  });
+  return [...groups.values()]
+    .map((group) => {
+      // Le nom de fichier original (+ taille implicite dans l'empreinte) permet de
+      // distinguer deux sons différents qui partagent le même titre de pad.
+      const fileName = group.candidates[0].record?.name || group.candidates[0].record?.audioName || "";
+      const detail = group.candidates.length > 1
+        ? [
+            fileName ? `fichier : ${fileName}` : "",
+            `${group.candidates.length} exemplaires · sources : ${[...new Set(group.candidates.map((c) => cleanupSourceBoardName(c.record)))].join(", ")}`,
+          ].filter(Boolean).join(" · ")
+        : group.candidates[0].detail;
+      return { ...group, detail };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
 }
 
-function renderAudioCleanupDialog(candidates) {
-  state.audioCleanupCandidates = candidates;
-  if (els.audioCleanupSummary) {
-    els.audioCleanupSummary.textContent = "Le ou les sons suivants ne sont plus référencés (ils n’apparaissent plus dans aucun pad, aucun board, aucune version sauvegardée ou archivée) :";
+// La sélection se lit directement sur les cases à cocher de la liste "Sons
+// inutilisés" du panneau "Sons stockés" (plus de fenêtre de nettoyage séparée).
+function selectedUnusedSoundCandidates() {
+  const selectedFingerprints = new Set([...els.audioLibraryOrphanList?.querySelectorAll("input:checked") || []].map((input) => input.value));
+  return (state.audioLibraryOrphans || []).filter((candidate) => selectedFingerprints.has(audioFingerprint(candidate.record)));
+}
+
+function formatAudioSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} Mo`;
+  if (n >= 1024) return `${(n / 1024).toFixed(0)} Ko`;
+  return `${n} o`;
+}
+
+// "n sons dont x wav, y mp3" : répartition par format, du plus fréquent au
+// moins fréquent. Ne couvre que l'audio (le scan orphelins/utilisés actuel
+// ne voit pas les pads vidéo, stockés sous un champ "video" distinct).
+function audioFormatBreakdown(entries) {
+  const counts = new Map();
+  entries.forEach((entry) => {
+    const ext = recordingExtension(entry.record?.type || "");
+    counts.set(ext, (counts.get(ext) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([ext, count]) => `${count} ${ext}`)
+    .join(", ");
+}
+
+// Tous les sons réellement stockés (avec leurs propres octets, pas juste un
+// audioRefIndex vers un autre pad) et encore référencés par un board actuel —
+// vue « visibilité » demandée en complément du nettoyage des sons inutilisés.
+// Classé par son d'abord (révèle direct les doublons entre boards), board ensuite.
+async function usedAudioEntries() {
+  const entries = [];
+  for (const board of state.boards) {
+    for (let index = 0; index < (Number(board.padCount) || 0); index += 1) {
+      const key = padAudioKeyFor(board.id, index);
+      const record = await dbGet(key);
+      if (!recordContainsAudio(record)) continue;
+      const meta = await dbGet(padMetaKeyFor(board.id, index));
+      const title = meta?.title || record?.title || `Pad ${index + 1}`;
+      const soundName = cleanupAudioLabel(record, key);
+      entries.push({
+        key,
+        record,
+        soundName,
+        fileName: record?.name || record?.audioName || "",
+        boardName: board.name,
+        title,
+        size: Number(record.audioByteLength) || record.audio?.byteLength || 0,
+      });
+    }
   }
-  if (!els.audioCleanupList) return;
-  els.audioCleanupList.innerHTML = "";
-  candidates.forEach((candidate) => {
-    const label = document.createElement("label");
-    label.className = "cleanup-audio-item";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.value = candidate.key;
-    input.checked = true;
-    const text = document.createElement("span");
-    text.textContent = candidate.label;
-    const detail = document.createElement("small");
-    detail.textContent = candidate.detail || candidate.key;
-    label.append(input, text, detail);
-    els.audioCleanupList.append(label);
+  return entries.sort((a, b) => {
+    const bySound = a.soundName.localeCompare(b.soundName, "fr", { sensitivity: "base" });
+    return bySound !== 0 ? bySound : a.boardName.localeCompare(b.boardName, "fr", { sensitivity: "base" });
   });
 }
 
-async function offerAudioCleanupAfterDeletion() {
-  const candidates = await orphanAudioCandidates();
-  if (!candidates.length) return;
-  renderAudioCleanupDialog(candidates);
-  if (els.audioCleanupDialog?.showModal) {
-    els.audioCleanupDialog.showModal();
-  } else if (window.confirm(`${candidates.length} son(s) ne sont plus référencés. Les supprimer ?`)) {
-    await deleteSelectedCleanupAudio(candidates);
+function renderAudioLibraryList(container, items, { orphan = false } = {}) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "audio-library-empty";
+    empty.textContent = orphan ? "Aucun son inutilisé." : "Aucun son utilisé.";
+    container.append(empty);
+    return;
   }
+  items.forEach((item) => {
+    // Les sons inutilisés se sélectionnent directement ici (case à cochée
+    // par défaut) : plus besoin d'ouvrir une fenêtre séparée pour agir dessus.
+    const row = orphan ? document.createElement("label") : document.createElement("div");
+    row.className = orphan ? "audio-library-item is-orphan" : "audio-library-item";
+    if (orphan) {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.value = item.fingerprint;
+      row.append(checkbox);
+    }
+    const textWrap = document.createElement("div");
+    textWrap.className = "audio-library-item-text";
+    const text = document.createElement("span");
+    text.textContent = item.label;
+    textWrap.append(text);
+    if (item.detail) {
+      const detail = document.createElement("small");
+      detail.className = "audio-library-item-detail";
+      detail.textContent = item.detail;
+      textWrap.append(detail);
+    }
+    const size = document.createElement("small");
+    size.className = "audio-library-item-size";
+    size.textContent = formatAudioSize(item.size);
+    row.append(textWrap, size);
+    container.append(row);
+  });
 }
 
-async function exportCleanupAudioFiles() {
-  const candidates = selectedCleanupCandidates();
-  if (!candidates.length) {
-    setStatus("Aucun son sélectionné", "stop");
+// Groupe les sons utilisés par son (pas par occurrence) : le nom du son ne
+// doit apparaître qu'une fois, suivi des boards qui l'utilisent — pas répété
+// à chaque board comme "son — board / pad". Le nom de fichier original est
+// gardé pour distinguer deux sons différents qui partagent le même titre.
+function groupUsedEntriesBySound(entries) {
+  const groups = new Map();
+  entries.forEach((entry) => {
+    const fp = audioFingerprint(entry.record);
+    if (!groups.has(fp)) {
+      groups.set(fp, { soundName: entry.soundName, fileName: entry.fileName, size: entry.size, boards: [] });
+    }
+    groups.get(fp).boards.push(entry.boardName);
+  });
+  return [...groups.values()].sort((a, b) => a.soundName.localeCompare(b.soundName, "fr", { sensitivity: "base" }));
+}
+
+function renderUsedAudioList(container, entries) {
+  if (!container) return;
+  container.innerHTML = "";
+  const groups = groupUsedEntriesBySound(entries);
+  if (!groups.length) {
+    const empty = document.createElement("p");
+    empty.className = "audio-library-empty";
+    empty.textContent = "Aucun son utilisé.";
+    container.append(empty);
     return;
   }
-  if (!window.showDirectoryPicker) {
-    setStatus("Sélection de dossier indisponible dans ce navigateur", "stop");
-    return;
+  groups.forEach((group) => {
+    const wrap = document.createElement("div");
+    wrap.className = "audio-library-group";
+    const header = document.createElement("div");
+    header.className = "audio-library-group-header";
+    const name = document.createElement("span");
+    name.textContent = group.soundName;
+    const size = document.createElement("small");
+    size.textContent = formatAudioSize(group.size);
+    header.append(name, size);
+    wrap.append(header);
+    if (group.fileName) {
+      const file = document.createElement("p");
+      file.className = "audio-library-item-detail";
+      file.textContent = `fichier : ${group.fileName}`;
+      wrap.append(file);
+    }
+    const list = document.createElement("ul");
+    list.className = "audio-library-board-list";
+    group.boards.forEach((boardName) => {
+      const li = document.createElement("li");
+      li.textContent = boardName;
+      list.append(li);
+    });
+    wrap.append(list);
+    container.append(wrap);
+  });
+}
+
+async function openAudioLibraryDialog() {
+  const used = await usedAudioEntries();
+  const orphanCandidates = await orphanAudioCandidates(used);
+  state.audioLibraryOrphans = orphanCandidates;
+  const orphanGroups = groupCandidatesByFingerprint(orphanCandidates).map((group) => ({
+    fingerprint: group.fingerprint,
+    label: group.candidates.length > 1 ? `${group.label} (×${group.candidates.length})` : group.label,
+    detail: group.detail,
+    size: group.candidates.reduce((sum, c) => sum + (Number(c.record.audioByteLength) || 0), 0),
+  }));
+  const usedSize = used.reduce((sum, entry) => sum + entry.size, 0);
+  const orphanSize = orphanGroups.reduce((sum, entry) => sum + entry.size, 0);
+  if (els.audioLibrarySummary) {
+    const breakdown = audioFormatBreakdown(used);
+    els.audioLibrarySummary.textContent = `${used.length} son${used.length > 1 ? "s" : ""} utilisé${used.length > 1 ? "s" : ""}${breakdown ? ` dont ${breakdown}` : ""} (${formatAudioSize(usedSize)}) · ${orphanCandidates.length} son${orphanCandidates.length > 1 ? "s" : ""} inutilisé${orphanCandidates.length > 1 ? "s" : ""} (${formatAudioSize(orphanSize)})`;
   }
-  const directory = await window.showDirectoryPicker({ mode: "readwrite" });
+  renderUsedAudioList(els.audioLibraryUsedList, used);
+  renderAudioLibraryList(els.audioLibraryOrphanList, orphanGroups, { orphan: true });
+  if (els.deleteSelectedUnusedSounds) els.deleteSelectedUnusedSounds.hidden = !orphanCandidates.length;
+  els.audioLibraryDialog?.showModal?.();
+}
+
+// Remplace l'ancienne modale automatique après chaque suppression de pad
+// (jugée intrusive et confuse) par un simple badge passif sur le bouton
+// « Sons stockés » : l'utilisateur consulte/nettoie quand il le souhaite.
+async function updateAudioLibraryBadge() {
+  if (!els.boardInfoAudioLibraryBadge) return;
+  const candidates = await orphanAudioCandidates();
+  const count = candidates.length;
+  els.boardInfoAudioLibraryBadge.textContent = count > 99 ? "99+" : String(count);
+  els.boardInfoAudioLibraryBadge.hidden = count === 0;
+}
+
+function downloadBlobAsFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Générateur de zip minimal (entrées "stored", non compressées) : pas de
+// dépendance externe disponible ici, mais évite un téléchargement par
+// fichier sur les navigateurs sans sélecteur de dossier (Firefox, Safari).
+function crc32(bytes) {
+  let crc = ~0;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (~crc) >>> 0;
+}
+
+function u16le(value) {
+  return [value & 0xff, (value >>> 8) & 0xff];
+}
+
+function u32le(value) {
+  return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
+}
+
+function buildZipBlob(files) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  files.forEach(({ name, data }) => {
+    const nameBytes = encoder.encode(name);
+    const crc = crc32(data);
+    const size = data.length;
+    const localHeader = new Uint8Array([
+      0x50, 0x4b, 0x03, 0x04,
+      ...u16le(20), ...u16le(0), ...u16le(0), ...u16le(0), ...u16le(0x21),
+      ...u32le(crc), ...u32le(size), ...u32le(size),
+      ...u16le(nameBytes.length), ...u16le(0),
+    ]);
+    localParts.push(localHeader, nameBytes, data);
+    const centralHeader = new Uint8Array([
+      0x50, 0x4b, 0x01, 0x02,
+      ...u16le(20), ...u16le(20), ...u16le(0), ...u16le(0), ...u16le(0), ...u16le(0x21),
+      ...u32le(crc), ...u32le(size), ...u32le(size),
+      ...u16le(nameBytes.length), ...u16le(0), ...u16le(0), ...u16le(0), ...u16le(0),
+      ...u32le(0), ...u32le(offset),
+    ]);
+    centralParts.push(centralHeader, nameBytes);
+    offset += localHeader.length + nameBytes.length + data.length;
+  });
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endRecord = new Uint8Array([
+    0x50, 0x4b, 0x05, 0x06,
+    ...u16le(0), ...u16le(0), ...u16le(files.length), ...u16le(files.length),
+    ...u32le(centralSize), ...u32le(offset), ...u16le(0),
+  ]);
+  return new Blob([...localParts, ...centralParts, endRecord], { type: "application/zip" });
+}
+
+// Enregistre les candidats fournis sur le disque (dossier choisi sur
+// Chrome/Edge, un seul zip téléchargé sinon). Appelé depuis le flux de
+// suppression, en option, plutôt que depuis un bouton dédié.
+async function saveCandidatesToDisk(allCandidates) {
+  // Un seul exemplaire par empreinte : inutile d'enregistrer N fois le même
+  // contenu quand un son a plusieurs copies stockées.
+  const candidates = groupCandidatesByFingerprint(allCandidates).map((group) => group.candidates[0]);
   const stamp = timestampForFile();
-  let written = 0;
-  for (const candidate of candidates) {
-    if (!candidate.record?.audio) continue;
-    const type = candidate.record.type || "audio/mpeg";
-    const extension = recordingExtension(type);
+  const fileNameFor = (candidate) => {
+    const extension = recordingExtension(candidate.record.type || "audio/mpeg");
     const boardName = safeFileName(cleanupSourceBoardName(candidate.record));
     const padName = safeFileName(cleanupAudioLabel(candidate.record, candidate.key));
-    const filename = `${stamp}.${boardName}.${padName}.${extension}`;
-    const handle = await directory.getFileHandle(filename, { create: true });
-    const writable = await handle.createWritable();
-    await writable.write(new Blob([candidate.record.audio], { type }));
-    await writable.close();
-    written += 1;
+    return `${boardName}.${padName}.${extension}`;
+  };
+  const withAudio = candidates.filter((candidate) => candidate.record?.audio);
+
+  if (window.showDirectoryPicker) {
+    // Dossier choisi (Chrome/Edge) : un fichier audio par son.
+    const directory = await window.showDirectoryPicker({ mode: "readwrite" });
+    for (const candidate of withAudio) {
+      const type = candidate.record.type || "audio/mpeg";
+      const handle = await directory.getFileHandle(`${stamp}.${fileNameFor(candidate)}`, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([candidate.record.audio], { type }));
+      await writable.close();
+    }
+    setStatus(`${withAudio.length} son${withAudio.length > 1 ? "s" : ""} enregistré${withAudio.length > 1 ? "s" : ""} dans le dossier choisi (un fichier audio par son)`);
+    return;
   }
-  els.audioCleanupDialog?.close();
-  setStatus(`${written} son${written > 1 ? "s" : ""} enregistré${written > 1 ? "s" : ""}`);
+
+  // Pas de sélecteur de dossier (Firefox, Safari) : un seul zip téléchargé,
+  // pour n'avoir qu'un seul emplacement à choisir au lieu d'un par son.
+  const zipName = `${stamp}.sons-sauvegardes.zip`;
+  const zipBlob = buildZipBlob(withAudio.map((candidate) => ({
+    name: fileNameFor(candidate),
+    data: new Uint8Array(candidate.record.audio),
+  })));
+  downloadBlobAsFile(zipBlob, zipName);
+  setStatus(`${withAudio.length} son${withAudio.length > 1 ? "s" : ""} enregistré${withAudio.length > 1 ? "s" : ""} dans "${zipName}" (dossier Téléchargements), un seul fichier zip contenant tous les sons`);
 }
 
-async function deleteSelectedCleanupAudio(candidates = selectedCleanupCandidates()) {
+async function deleteSelectedUnusedSounds() {
+  const candidates = selectedUnusedSoundCandidates();
   if (!candidates.length) {
     setStatus("Aucun son sélectionné", "stop");
     return;
   }
-  const names = candidates.map((candidate) => `- ${candidate.label}`).join("\n");
+  // Regrouper par empreinte (comme dans la fenêtre), pas par le libellé brut
+  // de chaque candidat : deux exemplaires du même fichier peuvent avoir un
+  // titre de pad différent (hérité de leur pad d'origine), ce qui faisait
+  // ressortir un nom en plus dans le texte de confirmation — donnant
+  // l'impression qu'un son non coché s'invitait dans la suppression.
+  const names = groupCandidatesByFingerprint(candidates)
+    .map((group) => `- ${group.label}${group.candidates.length > 1 ? ` (×${group.candidates.length})` : ""}`)
+    .join("\n");
   if (!window.confirm(`Supprimer définitivement les sons sélectionnés ?\n\n${names}`)) return;
+  if (window.confirm("Enregistrer d'abord ces sons sur le disque avant de les supprimer ?")) {
+    await saveCandidatesToDisk(candidates);
+  }
   for (const candidate of candidates) {
     await dbDelete(candidate.key);
   }
-  state.audioCleanupCandidates = [];
-  els.audioCleanupDialog?.close();
   setStatus(`${candidates.length} son${candidates.length > 1 ? "s" : ""} supprimé${candidates.length > 1 ? "s" : ""}`);
+  els.audioLibraryDialog?.close();
+  updateAudioLibraryBadge().catch(() => {});
 }
 
 async function repairAccidentalPadTitles() {
@@ -8584,8 +8917,10 @@ async function loadFileIntoPad(pad, file) {
   await ensureAudio();
   const arrayBuffer = await file.arrayBuffer();
   const exposedPath = file.path || file.webkitRelativePath || "";
-  // Conserver un titre personnalisé ; sinon nommer d'après le fichier.
-  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: !isDefaultTitleForPad(pad) });
+  // Toujours renommer d'après le fichier importé (drag-drop, bouton du pad,
+  // fenêtre réglages audio), même si le pad avait un titre personnalisé — un
+  // remplacement de son est traité comme un nouveau son, pas une mise à jour.
+  await loadAudioIntoPad(pad, arrayBuffer, file.name, file.type, exposedPath, Boolean(exposedPath), { keepTitle: false });
 }
 
 async function loadAudioIntoPad(pad, arrayBuffer, name, type, path = "", pathTrusted = false, options = {}) {
@@ -15139,6 +15474,13 @@ async function init() {
       if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = !state.boardManageSectionOpen;
       return;
     }
+    if (e.target.closest?.("#boardInfoSectionToggle")) {
+      state.boardInfoSectionOpen = !state.boardInfoSectionOpen;
+      els.boardInfoSectionToggle?.setAttribute("aria-expanded", String(state.boardInfoSectionOpen));
+      if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = !state.boardInfoSectionOpen;
+      if (state.boardInfoSectionOpen) renderBoardInfoSection();
+      return;
+    }
     const tagsAddBtn = e.target.closest?.(".tags-add-btn");
     if (tagsAddBtn) {
       const field = tagsAddBtn.closest(".tag-field");
@@ -15470,7 +15812,6 @@ async function init() {
       closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
     }
   });
-  els.deleteBoard?.addEventListener("click", deleteCurrentBoard);
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
   els.boardName?.addEventListener("input", () => renameCurrentBoard(els.boardName.value));
   els.boardName?.addEventListener("blur", () => {
@@ -15489,9 +15830,10 @@ async function init() {
   });
   els.addBoard?.addEventListener("click", addBoard);
   els.duplicateBoard?.addEventListener("click", duplicateCurrentBoard);
-  els.boardNotice?.addEventListener("click", () => {
+  els.boardInfoNotice?.addEventListener("click", () => {
     exportBoardNotice().catch(() => setStatus("Notice impossible"));
   });
+  els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoardAudioOnly?.addEventListener("click", () => {
     exportCurrentBoard("audioOnly")
@@ -15546,16 +15888,8 @@ async function init() {
     els.folderImportDialog?.close();
     setStatus("Ajout des sons annulé");
   });
-  els.exportCleanupAudio?.addEventListener("click", () => {
-    exportCleanupAudioFiles().catch(() => setStatus("Enregistrement des sons impossible"));
-  });
-  els.confirmAudioCleanup?.addEventListener("click", () => {
-    deleteSelectedCleanupAudio().catch(() => setStatus("Suppression audio impossible"));
-  });
-  els.cancelAudioCleanup?.addEventListener("click", () => {
-    state.audioCleanupCandidates = [];
-    els.audioCleanupDialog?.close();
-    setStatus("Sons conservés");
+  els.deleteSelectedUnusedSounds?.addEventListener("click", () => {
+    deleteSelectedUnusedSounds().catch(() => setStatus("Suppression audio impossible"));
   });
   els.refreshMicrophones?.addEventListener("click", () => {
     refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
@@ -15581,11 +15915,13 @@ async function init() {
       els.folderImportDialog.close();
     }
   });
-  els.audioCleanupDialog?.addEventListener("click", (event) => {
-    if (event.target === els.audioCleanupDialog) {
-      state.audioCleanupCandidates = [];
-      els.audioCleanupDialog.close();
-    }
+  els.boardInfoAudioLibrary?.addEventListener("click", () => {
+    openAudioLibraryDialog().catch(() => setStatus("Sons stockés indisponibles", "stop"));
+  });
+  els.closeAudioLibrary?.addEventListener("click", () => els.audioLibraryDialog?.close());
+  els.closeAudioLibraryBtn?.addEventListener("click", () => els.audioLibraryDialog?.close());
+  els.audioLibraryDialog?.addEventListener("click", (event) => {
+    if (event.target === els.audioLibraryDialog) els.audioLibraryDialog.close();
   });
   const openContextHelp = (sectionKeys, title = "Aide") => {
     if (!els.helpDialog) return;
@@ -16220,9 +16556,7 @@ async function init() {
   bindEscapeClose(els.folderImportDialog, () => {
     state.folderImportFiles = [];
   });
-  bindEscapeClose(els.audioCleanupDialog, () => {
-    state.audioCleanupCandidates = [];
-  });
+  bindEscapeClose(els.audioLibraryDialog);
   bindEscapeClose(els.microphoneDialog, () => {
     state.pendingRecordingPad = null;
   });

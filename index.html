@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=539">
+    <link rel="stylesheet" href="styles.css?v=551">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -94,6 +94,38 @@
                 </svg>
               </button>
             </div>
+            <button class="board-section-toggle board-info-section-toggle" type="button" id="boardInfoSectionToggle" aria-expanded="false">
+              <span>INFOS BOARD</span>
+              <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div id="boardInfoSectionBody" class="board-info-section-body" hidden>
+              <dl class="board-info-grid">
+                <dt>Nom</dt><dd id="boardInfoName">—</dd>
+                <dt>Créé le</dt><dd id="boardInfoCreatedAt">—</dd>
+                <dt>Pads actifs / vides</dt><dd id="boardInfoPadCounts">—</dd>
+                <dt>Sons / vidéos / textes</dt><dd id="boardInfoMediaCounts">—</dd>
+              </dl>
+              <div class="board-info-actions">
+                <button id="boardInfoAudioLibrary" class="icon-button audio-library-button" type="button" aria-label="Sons stockés">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  <span id="boardInfoAudioLibraryBadge" class="audio-library-badge" hidden>0</span>
+                </button>
+                <button id="boardInfoNotice" class="icon-button" type="button" aria-label="Notice du board">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 3h9l3 3v15H6V3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M14 3v4h4M9 11h6M9 15h6M9 19h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button id="boardInfoDelete" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
             <button class="board-section-toggle board-manage-section-toggle" type="button" id="boardManageSectionToggle" aria-expanded="false">
               <span>GESTION DU BOARD ET DES PADS</span>
               <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -141,12 +173,6 @@
                     <path d="M15 9l-6 6M9 9l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </button>
-                <button id="boardNotice" class="icon-button board-notice-button" type="button" aria-label="Notice du board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 3h9l3 3v15H6V3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M14 3v4h4M9 11h6M9 15h6M9 19h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                </button>
                 <button id="exportBoardAudioOnly" class="icon-button board-transfer-button" type="button" aria-label="Exporter sons et réglages">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -163,11 +189,6 @@
                 <button id="importBoard" class="icon-button board-transfer-button" type="button" aria-label="Importer un board">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <button id="deleteBoard" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </button>
               </div>
@@ -938,6 +959,12 @@
                     <circle cx="16" cy="10" r="1" fill="currentColor"/>
                   </svg>
                 </dt><dd>Ouvre l’éditeur de skin (couleurs, harmonie, polices).</dd>
+                <dt aria-label="Sons stockés">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </dt><dd>État des sons stockés sur cet appareil (utilisés, inutilisés, ignorés). Les sons sont stockés dans le navigateur, pas sur le Finder/l’Explorateur : pour une sauvegarde durable, utilise « Exporter sons et réglages » (fichier json).</dd>
                 <dt aria-label="Supprimer le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2040,19 +2067,22 @@
       </div>
     </dialog>
 
-    <dialog id="audioCleanupDialog" class="confirm-dialog" aria-labelledby="audioCleanupTitle">
-      <div class="confirm-panel audio-cleanup-panel">
+    <dialog id="audioLibraryDialog" class="confirm-dialog" aria-labelledby="audioLibraryTitle">
+      <div class="confirm-panel audio-library-panel">
         <div class="help-head">
           <div>
-            <h2 id="audioCleanupTitle">Nettoyage audio</h2>
-            <p id="audioCleanupSummary">Le ou les sons suivants ne sont plus référencés (ils n’apparaissent plus dans aucun pad, aucun board, aucune version sauvegardée ou archivée) :</p>
+            <h2 id="audioLibraryTitle">Sons stockés</h2>
+            <p id="audioLibrarySummary">État de tous les sons enregistrés sur cet appareil (tous les boards confondus).</p>
           </div>
+          <button id="closeAudioLibrary" class="icon-button dialog-close-button" type="button" aria-label="Fermer">×</button>
         </div>
-        <div id="audioCleanupList" class="audio-cleanup-list" aria-label="Sons à nettoyer"></div>
+        <p class="audio-library-section-title">Utilisés</p>
+        <div id="audioLibraryUsedList" class="audio-cleanup-list" aria-label="Sons utilisés"></div>
+        <p class="audio-library-section-title">Sons inutilisés (non référencés)</p>
+        <div id="audioLibraryOrphanList" class="audio-cleanup-list" aria-label="Sons inutilisés"></div>
         <div class="dialog-actions">
-          <button id="exportCleanupAudio" class="small-button" type="button">Enregistrer les sons</button>
-          <button id="confirmAudioCleanup" class="danger-button" type="button">Supprimer sélection</button>
-          <button id="cancelAudioCleanup" class="small-button" type="button">Conserver</button>
+          <button id="deleteSelectedUnusedSounds" class="danger-button" type="button">Supprimer la sélection</button>
+          <button id="closeAudioLibraryBtn" class="small-button" type="button">Fermer</button>
         </div>
       </div>
     </dialog>
@@ -2504,7 +2534,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=539"></script>
+    <script src="app.js?v=561"></script>
 
 
   </body>
