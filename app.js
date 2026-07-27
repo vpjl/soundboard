@@ -156,6 +156,7 @@ const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
 
 const state = {
   audioContext: null,
+  cueAudioContext: null,
   masterGain: null,
   masterBypassGain: null,
   masterDry: null,
@@ -10074,6 +10075,7 @@ function stopCuePreview() {
     state.cuePreviewUrl = "";
   }
   state.cuePreviewMeterSource?.disconnect?.();
+  state.cuePreviewAnalyser?.disconnect?.();
   state.cuePreviewMeterSource = null;
   state.cuePreviewAnalyser = null;
   state.cuePreviewMeterData = null;
@@ -10212,25 +10214,61 @@ async function handleOutputSelectKeydown(event, type) {
   }
 }
 
-function connectCuePreviewMeter(media) {
-  if (!state.audioContext || !media?.captureStream) return false;
-  try {
-    const stream = media.captureStream();
-    const source = state.audioContext.createMediaStreamSource(stream);
-    const analyser = state.audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    state.cuePreviewMeterSource = source;
-    state.cuePreviewAnalyser = analyser;
-    state.cuePreviewMeterData = new Uint8Array(analyser.fftSize);
-    return true;
-  } catch (error) {
-    console.warn("VU Cue indisponible", error);
-    state.cuePreviewMeterSource = null;
-    state.cuePreviewAnalyser = null;
-    state.cuePreviewMeterData = null;
-    return false;
+function ensureCueAudioContext() {
+  if (!state.cueAudioContext) {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    state.cueAudioContext = new AudioContextCtor();
   }
+  return state.cueAudioContext;
+}
+
+// Deux methodes, car aucune des deux n'est fiable partout :
+// 1. captureStream() : ne touche pas au routage de sortie (compatible avec la
+//    sortie Cue dediee via audio.setSinkId), mais absent sur Safari.
+// 2. createMediaElementSource() : fonctionne sur Safari, mais re-route la
+//    lecture dans un AudioContext — utilisable seulement quand aucune sortie
+//    Cue separee n'est active (sinon ce routage serait perdu). On utilise un
+//    AudioContext dedie (pas celui du master) pour ne pas hériter du sink du
+//    master.
+function connectCuePreviewMeter(media, options = {}) {
+  if (media?.captureStream) {
+    try {
+      const ctx = state.audioContext;
+      if (ctx) {
+        const stream = media.captureStream();
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        state.cuePreviewMeterSource = source;
+        state.cuePreviewAnalyser = analyser;
+        state.cuePreviewMeterData = new Uint8Array(analyser.fftSize);
+        return true;
+      }
+    } catch (error) {
+      console.warn("VU Cue (captureStream) indisponible", error);
+    }
+  }
+  if (!options.outputDeviceSelected && media instanceof HTMLMediaElement) {
+    try {
+      const ctx = ensureCueAudioContext();
+      const source = ctx.createMediaElementSource(media);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      state.cuePreviewMeterSource = source;
+      state.cuePreviewAnalyser = analyser;
+      state.cuePreviewMeterData = new Uint8Array(analyser.fftSize);
+      return true;
+    } catch (error) {
+      console.warn("VU Cue (createMediaElementSource) indisponible", error);
+    }
+  }
+  state.cuePreviewMeterSource = null;
+  state.cuePreviewAnalyser = null;
+  state.cuePreviewMeterData = null;
+  return false;
 }
 
 async function previewPadCue(pad, options = {}) {
@@ -10329,7 +10367,10 @@ async function previewPadCue(pad, options = {}) {
     pad.cueButton?.classList.add("is-active");
     pad.cueButton?.setAttribute("aria-pressed", "true");
     prepareAudio();
-    connectCuePreviewMeter(audio);
+    connectCuePreviewMeter(audio, { outputDeviceSelected: cueOutputSelected });
+    if (state.cueAudioContext && state.cueAudioContext.state !== "running") {
+      await state.cueAudioContext.resume().catch(() => {});
+    }
     await audio.play();
     if (!pad.loop && segment.duration > 0) {
       state.cuePreviewTrimTimer = window.setTimeout(() => {
@@ -15250,14 +15291,21 @@ function setMeterLevel(element, level) {
 function updateMeters() {
   const hasPlayingPad = state.pads.some((pad) => pad.source);
   setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
+  // Sans analyseur reel (TTS, ou Safari + sortie Cue dediee active), on
+  // n'affiche plus un niveau factice base sur le volume regle : mieux vaut
+  // un VU a 0 qu'un niveau qui ment sur le signal reel.
   setMeterLevel(
     els.cueVu,
-    state.cuePreviewAnalyser
-      ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData)
-      : ((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance ? cueVolumeValue() : 0)
+    state.cuePreviewAnalyser ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData) : 0
   );
   state.pads.forEach((pad) => {
-    setMeterLevel(pad.vuEl, meterLevel(pad.analyser, pad.meterData));
+    // Pendant la pre-ecoute cue d'un pad, son propre VU reprend le niveau du
+    // Cue (meme analyseur que els.cueVu) au lieu de rester figé : la lecture
+    // cue ne passe pas par pad.analyser (chaine de lecture normale du pad).
+    const level = (state.cuePreviewPad === pad && state.cuePreviewAnalyser)
+      ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData)
+      : meterLevel(pad.analyser, pad.meterData);
+    setMeterLevel(pad.vuEl, level);
   });
 }
 

@@ -12,8 +12,8 @@ Ce fichier liste les points a traiter plus tard. Les items doivent rester action
 - Export complet impossible avec pad video seul.
   - Tests notes : export reglages seuls OK, export audio seul OK, export board sans video OK, export board avec uniquement un pad video en echec.
   - Hypothese historique : `videoRecordForExport()` ou `audioSourceToBase64(record.video)`.
-- VU Cue : le VU cue affiche encore une valeur de volume plutot qu'une mesure du signal audio reel.
-  - Piste historique : brancher la pre-ecoute cue sur un `AnalyserNode` ou calculer un niveau depuis l'element audio.
+- ~~VU Cue : le VU cue affiche encore une valeur de volume plutot qu'une mesure du signal audio reel.~~
+  - Fait le 2026-07-27 : `connectCuePreviewMeter()` tente `captureStream()` (Chrome/Firefox) puis, si absent ET qu'aucune sortie Cue dediee n'est active, `createMediaElementSource()` sur un `AudioContext` cue dedie (compatible Safari). Quand aucun analyseur reel n'est disponible (TTS, ou Safari + sortie Cue dediee), le VU affiche 0 au lieu de mentir avec le volume regle.
 
 ## Documentation a enrichir
 
