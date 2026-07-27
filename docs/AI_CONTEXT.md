@@ -1,6 +1,6 @@
 # Contexte IA - Soundboard Live
 
-Derniere mise a jour : 2026-06-26.
+Derniere mise a jour : 2026-07-27.
 
 Ce fichier sert de point d'entree pour Codex ou un autre assistant IA. Il doit rester synthetique et orienter vers les fichiers utiles, pas remplacer le code.
 
@@ -17,8 +17,8 @@ Fichiers principaux :
 ## Etat courant
 
 - Branche de travail habituelle : `main`.
-- Version publique synchronisee : `v423`.
-- Le cache service worker doit rester aligne avec les versions d'assets dans `index.html`.
+- Version publique synchronisee : `v564` (`#audioStatus`, `index.html` query strings, `service-worker.js`).
+- Le cache service worker doit rester aligne avec les versions d'assets dans `index.html` : bumper les 3 (`styles.css?v=`, `app.js?v=`, `CACHE_NAME`/`APP_ASSETS` du SW) a la MEME valeur a chaque modif, jamais independamment (ca a derive une fois, cf. `docs/CHANGELOG.md` v564).
 - Les notes de version internes de l'application sont des notes utilisateur attachees aux versions de board.
 
 ## Regles de travail

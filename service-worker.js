@@ -1,16 +1,21 @@
-const CACHE_NAME = "soundboard-live-v519";
+const CACHE_NAME = "soundboard-live-v564";
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=519",
-  "./app.js?v=519",
+  "./styles.css?v=564",
+  "./app.js?v=564",
   "./manifest.webmanifest",
   "./icons/icon.svg",
 ];
 
 self.addEventListener("install", (event) => {
+  // Promise.allSettled plutot que cache.addAll : un seul asset en echec (404,
+  // reseau) ne doit pas faire echouer tout le precache et laisser le SW sans
+  // cache installe.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(APP_ASSETS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });

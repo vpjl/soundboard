@@ -19,3 +19,4 @@ Ce fichier liste les points a traiter plus tard. Les items doivent rester action
 
 - Ajouter les demandes Claude/Codex utiles sous forme de synthese, pas en conversation brute.
 - Extraire les decisions fonctionnelles stables vers `docs/DECISIONS.md`.
+- Fait le 2026-07-27 : `CHANGELOG.md`/`AI_CONTEXT.md` rattrapes jusqu'a v564 (retard depuis v423).
