@@ -1654,17 +1654,16 @@ async function beginBoardEdit() {
 async function cancelBoardEdit() {
   const snapshot = state.boardEditSnapshot;
   if (!snapshot) {
-    setBoardPadEditing(false);
-    syncBoardModeSelectorSoon();
+    setStatus("Rien à annuler");
     return;
   }
-  await applyBoardSnapshot(snapshot);
-  state.boardEditSnapshot = null;
+  // Reset board reste en garage (ne bascule pas en Studio) : on garde le
+  // snapshot d'entrée intact pour permettre plusieurs "reset" successifs
+  // pendant la même session garage.
+  await applyBoardSnapshot(snapshot, { preserveEditMode: true });
   resetUndoStack();
+  setBoardPadEditing(true);
   setStatus("Modifications annulées");
-  // Reset board = sortie explicite du garage, toujours vers Studio (pas de
-  // retour tacite qui pourrait laisser le sélecteur de mode désynchronisé).
-  syncBoardModeSelectorSoon();
 }
 
 function comparableBoardSnapshot(snapshot) {
@@ -1686,7 +1685,7 @@ async function boardEditHasChanges() {
 
 async function openCancelBoardEditDialog() {
   if (!(await boardEditHasChanges())) {
-    setBoardPadEditing(false);
+    setStatus("Rien à annuler");
     return;
   }
   if (els.cancelEditDialog?.showModal) {
