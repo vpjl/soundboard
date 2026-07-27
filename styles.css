@@ -704,10 +704,11 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   background: var(--color_ui_panel);
   box-shadow: 0 12px 34px var(--shadow);
   min-width: 0;
-  /* Plafond relevé (360 → 380) pour laisser le bloc s'élargir et garder la rangée
-     Sélection sur une seule ligne, y compris quand le bouton devient « Supprimer »
-     (plus large que « Modifier »). */
-  max-width: 380px;
+  /* Plafond relevé (360 → 380 → 420 → 460) pour laisser le bloc s'élargir : garder la
+     rangée Sélection sur une seule ligne (bouton « Supprimer » plus large que
+     « Modifier »), et désormais aussi les boutons "annuler la dernière modification"
+     + "annuler les modifications" ajoutés à droite du sélecteur de mode. */
+  max-width: 460px;
   box-sizing: border-box;
 }
 
@@ -875,11 +876,13 @@ body:not(.stage-mode):not(.board-edit-mode) .versions-section-toggle {
   display: flex;
 }
 
-.board-manage-section-toggle {
+.board-manage-section-toggle,
+.board-info-section-toggle {
   display: none;
 }
 
-body.board-edit-mode .board-manage-section-toggle {
+body.board-edit-mode .board-manage-section-toggle,
+body.board-edit-mode .board-info-section-toggle {
   display: flex;
 }
 
@@ -5860,6 +5863,7 @@ body.stage-mode.cues-enabled #openCueDialog {
 
 body.stage-mode .versions-section-toggle,
 body.stage-mode .board-manage-section-toggle,
+body.stage-mode .board-info-section-toggle,
 body.stage-mode .version-select {
   display: none;
 }
@@ -9620,6 +9624,19 @@ details[open] > .skin-editor-advanced-summary::before {
   max-width: none !important;
   white-space: nowrap !important;
   padding: 0 10px !important;
+}
+
+/* Bouton "annuler les modifications" : déplacé à droite du sélecteur de mode,
+   avec un espace le distinguant des 3 boutons de mode (ce n'est pas un 4e
+   mode). Ne s'affiche qu'en garage — comme avant son déplacement. */
+.board-mode-selector-extra {
+  display: none;
+  margin-left: 10px;
+  flex: 0 0 auto !important;
+}
+
+body.board-edit-mode .board-mode-selector-extra {
+  display: grid;
 }
 
 /* Sélecteur de modes : sous le nom du board, aligné à gauche */

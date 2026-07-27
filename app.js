@@ -234,6 +234,7 @@ const state = {
   stageMode: false,
   boardEditMode: false,
   boardEditSnapshot: null,
+  undoStack: [],
   cueDraft: null,
   cueDragIndex: -1,
   cueWaitTimer: null,
@@ -479,6 +480,7 @@ const els = {
   boardSelect: document.querySelector("#boardSelect"),
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
+  undoBoardEdit: document.querySelector("#undoBoardEdit"),
   cancelBoardEdit: document.querySelector("#cancelBoardEdit"),
   saveBoardEdit: document.querySelector("#saveBoardEdit"),
   discardBoardEdit: document.querySelector("#discardBoardEdit"),
@@ -1625,6 +1627,7 @@ function setBoardPadEditing(editing) {
     state.boardInfoSectionOpen = false;
     if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = true;
     if (els.boardInfoSectionToggle) els.boardInfoSectionToggle.setAttribute("aria-expanded", "false");
+    resetUndoStack();
   } else {
     state.versionsSectionOpen = false;
     if (els.boardVersionRow) els.boardVersionRow.hidden = true;
@@ -1637,11 +1640,13 @@ function setBoardPadEditing(editing) {
   refreshBoardTagFilterOptions();
   syncPadSelectionLocks();
   renderBoardInfoSection();
+  refreshUndoButton();
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
 async function beginBoardEdit() {
   if (state.stageMode) return;
+  resetUndoStack();
   state.boardEditSnapshot = await createBoardSnapshot(currentBoard());
   setBoardPadEditing(true);
 }
@@ -1654,6 +1659,7 @@ async function cancelBoardEdit() {
   }
   await applyBoardSnapshot(snapshot);
   state.boardEditSnapshot = null;
+  resetUndoStack();
   setStatus("Modifications annulées");
 }
 
@@ -6910,7 +6916,10 @@ function versionHistoryForStorage(history = []) {
 async function createBoardSnapshot(board, options = {}) {
   const includeMedia = options.includeMedia !== false;
   syncPadIndexesFromDom();
-  await persistCurrentPadsForExport();
+  // skipPersist : utilisé par la capture de point d'annulation (savePadMeta), qui
+  // tourne DANS savePadMeta lui-même — persistCurrentPadsForExport rappellerait
+  // savePadMeta sur tous les pads et écraserait l'état "avant" qu'on veut justement lire.
+  if (!options.skipPersist) await persistCurrentPadsForExport();
   const pads = [];
   for (let index = 0; index < board.padCount; index += 1) {
     const audio = await dbGet(padAudioKeyFor(board.id, index));
@@ -6945,7 +6954,7 @@ async function createBoardSnapshot(board, options = {}) {
   };
 }
 
-async function applyBoardSnapshot(snapshot) {
+async function applyBoardSnapshot(snapshot, options = {}) {
   const board = currentBoard();
   stopAll();
   resetRecordingState();
@@ -7015,7 +7024,92 @@ async function applyBoardSnapshot(snapshot) {
 
   saveBoards();
   renderBoardOptions();
-  await renderPads();
+  await renderPads(options.preserveEditMode ? { preserveEditMode: true } : undefined);
+}
+
+// Annulation pas à pas (garage) : deux types d'entrées empilées dans state.undoStack.
+// - "snapshot" : réglages (non-audio) regroupés par rafale de 900ms, via savePadMeta.
+// - "delete"   : suppression de pad, réattache l'audio orphelin au lieu de le dupliquer.
+const UNDO_STACK_LIMIT = 20;
+const UNDO_CHECKPOINT_DELAY_MS = 900;
+let undoCheckpointTimer = null;
+let undoBurstPending = null;
+
+function resetUndoStack() {
+  clearTimeout(undoCheckpointTimer);
+  undoCheckpointTimer = null;
+  undoBurstPending = null;
+  state.undoStack = [];
+}
+
+function commitPendingUndoCheckpoint() {
+  clearTimeout(undoCheckpointTimer);
+  undoCheckpointTimer = null;
+  if (undoBurstPending) {
+    state.undoStack.push(undoBurstPending);
+    if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  }
+  undoBurstPending = null;
+  refreshUndoButton();
+}
+
+let undoCapturing = false;
+
+async function scheduleUndoCheckpoint() {
+  if (!state.boardEditMode) return;
+  if (!undoBurstPending && !undoCapturing) {
+    undoCapturing = true;
+    try {
+      const board = currentBoard();
+      const snapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
+      undoBurstPending = { type: "snapshot", boardId: board.id, snapshot };
+    } finally {
+      undoCapturing = false;
+    }
+  }
+  clearTimeout(undoCheckpointTimer);
+  undoCheckpointTimer = setTimeout(commitPendingUndoCheckpoint, UNDO_CHECKPOINT_DELAY_MS);
+}
+
+function refreshUndoButton() {
+  if (!els.undoBoardEdit) return;
+  const hasEntries = state.boardEditMode && (state.undoStack.length > 0 || Boolean(undoBurstPending));
+  els.undoBoardEdit.disabled = !hasEntries;
+}
+
+async function undoLastGarageChange() {
+  if (!state.boardEditMode) return;
+  commitPendingUndoCheckpoint();
+  const entry = state.undoStack.pop();
+  if (!entry) {
+    setStatus("Rien à annuler");
+    refreshUndoButton();
+    return;
+  }
+  if (entry.boardId && entry.boardId !== state.currentBoardId) {
+    setStatus("Rien à annuler");
+    refreshUndoButton();
+    return;
+  }
+  if (entry.type === "delete") {
+    await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
+    const board = currentBoard();
+    const orphanRecord = entry.orphanKey ? await dbGet(entry.orphanKey) : null;
+    if (orphanRecord && entry.index < board.padCount) {
+      const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
+      await dbSet(padAudioKeyFor(board.id, entry.index), restored);
+      if (entry.orphanKey) await dbDelete(entry.orphanKey);
+      await renderPads({ preserveEditMode: true });
+      updateAudioLibraryBadge().catch(() => {});
+    }
+    setBoardPadEditing(true);
+    setStatus(`${entry.title || "Pad"} restauré`);
+  } else {
+    await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
+    setBoardPadEditing(true);
+    setStatus("Modification annulée");
+  }
+  refreshUndoButton();
 }
 
 async function saveBoardVersion() {
@@ -7763,6 +7857,10 @@ async function importBoardFile(file) {
 
 async function addPad() {
   const board = currentBoard();
+  // Capturer le point d'annulation AVANT d'incrémenter padCount : sinon le
+  // snapshot capturé par savePadMeta() ci-dessous inclut déjà le nouveau pad,
+  // et "annuler" ne le retire plus.
+  await scheduleUndoCheckpoint();
   board.padCount += 1;
   saveBoards();
   const pad = makePad(board.padCount - 1);
@@ -8094,10 +8192,13 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   const shouldStatus = options.status !== false;
   const board = currentBoard();
   if (board.padCount <= 1) {
-    setStatus("Dernier pad non supprimable");
+    setStatus("Dernier pad non supprimable", "stop");
     return false;
   }
   if (shouldConfirm && !window.confirm(`Supprimer le pad "${pad.title}" ?`)) return false;
+
+  commitPendingUndoCheckpoint();
+  const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
 
   stopAll();
   if (state.recordingPad === pad) resetRecordingState();
@@ -8130,8 +8231,9 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     }
   }
 
+  let orphanKey = "";
   if (deletedAudio?.audio && !snapshotsReferenceAudio(snapshots, deletedAudio)) {
-    await preserveAudioForCleanup(deletedAudio, `${board.name} / ${pad.title}`);
+    orphanKey = await preserveAudioForCleanup(deletedAudio, `${board.name} / ${pad.title}`);
   }
   await dbDelete(padMetaKeyFor(boardId, board.padCount - 1));
   await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
@@ -8149,6 +8251,16 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   }
   if (shouldStatus) setStatus(`${pad.title} supprime`);
   updateAudioLibraryBadge().catch(() => {});
+  state.undoStack.push({
+    type: "delete",
+    boardId,
+    snapshot: preDeleteSnapshot,
+    orphanKey,
+    index: pad.index,
+    title: pad.title,
+  });
+  if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  refreshUndoButton();
   return true;
 }
 
@@ -10290,6 +10402,7 @@ function toggleAudioDialogTest() {
 
 async function savePadMeta(pad, options = {}) {
   if (!pad.uid) pad.uid = createId();
+  await scheduleUndoCheckpoint();
   const previousMeta = await dbGet(padMetaKey(pad));
   const previousSaved = await dbGet(padAudioKey(pad));
   const preservedVideoName = pad.videoName || previousMeta?.videoName || previousSaved?.videoName || "";
@@ -15631,6 +15744,7 @@ async function init() {
     }
     beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
   });
+  els.undoBoardEdit?.addEventListener("click", () => undoLastGarageChange().catch(() => setStatus("Annulation impossible")));
   els.cancelBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.saveBoardEdit?.addEventListener("click", () => {
     setBoardPadEditing(false);
