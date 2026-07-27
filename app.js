@@ -1628,11 +1628,10 @@ function setBoardPadEditing(editing) {
     state.boardInfoSectionOpen = false;
     if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = true;
     if (els.boardInfoSectionToggle) els.boardInfoSectionToggle.setAttribute("aria-expanded", "false");
-    resetUndoStack();
-  } else {
     state.versionsSectionOpen = false;
     if (els.boardVersionRow) els.boardVersionRow.hidden = true;
     if (els.versionsSectionToggle) els.versionsSectionToggle.setAttribute("aria-expanded", "false");
+    resetUndoStack();
   }
   state.filterSectionOpen = false;
   setBoardEditing(state.boardEditMode, false);
@@ -7404,8 +7403,11 @@ async function restoreSelectedBoardVersion() {
   const selectedLabel = els.versionSelect?.selectedOptions?.[0]?.textContent || versionOptionLabel(snapshot, history.indexOf(snapshot));
   if (!window.confirm(`Restaurer "${board.name}" depuis ${selectedLabel} ?`)) return;
 
-  await applyBoardSnapshot(snapshot);
-  setBoardPadEditing(false);
+  // "Versions" vit desormais dans le garage : rester en garage apres la
+  // restauration plutot que de basculer en Studio (comme le reset board).
+  await applyBoardSnapshot(snapshot, { preserveEditMode: true });
+  resetUndoStack();
+  setBoardPadEditing(true);
   await refreshVersionOptions(snapshot.id);
   setStatus(`Version restauree: ${selectedLabel}`);
 }
@@ -16758,7 +16760,7 @@ async function init() {
   bindKeyboard();
   bindPerformanceTouchGuards();
 
-  setStatus("Touchez un pad ou chargez vos sons");
+  setStatus("Bienvenue !");
 }
 
 init();

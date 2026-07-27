@@ -868,19 +868,13 @@ body.board-edit-mode .board-action-grid .stage-lock-button {
   transform: rotate(-90deg);
 }
 
-.versions-section-toggle {
-  display: none;
-}
-
-body:not(.stage-mode):not(.board-edit-mode) .versions-section-toggle {
-  display: flex;
-}
-
+.versions-section-toggle,
 .board-manage-section-toggle,
 .board-info-section-toggle {
   display: none;
 }
 
+body.board-edit-mode .versions-section-toggle,
 body.board-edit-mode .board-manage-section-toggle,
 body.board-edit-mode .board-info-section-toggle {
   display: flex;
@@ -6833,13 +6827,18 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .pads.has-pad-layout,
   body.stage-mode .pads,
   body.stage-mode .pads.has-pad-layout,
-  body.board-edit-mode .pads,
-  body.board-edit-mode .pads.has-pad-layout,
   body[data-skin="minimal"] .pads,
   body[data-skin="minimal"] .pads.has-pad-layout,
   body[data-skin="minimal"].stage-mode .pads,
   body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Garage : 1 seule colonne en portrait (tous skins) pour laisser toute la
+     largeur de l'écran au champ "Nom" du pad, sinon le titre est tronqué. */
+  body.board-edit-mode .pads,
+  body.board-edit-mode .pads.has-pad-layout {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
 
   body.board-edit-mode .pad.is-editing .pad-trigger {

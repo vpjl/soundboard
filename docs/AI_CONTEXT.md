@@ -17,8 +17,8 @@ Fichiers principaux :
 ## Etat courant
 
 - Branche de travail habituelle : `main`.
-- Version publique synchronisee : `v564` (`#audioStatus`, `index.html` query strings, `service-worker.js`).
-- Le cache service worker doit rester aligne avec les versions d'assets dans `index.html` : bumper les 3 (`styles.css?v=`, `app.js?v=`, `CACHE_NAME`/`APP_ASSETS` du SW) a la MEME valeur a chaque modif, jamais independamment (ca a derive une fois, cf. `docs/CHANGELOG.md` v564).
+- Version publique synchronisee : `v567` (`.brand-credit`, `#audioStatus`, `index.html` query strings, `service-worker.js`).
+- Le cache service worker doit rester aligne avec les versions d'assets dans `index.html` : bumper les 4 (`.brand-credit` "version N", `#audioStatus`, `styles.css?v=`/`app.js?v=`, `CACHE_NAME`/`APP_ASSETS` du SW) a la MEME valeur a chaque modif, jamais independamment (ca a derive une fois, cf. `docs/CHANGELOG.md` v564).
 - Les notes de version internes de l'application sont des notes utilisateur attachees aux versions de board.
 
 ## Regles de travail
