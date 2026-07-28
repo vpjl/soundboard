@@ -598,6 +598,7 @@ const els = {
   boardInfoPadCounts: document.querySelector("#boardInfoPadCounts"),
   boardInfoMediaCounts: document.querySelector("#boardInfoMediaCounts"),
   boardInfoNotice: document.querySelector("#boardInfoNotice"),
+  openAppNotice: document.querySelector("#openAppNotice"),
   boardInfoDelete: document.querySelector("#boardInfoDelete"),
   boardInfoAudioLibrary: document.querySelector("#boardInfoAudioLibrary"),
   boardInfoAudioLibraryBadge: document.querySelector("#boardInfoAudioLibraryBadge"),
@@ -4969,6 +4970,13 @@ async function exportBoardNotice() {
   } else {
     setStatus("Notice DOC téléchargée, autoriser les pop-ups pour le PDF");
   }
+}
+
+// Notice generale de l'application (PDF statique a cote d'index.html), a ne
+// pas confondre avec exportBoardNotice() qui genere une notice PROPRE AU BOARD.
+function openAppNoticePdf() {
+  const win = window.open("soundboard-vl-notice.pdf", "_blank");
+  if (!win) setStatus("Autoriser les pop-ups pour ouvrir la notice", "stop");
 }
 
 function nextBoardName() {
@@ -16000,6 +16008,7 @@ async function init() {
   els.boardInfoNotice?.addEventListener("click", () => {
     exportBoardNotice().catch(() => setStatus("Notice impossible"));
   });
+  els.openAppNotice?.addEventListener("click", openAppNoticePdf);
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoardAudioOnly?.addEventListener("click", () => {

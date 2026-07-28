@@ -422,6 +422,31 @@ textarea *,
   grid-column: 1 / -1;
 }
 
+/* Notice de l'application : icône discrète en haut à droite, visible dans
+   tous les modes (pas rattachée au garage comme les autres exports).
+   position:fixed plutôt que margin-left:auto dans le flex .brand : plusieurs
+   règles !important spécifiques au mode scène retaillent .brand (gap, align-
+   items, largeur du titre) et un titre de board long y masquait le bouton en
+   le poussant hors champ. Fixe au viewport, il ne dépend plus du contenu. */
+.app-notice-button {
+  position: fixed !important;
+  top: 16px;
+  right: 16px;
+  z-index: 500;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-color: var(--color_ui_border);
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+}
+
+.app-notice-button:hover {
+  color: var(--color_ui_text);
+  border-color: var(--color_ui_text_muted);
+}
+
 .brand-tools {
   display: grid;
   gap: 8px;
