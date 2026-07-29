@@ -1449,6 +1449,82 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   align-self: start;
 }
 
+/* Hasard groupé : pas de grid-area dédiée dans le layout du master-strip (très
+   finement calé sur de nombreux breakpoints) — placé en 5e ligne implicite,
+   pleine largeur, pour ne rien perturber de l'existant. */
+.random-group-control {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--color_ui_frame_background);
+  /* #masterHelp est en position:absolute, calé bottom:8px sur .master-strip
+     lui-même (pas sur une ligne de grille) : comme cette ligne devient le
+     nouveau bas du panneau, on réserve sa bande via une MARGE (pas un
+     padding) — la marge reste hors du cadre/fond du bloc, donc le bouton
+     Aide ne se retrouve plus visuellement "à l'intérieur" du bloc playlist. */
+  margin-bottom: calc(var(--master-corner-btn, 42px) + 12px);
+}
+
+.random-group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Ligne 1 : le tag, volontairement plus étroit qu'avant (pas besoin de toute
+   la largeur puisqu'il n'y a plus le champ nombre + bouton à côté). */
+.random-group-row-tag select {
+  width: 100%;
+  max-width: 160px;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: #111319;
+  color: var(--text);
+}
+
+.random-group-inline-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Ligne 2 (max) et ligne 3 (min + bouton) : champs nombre compacts. Le bouton
+   reste à la taille standard des icon-button (42px, comme "Réglage des cues")
+   au lieu d'un mini-bouton. */
+.random-group-row-minmax input[type="number"],
+.random-group-row-action input[type="number"] {
+  width: 52px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 6px;
+  background: #111319;
+  color: var(--text);
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.random-group-row-action .icon-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.random-group-row-action .icon-button.is-active {
+  border-color: var(--color_status_progress);
+  background: color-mix(in srgb, var(--color_status_progress) 30%, var(--color_ui_panel_secondary));
+  color: var(--color_ui_text);
+}
+
 .master-option-badges {
   grid-area: badges;
   grid-column: 1 / -1; /* étiquettes d'options alignées au bord gauche du bloc (studio + scène) */

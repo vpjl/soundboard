@@ -22,6 +22,10 @@ const ARMED_CROSSFADE_SECONDS_STORAGE = "soundboard-live-armed-crossfade-seconds
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
+const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
+const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
+const RANDOM_GROUP_MIN_STORAGE = "soundboard-live-random-group-min";
+const RANDOM_GROUP_ALL_VALUE = "__all__";
 const SKIN_STORAGE = "soundboard-live-skin";
 const CUSTOM_SKINS_STORAGE = "soundboard-live-custom-skins";
 const CUSTOM_SKIN_PREFIX = "custom:";
@@ -255,6 +259,8 @@ const state = {
     phase: "target",
     sourcePadUid: null,
   },
+  randomEngine: null, // { tag, count, bag: [uid...], activeUids: Set } ou null si arrêté
+  randomEngineHandlingEnd: false,
   folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "par défaut",
@@ -342,6 +348,10 @@ const els = {
   cueStopAll: document.querySelector("#cueStopAll"),
   stopGroup: document.querySelector("#stopGroup"),
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
+  randomGroupSelect: document.querySelector("#randomGroupSelect"),
+  randomGroupCount: document.querySelector("#randomGroupCount"),
+  randomGroupMin: document.querySelector("#randomGroupMin"),
+  randomGroupToggle: document.querySelector("#randomGroupToggle"),
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
@@ -10971,7 +10981,10 @@ function cuesEnabledForManualCrossfade() {
 }
 
 function armedCrossfadeAvailable() {
-  return cuesEnabledForManualCrossfade() && armedCrossfadeEnabled() && manualCrossfadeDuration() > 0;
+  // Playlist aléatoire gère son propre enchaînement de pads : le crossfade
+  // manuel (armé) est désactivé pendant qu'elle tourne, pour les mêmes
+  // raisons que le crossfade automatique par pad (cf. executeCrossfadeAction).
+  return cuesEnabledForManualCrossfade() && armedCrossfadeEnabled() && manualCrossfadeDuration() > 0 && !state.randomEngine;
 }
 
 function syncArmedCrossfadeControls() {
@@ -11269,6 +11282,24 @@ function refreshStopGroupOptions() {
   els.stopGroupSelect.closest(".group-stop-row")?.style.setProperty("--stop-group-width", width);
   els.stopGroupSelect.closest(".group-stop-control")?.style.setProperty("--stop-group-width", width);
   els.stopGroupSelect.closest(".master-strip")?.style.setProperty("--stop-group-width", width);
+  refreshRandomGroupOptions(tags);
+}
+
+// Playlist aléatoire : même liste de tags que Stop groupé (réutilise le calcul déjà
+// fait par l'appelant pour éviter de refaire flatMap/sort sur tous les pads).
+function refreshRandomGroupOptions(tags) {
+  if (!els.randomGroupSelect) return;
+  const savedValue = localStorage.getItem(RANDOM_GROUP_STORAGE) || "";
+  const currentValue = els.randomGroupSelect.value || savedValue;
+  els.randomGroupSelect.innerHTML = `<option value="">Tags</option><option value="${RANDOM_GROUP_ALL_VALUE}">Tous</option>`;
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    els.randomGroupSelect.append(option);
+  });
+  const validValues = new Set([RANDOM_GROUP_ALL_VALUE, ...tags]);
+  els.randomGroupSelect.value = validValues.has(currentValue) ? currentValue : "";
 }
 
 function boardTags() {
@@ -13769,6 +13800,10 @@ function clearPadMuteState(pad) {
 
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   if (action === "none") return;
+  // Playlist aléatoire gère elle-même l'enchaînement de ses pads (pioche +
+  // remplacement) : le crossfade automatique par pad interférerait avec ce
+  // suivi (double comptage dans engine.activeUids, déclenchements imprévus).
+  if (state.randomEngine) return;
   const targets = padsFromCrossfadeTarget(target, sourcePad);
   if (action === "duck") {
     const duration = options.pulse
@@ -14938,6 +14973,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
     if (!stoppedManually) showPadNoteOverlay(pad, "end");
     executeEndCrossfade(pad);
     checkCueConditions(pad);
+    advanceRandomEngine(pad);
   }
 }
 
@@ -15429,6 +15465,7 @@ function togglePad(pad) {
 }
 
 function stopAll() {
+  stopRandomGroup();
   const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
   state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
   setStatus("Tout est stoppé");
@@ -15440,9 +15477,129 @@ function stopGroup() {
     setStatus("Choisir un groupe");
     return;
   }
+  if (state.randomEngine?.tag === tag) stopRandomGroup();
   const pads = state.pads.filter((pad) => isPadPlaying(pad) && padTagList(pad).includes(tag));
   pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false }));
   setStatus(pads.length ? `Groupe ${tag} stoppé` : `Aucun pad joue: ${tag}`);
+}
+
+// ===== Playlist aléatoire =====
+// Moteur "sac à shuffle" : pioche sans remise parmi les pads tagués, en
+// maintenant `count` pads audio actifs en permanence (count tiré au hasard
+// entre min et max à chaque lancement). Un seul moteur à la fois (en démarrer
+// un nouveau arrête l'ancien). Audio uniquement pour l'instant (vidéo/texte
+// ont chacun leur propre détection de fin, pas encore branchée ici).
+function randomGroupTargetCount(memberCount) {
+  const rawMin = Math.max(1, Number(els.randomGroupMin?.value) || 1);
+  const rawMax = Math.max(1, Number(els.randomGroupCount?.value) || 1);
+  const lo = Math.min(rawMin, rawMax);
+  const hi = Math.max(rawMin, rawMax);
+  const clampedHi = Math.max(1, Math.min(hi, memberCount));
+  const clampedLo = Math.min(lo, clampedHi);
+  return clampedLo + Math.floor(Math.random() * (clampedHi - clampedLo + 1));
+}
+function randomGroupMembers(tag) {
+  // pad.buffer reste vide tant que le son n'a pas été décodé au moins une fois
+  // (décodage différé) : pad.audioStored indique un son réellement stocké,
+  // même pas encore décodé — playPad() le décodera à la volée si besoin.
+  return state.pads.filter((pad) =>
+    (tag === RANDOM_GROUP_ALL_VALUE || padTagList(pad).includes(tag))
+    && (Boolean(pad.buffer) || Boolean(pad.audioStored))
+    && !pad.videoName && !pad.textMode && !pad.textContent
+  );
+}
+
+function shuffledArray(list) {
+  const copy = list.slice();
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function drawNextRandomPad(engine) {
+  if (!engine.bag.length) {
+    engine.bag = shuffledArray(randomGroupMembers(engine.tag).map((pad) => pad.uid));
+  }
+  const index = engine.bag.findIndex((uid) => !engine.activeUids.has(uid));
+  if (index === -1) return null; // tous les membres restants jouent déjà (groupe plus petit que count)
+  const [uid] = engine.bag.splice(index, 1);
+  return state.pads.find((pad) => pad.uid === uid) || null;
+}
+
+function syncRandomGroupButton() {
+  const running = Boolean(state.randomEngine);
+  els.randomGroupToggle?.classList.toggle("is-active", running);
+  els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
+  els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
+  els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
+}
+
+// Appelé depuis clearPlayingPad() quand un pad membre de la playlist aléatoire
+// se termine naturellement (triggerEnd vrai) : pioche et lance le remplaçant.
+function advanceRandomEngine(pad) {
+  const engine = state.randomEngine;
+  if (!engine || !engine.activeUids.has(pad.uid)) return;
+  engine.activeUids.delete(pad.uid);
+  const next = drawNextRandomPad(engine);
+  if (next) {
+    engine.activeUids.add(next.uid);
+    playPad(next).catch(() => {
+      engine.activeUids.delete(next.uid);
+    });
+  }
+}
+
+function randomGroupLabel(tag) {
+  return tag === RANDOM_GROUP_ALL_VALUE ? "Tous" : tag;
+}
+
+async function startRandomGroup() {
+  const tag = els.randomGroupSelect?.value;
+  if (!tag) {
+    setStatus("Choisir un groupe");
+    return;
+  }
+  const members = randomGroupMembers(tag);
+  if (!members.length) {
+    setStatus(`Aucun pad audio pour: ${randomGroupLabel(tag)}`, "stop");
+    return;
+  }
+  stopRandomGroup();
+  const count = randomGroupTargetCount(members.length);
+  const engine = { tag, count, bag: shuffledArray(members.map((pad) => pad.uid)), activeUids: new Set() };
+  state.randomEngine = engine;
+  for (let i = 0; i < count; i += 1) {
+    const pad = drawNextRandomPad(engine);
+    if (!pad) break;
+    engine.activeUids.add(pad.uid);
+    await playPad(pad);
+  }
+  syncRandomGroupButton();
+  syncArmedCrossfadeControls();
+  setStatus(`Playlist aléatoire ${randomGroupLabel(tag)} lancée (${engine.activeUids.size} en cours)`);
+}
+
+function stopRandomGroup() {
+  const engine = state.randomEngine;
+  if (!engine) return;
+  state.randomEngine = null; // avant d'arrêter les pads : un triggerEnd tardif ne relancera rien
+  engine.activeUids.forEach((uid) => {
+    const pad = state.pads.find((p) => p.uid === uid);
+    if (pad && isPadPlaying(pad)) stopPad(pad, true, false, { triggerEnd: false });
+  });
+  syncRandomGroupButton();
+  syncArmedCrossfadeControls();
+}
+
+function toggleRandomGroup() {
+  if (state.randomEngine) {
+    stopRandomGroup();
+    setStatus("Playlist aléatoire arrêtée");
+  } else {
+    startRandomGroup().catch(() => setStatus("Playlist aléatoire impossible", "stop"));
+  }
 }
 
 function bindKeyboard() {
@@ -15522,6 +15679,12 @@ async function init() {
   loadMasterReverbSettings();
   loadMasterEqSettings();
   loadCueVolume();
+  if (els.randomGroupCount) {
+    els.randomGroupCount.value = localStorage.getItem(RANDOM_GROUP_COUNT_STORAGE) || "2";
+  }
+  if (els.randomGroupMin) {
+    els.randomGroupMin.value = localStorage.getItem(RANDOM_GROUP_MIN_STORAGE) || "1";
+  }
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
@@ -15823,9 +15986,19 @@ async function init() {
   els.stopGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
   });
+  els.randomGroupSelect?.addEventListener("change", () => {
+    localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect.value || "");
+  });
+  els.randomGroupCount?.addEventListener("change", () => {
+    localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount.value || "1");
+  });
+  els.randomGroupMin?.addEventListener("change", () => {
+    localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
+  });
   bindSafeActionButton(els.stopAll, () => stopAll());
   bindSafeActionButton(els.cueStopAll, () => stopAll());
   bindSafeActionButton(els.stopGroup, () => stopGroup());
+  bindSafeActionButton(els.randomGroupToggle, () => toggleRandomGroup());
   bindSafeActionButton(els.stageMode, () => {
     setStageMode(!state.stageMode, true);
   });
@@ -15933,14 +16106,10 @@ async function init() {
   // Valeur chiffrée volume/pan qui suit les curseurs.
   els.bulkVolume?.addEventListener("input", updateBulkRangeValues);
   els.bulkPan?.addEventListener("input", updateBulkRangeValues);
-  // Tags en chips (comme le pad) : le champ pilote les chips, le bouton + le révèle.
+  // Tags en chips (comme le pad) : le champ pilote les chips, le bouton + le révèle
+  // (bascule gérée par le listener délégué global sur ".tags-add-btn" — un second
+  // listener dédié ici ferait basculer la classe deux fois par clic et s'annulerait).
   els.bulkTags?.addEventListener("input", renderBulkTagChips);
-  els.bulkTagsAdd?.addEventListener("click", () => {
-    const field = els.bulkTagsAdd.closest(".tag-field");
-    const open = field?.classList.toggle("tags-input-open");
-    els.bulkTagsAdd.setAttribute("aria-expanded", String(Boolean(open)));
-    if (open) els.bulkTags?.focus();
-  });
   // Modifier un réglage coche sa case ; décocher la case restaure la valeur initiale.
   bindBulkFieldGroups();
   els.bulkEditDialog?.addEventListener("click", (event) => {

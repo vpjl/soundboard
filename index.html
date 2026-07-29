@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=574">
+    <link rel="stylesheet" href="styles.css?v=578">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -30,8 +30,8 @@
           </div>
           <div>
             <h1>Soundboard Live</h1>
-            <p class="brand-credit">vincent lainé (c) 2026 - version 574</p>
-            <p id="audioStatus">Pret pour la scene · v574</p>
+            <p class="brand-credit">vincent lainé (c) 2026 - version 578</p>
+            <p id="audioStatus">Pret pour la scene · v578</p>
             <p id="stageBoardTitle" class="stage-board-title"></p>
           </div>
           <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
@@ -404,6 +404,29 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
                   <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </span>
+          </label>
+          <label class="master-control random-group-control">
+            <span>Playlist aléatoire</span>
+            <span class="random-group-row random-group-row-tag">
+              <select id="randomGroupSelect" aria-label="Groupe playlist aléatoire">
+                <option value="">Tags</option>
+              </select>
+            </span>
+            <span class="random-group-row random-group-row-minmax">
+              <span class="random-group-inline-label">Pads joués en même temps (max) :</span>
+              <input id="randomGroupCount" type="number" min="1" max="12" value="2" aria-label="Nombre maximum de pads simultanés">
+            </span>
+            <span class="random-group-row random-group-row-action">
+              <span class="random-group-inline-label">Minimum :</span>
+              <input id="randomGroupMin" type="number" min="1" max="12" value="1" aria-label="Nombre minimum de pads simultanés">
+              <button id="randomGroupToggle" class="icon-button" type="button" aria-label="Lancer la playlist aléatoire" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
             </span>
@@ -795,6 +818,13 @@
                     <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   </svg>
                 </dt><dd>Ouvre les réglages audio master.</dd>
+                <dt aria-label="Lancer la playlist aléatoire">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </dt><dd>Playlist aléatoire : choisir un tag (ou « Tous » pour tous les pads audio du board), régler le nombre de pads simultanés (min et max — un nombre est tiré au hasard entre les deux à chaque lancement), puis lancer. Pioche sans répétition parmi les pads audio du groupe choisi, en remplaçant chaque pad dès qu'il se termine. Reclic pour arrêter. Le crossfade automatique et le crossfade manuel (armé) sont désactivés tant que la playlist tourne.</dd>
               </dl>
             </section>
 
@@ -2608,7 +2638,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=574"></script>
+    <script src="app.js?v=578"></script>
 
 
   </body>
