@@ -232,6 +232,7 @@ const state = {
   versionsSectionOpen: false,
   boardManageSectionOpen: false,
   boardInfoSectionOpen: false,
+  randomGroupSectionOpen: false,
   sketchDrawing: false,
   sketchColor: "#ffffff",
   sketchSize: 8,
@@ -348,6 +349,8 @@ const els = {
   cueStopAll: document.querySelector("#cueStopAll"),
   stopGroup: document.querySelector("#stopGroup"),
   stopGroupSelect: document.querySelector("#stopGroupSelect"),
+  randomGroupSectionToggle: document.querySelector("#randomGroupSectionToggle"),
+  randomGroupSectionBody: document.querySelector("#randomGroupSectionBody"),
   randomGroupSelect: document.querySelector("#randomGroupSelect"),
   randomGroupCount: document.querySelector("#randomGroupCount"),
   randomGroupMin: document.querySelector("#randomGroupMin"),
@@ -15534,6 +15537,8 @@ function syncRandomGroupButton() {
   els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
   els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
   els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
+  // Reflet visible même volet replié : sinon rien n'indique que la playlist tourne.
+  els.randomGroupSectionToggle?.classList.toggle("is-active", running);
 }
 
 // Appelé depuis clearPlayingPad() quand un pad membre de la playlist aléatoire
@@ -15848,6 +15853,12 @@ async function init() {
       els.boardInfoSectionToggle?.setAttribute("aria-expanded", String(state.boardInfoSectionOpen));
       if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = !state.boardInfoSectionOpen;
       if (state.boardInfoSectionOpen) renderBoardInfoSection();
+      return;
+    }
+    if (e.target.closest?.("#randomGroupSectionToggle")) {
+      state.randomGroupSectionOpen = !state.randomGroupSectionOpen;
+      els.randomGroupSectionToggle?.setAttribute("aria-expanded", String(state.randomGroupSectionOpen));
+      if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = !state.randomGroupSectionOpen;
       return;
     }
     const tagsAddBtn = e.target.closest?.(".tags-add-btn");

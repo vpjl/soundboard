@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=582">
+    <link rel="stylesheet" href="styles.css?v=583">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -30,8 +30,8 @@
           </div>
           <div>
             <h1>Soundboard Live</h1>
-            <p class="brand-credit">vincent lainé (c) 2026 - version 582</p>
-            <p id="audioStatus">Pret pour la scene · v582</p>
+            <p class="brand-credit">vincent lainé (c) 2026 - version 583</p>
+            <p id="audioStatus">Pret pour la scene · v583</p>
             <p id="stageBoardTitle" class="stage-board-title"></p>
           </div>
           <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
@@ -408,27 +408,32 @@
               </button>
             </span>
           </label>
-          <label class="master-control random-group-control">
-            <span>Playlist aléatoire</span>
-            <span class="random-group-inline-label">Pads sélectionnés</span>
-            <span class="random-group-row random-group-row-tag">
-              <select id="randomGroupSelect" aria-label="Groupe playlist aléatoire"></select>
-            </span>
-            <span class="random-group-inline-label">Pads joués en même temps</span>
-            <span class="random-group-row random-group-row-minmax">
-              <span class="random-group-inline-label">min.</span>
-              <input id="randomGroupMin" type="number" min="1" max="12" value="1" aria-label="Nombre minimum de pads simultanés">
-              <span class="random-group-inline-label">max.</span>
-              <input id="randomGroupCount" type="number" min="1" max="12" value="2" aria-label="Nombre maximum de pads simultanés">
-              <button id="randomGroupToggle" class="icon-button" type="button" aria-label="Lancer la playlist aléatoire" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-            </span>
-          </label>
+          <div class="master-control random-group-control">
+            <button class="random-group-section-toggle" type="button" id="randomGroupSectionToggle" aria-expanded="false">
+              <span>Playlist aléatoire</span>
+              <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div id="randomGroupSectionBody" class="random-group-section-body" hidden>
+              <span class="random-group-inline-label">Pads sélectionnés</span>
+              <span class="random-group-row random-group-row-tag">
+                <select id="randomGroupSelect" aria-label="Groupe playlist aléatoire"></select>
+              </span>
+              <span class="random-group-inline-label">Pads joués en même temps</span>
+              <span class="random-group-row random-group-row-minmax">
+                <span class="random-group-inline-label">min.</span>
+                <input id="randomGroupMin" type="number" min="1" max="12" value="1" aria-label="Nombre minimum de pads simultanés">
+                <span class="random-group-inline-label">max.</span>
+                <input id="randomGroupCount" type="number" min="1" max="12" value="2" aria-label="Nombre maximum de pads simultanés">
+                <button id="randomGroupToggle" class="icon-button" type="button" aria-label="Lancer la playlist aléatoire" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </span>
+            </div>
+          </div>
           <div id="masterOptionBadges" class="option-badges master-option-badges" aria-label="Options master"></div>
           <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
             <span>Stop global</span>
@@ -2636,7 +2641,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=582"></script>
+    <script src="app.js?v=583"></script>
 
 
   </body>

@@ -1469,6 +1469,40 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   margin-bottom: calc(var(--master-corner-btn, 42px) + 12px);
 }
 
+.random-group-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.random-group-section-toggle span {
+  flex: 1;
+}
+
+.random-group-section-toggle[aria-expanded="false"] .filter-section-chevron {
+  transform: rotate(-90deg);
+}
+
+.random-group-section-toggle.is-active span {
+  color: var(--color_status_progress);
+}
+
+.random-group-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.random-group-section-body[hidden] {
+  display: none;
+}
+
 .random-group-row {
   display: flex;
   align-items: center;
