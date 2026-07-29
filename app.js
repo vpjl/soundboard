@@ -17158,6 +17158,7 @@ const stageStudioLayoutSnapshot = {
   selectorRect: null,
   topbarRect: null,
   masterStripRect: null,
+  liveToolsRect: null,
   inlineStyles: [],
 };
 // Le gel évite un saut visuel du logo au clic sur "Scène", mais bride ensuite
@@ -17200,6 +17201,9 @@ function captureStudioLayoutForStage() {
   const masterStrip = document.querySelector(".master-strip");
   stageStudioLayoutSnapshot.masterStripRect = masterStrip ? masterStrip.getBoundingClientRect() : null;
 
+  const liveTools = document.querySelector(".live-tools");
+  stageStudioLayoutSnapshot.liveToolsRect = liveTools ? liveTools.getBoundingClientRect() : null;
+
   stageStudioLayoutSnapshot.inlineStyles = stageStudioLayoutElements().map(([element, props]) => {
     const computed = window.getComputedStyle(element);
     return {
@@ -17234,7 +17238,7 @@ function clearTopbarStudioLayout() {
 }
 
 function clearPinnedPanelsStudioLayout() {
-  [".board-strip", ".master-strip"].forEach((sel) => {
+  [".board-strip", ".master-strip", ".live-tools"].forEach((sel) => {
     const el = document.querySelector(sel);
     if (!el) return;
     el.style.removeProperty("position");
@@ -17317,19 +17321,25 @@ function applyStageStudioLayout() {
     boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
   }
 
-  const masterStrip = document.querySelector(".master-strip");
-  const studioMasterRect = stageStudioLayoutSnapshot.masterStripRect;
+  pinPanelToStudioPosition(document.querySelector(".master-strip"), stageStudioLayoutSnapshot.masterStripRect);
+  // .live-tools (bloc Cues/Crossfade) : sa position naturelle dépend de la
+  // hauteur réelle (non transformée) de la ligne board+master au-dessus —
+  // un transform sur board/master ne change pas leur encombrement dans le
+  // flux, donc .live-tools doit être épinglé indépendamment lui aussi, sinon
+  // il reste décalé même quand board/master sont bien alignés entre eux.
+  pinPanelToStudioPosition(document.querySelector(".live-tools"), stageStudioLayoutSnapshot.liveToolsRect);
+}
 
-  if (masterStrip && studioMasterRect) {
-    masterStrip.style.setProperty("position", "relative", "important");
-    masterStrip.style.setProperty("transform", "none", "important");
+function pinPanelToStudioPosition(el, studioRect) {
+  if (!el || !studioRect) return;
+  el.style.setProperty("position", "relative", "important");
+  el.style.setProperty("transform", "none", "important");
 
-    const stageMasterRect = masterStrip.getBoundingClientRect();
-    const masterDx = Math.round(studioMasterRect.left - stageMasterRect.left);
-    const masterDy = Math.round(studioMasterRect.top - stageMasterRect.top);
+  const stageRect = el.getBoundingClientRect();
+  const dx = Math.round(studioRect.left - stageRect.left);
+  const dy = Math.round(studioRect.top - stageRect.top);
 
-    masterStrip.style.setProperty("transform", `translate(${masterDx}px, ${masterDy}px)`, "important");
-  }
+  el.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
 }
 
 let stageStudioLayoutFrame = 0;
