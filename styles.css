@@ -5890,10 +5890,6 @@ body.stage-mode .name-field {
   display: none;
 }
 
-body.stage-mode h1 {
-  font-size: 1.02rem;
-}
-
 /* Board title shown only in stage mode (the name input is hidden there) */
 .stage-board-title {
   margin: 6px 0 0;
@@ -10052,191 +10048,33 @@ html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-
   background: color-mix(in srgb, var(--soundboard-logo-green) 38%, var(--color_ui_panel_secondary)) !important;
   filter: none !important;
 }
-/* Supprimer les compensations approximatives précédentes */
-body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  transform: none !important;
-  position: static !important;
-}
-/* Ne pas réduire le bloc logo / titre / signature / message en mode Scène */
-html body.stage-mode .topbar {
-  grid-template-columns: minmax(0, 1fr) max-content !important;
-  align-items: center !important;
-}
-
-html body.stage-mode .brand {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  min-height: 48px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark svg {
-  width: 30px !important;
-  height: 30px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand h1 {
-  font-size: 1.08rem !important;
-  line-height: 1.05 !important;
-  margin: 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand p,
-html body.stage-mode #audioStatus {
-  display: block !important;
-  font-size: 0.78rem !important;
-  line-height: 1.2 !important;
-  margin: 2px 0 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand-tools {
-  align-self: center !important;
-  transform: none !important;
-}
-
-/* Ne plus compenser le Board au jugé */
-html body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  position: static !important;
-  transform: none !important;
-}
-/* Ne pas réduire le bloc logo / titre / signature / message en mode Scène */
-html body.stage-mode .topbar {
-  grid-template-columns: minmax(0, 1fr) max-content !important;
-  align-items: center !important;
-}
-
-html body.stage-mode .brand {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  min-height: 48px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark svg {
-  width: 30px !important;
-  height: 30px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand h1 {
-  font-size: 1.08rem !important;
-  line-height: 1.05 !important;
-  margin: 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand p,
-html body.stage-mode #audioStatus {
-  display: block !important;
-  font-size: 0.78rem !important;
-  line-height: 1.2 !important;
-  margin: 2px 0 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand-tools {
-  align-self: center !important;
-  transform: none !important;
-}
-
-/* Ne plus compenser le Board au jugé */
-html body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  position: static !important;
-  transform: none !important;
-}
-/* Ne pas réduire le bloc logo / titre / signature / message en mode Scène */
-html body.stage-mode .topbar {
-  grid-template-columns: minmax(0, 1fr) max-content !important;
-  align-items: center !important;
-}
-
-html body.stage-mode .brand {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  min-height: 48px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .mark svg {
-  width: 30px !important;
-  height: 30px !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand h1 {
-  font-size: 1.08rem !important;
-  line-height: 1.05 !important;
-  margin: 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand p,
-html body.stage-mode #audioStatus {
-  display: block !important;
-  font-size: 0.78rem !important;
-  line-height: 1.2 !important;
-  margin: 2px 0 0 !important;
-  transform: none !important;
-}
-
-html body.stage-mode .brand-tools {
-  align-self: center !important;
-  transform: none !important;
-}
-
-/* Ne plus compenser le Board au jugé */
-html body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  position: static !important;
-  transform: none !important;
-}
-/* Ne plus compenser le Board au jugé */
+/* Compensation du bloc board pendant la transition Studio→Scène : la
+   position/transform réelle est pilotée en JS (applyStageStudioLayout),
+   cette règle ne sert que de repli si le JS ne s'applique pas (mobile). */
 body.stage-mode .board-strip {
   margin-top: 0 !important;
   left: auto !important;
   right: auto !important;
   position: static !important;
+  transform: none !important;
+}
+
+/* Le logo / titre / signature / message gardent le même aspect qu'en
+   Studio/Garage (pas de réduction de taille en Scène) — seul l'agencement
+   change (largeur du titre libérée, centrage vertical). */
+html body.stage-mode .topbar {
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: center !important;
+}
+
+html body.stage-mode .brand {
+  display: flex !important;
+  align-items: center !important;
+  transform: none !important;
+}
+
+html body.stage-mode .brand-tools {
+  align-self: center !important;
   transform: none !important;
 }
 

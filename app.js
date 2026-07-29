@@ -25,6 +25,7 @@ const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
 const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
 const RANDOM_GROUP_MIN_STORAGE = "soundboard-live-random-group-min";
+const RANDOM_GROUP_AVOID_REPEAT_STORAGE = "soundboard-live-random-group-avoid-repeat";
 const RANDOM_GROUP_ALL_VALUE = "__all__";
 const SKIN_STORAGE = "soundboard-live-skin";
 const CUSTOM_SKINS_STORAGE = "soundboard-live-custom-skins";
@@ -355,6 +356,7 @@ const els = {
   randomGroupCount: document.querySelector("#randomGroupCount"),
   randomGroupMin: document.querySelector("#randomGroupMin"),
   randomGroupToggle: document.querySelector("#randomGroupToggle"),
+  randomGroupAvoidRepeat: document.querySelector("#randomGroupAvoidRepeat"),
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
@@ -15524,10 +15526,19 @@ function shuffledArray(list) {
 function drawNextRandomPad(engine) {
   if (!engine.bag.length) {
     engine.bag = shuffledArray(randomGroupMembers(engine.tag).map((pad) => pad.uid));
+    // Piocher le pad qui vient de terminer en tout premier du nouveau sac
+    // rebattu donnerait l'impression qu'il "rejoue 2 fois de suite" (fin d'un
+    // cycle puis début du suivant) : si l'option est cochée, on l'échange avec
+    // une autre position tant que le groupe compte plus d'un pad.
+    if (els.randomGroupAvoidRepeat?.checked && engine.lastUid && engine.bag.length > 1 && engine.bag[0] === engine.lastUid) {
+      const swapIndex = 1 + Math.floor(Math.random() * (engine.bag.length - 1));
+      [engine.bag[0], engine.bag[swapIndex]] = [engine.bag[swapIndex], engine.bag[0]];
+    }
   }
   const index = engine.bag.findIndex((uid) => !engine.activeUids.has(uid));
   if (index === -1) return null; // tous les membres restants jouent déjà (groupe plus petit que count)
   const [uid] = engine.bag.splice(index, 1);
+  engine.lastUid = uid;
   return state.pads.find((pad) => pad.uid === uid) || null;
 }
 
@@ -15689,6 +15700,10 @@ async function init() {
   }
   if (els.randomGroupMin) {
     els.randomGroupMin.value = localStorage.getItem(RANDOM_GROUP_MIN_STORAGE) || "1";
+  }
+  if (els.randomGroupAvoidRepeat) {
+    const savedAvoidRepeat = localStorage.getItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE);
+    els.randomGroupAvoidRepeat.checked = savedAvoidRepeat === null ? true : savedAvoidRepeat === "on";
   }
   state.boards = loadBoards();
   state.currentBoardId = localStorage.getItem(CURRENT_BOARD_STORAGE) || DEFAULT_BOARD_ID;
@@ -16005,6 +16020,9 @@ async function init() {
   });
   els.randomGroupMin?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
+  });
+  els.randomGroupAvoidRepeat?.addEventListener("change", () => {
+    localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat.checked ? "on" : "off");
   });
   bindSafeActionButton(els.stopAll, () => stopAll());
   bindSafeActionButton(els.cueStopAll, () => stopAll());
@@ -17072,6 +17090,12 @@ function setBoardModeFromSelector(targetMode) {
     syncBoardModeSelectorSoon();
     return;
   }
+
+  // Le volet "Playlist aléatoire" se referme à chaque vrai changement de mode
+  // (Scène/Studio/Garage) plutôt que de rester ouvert en arrière-plan.
+  state.randomGroupSectionOpen = false;
+  els.randomGroupSectionToggle?.setAttribute("aria-expanded", "false");
+  if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = true;
 
   if (targetMode === "studio") {
     // Suspendre l'observateur pendant la transition pour éviter les lectures d'état intermédiaire

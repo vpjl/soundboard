@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=583">
+    <link rel="stylesheet" href="styles.css?v=584">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -30,8 +30,8 @@
           </div>
           <div>
             <h1>Soundboard Live</h1>
-            <p class="brand-credit">vincent lainé (c) 2026 - version 583</p>
-            <p id="audioStatus">Pret pour la scene · v583</p>
+            <p class="brand-credit">vincent lainé (c) 2026 - version 584</p>
+            <p id="audioStatus">Pret pour la scene · v584</p>
             <p id="stageBoardTitle" class="stage-board-title"></p>
           </div>
           <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
@@ -432,6 +432,10 @@
                   </svg>
                 </button>
               </span>
+              <label class="random-group-row random-group-row-avoid-repeat">
+                <input id="randomGroupAvoidRepeat" type="checkbox" checked>
+                <span class="random-group-inline-label">Empêcher qu'un pad soit joué 2 fois à la suite</span>
+              </label>
             </div>
           </div>
           <div id="masterOptionBadges" class="option-badges master-option-badges" aria-label="Options master"></div>
@@ -2641,7 +2645,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=583"></script>
+    <script src="app.js?v=584"></script>
 
 
   </body>
