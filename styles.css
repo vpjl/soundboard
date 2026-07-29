@@ -1493,6 +1493,25 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   color: var(--color_status_progress);
 }
 
+/* Pastille verte, même principe que .pad-crossfade-flash sur les pads : signale
+   que la playlist tourne même quand le volet est replié. Sélecteur préfixé du
+   parent (".random-group-section-toggle span" est plus spécifique qu'une
+   simple classe et imposerait flex:1, cf. le même piège sur le libellé de la
+   case anti-répétition). */
+.random-group-section-toggle .random-group-playing-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.random-group-section-toggle.is-active .random-group-playing-dot {
+  background: var(--color_status_success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color_status_success) 22%, transparent);
+}
+
 .random-group-section-body {
   display: flex;
   flex-direction: column;

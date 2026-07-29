@@ -15567,6 +15567,48 @@ function advanceRandomEngine(pad) {
   }
 }
 
+// Empêche min > max dans les champs (échange automatique du côté modifié)
+// plutôt que de laisser une plage invalide que randomGroupTargetCount()
+// corrigeait déjà en interne, mais silencieusement, sans le refléter à l'écran.
+function clampRandomGroupMinMax(changed) {
+  const minEl = els.randomGroupMin;
+  const maxEl = els.randomGroupCount;
+  if (!minEl || !maxEl) return;
+  const min = Number(minEl.value) || 1;
+  const max = Number(maxEl.value) || 1;
+  if (min > max) {
+    if (changed === "min") maxEl.value = String(min);
+    else minEl.value = String(max);
+  }
+}
+
+// "Pads joués en même temps" appliqué en direct pendant la lecture : si la
+// playlist tourne, ajuster min/max démarre ou arrête immédiatement des pads
+// pour rejoindre la nouvelle cible, au lieu d'attendre le prochain lancement.
+function adjustRandomEngineLiveCount() {
+  const engine = state.randomEngine;
+  if (!engine) return;
+  const members = randomGroupMembers(engine.tag);
+  if (!members.length) return;
+  const target = randomGroupTargetCount(members.length);
+  const diff = target - engine.activeUids.size;
+  if (diff > 0) {
+    for (let i = 0; i < diff; i += 1) {
+      const pad = drawNextRandomPad(engine);
+      if (!pad) break;
+      engine.activeUids.add(pad.uid);
+      playPad(pad).catch(() => engine.activeUids.delete(pad.uid));
+    }
+  } else if (diff < 0) {
+    Array.from(engine.activeUids).slice(0, -diff).forEach((uid) => {
+      engine.activeUids.delete(uid);
+      const pad = state.pads.find((p) => p.uid === uid);
+      if (pad && isPadPlaying(pad)) stopPad(pad, true, false, { triggerEnd: false });
+    });
+  }
+  setStatus(`Playlist aléatoire ${randomGroupLabel(engine.tag)} : ${engine.activeUids.size} en cours`);
+}
+
 function randomGroupLabel(tag) {
   return tag === RANDOM_GROUP_ALL_VALUE ? "Tous" : tag;
 }
@@ -16018,8 +16060,16 @@ async function init() {
   els.randomGroupCount?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount.value || "1");
   });
+  els.randomGroupCount?.addEventListener("input", () => {
+    clampRandomGroupMinMax("max");
+    adjustRandomEngineLiveCount();
+  });
   els.randomGroupMin?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
+  });
+  els.randomGroupMin?.addEventListener("input", () => {
+    clampRandomGroupMinMax("min");
+    adjustRandomEngineLiveCount();
   });
   els.randomGroupAvoidRepeat?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat.checked ? "on" : "off");
