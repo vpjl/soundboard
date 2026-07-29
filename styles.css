@@ -1498,11 +1498,14 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   min-width: 0;
 }
 
-/* Ligne 2 (max) et ligne 3 (min + bouton) : champs nombre compacts. Le bouton
-   reste à la taille standard des icon-button (42px, comme "Réglage des cues")
-   au lieu d'un mini-bouton. */
-.random-group-row-minmax input[type="number"],
-.random-group-row-action input[type="number"] {
+/* Ligne min/max + bouton : les libellés "min."/"max." ne doivent pas s'étirer
+   (contrairement au libellé de section ci-dessus), sinon ils écartent les
+   champs au lieu de rester collés à leur input. */
+.random-group-row-minmax .random-group-inline-label {
+  flex: 0 0 auto;
+}
+
+.random-group-row-minmax input[type="number"] {
   width: 52px;
   height: 30px;
   border: 1px solid var(--line);
@@ -1514,12 +1517,12 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   flex: 0 0 auto;
 }
 
-.random-group-row-action .icon-button {
+.random-group-row-minmax .icon-button {
   flex: 0 0 auto;
   margin-left: auto;
 }
 
-.random-group-row-action .icon-button.is-active {
+.random-group-row-minmax .icon-button.is-active {
   border-color: var(--color_status_progress);
   background: color-mix(in srgb, var(--color_status_progress) 30%, var(--color_ui_panel_secondary));
   color: var(--color_ui_text);
@@ -5879,6 +5882,13 @@ body.stage-mode .master-strip {
 
 body.stage-mode .board-strip {
   grid-template-columns: minmax(150px, 1fr);
+  /* La compensation JS (applyStageStudioLayout) affiche le bloc à sa position
+     studio à l'ouverture de la scène puis relâche la contrainte ~500ms plus
+     tard pour laisser la position naturelle de la scène prendre le relais
+     (cf. app.js). Si les deux positions diffèrent, ce relâchement se voyait
+     comme un saut brutal ("descend") — on le lisse en transition ici plutôt
+     que de le laisser claquer instantanément. */
+  transition: transform 0.35s ease;
 }
 
 body.stage-mode .board-main {

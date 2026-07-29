@@ -11289,9 +11289,9 @@ function refreshStopGroupOptions() {
 // fait par l'appelant pour éviter de refaire flatMap/sort sur tous les pads).
 function refreshRandomGroupOptions(tags) {
   if (!els.randomGroupSelect) return;
-  const savedValue = localStorage.getItem(RANDOM_GROUP_STORAGE) || "";
+  const savedValue = localStorage.getItem(RANDOM_GROUP_STORAGE) || RANDOM_GROUP_ALL_VALUE;
   const currentValue = els.randomGroupSelect.value || savedValue;
-  els.randomGroupSelect.innerHTML = `<option value="">Tags</option><option value="${RANDOM_GROUP_ALL_VALUE}">Tous</option>`;
+  els.randomGroupSelect.innerHTML = `<option value="${RANDOM_GROUP_ALL_VALUE}">Tous</option>`;
   tags.forEach((tag) => {
     const option = document.createElement("option");
     option.value = tag;
@@ -11299,7 +11299,7 @@ function refreshRandomGroupOptions(tags) {
     els.randomGroupSelect.append(option);
   });
   const validValues = new Set([RANDOM_GROUP_ALL_VALUE, ...tags]);
-  els.randomGroupSelect.value = validValues.has(currentValue) ? currentValue : "";
+  els.randomGroupSelect.value = validValues.has(currentValue) ? currentValue : RANDOM_GROUP_ALL_VALUE;
 }
 
 function boardTags() {
