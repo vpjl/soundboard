@@ -17122,6 +17122,7 @@ window.addEventListener("resize", () => window.setTimeout(syncBoardModeSelectorS
 const stageStudioLayoutSnapshot = {
   selectorRect: null,
   topbarRect: null,
+  masterStripRect: null,
   inlineStyles: [],
 };
 // Le gel évite un saut visuel du logo au clic sur "Scène", mais bride ensuite
@@ -17161,6 +17162,9 @@ function captureStudioLayoutForStage() {
   const topbar = document.querySelector(".topbar");
   stageStudioLayoutSnapshot.topbarRect = topbar ? topbar.getBoundingClientRect() : null;
 
+  const masterStrip = document.querySelector(".master-strip");
+  stageStudioLayoutSnapshot.masterStripRect = masterStrip ? masterStrip.getBoundingClientRect() : null;
+
   stageStudioLayoutSnapshot.inlineStyles = stageStudioLayoutElements().map(([element, props]) => {
     const computed = window.getComputedStyle(element);
     return {
@@ -17172,11 +17176,14 @@ function captureStudioLayoutForStage() {
 
 // Relâche uniquement le gel topbar/brand/live-tools (cf. beabd2c, "fix bloc
 // cues en scène") : la géométrie studio figée sur ces éléments bridait la
-// largeur du bloc Cues/Crossfade indéfiniment. Le bloc board (board-strip)
-// N'EST PAS concerné — son épinglage vient d'un fix distinct et antérieur
-// (4e98ec9 "Stabilize board mode selector layout") dont le but est que les
-// boutons Scène/Studio/Garage ne bougent jamais visuellement pendant toute la
-// session scène, pas seulement le temps de la transition.
+// largeur du bloc Cues/Crossfade indéfiniment. Le bloc board (board-strip) ET
+// le bloc master (master-strip) NE SONT PAS concernés — leur épinglage vient
+// d'un fix distinct et antérieur (4e98ec9 "Stabilize board mode selector
+// layout") dont le but est qu'aucun des deux ne bouge visuellement pendant
+// toute la session scène, pas seulement le temps de la transition. Les deux
+// doivent rester épinglés ENSEMBLE (ce sont deux colonnes de la même ligne) :
+// épingler l'un sans l'autre les désaligne dès que la topbar change de
+// hauteur au relâchement.
 function clearTopbarStudioLayout() {
   stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
     props.forEach(([prop]) => element.style.removeProperty(prop));
@@ -17191,19 +17198,20 @@ function clearTopbarStudioLayout() {
   }
 }
 
-function clearBoardStripStudioLayout() {
-  const boardStrip = document.querySelector(".board-strip");
-  if (boardStrip) {
-    boardStrip.style.removeProperty("position");
-    boardStrip.style.removeProperty("transform");
-    boardStrip.style.removeProperty("left");
-    boardStrip.style.removeProperty("top");
-  }
+function clearPinnedPanelsStudioLayout() {
+  [".board-strip", ".master-strip"].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.style.removeProperty("position");
+    el.style.removeProperty("transform");
+    el.style.removeProperty("left");
+    el.style.removeProperty("top");
+  });
 }
 
 function clearStageStudioLayout() {
   clearTopbarStudioLayout();
-  clearBoardStripStudioLayout();
+  clearPinnedPanelsStudioLayout();
 }
 
 function applyStageStudioLayout() {
@@ -17252,24 +17260,41 @@ function applyStageStudioLayout() {
     }
   }
 
-  // Partie board-strip : épinglage permanent tant qu'on est en scène (voir
-  // commentaire de clearTopbarStudioLayout) — recalculé à chaque appel, y
-  // compris après le relâchement ci-dessus, pour rester exact quelle que soit
-  // la hauteur courante de la topbar.
+  // Partie board-strip + master-strip : épinglage permanent tant qu'on est en
+  // scène (voir commentaire de clearTopbarStudioLayout) — recalculé à chaque
+  // appel, y compris après le relâchement ci-dessus, pour rester exact quelle
+  // que soit la hauteur courante de la topbar. Les deux blocs sont traités de
+  // façon identique et indépendante (chacun avec son propre point de
+  // référence) pour qu'ils bougent ensemble, sans se désaligner l'un de
+  // l'autre.
   const boardStrip = document.querySelector(".board-strip");
   const selector = document.querySelector(".board-mode-selector");
   const studioRect = stageStudioLayoutSnapshot.selectorRect;
 
-  if (!boardStrip || !selector || !studioRect) return;
+  if (boardStrip && selector && studioRect) {
+    boardStrip.style.setProperty("position", "relative", "important");
+    boardStrip.style.setProperty("transform", "none", "important");
 
-  boardStrip.style.setProperty("position", "relative", "important");
-  boardStrip.style.setProperty("transform", "none", "important");
+    const stageRect = selector.getBoundingClientRect();
+    const dx = Math.round(studioRect.left - stageRect.left);
+    const dy = Math.round(studioRect.top - stageRect.top);
 
-  const stageRect = selector.getBoundingClientRect();
-  const dx = Math.round(studioRect.left - stageRect.left);
-  const dy = Math.round(studioRect.top - stageRect.top);
+    boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
+  }
 
-  boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
+  const masterStrip = document.querySelector(".master-strip");
+  const studioMasterRect = stageStudioLayoutSnapshot.masterStripRect;
+
+  if (masterStrip && studioMasterRect) {
+    masterStrip.style.setProperty("position", "relative", "important");
+    masterStrip.style.setProperty("transform", "none", "important");
+
+    const stageMasterRect = masterStrip.getBoundingClientRect();
+    const masterDx = Math.round(studioMasterRect.left - stageMasterRect.left);
+    const masterDy = Math.round(studioMasterRect.top - stageMasterRect.top);
+
+    masterStrip.style.setProperty("transform", `translate(${masterDx}px, ${masterDy}px)`, "important");
+  }
 }
 
 let stageStudioLayoutFrame = 0;
