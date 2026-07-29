@@ -4974,7 +4974,6 @@ async function exportBoardNotice() {
   const board = currentBoard();
   const html = await boardNoticeHtml();
   const baseName = `notice-${fileSafeName(board.name)}`;
-  setBoardPadEditing(false);
   downloadBlob(html, `${baseName}.doc`, "application/msword;charset=utf-8");
   const printWindow = window.open("", "_blank");
   if (printWindow) {
@@ -7693,6 +7692,9 @@ function registerImportedCustomSkins(boardData) {
 }
 
 async function importBoardFile(file) {
+  // Rester dans le mode courant après l'import (typiquement Garage) au lieu
+  // d'en sortir, cf. "ne pas changer de mode après une action dans un mode".
+  const wasEditing = state.boardEditMode;
   let payload;
   try {
     payload = parseBoardJson(await fileToText(file));
@@ -7726,7 +7728,6 @@ async function importBoardFile(file) {
   // Enregistre les skins perso embarqués et restaure le skin du board.
   const restoredSkin = registerImportedCustomSkins(payload.board);
   if (restoredSkin) importedBoard.skin = restoredSkin;
-  setBoardPadEditing(false);
   state.boards.push(importedBoard);
   state.currentBoardId = importedBoard.id;
   saveBoards();
@@ -7907,7 +7908,8 @@ async function importBoardFile(file) {
     await dbSet(boardHistoryKey(importedBoard.id), prunedImportedVersions);
   }
 
-  await renderPads();
+  await renderPads({ preserveEditMode: true });
+  if (wasEditing) setBoardPadEditing(true);
   await refreshVersionOptions(prunedImportedVersions[0]?.id || "");
   setStatus(audioFailures
     ? `${importedBoard.name} importe (${audioFailures} audio ignore${audioFailures > 1 ? "s" : ""})`
@@ -9372,7 +9374,6 @@ async function relinkMissingVideoFromFolder(files, boardId = state.currentBoardI
     linked += 1;
   }
 
-  setBoardPadEditing(false);
   setStatus(linked ? `${linked} vidéo${linked > 1 ? "s" : ""} retrouvée${linked > 1 ? "s" : ""}` : `${missing || "Aucune"} vidéo manquante retrouvée`);
 }
 
@@ -9387,6 +9388,7 @@ async function boardHasAnyMedia(board = currentBoard()) {
 }
 
 async function fillBlankBoardFromAudioFiles(files) {
+  const wasEditing = state.boardEditMode;
   const board = currentBoard();
   stopAll();
   resetRecordingState();
@@ -9397,31 +9399,32 @@ async function fillBlankBoardFromAudioFiles(files) {
   }
   board.padCount = Math.max(1, files.length);
   saveBoards();
-  await renderPads();
+  await renderPads({ preserveEditMode: true });
   let imported = 0;
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
     const pad = state.pads[index];
     if (await importAudioFileIntoPad(pad, file, index, files.length)) imported += 1;
   }
-  setBoardPadEditing(false);
+  if (wasEditing) setBoardPadEditing(true);
   setStatus(folderImportStatus(imported, files.length));
 }
 
 async function addAudioFilesAsNewPads(files) {
   if (!files.length) return;
+  const wasEditing = state.boardEditMode;
   const board = currentBoard();
   const startIndex = board.padCount;
   board.padCount += files.length;
   saveBoards();
-  await renderPads();
+  await renderPads({ preserveEditMode: true });
   let imported = 0;
   for (let offset = 0; offset < files.length; offset += 1) {
     const pad = state.pads[startIndex + offset];
     const file = files[offset];
     if (await importAudioFileIntoPad(pad, file, offset, files.length)) imported += 1;
   }
-  setBoardPadEditing(false);
+  if (wasEditing) setBoardPadEditing(true);
   setStatus(imported === files.length
     ? `${files.length} nouveau${files.length > 1 ? "x" : ""} pad${files.length > 1 ? "s" : ""} ajouté${files.length > 1 ? "s" : ""}`
     : folderImportStatus(imported, files.length));
@@ -9569,7 +9572,6 @@ async function relinkMissingAudioFromFolder(files) {
       : "Nouveaux sons à choisir");
     return;
   }
-  setBoardPadEditing(false);
   setStatus(linked ? `${linked} son${linked > 1 ? "s" : ""} retrouvé${linked > 1 ? "s" : ""}` : `${missing || "Aucun"} son manquant retrouvé`);
 }
 
@@ -16292,13 +16294,14 @@ async function init() {
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoardAudioOnly?.addEventListener("click", () => {
+    // Un export est une action de lecture seule : rester dans le mode courant
+    // (pas de setBoardPadEditing ici, cf. "ne pas changer de mode après une
+    // action dans un mode").
     exportCurrentBoard("audioOnly")
-      .then(() => setBoardPadEditing(false))
       .catch(() => setStatus("Export sons et réglages impossible"));
   });
   els.exportBoardLite?.addEventListener("click", () => {
     exportCurrentBoard("settings")
-      .then(() => setBoardPadEditing(false))
       .catch(() => setStatus("Export sans audio impossible"));
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
@@ -16306,7 +16309,6 @@ async function init() {
     const file = els.importBoardFile.files?.[0];
     if (file) {
       importBoardFile(file)
-        .then(() => setBoardPadEditing(false))
         .catch(() => setStatus("Import impossible"));
       els.importBoardFile.value = "";
     }
