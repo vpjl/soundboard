@@ -1539,6 +1539,14 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   flex: 0 0 auto;
 }
 
+/* Case à cocher : le libellé est une vraie phrase, pas un intitulé de section
+   — ".master-control span { text-transform: uppercase }" (plus spécifique
+   que ".random-group-inline-label") l'écrivait quand même en capitales
+   malgré le "text-transform: none" ci-dessus ; on regagne la priorité ici. */
+.random-group-row-avoid-repeat .random-group-inline-label {
+  text-transform: none;
+}
+
 .random-group-row-minmax input[type="number"] {
   width: 52px;
   height: 30px;
