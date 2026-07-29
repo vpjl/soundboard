@@ -17170,7 +17170,14 @@ function captureStudioLayoutForStage() {
   });
 }
 
-function clearStageStudioLayout() {
+// Relâche uniquement le gel topbar/brand/live-tools (cf. beabd2c, "fix bloc
+// cues en scène") : la géométrie studio figée sur ces éléments bridait la
+// largeur du bloc Cues/Crossfade indéfiniment. Le bloc board (board-strip)
+// N'EST PAS concerné — son épinglage vient d'un fix distinct et antérieur
+// (4e98ec9 "Stabilize board mode selector layout") dont le but est que les
+// boutons Scène/Studio/Garage ne bougent jamais visuellement pendant toute la
+// session scène, pas seulement le temps de la transition.
+function clearTopbarStudioLayout() {
   stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
     props.forEach(([prop]) => element.style.removeProperty(prop));
   });
@@ -17182,7 +17189,9 @@ function clearStageStudioLayout() {
     topbar.style.removeProperty("top");
     topbar.style.removeProperty("left");
   }
+}
 
+function clearBoardStripStudioLayout() {
   const boardStrip = document.querySelector(".board-strip");
   if (boardStrip) {
     boardStrip.style.removeProperty("position");
@@ -17192,13 +17201,13 @@ function clearStageStudioLayout() {
   }
 }
 
+function clearStageStudioLayout() {
+  clearTopbarStudioLayout();
+  clearBoardStripStudioLayout();
+}
+
 function applyStageStudioLayout() {
   if (!document.body.classList.contains("stage-mode")) {
-    clearStageStudioLayout();
-    return;
-  }
-
-  if (stageStudioLayoutReleased) {
     clearStageStudioLayout();
     return;
   }
@@ -17210,6 +17219,13 @@ function applyStageStudioLayout() {
   // quoi que ce soit (le garde était placé trop tard : la topbar était déjà décalée).
   if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) {
     clearStageStudioLayout();
+    return;
+  }
+
+  if (stageStudioLayoutReleased) {
+    // Le bloc board reste épinglé (voir commentaire de clearTopbarStudioLayout) :
+    // seul le gel topbar/live-tools se relâche ici.
+    clearTopbarStudioLayout();
     return;
   }
 

@@ -5882,13 +5882,6 @@ body.stage-mode .master-strip {
 
 body.stage-mode .board-strip {
   grid-template-columns: minmax(150px, 1fr);
-  /* La compensation JS (applyStageStudioLayout) affiche le bloc à sa position
-     studio à l'ouverture de la scène puis relâche la contrainte ~500ms plus
-     tard pour laisser la position naturelle de la scène prendre le relais
-     (cf. app.js). Si les deux positions diffèrent, ce relâchement se voyait
-     comme un saut brutal ("descend") — on le lisse en transition ici plutôt
-     que de le laisser claquer instantanément. */
-  transition: transform 0.35s ease;
 }
 
 body.stage-mode .board-main {
