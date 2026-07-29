@@ -17222,32 +17222,40 @@ function applyStageStudioLayout() {
     return;
   }
 
+  // Partie topbar/brand/live-tools : gel temporaire (visuel de transition),
+  // relâché après 500ms (cf. beabd2c). Une fois relâché, la topbar peut
+  // changer de hauteur en reprenant sa taille naturelle de scène — c'est
+  // justement pour ça que la partie board-strip ci-dessous doit être
+  // RECALCULÉE après ce relâchement, pas figée : si on la fige avant que la
+  // topbar ait fini de reprendre sa taille naturelle, le board-strip garde un
+  // décalage devenu faux dès que la topbar change de hauteur, et "descend".
   if (stageStudioLayoutReleased) {
-    // Le bloc board reste épinglé (voir commentaire de clearTopbarStudioLayout) :
-    // seul le gel topbar/live-tools se relâche ici.
     clearTopbarStudioLayout();
-    return;
-  }
-
-  stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
-    props.forEach(([prop, value]) => {
-      element.style.setProperty(prop, value, "important");
+  } else {
+    stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
+      props.forEach(([prop, value]) => {
+        element.style.setProperty(prop, value, "important");
+      });
     });
-  });
 
-  const topbar = document.querySelector(".topbar");
-  const studioTopbarRect = stageStudioLayoutSnapshot.topbarRect;
+    const topbar = document.querySelector(".topbar");
+    const studioTopbarRect = stageStudioLayoutSnapshot.topbarRect;
 
-  if (topbar && studioTopbarRect) {
-    topbar.style.setProperty("position", "relative", "important");
-    topbar.style.setProperty("left", "0", "important");
+    if (topbar && studioTopbarRect) {
+      topbar.style.setProperty("position", "relative", "important");
+      topbar.style.setProperty("left", "0", "important");
 
-    const stageTopbarRect = topbar.getBoundingClientRect();
-    const topbarDy = Math.round(studioTopbarRect.top - stageTopbarRect.top);
+      const stageTopbarRect = topbar.getBoundingClientRect();
+      const topbarDy = Math.round(studioTopbarRect.top - stageTopbarRect.top);
 
-    topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
+      topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
+    }
   }
 
+  // Partie board-strip : épinglage permanent tant qu'on est en scène (voir
+  // commentaire de clearTopbarStudioLayout) — recalculé à chaque appel, y
+  // compris après le relâchement ci-dessus, pour rester exact quelle que soit
+  // la hauteur courante de la topbar.
   const boardStrip = document.querySelector(".board-strip");
   const selector = document.querySelector(".board-mode-selector");
   const studioRect = stageStudioLayoutSnapshot.selectorRect;
