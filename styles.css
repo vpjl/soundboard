@@ -8445,6 +8445,10 @@ body.stage-mode #boardName:focus {
   flex-direction: column;
   gap: 12px;
   overflow: auto;
+  /* Réserve la place de la scrollbar même quand elle n'est pas nécessaire
+     (Basique, en général plus court) : évite le décalage/rétrécissement de
+     colonne au passage en Expert (plus long → scrollbar apparaît). */
+  scrollbar-gutter: stable;
 }
 
 .skin-editor-fields {
@@ -9016,6 +9020,38 @@ body.stage-mode #boardName:focus {
   text-align: right;
 }
 
+/* Bouton à bascule Basique / Expert : remplace le résumé cliquable natif
+   comme point d'entrée visible (la <details> reste pilotée par script). */
+.skin-editor-level-toggle {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.skin-editor-level-button {
+  flex: 1 1 0;
+  padding: 7px 10px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 7px;
+  background: var(--color_ui_panel_secondary);
+  color: var(--color_ui_text_muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.skin-editor-level-button:hover {
+  border-color: var(--color_ui_text_muted);
+}
+
+.skin-editor-level-button.is-current {
+  border-color: var(--color_ui_text_muted);
+  background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
+  color: var(--color_ui_text);
+}
+
 /* Advanced section toggle */
 .skin-editor-advanced-section {
   grid-column: 1 / -1;
@@ -9023,23 +9059,7 @@ body.stage-mode #boardName:focus {
 }
 
 .skin-editor-advanced-summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-}
-
-.skin-editor-advanced-summary::before {
-  content: "▶";
-  font-size: 0.6em;
-  opacity: 0.6;
-  transition: transform 0.15s;
-}
-
-details[open] > .skin-editor-advanced-summary::before {
-  transform: rotate(90deg);
+  display: none;
 }
 
 .skin-editor-advanced-fields {
@@ -9048,6 +9068,21 @@ details[open] > .skin-editor-advanced-summary::before {
   align-items: start;
   gap: 6px 8px;
   margin-top: 6px;
+}
+
+/* Le wrapper des réglages basiques est un item unique de la grille parente
+   .skin-editor-fields : span complet + sa propre grille 2 colonnes interne
+   (même schéma que .skin-editor-advanced-section / -fields ci-dessus). */
+.skin-editor-basic-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 6px 8px;
+}
+
+.skin-editor-basic-fields[hidden] {
+  display: none;
 }
 
 /* Preview mode selector */

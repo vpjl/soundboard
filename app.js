@@ -282,6 +282,8 @@ const els = {
 
   skinEditorDialog: document.querySelector("#skinEditorDialog"),
   skinEditorFields: document.querySelector("#skinEditorFields"),
+  skinEditorLevelBasic: document.querySelector("#skinEditorLevelBasic"),
+  skinEditorLevelExpert: document.querySelector("#skinEditorLevelExpert"),
   skinEditorName: document.querySelector("#skinEditorName"),
   skinUndo: document.querySelector("#skinUndo"),
   skinRedo: document.querySelector("#skinRedo"),
@@ -5912,7 +5914,10 @@ function renderSkinEditorFields() {
     });
   }
 
-  ESSENTIAL_SKIN_FIELD_GROUPS.forEach((group) => renderFieldGroup(group, els.skinEditorFields));
+  const basicFields = document.createElement("div");
+  basicFields.className = "skin-editor-basic-fields";
+  ESSENTIAL_SKIN_FIELD_GROUPS.forEach((group) => renderFieldGroup(group, basicFields));
+  els.skinEditorFields.append(basicFields);
 
   // Snapshot advanced variable values onto preview so elements keep their colors when section is collapsed
   const advancedVarNames = new Set();
@@ -5955,9 +5960,34 @@ function renderSkinEditorFields() {
 
   details.addEventListener("toggle", () => {
     state.skinEditorAdvancedOpen = details.open;
+    syncSkinEditorLevelButtons();
   });
 
   els.skinEditorFields.append(details);
+  syncSkinEditorLevelButtons();
+}
+
+// Bouton à bascule Basique/Expert : pilote la même <details> que l'ancien
+// résumé cliquable (préserve state.skinEditorAdvancedOpen et toute la logique
+// de survol/aperçu qui vérifie details.open), juste avec une entrée plus visible.
+function syncSkinEditorLevelButtons() {
+  const isExpert = Boolean(state.skinEditorAdvancedOpen);
+  els.skinEditorLevelBasic?.classList.toggle("is-current", !isExpert);
+  els.skinEditorLevelBasic?.setAttribute("aria-pressed", String(!isExpert));
+  els.skinEditorLevelExpert?.classList.toggle("is-current", isExpert);
+  els.skinEditorLevelExpert?.setAttribute("aria-pressed", String(isExpert));
+  // Basique et Expert sont exclusifs : pas de doublon des réglages basiques
+  // dans l'onglet Expert.
+  const basicFields = els.skinEditorFields?.querySelector(".skin-editor-basic-fields");
+  if (basicFields) basicFields.hidden = isExpert;
+}
+
+function setSkinEditorLevel(level) {
+  const details = els.skinEditorFields?.querySelector(".skin-editor-advanced-section");
+  if (!details) return;
+  details.open = level === "expert";
+  state.skinEditorAdvancedOpen = details.open;
+  syncSkinEditorLevelButtons();
 }
 
 function skinVariableSelector(variable) {
@@ -15579,6 +15609,8 @@ async function init() {
     applyHarmonyAdjustments();
     saveSkinHarmonySettings();
   });
+  els.skinEditorLevelBasic?.addEventListener("click", () => setSkinEditorLevel("basic"));
+  els.skinEditorLevelExpert?.addEventListener("click", () => setSkinEditorLevel("expert"));
   document.querySelector("#skinFontFamily")?.addEventListener("change", () => { applySkinFonts(); scheduleSkinHistory(); });
   document.querySelector("#skinFontSize")?.addEventListener("input", () => { applySkinFonts(); scheduleSkinHistory(); });
   document.querySelector("#skinPreviewTags")?.addEventListener("input", applySkinPreviewTags);
