@@ -15148,7 +15148,15 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const gain = ctx.createGain();
   const pan = ctx.createStereoPanner();
   const analyser = ctx.createAnalyser();
-  const now = ctx.currentTime;
+  // Par défaut, l'heure de référence est lue à cet instant précis — correct
+  // pour un pad isolé, mais si plusieurs pads d'un même lot (Random playlist)
+  // appellent playPad() tour à tour, le travail synchrone (graphe audio, DOM,
+  // waveform) de chacun décale la lecture de ctx.currentTime du suivant : un
+  // décalage cumulé, léger mais audible, apparaît entre le 1er et le dernier
+  // pad du lot. options.scheduledNow permet de leur донner à tous la MÊME
+  // référence temporelle, fixée une fois pour tout le lot avant de les
+  // démarrer (cf. startRandomPadsTogether), pour qu'ils partent ensemble.
+  const now = options.scheduledNow ?? ctx.currentTime;
   const fadeTime = options.fadeInSecondsOverride != null
     ? Math.max(0, Number(options.fadeInSecondsOverride) || 0)
     : fadeDurationForPad(pad, "in");
@@ -15560,6 +15568,27 @@ function syncRandomGroupButton() {
   els.randomGroupSectionToggle?.classList.toggle("is-active", running);
 }
 
+// Lance plusieurs pads du même lot "ensemble" : deux causes de décalage
+// distinctes à couvrir.
+// 1) Décodage audio (première lecture d'un pad cette session, cf.
+//    shouldPreloadAudioOnRestore() qui renvoie toujours false) : paresseux,
+//    temps variable par pad. On pré-décode tout le lot avant d'appeler
+//    playPad() pour chacun.
+// 2) Même préchargés, le travail synchrone de playPad() (graphe audio, DOM,
+//    waveform) pour le pad N décale la lecture de ctx.currentTime du pad
+//    N+1 : on fixe donc UNE SEULE référence temporelle partagée (scheduledNow)
+//    pour tout le lot, au lieu de laisser chaque appel lire l'heure à son
+//    propre tour.
+async function startRandomPadsTogether(pads, engine) {
+  if (!pads.length) return;
+  await Promise.all(pads.map((pad) => (pad.buffer ? null : ensurePadAudioDecoded(pad).catch(() => null))));
+  await ensureAudio(); // state.audioContext peut ne pas encore exister au tout premier lancement
+  const scheduledNow = state.audioContext.currentTime + 0.06;
+  await Promise.all(pads.map((pad) => playPad(pad, false, 0, { ignoreLoop: true, scheduledNow }).catch(() => {
+    engine.activeUids.delete(pad.uid);
+  })));
+}
+
 // Appelé depuis clearPlayingPad() quand un pad membre de la random playlist
 // se termine naturellement (triggerEnd vrai) : pioche et lance le remplaçant.
 function advanceRandomEngine(pad) {
@@ -15601,12 +15630,14 @@ function adjustRandomEngineLiveCount() {
   const target = randomGroupTargetCount(members.length);
   const diff = target - engine.activeUids.size;
   if (diff > 0) {
+    const padsToStart = [];
     for (let i = 0; i < diff; i += 1) {
       const pad = drawNextRandomPad(engine);
       if (!pad) break;
       engine.activeUids.add(pad.uid);
-      playPad(pad, false, 0, { ignoreLoop: true }).catch(() => engine.activeUids.delete(pad.uid));
+      padsToStart.push(pad);
     }
+    startRandomPadsTogether(padsToStart, engine);
   } else if (diff < 0) {
     Array.from(engine.activeUids).slice(0, -diff).forEach((uid) => {
       engine.activeUids.delete(uid);
@@ -15636,18 +15667,14 @@ async function startRandomGroup() {
   const count = randomGroupTargetCount(members.length);
   const engine = { tag, count, bag: shuffledArray(members.map((pad) => pad.uid)), activeUids: new Set() };
   state.randomEngine = engine;
-  // En parallèle, pas en séquence : un `await` par pad ici retardait chaque
-  // pad du temps de décodage audio du précédent (perceptible avec de vrais
-  // fichiers), donnant l'impression d'un décalage important avant que les
-  // suivants ne rejoignent le premier.
-  const starts = [];
+  const padsToStart = [];
   for (let i = 0; i < count; i += 1) {
     const pad = drawNextRandomPad(engine);
     if (!pad) break;
     engine.activeUids.add(pad.uid);
-    starts.push(playPad(pad, false, 0, { ignoreLoop: true }).catch(() => engine.activeUids.delete(pad.uid)));
+    padsToStart.push(pad);
   }
-  await Promise.all(starts);
+  await startRandomPadsTogether(padsToStart, engine);
   syncRandomGroupButton();
   syncArmedCrossfadeControls();
   setStatus(`Random playlist ${randomGroupLabel(tag)} lancée (${engine.activeUids.size} en cours)`);
