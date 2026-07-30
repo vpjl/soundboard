@@ -10887,6 +10887,14 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
+  // Démarrage direct en scène (restauration au rafraîchissement) : aucun clic
+  // sur "Scène" n'a eu lieu, donc captureStudioLayoutForStage() n'a jamais
+  // tourné (voir son propre commentaire) — on la déclenche ici une seule fois
+  // (tant qu'aucune capture n'existe) pour que board/master/live-tools soient
+  // épinglés dès la première frame, comme lors d'une transition Studio→Scène.
+  if (state.stageMode && !stageStudioLayoutSnapshot.selectorRect) {
+    captureStudioLayoutForStage();
+  }
   els.stageMode?.classList.toggle("is-active", state.stageMode);
   els.stageMode?.setAttribute("aria-pressed", String(state.stageMode));
   if (els.boardSelect) {
@@ -17098,8 +17106,6 @@ async function init() {
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
   bindPerformanceTouchGuards();
-
-  setStatus("Bienvenue !");
 }
 
 init();
@@ -17287,16 +17293,24 @@ function stageStudioLayoutElements() {
 
 function captureStudioLayoutForStage() {
   const selector = document.querySelector(".board-mode-selector");
-  const currentMode = typeof boardModeSelectorCurrentMode === "function"
-    ? boardModeSelectorCurrentMode()
-    : (document.body.classList.contains("stage-mode") ? "stage" : "studio");
-
-  if (!selector || currentMode !== "studio") return;
+  if (!selector) return;
 
   stageStudioLayoutReleased = false;
 
   // Flush any pending stage transforms so positions are measured clean
   clearStageStudioLayout();
+
+  // Clic sur "Scène" depuis Studio : capture appelée AVANT le basculement de
+  // mode, la géométrie Studio est donc déjà directement mesurable. Mais au
+  // démarrage direct en Scène (rafraîchissement de page, cf. init() qui
+  // restaure stageMode sans jamais passer par ce clic), la classe stage-mode
+  // est déjà posée et aucune transition Studio→Scène n'a eu lieu : il n'existe
+  // aucune géométrie Studio à mesurer. On bascule alors brièvement (synchrone,
+  // avant toute peinture) hors du mode scène pour obtenir cette référence —
+  // sans quoi board/master/live-tools restent non épinglés (position naturelle
+  // de Scène, différente de celle de Studio) jusqu'à la prochaine transition.
+  const needsToggle = document.body.classList.contains("stage-mode");
+  if (needsToggle) document.body.classList.remove("stage-mode");
 
   stageStudioLayoutSnapshot.selectorRect = selector.getBoundingClientRect();
 
@@ -17316,6 +17330,8 @@ function captureStudioLayoutForStage() {
       props: props.map((prop) => [prop, computed.getPropertyValue(prop)]),
     };
   });
+
+  if (needsToggle) document.body.classList.add("stage-mode");
 }
 
 // Relâche uniquement le gel topbar/brand/live-tools (cf. beabd2c, "fix bloc

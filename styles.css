@@ -10091,7 +10091,12 @@ body.stage-mode .board-strip {
    change (largeur du titre libérée, centrage vertical). */
 html body.stage-mode .topbar {
   grid-template-columns: minmax(0, 1fr) max-content !important;
-  align-items: center !important;
+  /* "start", comme en Studio/Garage (cf. .topbar de base) — même cause que le
+     fix précédent sur .brand : "center" ici décalait le logo/texte au
+     relâchement de la compensation, même une fois .brand lui-même corrigé,
+     car c'est une propriété distincte (alignement de .brand DANS la ligne de
+     grille du topbar, pas alignement DES ENFANTS de .brand). */
+  align-items: start !important;
 }
 
 html body.stage-mode .brand {
