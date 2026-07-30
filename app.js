@@ -17390,13 +17390,11 @@ function applyStageStudioLayout() {
     return;
   }
 
-  // Partie topbar/brand/live-tools : gel temporaire (visuel de transition),
-  // relâché après 500ms (cf. beabd2c). Une fois relâché, la topbar peut
-  // changer de hauteur en reprenant sa taille naturelle de scène — c'est
-  // justement pour ça que la partie board-strip ci-dessous doit être
-  // RECALCULÉE après ce relâchement, pas figée : si on la fige avant que la
-  // topbar ait fini de reprendre sa taille naturelle, le board-strip garde un
-  // décalage devenu faux dès que la topbar change de hauteur, et "descend".
+  // Partie brand/live-tools : gel temporaire des propriétés internes (tailles
+  // de police, gap...), relâché après 500ms (cf. beabd2c) — sert uniquement à
+  // lisser la transition visuelle, ces valeurs sont désormais identiques entre
+  // Studio et Scène (cf. fix align-items .brand-tools) donc le relâchement n'a
+  // plus d'effet visible sur elles.
   if (stageStudioLayoutReleased) {
     clearTopbarStudioLayout();
   } else {
@@ -17405,20 +17403,15 @@ function applyStageStudioLayout() {
         element.style.setProperty(prop, value, "important");
       });
     });
-
-    const topbar = document.querySelector(".topbar");
-    const studioTopbarRect = stageStudioLayoutSnapshot.topbarRect;
-
-    if (topbar && studioTopbarRect) {
-      topbar.style.setProperty("position", "relative", "important");
-      topbar.style.setProperty("left", "0", "important");
-
-      const stageTopbarRect = topbar.getBoundingClientRect();
-      const topbarDy = Math.round(studioTopbarRect.top - stageTopbarRect.top);
-
-      topbar.style.setProperty("transform", `translateY(${topbarDy}px)`, "important");
-    }
   }
+
+  // Position de la topbar : épinglage permanent (comme board/master/live-
+  // tools ci-dessous), indépendant du gel/relâchement ci-dessus. .app a un
+  // padding plus petit en Scène (cf. body.stage-mode .app) : sans cet
+  // épinglage propre, tout l'en-tête (logo + texte) se décale en haut à
+  // gauche dès que le gel des propriétés internes se relâche, même une fois
+  // celles-ci équivalentes entre les deux modes.
+  pinPanelToStudioPosition(document.querySelector(".topbar"), stageStudioLayoutSnapshot.topbarRect);
 
   // Partie board-strip + master-strip : épinglage permanent tant qu'on est en
   // scène (voir commentaire de clearTopbarStudioLayout) — recalculé à chaque

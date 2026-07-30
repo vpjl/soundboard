@@ -5913,7 +5913,8 @@ body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
 body.stage-mode .board-name,
 body.stage-mode .manage-group,
-body.stage-mode .name-field {
+body.stage-mode .name-field,
+body.stage-mode .cable-legend-panel {
   display: none;
 }
 
