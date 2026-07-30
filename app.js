@@ -16475,7 +16475,13 @@ async function init() {
     if (event.target === els.helpDialog) els.helpDialog.close();
   });
   els.closeAudio?.addEventListener("click", () => {
-    stopAudioDialogStartedPlayback();
+    // Voir commentaire de cancelAudio ci-dessous : sans ce try/catch, une
+    // erreur ici bloquait toute la suite, dont la fermeture de la fenêtre.
+    try {
+      stopAudioDialogStartedPlayback();
+    } catch (err) {
+      console.error(err);
+    }
     restoreAudioDraft()
       .catch(() => setStatus("Annulation audio impossible"))
       .finally(() => {
@@ -16495,11 +16501,25 @@ async function init() {
     state.audioDraft = null;
     state.audioMediaDraft = null;
     state.audioCrossfadeDraft = null;
-    stopAudioDialogStartedPlayback();
+    // Voir commentaire de cancelAudio ci-dessous : sans ce try/catch, une
+    // erreur ici bloquait la fermeture de la fenêtre (ligne suivante).
+    try {
+      stopAudioDialogStartedPlayback();
+    } catch (err) {
+      console.error(err);
+    }
     els.audioDialog?.close();
   });
   els.cancelAudio?.addEventListener("click", () => {
-    stopAudioDialogStartedPlayback();
+    // stopAudioDialogStartedPlayback() peut lever (ex. tentative d'arrêter une
+    // source audio déjà arrêtée, observé sur mobile) : sans ce try/catch, une
+    // telle erreur empêchait toute la suite (dont la fermeture de la fenêtre)
+    // de s'exécuter, laissant le bouton Annuler sans effet apparent.
+    try {
+      stopAudioDialogStartedPlayback();
+    } catch (err) {
+      console.error(err);
+    }
     restoreAudioDraft()
       .catch(() => setStatus("Annulation audio impossible"))
       .finally(() => {
