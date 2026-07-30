@@ -5904,11 +5904,6 @@ body[data-skin="contrast"] .color-field {
   }
 }
 
-body.stage-mode .app {
-  min-height: 100vh;
-  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-}
-
 body.stage-mode .help-button,
 body.stage-mode .pads-edit-button,
 body.stage-mode .board-name,
