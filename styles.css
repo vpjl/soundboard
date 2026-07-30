@@ -10110,7 +10110,13 @@ html body.stage-mode .brand {
 }
 
 html body.stage-mode .brand-tools {
-  align-self: center !important;
+  /* "auto" (= start, hérité de .brand), comme en Studio/Garage : "center" ici
+     recentrait le logo (plus haut que .mark seul, cf. .brand-tools) contre la
+     colonne de texte, plus haute que lui, au relâchement de la compensation
+     Studio->Scène (~1s après l'entrée en scène) — le logo semblait "descendre"
+     par rapport au texte resté fixe. Même cause que les fix précédents sur
+     .brand/.topbar, sur un troisième élément distinct. */
+  align-self: auto !important;
   transform: none !important;
 }
 
