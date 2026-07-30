@@ -10096,7 +10096,11 @@ html body.stage-mode .topbar {
 
 html body.stage-mode .brand {
   display: flex !important;
-  align-items: center !important;
+  /* "start", comme en Studio/Garage (cf. .brand de base) : "center" décalait
+     visiblement le logo vers le bas et le texte vers le haut au relâchement
+     de la compensation Studio->Scène (~1s après l'entrée en scène), quand le
+     align-items figé de Studio cède la place à cette règle. */
+  align-items: start !important;
   transform: none !important;
 }
 

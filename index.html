@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=594">
+    <link rel="stylesheet" href="styles.css?v=595">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -30,17 +30,10 @@
           </div>
           <div>
             <h1>Soundboard Live</h1>
-            <p class="brand-credit">vincent lainé (c) 2026 - version 594</p>
-            <p id="audioStatus">Pret pour la scene · v594</p>
+            <p class="brand-credit">vincent lainé (c) 2026 - version 595</p>
+            <p id="audioStatus">Pret pour la scene · v595</p>
             <p id="stageBoardTitle" class="stage-board-title"></p>
           </div>
-          <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-              <circle cx="12" cy="8" r="1.1" fill="currentColor"/>
-              <path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
         </div>
 
         <div class="board-area">
@@ -512,6 +505,20 @@
           </div>
         </section>
       </header>
+
+      <!-- position:fixed, volontairement HORS de <header class="topbar"> : un
+           transform posé sur .topbar (compensation Studio->Scène, cf. app.js
+           applyStageStudioLayout) crée un nouveau bloc de référence pour tout
+           descendant en position:fixed, qui perd alors son ancrage viewport
+           tant que le transform est actif — d'où le bouton qui se déplaçait
+           puis revenait à sa position au relâchement de la compensation. -->
+      <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+          <circle cx="12" cy="8" r="1.1" fill="currentColor"/>
+          <path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
 
       <main>
         <section class="deck" aria-label="Pads de sons">
@@ -2646,7 +2653,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=594"></script>
+    <script src="app.js?v=595"></script>
 
 
   </body>
