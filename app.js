@@ -15636,12 +15636,18 @@ async function startRandomGroup() {
   const count = randomGroupTargetCount(members.length);
   const engine = { tag, count, bag: shuffledArray(members.map((pad) => pad.uid)), activeUids: new Set() };
   state.randomEngine = engine;
+  // En parallèle, pas en séquence : un `await` par pad ici retardait chaque
+  // pad du temps de décodage audio du précédent (perceptible avec de vrais
+  // fichiers), donnant l'impression d'un décalage important avant que les
+  // suivants ne rejoignent le premier.
+  const starts = [];
   for (let i = 0; i < count; i += 1) {
     const pad = drawNextRandomPad(engine);
     if (!pad) break;
     engine.activeUids.add(pad.uid);
-    await playPad(pad, false, 0, { ignoreLoop: true });
+    starts.push(playPad(pad, false, 0, { ignoreLoop: true }).catch(() => engine.activeUids.delete(pad.uid)));
   }
+  await Promise.all(starts);
   syncRandomGroupButton();
   syncArmedCrossfadeControls();
   setStatus(`Random playlist ${randomGroupLabel(tag)} lancée (${engine.activeUids.size} en cours)`);
