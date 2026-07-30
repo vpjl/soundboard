@@ -377,6 +377,7 @@ button {
 }
 
 .app {
+  position: relative;
   min-height: 100vh;
   padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   -webkit-touch-callout: none;
@@ -424,12 +425,14 @@ textarea *,
 
 /* Notice de l'application : icône discrète en haut à droite, visible dans
    tous les modes (pas rattachée au garage comme les autres exports).
-   position:fixed plutôt que margin-left:auto dans le flex .brand : plusieurs
-   règles !important spécifiques au mode scène retaillent .brand (gap, align-
-   items, largeur du titre) et un titre de board long y masquait le bouton en
-   le poussant hors champ. Fixe au viewport, il ne dépend plus du contenu. */
+   position:absolute (ancrée à .app, pas au viewport) plutôt que margin-left:
+   auto dans le flex .brand : plusieurs règles !important spécifiques au mode
+   scène retaillent .brand (gap, align-items, largeur du titre) et un titre de
+   board long y masquait le bouton en le poussant hors champ. Décroché de ce
+   flex, sans dépendre de la largeur du titre — mais PAS position:fixed : le
+   bouton doit défiler avec la page, pas rester ancré à l'écran. */
 .app-notice-button {
-  position: fixed !important;
+  position: absolute !important;
   top: 16px;
   right: 16px;
   z-index: 500;
@@ -440,14 +443,6 @@ textarea *,
   border-color: var(--color_ui_border);
   background: var(--color_ui_panel_secondary);
   color: var(--color_ui_text_muted);
-  /* Sur mobile (notamment Firefox iOS), un position:fixed reste parfois
-     "collé" au document plutôt qu'au viewport pendant le scroll (bug de
-     rendu connu, pas une erreur de mise en page ici) : forcer sa propre
-     couche de composition GPU corrige ce comportement dans la plupart des
-     moteurs WebKit mobiles. */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  will-change: transform;
 }
 
 .app-notice-button:hover {
@@ -6681,8 +6676,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .cue-reset-button {
     width: 32px;
     height: 32px;
+    min-width: 32px;
     min-height: 32px;
-    padding: 0 8px;
   }
 
   .xfade-live-row {
