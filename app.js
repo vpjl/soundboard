@@ -17208,6 +17208,10 @@ function setBoardModeFromSelector(targetMode) {
     }
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     syncBoardModeSelectorSoon();
+    // Message par défaut homogène avec la Scène ("Board prêt pour la scène...") :
+    // sans ça, l'en-tête garde le message du mode précédent (longueur variable),
+    // ce qui contribue au décalage de mise en page au changement de mode.
+    setStatus("Entrée en studio");
     return;
   }
 
@@ -17221,6 +17225,7 @@ function setBoardModeFromSelector(targetMode) {
     setBoardPadEditing(true);
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     syncBoardModeSelectorSoon();
+    setStatus("Entrée en garage");
     return;
   }
 
