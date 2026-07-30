@@ -10988,7 +10988,7 @@ function cuesEnabledForManualCrossfade() {
 }
 
 function armedCrossfadeAvailable() {
-  // Playlist aléatoire gère son propre enchaînement de pads : le crossfade
+  // Random playlist gère son propre enchaînement de pads : le crossfade
   // manuel (armé) est désactivé pendant qu'elle tourne, pour les mêmes
   // raisons que le crossfade automatique par pad (cf. executeCrossfadeAction).
   return cuesEnabledForManualCrossfade() && armedCrossfadeEnabled() && manualCrossfadeDuration() > 0 && !state.randomEngine;
@@ -11292,7 +11292,7 @@ function refreshStopGroupOptions() {
   refreshRandomGroupOptions(tags);
 }
 
-// Playlist aléatoire : même liste de tags que Stop groupé (réutilise le calcul déjà
+// Random playlist : même liste de tags que Stop groupé (réutilise le calcul déjà
 // fait par l'appelant pour éviter de refaire flatMap/sort sur tous les pads).
 function refreshRandomGroupOptions(tags) {
   if (!els.randomGroupSelect) return;
@@ -13807,7 +13807,7 @@ function clearPadMuteState(pad) {
 
 function executeCrossfadeAction(action, target, sourcePad, options = {}) {
   if (action === "none") return;
-  // Playlist aléatoire gère elle-même l'enchaînement de ses pads (pioche +
+  // Random playlist gère elle-même l'enchaînement de ses pads (pioche +
   // remplacement) : le crossfade automatique par pad interférerait avec ce
   // suivi (double comptage dans engine.activeUids, déclenchements imprévus).
   if (state.randomEngine) return;
@@ -15127,6 +15127,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const segmentEnd = trimEnd(pad);
   const segmentDuration = playableDuration(pad);
   const segmentOffset = segmentDuration ? Math.min(Math.max(0, offset), Math.max(0, segmentDuration - 0.01)) : 0;
+  // Random playlist : un pad en Loop ne se termine jamais naturellement, ce
+  // qui bloque la rotation du sac à pioche sur ce pad. On ignore le loop
+  // seulement pour CETTE lecture (options.ignoreLoop), sans toucher au
+  // réglage pad.loop lui-même — qui reprendra son effet normal en dehors de
+  // la random playlist.
+  const effectiveLoop = options.ignoreLoop ? false : pad.loop;
   const baseBuffer = effectiveBufferForPad(pad) || pad.buffer; // régions cut/silence appliquées
   const playbackBuffer = pad.reverse ? reversedBufferForPad(pad) : baseBuffer;
   const reverseSegmentStart = Math.max(0, baseBuffer.duration - segmentEnd);
@@ -15134,7 +15140,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
   // Enveloppe présente : elle porte le volume. Seuls les fades PROPRES au pad y sont repris,
   // donc on ne saute le fade statique que dans ce cas (les fades globaux restent appliqués).
-  const hasEnv = !pad.loop && Array.isArray(pad.envelope) && pad.envelope.length > 0;
+  const hasEnv = !effectiveLoop && Array.isArray(pad.envelope) && pad.envelope.length > 0;
   const foldPadFade = hasEnv && pad.fadeMode === "pad";
 
   const ctx = state.audioContext;
@@ -15148,7 +15154,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     : fadeDurationForPad(pad, "in");
   const naturalDuration = Math.max(0.01, segmentEnd - startOffset);
   const naturalStopAt = now + naturalDuration;
-  const naturalFadeOutTime = (!pad.loop && !foldPadFade) ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
+  const naturalFadeOutTime = (!effectiveLoop && !foldPadFade) ? Math.min(fadeDurationForPad(pad, "out"), naturalDuration) : 0;
   const naturalFadeOutStart = naturalStopAt - naturalFadeOutTime;
   const effectiveFadeInTime = fade && !foldPadFade && fadeTime > 0
     ? Math.min(fadeTime, naturalFadeOutTime > 0 ? Math.max(0, naturalFadeOutStart - now) : naturalDuration)
@@ -15157,7 +15163,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   analyser.fftSize = 256;
   source.buffer = playbackBuffer;
-  source.loop = pad.loop;
+  source.loop = effectiveLoop;
   source.loopStart = pad.reverse ? reverseSegmentStart : segmentStart;
   source.loopEnd = pad.reverse ? reverseSegmentEnd : segmentEnd;
   source.playbackRate.setValueAtTime(1, now);
@@ -15212,12 +15218,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
       if (!pad.keepResumeOffsetOnEnd) pad.resumeOffset = 0;
       if (!pad.keepResumeOffsetOnEnd) pad.isPaused = false;
       pad.keepResumeOffsetOnEnd = false;
-      clearPlayingPad(pad, source, !pad.loop);
+      clearPlayingPad(pad, source, !effectiveLoop);
     }
   };
 
   source.start(now, startOffset);
-  if (!pad.loop) {
+  if (!effectiveLoop) {
     source.stop(naturalStopAt);
   }
   applyDucking(pad);
@@ -15490,7 +15496,7 @@ function stopGroup() {
   setStatus(pads.length ? `Groupe ${tag} stoppé` : `Aucun pad joue: ${tag}`);
 }
 
-// ===== Playlist aléatoire =====
+// ===== Random playlist =====
 // Moteur "sac à shuffle" : pioche sans remise parmi les pads tagués, en
 // maintenant `count` pads audio actifs en permanence (count tiré au hasard
 // entre min et max à chaque lancement). Un seul moteur à la fois (en démarrer
@@ -15548,13 +15554,13 @@ function syncRandomGroupButton() {
   const running = Boolean(state.randomEngine);
   els.randomGroupToggle?.classList.toggle("is-active", running);
   els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
-  els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
-  els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la playlist aléatoire" : "Lancer la playlist aléatoire");
+  els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la random playlist" : "Lancer la random playlist");
+  els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la random playlist" : "Lancer la random playlist");
   // Reflet visible même volet replié : sinon rien n'indique que la playlist tourne.
   els.randomGroupSectionToggle?.classList.toggle("is-active", running);
 }
 
-// Appelé depuis clearPlayingPad() quand un pad membre de la playlist aléatoire
+// Appelé depuis clearPlayingPad() quand un pad membre de la random playlist
 // se termine naturellement (triggerEnd vrai) : pioche et lance le remplaçant.
 function advanceRandomEngine(pad) {
   const engine = state.randomEngine;
@@ -15563,7 +15569,7 @@ function advanceRandomEngine(pad) {
   const next = drawNextRandomPad(engine);
   if (next) {
     engine.activeUids.add(next.uid);
-    playPad(next).catch(() => {
+    playPad(next, false, 0, { ignoreLoop: true }).catch(() => {
       engine.activeUids.delete(next.uid);
     });
   }
@@ -15599,7 +15605,7 @@ function adjustRandomEngineLiveCount() {
       const pad = drawNextRandomPad(engine);
       if (!pad) break;
       engine.activeUids.add(pad.uid);
-      playPad(pad).catch(() => engine.activeUids.delete(pad.uid));
+      playPad(pad, false, 0, { ignoreLoop: true }).catch(() => engine.activeUids.delete(pad.uid));
     }
   } else if (diff < 0) {
     Array.from(engine.activeUids).slice(0, -diff).forEach((uid) => {
@@ -15608,7 +15614,7 @@ function adjustRandomEngineLiveCount() {
       if (pad && isPadPlaying(pad)) stopPad(pad, true, false, { triggerEnd: false });
     });
   }
-  setStatus(`Playlist aléatoire ${randomGroupLabel(engine.tag)} : ${engine.activeUids.size} en cours`);
+  setStatus(`Random playlist ${randomGroupLabel(engine.tag)} : ${engine.activeUids.size} en cours`);
 }
 
 function randomGroupLabel(tag) {
@@ -15634,11 +15640,11 @@ async function startRandomGroup() {
     const pad = drawNextRandomPad(engine);
     if (!pad) break;
     engine.activeUids.add(pad.uid);
-    await playPad(pad);
+    await playPad(pad, false, 0, { ignoreLoop: true });
   }
   syncRandomGroupButton();
   syncArmedCrossfadeControls();
-  setStatus(`Playlist aléatoire ${randomGroupLabel(tag)} lancée (${engine.activeUids.size} en cours)`);
+  setStatus(`Random playlist ${randomGroupLabel(tag)} lancée (${engine.activeUids.size} en cours)`);
 }
 
 function stopRandomGroup() {
@@ -15656,9 +15662,9 @@ function stopRandomGroup() {
 function toggleRandomGroup() {
   if (state.randomEngine) {
     stopRandomGroup();
-    setStatus("Playlist aléatoire arrêtée");
+    setStatus("Random playlist arrêtée");
   } else {
-    startRandomGroup().catch(() => setStatus("Playlist aléatoire impossible", "stop"));
+    startRandomGroup().catch(() => setStatus("Random playlist impossible", "stop"));
   }
 }
 
@@ -17143,7 +17149,7 @@ function setBoardModeFromSelector(targetMode) {
     return;
   }
 
-  // Le volet "Playlist aléatoire" se referme à chaque vrai changement de mode
+  // Le volet "Random playlist" se referme à chaque vrai changement de mode
   // (Scène/Studio/Garage) plutôt que de rester ouvert en arrière-plan.
   state.randomGroupSectionOpen = false;
   els.randomGroupSectionToggle?.setAttribute("aria-expanded", "false");
