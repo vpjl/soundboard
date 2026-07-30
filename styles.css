@@ -440,6 +440,14 @@ textarea *,
   border-color: var(--color_ui_border);
   background: var(--color_ui_panel_secondary);
   color: var(--color_ui_text_muted);
+  /* Sur mobile (notamment Firefox iOS), un position:fixed reste parfois
+     "collé" au document plutôt qu'au viewport pendant le scroll (bug de
+     rendu connu, pas une erreur de mise en page ici) : forcer sa propre
+     couche de composition GPU corrige ce comportement dans la plupart des
+     moteurs WebKit mobiles. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 .app-notice-button:hover {
@@ -6314,6 +6322,7 @@ body.stage-mode .pad-alerts {
 
   .icon-button {
     width: 34px;
+    height: 34px;
   }
 
   .control-group button {
