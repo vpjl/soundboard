@@ -15583,7 +15583,12 @@ async function startRandomPadsTogether(pads, engine) {
   if (!pads.length) return;
   await Promise.all(pads.map((pad) => (pad.buffer ? null : ensurePadAudioDecoded(pad).catch(() => null))));
   await ensureAudio(); // state.audioContext peut ne pas encore exister au tout premier lancement
-  const scheduledNow = state.audioContext.currentTime + 0.06;
+  // Marge généreuse : avec de vrais fichiers (DOM/waveform plus lourds que des
+  // tonalités de test courtes), un pad qui dépasse la marge programmerait
+  // source.start() sur un horodatage déjà passé → démarrage immédiat, donc en
+  // retard par rapport aux autres. 250ms reste inaudible comme délai de
+  // déclenchement mais laisse assez de marge pour que tout le lot tienne dedans.
+  const scheduledNow = state.audioContext.currentTime + 0.25;
   await Promise.all(pads.map((pad) => playPad(pad, false, 0, { ignoreLoop: true, scheduledNow }).catch(() => {
     engine.activeUids.delete(pad.uid);
   })));
