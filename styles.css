@@ -3097,6 +3097,12 @@ body.stage-mode .pad-note-button:not(.has-note) {
   place-items: center;
   width: 42px;
   height: 42px;
+  /* Le <button> natif a un padding par défaut du navigateur (ex. 1px 6px)
+     jamais remis à zéro ailleurs : invisible aux tailles larges (assez de
+     marge pour rester symétrique), mais aux petites tailles atteintes sur
+     mobile (32px), l'icône de 22px ne rentre plus dans l'espace restant après
+     ce padding caché, ce qui la décale visiblement vers un bord. */
+  padding: 0;
 }
 
 .board-action-grid .board-help-button {
