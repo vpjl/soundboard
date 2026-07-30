@@ -12832,6 +12832,16 @@ async function openAudioDialog(pad) {
   state.audioMediaDraft = {
     audioRecord: await dbGet(padAudioKey(pad)),
     metaRecord: await dbGet(padMetaKey(pad)),
+    // Identité du média au moment de l'ouverture (pas de lecture DB, juste
+    // l'état en mémoire du pad) : sert à restoreAudioDraft() pour savoir si le
+    // média a réellement été remplacé pendant la session du dialogue, et donc
+    // s'il faut vraiment réécrire la DB + redécoder (opération lente sur
+    // mobile, ~1-2s) ou si on peut sauter cette étape sans rien perdre.
+    hasDirectAudio: pad.hasDirectAudio,
+    audioName: pad.audioName,
+    audioPath: pad.audioPath,
+    videoName: pad.videoName,
+    videoPath: pad.videoPath,
   };
   state.audioCrossfadeDraft = {
     startStopMode: pad.startStopMode,
@@ -12915,7 +12925,18 @@ async function restoreAudioDraft() {
   const draft = state.audioDraft;
   if (!pad || !draft) return;
   const mediaDraft = state.audioMediaDraft;
-  if (mediaDraft) {
+  // Le média (fichier audio/vidéo) n'a été touché que si son identité a changé
+  // depuis l'ouverture du dialogue — réécrire la DB + redécoder (restorePad,
+  // lent sur mobile, ~1-2s) est inutile et évitable sinon (simple annulation
+  // d'un réglage comme pitch/reverb, sans jamais remplacer le média).
+  const mediaChanged = mediaDraft && (
+    pad.hasDirectAudio !== mediaDraft.hasDirectAudio ||
+    pad.audioName !== mediaDraft.audioName ||
+    pad.audioPath !== mediaDraft.audioPath ||
+    pad.videoName !== mediaDraft.videoName ||
+    pad.videoPath !== mediaDraft.videoPath
+  );
+  if (mediaChanged) {
     if (mediaDraft.audioRecord) await dbSet(padAudioKey(pad), mediaDraft.audioRecord);
     else await dbDelete(padAudioKey(pad));
     if (mediaDraft.metaRecord) await dbSet(padMetaKey(pad), mediaDraft.metaRecord);
@@ -12933,7 +12954,7 @@ async function restoreAudioDraft() {
   if (pad.source) refreshPlayingPadOutput(pad);
   applyDucking();
   syncAudioDialog(pad);
-  if (mediaDraft) await restorePad(pad);
+  if (mediaChanged) await restorePad(pad);
   else savePadMeta(pad);
 }
 
