@@ -15583,12 +15583,12 @@ async function startRandomPadsTogether(pads, engine) {
   if (!pads.length) return;
   await Promise.all(pads.map((pad) => (pad.buffer ? null : ensurePadAudioDecoded(pad).catch(() => null))));
   await ensureAudio(); // state.audioContext peut ne pas encore exister au tout premier lancement
-  // Marge généreuse : avec de vrais fichiers (DOM/waveform plus lourds que des
-  // tonalités de test courtes), un pad qui dépasse la marge programmerait
-  // source.start() sur un horodatage déjà passé → démarrage immédiat, donc en
-  // retard par rapport aux autres. 250ms reste inaudible comme délai de
-  // déclenchement mais laisse assez de marge pour que tout le lot tienne dedans.
-  const scheduledNow = state.audioContext.currentTime + 0.25;
+  // Marge minimale : le pré-décodage ci-dessus élimine déjà la vraie variable
+  // (durée de décodage). Une marge plus large (testée à 60 puis 250ms) ne
+  // corrige rien de plus et se fait sentir comme un délai de déclenchement
+  // perceptible par rapport aux pads déjà en cours (qui eux n'ont aucune
+  // marge) — c'était la marge elle-même qui devenait le décalage perçu.
+  const scheduledNow = state.audioContext.currentTime + 0.01;
   await Promise.all(pads.map((pad) => playPad(pad, false, 0, { ignoreLoop: true, scheduledNow }).catch(() => {
     engine.activeUids.delete(pad.uid);
   })));
@@ -15789,6 +15789,10 @@ async function init() {
   if (els.randomGroupMin) {
     els.randomGroupMin.value = localStorage.getItem(RANDOM_GROUP_MIN_STORAGE) || "1";
   }
+  // min/max sont chacun restaurés indépendamment depuis leur propre clé de
+  // stockage : sans revalidation ici, une combinaison enregistrée à des
+  // moments différents peut se retrouver incohérente (min > max) au chargement.
+  clampRandomGroupMinMax("min");
   if (els.randomGroupAvoidRepeat) {
     const savedAvoidRepeat = localStorage.getItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE);
     els.randomGroupAvoidRepeat.checked = savedAvoidRepeat === null ? true : savedAvoidRepeat === "on";
