@@ -3129,6 +3129,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .icon-button svg {
+  display: block;
   width: 22px;
   height: 22px;
 }
