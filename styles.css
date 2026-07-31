@@ -7389,17 +7389,17 @@ body.stage-mode .secondary-live-group {
     backdrop-filter: blur(10px);
   }
 
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .patch-bay-button,
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-window-button,
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
+  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .patch-bay-button,
+  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
+  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
     display: none !important;
   }
 
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
+  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
     display: grid;
   }
 
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .xfade-live-row {
+  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
     grid-template-columns: repeat(2, minmax(36px, 42px)) !important;
   }
 
@@ -7435,16 +7435,16 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
   padding-top: 92px;
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-window-button,
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
+body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
+body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
   display: none !important;
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
+body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
   display: grid;
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .topbar .live-tools .xfade-live-row {
+body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
   position: static;
   top: auto;
   right: auto;

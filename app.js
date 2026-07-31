@@ -2900,21 +2900,35 @@ function syncFloatingCueFrame(resetAnchor = false) {
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
   const stickChanged = shouldStick !== document.body.classList.contains("cues-stuck");
   document.body.classList.toggle("cues-stuck", shouldStick);
-  // En scène, .live-tools est en permanence épinglé (position:relative +
-  // transform en !important, cf. applyStageStudioLayout/pinPanelToStudioPosition)
-  // pour rester calé sur sa position studio. Ça entre en conflit avec le
-  // position:fixed (centré, plein écran) de cues-stuck : sans ce qui suit, le
-  // bloc restait figé à sa position épinglée au lieu de suivre le scroll.
-  // IMPORTANT : n'agir que sur un vrai changement d'état (stickChanged), pas à
-  // chaque scroll — applyStageStudioLayoutSoon() mesure via getBoundingClientRect
-  // (relatif au viewport, donc affecté par le défilement) : l'appeler en boucle
-  // pendant le scroll recalculait un décalage faux et grandissant à chaque
-  // évènement, faisant "remonter" les pads progressivement.
+  // En scène, .live-tools est un descendant de <header class="topbar">, qui a
+  // un transform permanent (cf. applyStageStudioLayout/pinPanelToStudioPosition,
+  // pour stabiliser sa position studio). Un transform sur un ancêtre devient le
+  // nouveau bloc de référence pour un descendant en position:fixed (même bug
+  // que celui déjà résolu sur #openAppNotice) : le bloc cues collé ne suivait
+  // donc pas le vrai scroll de la page, mais restait "fixé" par rapport au
+  // topbar, qui lui défile normalement. On sort .live-tools du topbar pendant
+  // qu'il est collé (hors de portée de ce transform), et on le replace à sa
+  // position d'origine au décollage. N'agir que sur un vrai changement d'état
+  // (stickChanged), pas à chaque scroll — cf. commit précédent.
   if (stickChanged && document.body.classList.contains("stage-mode")) {
     if (shouldStick) {
+      state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
+      // Rattaché à .app (comme #openAppNotice), pas body : reste dans la
+      // portée des styles .app/.app * (user-select, etc.) tout en échappant
+      // au transform du topbar.
+      document.querySelector(".app")?.appendChild(els.liveTools);
       els.liveTools.style.removeProperty("position");
       els.liveTools.style.removeProperty("transform");
     } else {
+      const topbar = document.querySelector(".topbar");
+      if (topbar) {
+        if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbar) {
+          topbar.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
+        } else {
+          topbar.appendChild(els.liveTools);
+        }
+      }
+      state.liveToolsOriginalNextSibling = null;
       applyStageStudioLayoutSoon();
     }
   }
@@ -17452,6 +17466,15 @@ function clearStageStudioLayout() {
 function applyStageStudioLayout() {
   if (!document.body.classList.contains("stage-mode")) {
     clearStageStudioLayout();
+    // Si .live-tools avait été sorti du topbar (bloc cues collé pendant le
+    // scroll, cf. syncFloatingCueFrame) et qu'on quitte la scène entre-temps
+    // (ex. retour en studio pendant que le bloc était collé), le remettre à
+    // sa place : cette relocalisation ne concerne que la scène.
+    const liveTools = document.querySelector(".live-tools");
+    const topbar = document.querySelector(".topbar");
+    if (liveTools && topbar && liveTools.parentElement !== topbar) {
+      topbar.appendChild(liveTools);
+    }
     return;
   }
 
@@ -17518,7 +17541,13 @@ function applyStageStudioLayout() {
   // un transform sur board/master ne change pas leur encombrement dans le
   // flux, donc .live-tools doit être épinglé indépendamment lui aussi, sinon
   // il reste décalé même quand board/master sont bien alignés entre eux.
-  pinPanelToStudioPosition(document.querySelector(".live-tools"), stageStudioLayoutSnapshot.liveToolsRect);
+  // Sauf pendant qu'il est "collé" (cues-stuck) : il est alors sorti du
+  // topbar (cf. syncFloatingCueFrame) pour échapper au transform ci-dessus,
+  // et géré entièrement par le CSS de cues-stuck — l'épingler ici le
+  // ramènerait à tort dans le référentiel studio.
+  if (!document.body.classList.contains("cues-stuck")) {
+    pinPanelToStudioPosition(document.querySelector(".live-tools"), stageStudioLayoutSnapshot.liveToolsRect);
+  }
 }
 
 function pinPanelToStudioPosition(el, studioRect) {
