@@ -379,7 +379,6 @@ button {
 }
 
 .app {
-  position: relative;
   min-height: 100vh;
   padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   -webkit-touch-callout: none;
