@@ -17202,7 +17202,12 @@ init();
 function shouldUseServiceWorker() {
   const ua = navigator.userAgent || "";
   const firefox = /Firefox|FxiOS/i.test(ua);
-  return !(firefox && isPortableDevice());
+  // Jamais de service worker en développement local : son cache PWA sert des
+  // assets périmés et masque les modifs (cf. galère cache-busting). Renvoyer
+  // false ici suffit : la branche `else` ci-dessous désenregistre alors tout SW
+  // déjà installé en localhost. Le SW reste actif en production.
+  const localDev = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname);
+  return !localDev && !(firefox && isPortableDevice());
 }
 
 if ("serviceWorker" in navigator && window.isSecureContext && shouldUseServiceWorker()) {

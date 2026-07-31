@@ -1919,7 +1919,13 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
 
-body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden .pad-trigger,
+/* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
+   défaut puis affiché par la règle .has-visual-image/.has-color plus bas.
+   Le sélecteur `…is-visual-hidden .pad-trigger` avait été collé ici par erreur
+   (commit 81d9f8e) : il refilait `display:none` + le gabarit 28×28 du bouton au
+   trigger entier, faisant disparaître titre/tags/contrôles dès qu'on masquait
+   l'image d'un pad. Quand l'image est masquée, le trigger doit rester normal
+   (les règles d'affichage « illustré » plus bas sont déjà en :not(.is-visual-hidden)). */
 .visual-toggle-button {
   display: none;
   position: absolute;
@@ -7717,7 +7723,12 @@ body.stage-mode .pad-vu {
 .pad-alerts,
 body.stage-mode .pad-alerts {
   grid-area: alerts;
-  position: static !important;
+  /* Pas de !important : cette règle vient après `.pad-alerts { position:absolute }`
+     (déclaration de base) et à spécificité égale l'ordre du fichier suffit à imposer
+     `static`. Le !important n'avait aucun concurrent important à battre — il forçait
+     en cascade le bloc garage (.board-edit-mode .pad-alerts) à répondre lui aussi en
+     !important. Cf. règle mémoire feedback_no_important. */
+  position: static;
   justify-self: end;
   max-width: 100%;
 }
@@ -7837,22 +7848,29 @@ body.board-edit-mode .pad.is-editing .pad-crossfade-flash {
 
 /* Garage : badges sur une ligne dédiée, entre le titre et les champs (tags…). */
 body.board-edit-mode .pad.is-editing .pad-alerts {
-  display: flex !important;
+  /* Aucun !important ici : ce sélecteur (0,4,1) bat déjà par spécificité la base
+     `.pad-alerts` (0,1,0) et le bloc `.pad-alerts` static (0,1,0) sur toutes ces
+     propriétés. Les !important d'origine étaient de la surenchère (ajoutée par
+     mimétisme après le !important collatéral du bloc static, désormais retiré). */
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  position: static !important;
-  top: auto !important;
-  right: auto !important;
-  bottom: auto !important;
-  left: auto !important;
+  position: static;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
   width: 100%;
   max-width: none;
-  height: auto !important;
-  grid-column: 1 / -1 !important;
-  grid-row: 3 !important; /* ligne dédiée entre le nom et les tags */
+  height: auto;
+  /* grid-area:auto AVANT grid-column/grid-row : il neutralise la zone nommée
+     `alerts` héritée du bloc static. Placé après, il réinitialisait grid-row/column
+     à auto — c'est CE conflit d'ordre dans le bloc que les !important compensaient. */
   grid-area: auto;
+  grid-column: 1 / -1;
+  grid-row: 3; /* ligne dédiée entre le nom et les tags */
   order: 0;
   margin: 2px 0;
   overflow: visible;
@@ -8097,7 +8115,9 @@ body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
   padding: 7px 9px !important;
 }
 
-body[data-skin="basic"] .pad:not(.is-editing) .pad-alerts,
+/* Badge « audio manquant » : masqué par défaut, révélé par .is-missing-audio.
+   (Le masquage des badges d'options en skin basic n'est plus inconditionnel : il
+   dépend désormais de l'affichage de l'illustration — voir la règle plus bas.) */
 .pad-alert-missing {
   display: none !important;
 }
@@ -8303,22 +8323,19 @@ body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
   display: block;
 }
 
-/* Skin Basic, mode scène :
-   les tags restent visibles hors visuel plein pad.
-   Si une image/dessin/couleur est affiché(e), ils sont masqués comme les boutons.
-   Quand le bouton œil masque le visuel (.is-visual-hidden), les tags redeviennent visibles. */
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags {
-  display: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-body[data-skin="basic"].stage-mode .pad.is-visual-hidden .pad-tags {
-  display: block;
+/* Skin Basic : dès que l'illustration (image, dessin ou couleur) est affichée,
+   tags ET badges d'options sont masqués — jamais par-dessus l'illustration, en
+   studio comme en scène. En mode « données » (illustration masquée par le bouton
+   œil, ou pad sans illustration) ils restent visibles dans les deux modes : tags
+   via `.pad-tags{display:block}` plus haut, badges via `.pad-alerts{display:flex}`.
+   Pas de !important ni de .stage-mode : ces sélecteurs (0,6,1) battent déjà les
+   règles de base, et le critère est l'illustration, pas le mode. `display:none`
+   suffit (les resets margin/border/… d'avant étaient morts sous un display:none). */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags,
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
+  display: none;
 }
 
 /* Aides contextuelles */
