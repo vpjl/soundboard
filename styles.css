@@ -1476,6 +1476,12 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
   margin-bottom: calc(var(--master-corner-btn, 42px) + 12px);
 }
 
+/* En scène, les boutons Aide/Audio master (coin bas-droite en studio) sont
+   masqués : la marge réservée pour eux ci-dessus devient un vide inutile. */
+body.stage-mode .random-group-control {
+  margin-bottom: 0;
+}
+
 .random-group-section-toggle {
   display: flex;
   align-items: center;

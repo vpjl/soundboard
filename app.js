@@ -2897,6 +2897,19 @@ function syncFloatingCueFrame(resetAnchor = false) {
   }
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
   document.body.classList.toggle("cues-stuck", shouldStick);
+  // En scène, .live-tools est en permanence épinglé (position:relative +
+  // transform en !important, cf. applyStageStudioLayout/pinPanelToStudioPosition)
+  // pour rester calé sur sa position studio. Ça entre en conflit avec le
+  // position:fixed (centré, plein écran) de cues-stuck : sans ce qui suit, le
+  // bloc restait figé à sa position épinglée au lieu de suivre le scroll.
+  if (document.body.classList.contains("stage-mode")) {
+    if (shouldStick) {
+      els.liveTools.style.removeProperty("position");
+      els.liveTools.style.removeProperty("transform");
+    } else {
+      applyStageStudioLayoutSoon();
+    }
+  }
 }
 
 function cueSelectablePads() {
