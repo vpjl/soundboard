@@ -2883,10 +2883,12 @@ function syncCueControls() {
 
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
+  const mainEl = document.querySelector("main");
   const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
   if (!shouldFloat) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
+    mainEl?.style.removeProperty("padding-top");
     return;
   }
   const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
@@ -2908,6 +2910,19 @@ function syncFloatingCueFrame(resetAnchor = false) {
       els.liveTools.style.removeProperty("transform");
     } else {
       applyStageStudioLayoutSoon();
+    }
+  }
+  // La compensation CSS (main{padding-top:92px}) suppose la taille studio des
+  // boutons de cues : en scène ils sont bien plus grands (cf. "boutons plus
+  // gros" quand les cues sont actives), donc 92px est insuffisant et les pads
+  // remontent pour combler l'espace laissé par .live-tools sorti du flux
+  // (position:fixed). On mesure la vraie hauteur au lieu d'une valeur fixe.
+  if (mainEl) {
+    if (shouldStick) {
+      const liveToolsHeight = els.liveTools.getBoundingClientRect().height;
+      mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
+    } else {
+      mainEl.style.removeProperty("padding-top");
     }
   }
 }
