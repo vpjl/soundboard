@@ -2898,13 +2898,19 @@ function syncFloatingCueFrame(resetAnchor = false) {
     state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
   }
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
+  const stickChanged = shouldStick !== document.body.classList.contains("cues-stuck");
   document.body.classList.toggle("cues-stuck", shouldStick);
   // En scène, .live-tools est en permanence épinglé (position:relative +
   // transform en !important, cf. applyStageStudioLayout/pinPanelToStudioPosition)
   // pour rester calé sur sa position studio. Ça entre en conflit avec le
   // position:fixed (centré, plein écran) de cues-stuck : sans ce qui suit, le
   // bloc restait figé à sa position épinglée au lieu de suivre le scroll.
-  if (document.body.classList.contains("stage-mode")) {
+  // IMPORTANT : n'agir que sur un vrai changement d'état (stickChanged), pas à
+  // chaque scroll — applyStageStudioLayoutSoon() mesure via getBoundingClientRect
+  // (relatif au viewport, donc affecté par le défilement) : l'appeler en boucle
+  // pendant le scroll recalculait un décalage faux et grandissant à chaque
+  // évènement, faisant "remonter" les pads progressivement.
+  if (stickChanged && document.body.classList.contains("stage-mode")) {
     if (shouldStick) {
       els.liveTools.style.removeProperty("position");
       els.liveTools.style.removeProperty("transform");
@@ -17499,7 +17505,9 @@ function applyStageStudioLayout() {
 
     const stageRect = selector.getBoundingClientRect();
     const dx = Math.round(studioRect.left - stageRect.left);
-    const dy = Math.round(studioRect.top - stageRect.top);
+    // Voir commentaire de pinPanelToStudioPosition : + window.scrollY rend le
+    // calcul indépendant d'un éventuel scroll au moment du réappel.
+    const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
 
     boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
   }
@@ -17520,7 +17528,11 @@ function pinPanelToStudioPosition(el, studioRect) {
 
   const stageRect = el.getBoundingClientRect();
   const dx = Math.round(studioRect.left - stageRect.left);
-  const dy = Math.round(studioRect.top - stageRect.top);
+  // studioRect est capturé au repos (scrollY≈0, entrée en scène ou boot) donc
+  // document-relative de fait ; stageRect.top est viewport-relative et donc
+  // faussé si cette fonction est réappelée pendant que la page est scrollée
+  // (ex. relâchement du bloc cues collé) — + window.scrollY compense.
+  const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
 
   el.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
 }
