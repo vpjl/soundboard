@@ -13933,7 +13933,9 @@ function executeCrossfadeAction(action, target, sourcePad, options = {}) {
     return;
   }
   targets.forEach((targetPad) => {
-    if (action === "play" && (targetPad.buffer || targetPad.videoName || targetPad.textMode || targetPad.textContent)) {
+    // audioStored : son présent mais pas encore décodé (décodage différé) — playPad
+    // le décode à la volée ; sans lui, le déclenchement ne marche qu'après une 1ʳᵉ lecture.
+    if (action === "play" && (targetPad.buffer || targetPad.audioStored || targetPad.videoName || targetPad.textMode || targetPad.textContent)) {
       flashCrossfadeTarget(targetPad, "start");
       playPad(targetPad, true, 0, { skipStartCrossfade: true }).catch(() => setStatus("Crossfade impossible"));
     }
