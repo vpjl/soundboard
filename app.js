@@ -17511,6 +17511,11 @@ function clearPinnedPanelsStudioLayout() {
     el.style.removeProperty("left");
     el.style.removeProperty("top");
   });
+  // Largeur studio imposée au master en scène (cf. applyStageStudioLayout) : à
+  // retirer avec l'épinglage, sinon elle fausse la mesure du snapshot et reste
+  // collée au retour en studio. Ciblé master uniquement — la largeur inline de
+  // .live-tools appartient à syncFloatingCueFrame, qui gère son propre cycle.
+  document.querySelector(".master-strip")?.style.removeProperty("width");
 }
 
 function clearStageStudioLayout() {
@@ -17590,7 +17595,17 @@ function applyStageStudioLayout() {
     boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
   }
 
-  pinPanelToStudioPosition(document.querySelector(".master-strip"), stageStudioLayoutSnapshot.masterStripRect);
+  // Même largeur qu'en studio (mesurée dans le snapshot) : en scène le master a
+  // ses propres tailles (gros boutons stop) et son fit-content diffère — or
+  // l'épinglage ne cale que le bord GAUCHE sur la position studio, le bord
+  // droit se retrouvait donc décalé du bord droit des pads. À largeur égale,
+  // les deux bords coïncident avec le studio (la colonne 1fr interne absorbe
+  // la différence). Posée AVANT l'épinglage, qui mesure la géométrie résultante.
+  const masterStripEl = document.querySelector(".master-strip");
+  if (masterStripEl && stageStudioLayoutSnapshot.masterStripRect) {
+    masterStripEl.style.setProperty("width", `${Math.round(stageStudioLayoutSnapshot.masterStripRect.width)}px`, "important");
+  }
+  pinPanelToStudioPosition(masterStripEl, stageStudioLayoutSnapshot.masterStripRect);
   // .live-tools (bloc Cues/Crossfade) : sa position naturelle dépend de la
   // hauteur réelle (non transformée) de la ligne board+master au-dessus —
   // un transform sur board/master ne change pas leur encombrement dans le
@@ -17600,8 +17615,22 @@ function applyStageStudioLayout() {
   // topbar (cf. syncFloatingCueFrame) pour échapper au transform ci-dessus,
   // et géré entièrement par le CSS de cues-stuck — l'épingler ici le
   // ramènerait à tort dans le référentiel studio.
-  if (!document.body.classList.contains("cues-stuck")) {
-    pinPanelToStudioPosition(document.querySelector(".live-tools"), stageStudioLayoutSnapshot.liveToolsRect);
+  // Et sauf quand les cues sont ACTIVÉES : le bloc est alors aligné sur la
+  // zone des pads par syncFloatingCueFrame (largeur + marge), pas sur sa
+  // position studio — le snapshot correspond au bloc compact (cues
+  // désactivées) et l'épinglage le décalait/débordait à droite jusqu'au
+  // premier scroll. On retire un éventuel épinglage résiduel puis on
+  // resynchronise l'alignement sur les pads (la topbar vient d'être épinglée,
+  // la marge doit être recalculée dans ce référentiel).
+  const liveToolsEl = document.querySelector(".live-tools");
+  if (document.body.classList.contains("cues-enabled")) {
+    if (liveToolsEl && !document.body.classList.contains("cues-stuck")) {
+      liveToolsEl.style.removeProperty("position");
+      liveToolsEl.style.removeProperty("transform");
+    }
+    syncFloatingCueFrame();
+  } else if (!document.body.classList.contains("cues-stuck")) {
+    pinPanelToStudioPosition(liveToolsEl, stageStudioLayoutSnapshot.liveToolsRect);
   }
 }
 
@@ -17656,5 +17685,28 @@ stageStudioLayoutObserver.observe(document.body, {
   attributeOldValue: true,
 });
 
-window.addEventListener("resize", applyStageStudioLayoutSoon);
+// Au redimensionnement, le snapshot studio (positions de référence de
+// l'épinglage) est périmé : capturé à l'ancienne largeur de fenêtre, il
+// épinglait board/master/cues sur des positions qui n'existent plus — le bloc
+// cues restait en place pendant que les pads reflowaient par-dessus. On
+// recapture donc la géométrie studio avant de réappliquer, et on resynchronise
+// le bloc cues (sa largeur = zone des pads et son ancre de collage dépendent
+// aussi de la fenêtre), en studio comme en scène.
+let stageStudioResizeFrame = 0;
+window.addEventListener("resize", () => {
+  if (stageStudioResizeFrame) cancelAnimationFrame(stageStudioResizeFrame);
+  stageStudioResizeFrame = requestAnimationFrame(() => {
+    stageStudioResizeFrame = 0;
+    // Même garde mobile que applyStageStudioLayout : pas d'épinglage là-bas,
+    // donc rien à recapturer (et le toggle synchrone de classe serait inutile).
+    if (
+      document.body.classList.contains("stage-mode")
+      && !window.matchMedia("(max-width: 950px), (pointer: coarse)").matches
+    ) {
+      captureStudioLayoutForStage();
+    }
+    applyStageStudioLayout();
+    syncFloatingCueFrame(true);
+  });
+});
 window.addEventListener("load", applyStageStudioLayoutSoon);

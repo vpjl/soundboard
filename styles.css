@@ -1041,8 +1041,13 @@ body.board-edit-mode .board-info-section-toggle {
 /* Le titre garde sa ligne dédiée (flex-basis:100%) mais ne dilate plus la largeur
    intrinsèque du bloc : plafonné à la largeur de son texte, il ne force plus le
    bloc compact (cues inactives) à s'étirer sur toute la colonne. Ciblé sur le
-   topbar pour ne pas toucher l'aperçu de l'éditeur de skin. */
-.topbar .live-tools-title {
+   topbar pour ne pas toucher l'aperçu de l'éditeur de skin. Le second sélecteur
+   couvre le bloc cues collé en scène (sorti du topbar vers .app, cf.
+   syncFloatingCueFrame) : sans lui, le flex-basis:100% reprenait la main au
+   collage et le titre sautait en haut du bloc sur sa propre ligne, décalant la
+   ligne boutons + titre du cue. */
+.topbar .live-tools-title,
+.app > .live-tools .live-tools-title {
   max-width: max-content;
 }
 
@@ -1120,7 +1125,9 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
   white-space: normal;
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-status {
+/* Dès l'activation des cues (studio ET scène), pas seulement une fois le bloc
+   collé au scroll : le titre du cue garde la même taille dans les deux états. */
+body.cues-enabled:not(.board-edit-mode) .cue-status {
   font-size: 0.92rem;
   line-height: 1.12;
   max-height: calc(1.12em * 2);
@@ -6122,8 +6129,11 @@ body.stage-mode .group-stop-row select {
   font-size: 0.62rem;
 }
 
+/* Même largeur que le studio (et que la .topbar, min(1280px) centrée) : un deck
+   plus large décalait les pads à gauche/droite par rapport au bloc logo/textes
+   et au bloc cues inactif. */
 body.stage-mode .deck {
-  width: min(1680px, 100%);
+  width: min(1280px, 100%);
 }
 
 body.stage-mode .pads {
@@ -6638,10 +6648,6 @@ body.stage-mode .pad-alerts {
 }
 
 @media (max-width: 950px) {
-  body.stage-mode .deck {
-    width: min(1280px, 100%);
-  }
-
   body.stage-mode .pads {
     gap: 6px;
   }
@@ -7256,7 +7262,8 @@ body.stage-mode .secondary-live-group {
     grid-column: 5 !important;
   }
 
-  body.stage-mode.cues-enabled .cue-live-row .icon-button {
+  body.stage-mode.cues-enabled .cue-live-row .icon-button,
+  body.stage-mode.cues-enabled .cue-stop-all-button {
     width: 46px !important;
     height: 46px !important;
     min-width: 46px !important;
@@ -7270,7 +7277,9 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+  /* Stop all exclu : même taille que les boutons de cue (cf. règle ci-dessus),
+     sinon son icône 42px déborde du bouton 34px et paraît décentrée. */
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
   body.stage-mode.cues-enabled #openCueDialog {
     width: 34px !important;
     height: 34px !important;
@@ -7330,7 +7339,8 @@ body.stage-mode .secondary-live-group {
     align-items: center;
   }
 
-  body.stage-mode.cues-enabled .cue-live-row .icon-button {
+  body.stage-mode.cues-enabled .cue-live-row .icon-button,
+  body.stage-mode.cues-enabled .cue-stop-all-button {
     width: 44px !important;
     min-width: 44px !important;
     height: 44px !important;
@@ -7345,7 +7355,7 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
   body.stage-mode.cues-enabled #openCueDialog {
     width: 34px !important;
     min-width: 34px !important;
@@ -10139,14 +10149,16 @@ body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg {
+  body.stage-mode .cue-live-row .icon-button svg,
+  body.stage-mode .cue-stop-all-button svg {
     width: 26px !important;
     height: 26px !important;
   }
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg {
+  body.stage-mode .cue-live-row .icon-button svg,
+  body.stage-mode .cue-stop-all-button svg {
     width: 22px !important;
     height: 22px !important;
   }
