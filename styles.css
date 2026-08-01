@@ -1038,6 +1038,14 @@ body.board-edit-mode .board-info-section-toggle {
   text-transform: uppercase;
 }
 
+/* Le titre garde sa ligne dédiée (flex-basis:100%) mais ne dilate plus la largeur
+   intrinsèque du bloc : plafonné à la largeur de son texte, il ne force plus le
+   bloc compact (cues inactives) à s'étirer sur toute la colonne. Ciblé sur le
+   topbar pour ne pas toucher l'aperçu de l'éditeur de skin. */
+.topbar .live-tools-title {
+  max-width: max-content;
+}
+
 .cue-live-row,
 .xfade-live-row {
   display: contents;
@@ -6026,7 +6034,7 @@ body.stage-mode .live-tools {
   gap: 12px;
 }
 
-body.stage-mode.cues-enabled .cue-live-row .icon-button {
+body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) {
   width: 84px;
   height: 84px;
   min-width: 84px;
@@ -6034,17 +6042,31 @@ body.stage-mode.cues-enabled .cue-live-row .icon-button {
 }
 
 
-body.stage-mode.cues-enabled .cue-live-row .icon-button svg {
+body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) svg {
   width: 42px;
   height: 42px;
 }
 
-body.stage-mode.cues-enabled .xfade-live-row .icon-button,
+body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
 body.stage-mode.cues-enabled #openCueDialog {
   width: 42px;
   height: 42px;
   min-width: 42px;
   min-height: 42px;
+}
+
+/* Bouton stop global (danger) : même grande taille que les boutons de cue (84px)
+   quand les cues sont activées en scène — collé au scroll ou non. */
+body.stage-mode.cues-enabled .cue-stop-all-button {
+  width: 84px;
+  height: 84px;
+  min-width: 84px;
+  min-height: 84px;
+}
+
+body.stage-mode.cues-enabled .cue-stop-all-button svg {
+  width: 42px;
+  height: 42px;
 }
 
 body.stage-mode .versions-section-toggle,
@@ -7473,27 +7495,58 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
   }
 }
 
+/* Scène + bloc cues collé au scroll : le bloc reste étiré sur TOUTE la largeur de
+   la fenêtre (left/right:0) et conserve ses GROS boutons de cue (84px), comme hors
+   scroll — on ne les rétrécit plus. Le padding-top de compensation est recalculé
+   dynamiquement sur la hauteur réelle du bloc (JS, syncFloatingCueFrame), donc la
+   plus grande hauteur est absorbée automatiquement. */
 body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-  width: min(1280px, calc(100vw - 28px)) !important;
-  transform: translateX(-50%) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  transform: none !important;
 }
 
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row .icon-button,
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button,
+/* Bloc cues activé mais PAS encore collé : étiré pleine largeur de la fenêtre
+   dans le flux. La largeur/décalage exacts sont posés en JS (syncFloatingCueFrame)
+   car le bloc n'est pas centré dans la fenêtre — un 100vw CSS déborderait à
+   droite. box-sizing pour que la largeur inline inclue bordures/padding. */
+body.stage-mode.cues-enabled:not(.cues-stuck):not(.board-edit-mode) .live-tools {
+  box-sizing: border-box;
+}
+
+/* Bloc cues INACTIF (studio ET scène, hors garage) : compact, largeur de la
+   rangée de boutons, calé à gauche — pas de marge à droite. À l'activation, il
+   passe à la largeur des pads (géré en JS). */
+body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
+  width: fit-content !important;
+  max-width: 100% !important;
+  justify-self: start !important;
+}
+
+/* Le titre "Cues/Crossfade" (flex-basis:100%) fait compter le bloc en max-content
+   (titre + boutons sur une seule ligne → largeur gonflée). Masqué à l'état
+   inactif pour que le bloc se réduise à ses boutons ; réaffiché à l'activation. */
+body:not(.board-edit-mode):not(.cues-enabled) .live-tools .live-tools-title {
+  display: none !important;
+}
+
+/* Grille dès l'activation (collé ou non) : 1re colonne compacte pour le bouton
+   activer/désactiver les cues (reste petit), puis 3 gros boutons de cue (84px),
+   puis l'espace extensible (1fr) qui porte le titre du cue au centre. */
+body.stage-mode.cues-enabled:not(.board-edit-mode) .cue-live-row {
+  grid-template-columns: 42px repeat(3, 84px) minmax(0, 1fr) !important;
+}
+
+/* Les boutons de cue (.cue-live-row .icon-button) et le stop global gardent leur
+   taille scène (84px, hérités) dans la barre collée. Seuls le déclencheur
+   openCueDialog et la rangée crossfade restent compacts. */
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button:not(.cue-stop-all-button),
 body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) #openCueDialog {
   width: 42px !important;
   height: 42px !important;
   min-width: 42px !important;
   min-height: 42px !important;
-}
-
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row .icon-button svg {
-  width: 22px !important;
-  height: 22px !important;
-}
-
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .cue-live-row {
-  grid-template-columns: repeat(4, 42px) minmax(0, 1fr) !important;
 }
 
 @media (max-width: 950px), (pointer: coarse) {
@@ -10076,9 +10129,12 @@ body.stage-mode .live-tools {
    colonne board+master), pas assez pour les 9 boutons → on ne garde que
    l'essentiel jouable et on masque les réglages secondaires (déjà masqués
    sur mobile / une fois stuck sur desktop pour cue-window et aide). */
+/* Le patch bay n'est plus masqué avant collage : le bloc cues doit avoir le même
+   rendu (mêmes boutons) dès l'activation qu'une fois collé, sinon le layout change
+   entre les deux états. Seuls la fenêtre de réglage des cues et l'aide restent
+   masquées (elles le sont aussi en collé). */
 body.stage-mode:not(.cues-stuck) .live-tools .cue-window-button,
-body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button,
-body.stage-mode:not(.cues-stuck) .live-tools .patch-bay-button {
+body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
   display: none !important;
 }
 

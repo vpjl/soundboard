@@ -2889,6 +2889,10 @@ function syncFloatingCueFrame(resetAnchor = false) {
     document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = null;
     mainEl?.style.removeProperty("padding-top");
+    els.liveTools.style.removeProperty("width");
+    els.liveTools.style.removeProperty("margin-left");
+    els.liveTools.style.removeProperty("left");
+    els.liveTools.style.removeProperty("right");
     return;
   }
   const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
@@ -2897,6 +2901,8 @@ function syncFloatingCueFrame(resetAnchor = false) {
     if (wasStuck) document.body.classList.remove("cues-stuck");
     state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
   }
+  // Le collage (position:fixed) ne se déclenche qu'au scroll, quand le bloc
+  // sortirait sinon de l'écran — jamais à la simple activation des cues.
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
   const stickChanged = shouldStick !== document.body.classList.contains("cues-stuck");
   document.body.classList.toggle("cues-stuck", shouldStick);
@@ -2943,6 +2949,36 @@ function syncFloatingCueFrame(resetAnchor = false) {
       mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
     } else {
       mainEl.style.removeProperty("padding-top");
+    }
+  }
+
+  // Largeur du bloc cues activé = largeur de la zone des pads (.deck), aligné sur
+  // eux (du bord gauche du 1er pad au bord droit du dernier). .deck fait
+  // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne coïncide
+  // pas avec le conteneur du bloc, donc on mesure sa géométrie et on l'y aligne
+  // (studio ET scène). setProperty(..., "important") car des règles .live-tools
+  // posent width/left/transform en !important.
+  const deck = document.querySelector(".deck");
+  if (deck) {
+    const deckRect = deck.getBoundingClientRect();
+    const w = Math.round(deckRect.width);
+    if (shouldStick) {
+      // Collé (position:fixed) : caler left + largeur sur la zone des pads.
+      els.liveTools.style.setProperty("width", `${w}px`, "important");
+      els.liveTools.style.setProperty("left", `${Math.round(deckRect.left)}px`, "important");
+      els.liveTools.style.setProperty("right", "auto", "important");
+      els.liveTools.style.setProperty("transform", "none", "important");
+      els.liveTools.style.setProperty("margin-left", "0px", "important");
+    } else {
+      // Dans le flux : largeur = zone des pads, marge compensée pour l'aligner
+      // exactement sur son bord gauche (le blocLeft mesuré inclut un éventuel
+      // transform d'épinglage studio, donc la compensation reste correcte).
+      els.liveTools.style.setProperty("margin-left", "0px", "important");
+      els.liveTools.style.setProperty("width", `${w}px`, "important");
+      const blocLeft = els.liveTools.getBoundingClientRect().left;
+      els.liveTools.style.setProperty("margin-left", `${Math.round(deckRect.left - blocLeft)}px`, "important");
+      els.liveTools.style.removeProperty("left");
+      els.liveTools.style.removeProperty("right");
     }
   }
 }
