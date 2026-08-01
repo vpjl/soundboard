@@ -4401,7 +4401,7 @@ function renderBoardLayoutControls() {
   const landscapeLimited = shouldLimitPortableLandscapeColumns();
 
   if (els.padColumns) {
-    renderPadColumnOptions(landscapeLimited ? 5 : 8);
+    renderPadColumnOptions(landscapeLimited ? 5 : 10);
     els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
     els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
@@ -5244,7 +5244,7 @@ function shouldLimitPortableLandscapeColumns() {
   return isPortableLandscape();
 }
 
-function renderPadColumnOptions(limit = 8) {
+function renderPadColumnOptions(limit = 10) {
   if (!els.padColumns) return;
   const currentValue = els.padColumns.value || "auto";
   els.padColumns.innerHTML = "";
