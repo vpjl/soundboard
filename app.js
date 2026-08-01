@@ -15878,7 +15878,19 @@ function bindKeyboard() {
   });
 }
 
+// Version affichée dans l'en-tête, dérivée du ?v= du tag <script> (source unique,
+// bumpée à chaque livraison) — plus de numéro en dur dans le HTML à oublier.
+function applyAppVersionDisplay() {
+  const src = document.querySelector('script[src*="app.js"]')?.getAttribute("src") || "";
+  const version = (src.match(/[?&]v=([^&]+)/) || [])[1] || "";
+  if (!version) return;
+  const credit = document.querySelector(".brand-credit");
+  if (credit) credit.textContent = `${credit.textContent.trim()} - version ${version}`;
+  if (els.status) els.status.textContent = `${els.status.textContent.trim()} · v${version}`;
+}
+
 async function init() {
+  applyAppVersionDisplay();
   state.db = await openDb();
   loadOutputSettings();
   loadMicrophoneSelection();
