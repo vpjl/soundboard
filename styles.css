@@ -3258,7 +3258,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 
 .pad.is-editing .pad-label {
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   padding-left: 0;
   padding-right: 0;
@@ -6171,9 +6171,9 @@ body.stage-mode .pad-trigger {
   padding: 14px;
 }
 
-body.stage-mode .pad-title {
-  font-size: clamp(1.08rem, 2vw, 1.6rem);
-}
+/* Titre du pad : même format en scène qu'en studio/garage (l'agrandissement
+   scène-spécifique — clamp jusqu'à 1.6rem — a été retiré ; le titre suit
+   désormais la taille de base commune aux trois modes). */
 
 body.stage-mode .pad-time {
   font-size: clamp(0.95rem, 1.4vw, 1.25rem);
@@ -7676,12 +7676,12 @@ body.stage-mode .pad-trigger {
 }
 
 .pad-play-row .pad-label {
-  display: grid !important;
-  grid-template-columns: 22px 22px minmax(0, 1fr) !important;
+  display: grid;
+  grid-template-columns: 22px 22px minmax(0, 1fr);
   align-items: start;
   gap: 5px;
   min-width: 0;
-  padding: 0 !important;
+  padding: 0;
 }
 
 .pad-shortcut,
@@ -7807,7 +7807,7 @@ body.board-edit-mode .pad.is-editing .pad-trigger {
 }
 
 body.board-edit-mode .pad.is-editing .pad-label {
-  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 body.board-edit-mode .pad.is-editing .pad-title,
@@ -7979,8 +7979,8 @@ body.stage-mode .pad:not(.is-editing) .pad-trigger {
    3 modes — il l'était déjà en garage, il manquait en studio/scène. */
 .pad:not(.is-editing) .pad-label,
 body.stage-mode .pad:not(.is-editing) .pad-label {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   min-width: 0;
 }
@@ -8338,7 +8338,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
-  display: grid !important;
+  display: grid;
   place-items: center;
   height: 100%;
 }
