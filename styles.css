@@ -406,13 +406,16 @@ textarea *,
   user-select: text;
 }
 
+/* --board-extent (curseur « étendue » du bloc Aspect, cf. applyBoardExtent) :
+   largeur commune topbar + deck + bloc cues collé — les trois restent alignés
+   quelle que soit la valeur. Défaut 1280px. */
 .topbar {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) max-content;
   grid-template-rows: auto auto;
   gap: 18px;
   align-items: start;
-  width: min(1280px, 100%);
+  width: min(var(--board-extent, 1280px), 100%);
   margin: 0 auto 18px;
 }
 
@@ -999,6 +1002,28 @@ body.board-edit-mode .board-info-section-toggle {
   align-items: center;
   gap: 7px;
   width: 100%;
+}
+
+/* Curseur « étendue du board » : même gabarit que la ligne skin au-dessus
+   (icône à gauche, contrôle extensible à droite). Pilote --board-extent
+   (largeur commune topbar/deck), cf. applyBoardExtent. */
+.board-extent-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+}
+
+.board-extent-row svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.board-extent-row input[type="range"] {
+  width: 100%;
+  min-width: 0;
 }
 
 /* Titre « ASPECT » au-dessus du bloc skin : visible dans les 3 modes. */
@@ -1832,7 +1857,7 @@ button.is-pressed {
 .deck {
   --cable-extra-bottom: 0px;
   position: relative;
-  width: min(1280px, 100%);
+  width: min(var(--board-extent, 1280px), 100%);
   margin: 0 auto;
   padding-bottom: var(--cable-extra-bottom);
 }
@@ -6129,11 +6154,11 @@ body.stage-mode .group-stop-row select {
   font-size: 0.62rem;
 }
 
-/* Même largeur que le studio (et que la .topbar, min(1280px) centrée) : un deck
-   plus large décalait les pads à gauche/droite par rapport au bloc logo/textes
-   et au bloc cues inactif. */
+/* Même largeur que le studio (et que la .topbar, centrée) : un deck plus large
+   décalait les pads à gauche/droite par rapport au bloc logo/textes et au bloc
+   cues inactif. Suit --board-extent comme eux. */
 body.stage-mode .deck {
-  width: min(1280px, 100%);
+  width: min(var(--board-extent, 1280px), 100%);
 }
 
 body.stage-mode .pads {
@@ -7464,7 +7489,7 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
   left: 50%;
   transform: translateX(-50%);
   z-index: 70;
-  width: min(1280px, calc(100vw - 28px));
+  width: min(var(--board-extent, 1280px), calc(100vw - 28px));
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(10px);
 }

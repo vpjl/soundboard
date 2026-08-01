@@ -113,6 +113,8 @@ const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
 const CUE_OUTPUT_STORAGE = "soundboard-live-cue-output";
 const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
+const BOARD_EXTENT_STORAGE = "soundboard-live-board-extent";
+const BOARD_EXTENT_DEFAULT = 1280;
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
@@ -286,6 +288,7 @@ const els = {
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
   skinSelect: document.querySelector("#skinSelect"),
+  boardExtent: document.querySelector("#boardExtent"),
   openSkinEditorButton: document.querySelector("#openSkinEditorButton"),
 
   skinEditorDialog: document.querySelector("#skinEditorDialog"),
@@ -1032,7 +1035,7 @@ function normalizeLayoutNumber(value, fallback = 0) {
   if (value === "" || value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.min(8, Math.max(1, Math.round(number)));
+  return Math.min(10, Math.max(1, Math.round(number)));
 }
 
 function layoutForBoard(board) {
@@ -17693,7 +17696,7 @@ stageStudioLayoutObserver.observe(document.body, {
 // le bloc cues (sa largeur = zone des pads et son ancre de collage dépendent
 // aussi de la fenêtre), en studio comme en scène.
 let stageStudioResizeFrame = 0;
-window.addEventListener("resize", () => {
+function refreshStageStudioGeometrySoon() {
   if (stageStudioResizeFrame) cancelAnimationFrame(stageStudioResizeFrame);
   stageStudioResizeFrame = requestAnimationFrame(() => {
     stageStudioResizeFrame = 0;
@@ -17708,5 +17711,35 @@ window.addEventListener("resize", () => {
     applyStageStudioLayout();
     syncFloatingCueFrame(true);
   });
-});
+}
+window.addEventListener("resize", refreshStageStudioGeometrySoon);
 window.addEventListener("load", applyStageStudioLayoutSoon);
+
+// Étendue du board (curseur du bloc Aspect) : pilote --board-extent, la
+// largeur commune topbar/deck/bloc cues collé. Permet d'occuper un grand
+// écran (plus de pads par ligne) ou de resserrer le board. Valeur globale
+// (liée à l'écran, pas au board), persistée. Comme un resize, elle invalide
+// la géométrie studio épinglée en scène → même resynchronisation.
+function applyBoardExtent(value, save = true) {
+  const max = Number(els.boardExtent?.max) || 2560;
+  const min = Number(els.boardExtent?.min) || 960;
+  const px = Math.min(max, Math.max(min, Math.round(Number(value) || BOARD_EXTENT_DEFAULT)));
+  document.documentElement.style.setProperty("--board-extent", `${px}px`);
+  if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
+  if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
+  refreshStageStudioGeometrySoon();
+}
+
+if (els.boardExtent) {
+  // Plafond = largeur de l'écran physique courant : au-delà, min(..., 100%)
+  // plafonne déjà, toute la course du curseur reste donc utile. Recalculé à
+  // chaque chargement — sur un écran plus grand, la valeur mémorisée
+  // (jamais réécrite ici, save=false) reprend toute sa place.
+  els.boardExtent.max = String(Math.max(1440, window.screen?.width || 0));
+  // Appliqué au RELÂCHEMENT (change), pas en continu (input) : élargir la
+  // topbar élargit le bloc board, donc le curseur lui-même, qui glisse alors
+  // sous le pointeur — boucle de rétroaction qui envoyait la valeur en butée.
+  els.boardExtent.addEventListener("change", () => applyBoardExtent(els.boardExtent.value));
+  const stored = Number(localStorage.getItem(BOARD_EXTENT_STORAGE));
+  if (Number.isFinite(stored) && stored > 0) applyBoardExtent(stored, false);
+}
