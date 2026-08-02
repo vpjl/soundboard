@@ -851,7 +851,10 @@ body.show-cables .cable-legend-panel {
 }
 
 body.stage-mode #stageLock {
-  display: flex;
+  /* grid (comme .icon-button de base), pas flex : place-items:center hérité
+     de .icon-button ne centre l'icône qu'en grid — en flex, seul align-items
+     était pris en compte, l'icône restait calée à gauche. */
+  display: grid;
 }
 
 body.board-edit-mode .board-action-grid .stage-button,
