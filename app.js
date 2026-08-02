@@ -267,7 +267,6 @@ const state = {
     sourcePadUid: null,
   },
   randomEngine: null, // { tag, bag: [uid...], activeUids: Set, lastUid } ou null si arrêté
-  randomEngineHandlingEnd: false,
   folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "par défaut",
