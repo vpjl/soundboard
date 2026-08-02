@@ -115,6 +115,8 @@ const MASTER_OUTPUT_STORAGE = "soundboard-live-master-output";
 const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
 const BOARD_EXTENT_STORAGE = "soundboard-live-board-extent";
 const BOARD_EXTENT_DEFAULT = 1280;
+const PAD_COMPACTNESS_STORAGE = "soundboard-live-pad-compactness";
+const PAD_COMPACTNESS_MAX = 260;
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
@@ -289,6 +291,7 @@ const els = {
   status: document.querySelector("#audioStatus"),
   skinSelect: document.querySelector("#skinSelect"),
   boardExtent: document.querySelector("#boardExtent"),
+  padCompactness: document.querySelector("#padCompactness"),
   openSkinEditorButton: document.querySelector("#openSkinEditorButton"),
 
   skinEditorDialog: document.querySelector("#skinEditorDialog"),
@@ -2677,6 +2680,9 @@ function applyPadLayout(board = currentBoard()) {
     els.pads.style.removeProperty("--pad-rows");
     delete els.pads.dataset.columns;
   }
+  // Le nombre de colonnes (donc la largeur d'un pad, donc le minimum "carré"
+  // du curseur de compacité) vient de changer : recalculer après le reflow.
+  requestAnimationFrame(refreshPadCompactnessRange);
 }
 
 function activeFilterLabels() {
@@ -17728,6 +17734,7 @@ function applyBoardExtent(value, save = true) {
   if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
   if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
   refreshStageStudioGeometrySoon();
+  requestAnimationFrame(refreshPadCompactnessRange);
 }
 
 if (els.boardExtent) {
@@ -17742,4 +17749,52 @@ if (els.boardExtent) {
   els.boardExtent.addEventListener("change", () => applyBoardExtent(els.boardExtent.value));
   const stored = Number(localStorage.getItem(BOARD_EXTENT_STORAGE));
   if (Number.isFinite(stored) && stored > 0) applyBoardExtent(stored, false);
+}
+
+// Compacité des pads (curseur du bloc Aspect, scène + skin basic uniquement) :
+// pilote --pad-compact-height, la cible de hauteur des rangées de pads (cf.
+// grid-auto-rows: minmax(auto, …) sur .pads.has-pad-layout). Le minimum du
+// curseur suit la largeur réelle d'un pad (forme carrée) — recalculé à
+// chaque changement pouvant l'affecter (colonnes, étendue du board, resize),
+// pas seulement au chargement comme le plafond de applyBoardExtent, car la
+// largeur d'un pad change bien plus souvent que celle de l'écran.
+function currentPadWidth() {
+  const pad = els.pads?.querySelector(".pad");
+  return pad ? Math.round(pad.getBoundingClientRect().width) : 0;
+}
+
+function applyPadCompactness(value, save = true) {
+  if (!els.padCompactness) return;
+  const min = Number(els.padCompactness.min) || 90;
+  const max = Number(els.padCompactness.max) || PAD_COMPACTNESS_MAX;
+  const px = Math.min(max, Math.max(min, Math.round(Number(value) || max)));
+  document.documentElement.style.setProperty("--pad-compact-height", `${px}px`);
+  if (Number(els.padCompactness.value) !== px) els.padCompactness.value = String(px);
+  if (save) localStorage.setItem(PAD_COMPACTNESS_STORAGE, String(px));
+}
+
+function refreshPadCompactnessRange() {
+  if (!els.padCompactness) return;
+  const width = currentPadWidth();
+  if (!width) return;
+  els.padCompactness.min = String(width);
+  // Max ≥ min + une marge, sinon un pad large (peu de colonnes) rendrait le
+  // range invalide (min > max). À fond, minmax(auto, grande valeur) ≈ pas de
+  // compactage, donc élargir le max est sans effet indésirable.
+  els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, width + 60));
+  // Le curseur ne doit pas dépasser sa valeur courante mémorisée : on
+  // réapplique simplement la valeur actuelle, applyPadCompactness se charge
+  // de la re-clamper si le nouveau minimum (largeur) la dépasse désormais.
+  applyPadCompactness(els.padCompactness.value, false);
+}
+
+if (els.padCompactness) {
+  els.padCompactness.max = String(PAD_COMPACTNESS_MAX);
+  els.padCompactness.addEventListener("change", () => applyPadCompactness(els.padCompactness.value));
+  window.addEventListener("resize", () => requestAnimationFrame(refreshPadCompactnessRange));
+  const storedCompactness = Number(localStorage.getItem(PAD_COMPACTNESS_STORAGE));
+  requestAnimationFrame(() => {
+    refreshPadCompactnessRange();
+    if (Number.isFinite(storedCompactness) && storedCompactness > 0) applyPadCompactness(storedCompactness, false);
+  });
 }
