@@ -235,6 +235,7 @@ const state = {
   filterCompact: false,
   filterSectionOpen: false,
   versionsSectionOpen: false,
+  aspectSectionOpen: false,
   boardManageSectionOpen: false,
   boardInfoSectionOpen: false,
   randomGroupSectionOpen: false,
@@ -376,6 +377,8 @@ const els = {
   filterCompactCount: document.querySelector("#filterCompactCount"),
   filterSectionToggle: document.querySelector("#filterSectionToggle"),
   versionsSectionToggle: document.querySelector("#versionsSectionToggle"),
+  aspectSectionToggle: document.querySelector("#aspectSectionToggle"),
+  aspectSectionBody: document.querySelector("#aspectSectionBody"),
   boardVersionRow: document.querySelector(".board-version-row"),
   boardManageSectionToggle: document.querySelector("#boardManageSectionToggle"),
   boardManageSectionBody: document.querySelector("#boardManageSectionBody"),
@@ -16085,6 +16088,15 @@ async function init() {
       if (els.boardVersionRow) els.boardVersionRow.hidden = !state.versionsSectionOpen;
       return;
     }
+    if (e.target.closest?.("#aspectSectionToggle")) {
+      state.aspectSectionOpen = !state.aspectSectionOpen;
+      els.aspectSectionToggle?.setAttribute("aria-expanded", String(state.aspectSectionOpen));
+      if (els.aspectSectionBody) els.aspectSectionBody.hidden = !state.aspectSectionOpen;
+      // Rafraîchit le minimum du curseur de compacité (largeur courante d'un
+      // pad) au dépliage, au cas où elle aurait changé depuis le dernier calcul.
+      if (state.aspectSectionOpen) requestAnimationFrame(refreshPadCompactnessRange);
+      return;
+    }
     if (e.target.closest?.("#boardManageSectionToggle")) {
       state.boardManageSectionOpen = !state.boardManageSectionOpen;
       els.boardManageSectionToggle?.setAttribute("aria-expanded", String(state.boardManageSectionOpen));
@@ -17751,7 +17763,7 @@ if (els.boardExtent) {
   if (Number.isFinite(stored) && stored > 0) applyBoardExtent(stored, false);
 }
 
-// Compacité des pads (curseur du bloc Aspect, scène + skin basic uniquement) :
+// Compacité des pads (curseur du volet Aspect, tous modes / tous skins) :
 // pilote --pad-compact-height, la cible de hauteur des rangées de pads (cf.
 // grid-auto-rows: minmax(auto, …) sur .pads.has-pad-layout). Le minimum du
 // curseur suit la largeur réelle d'un pad (forme carrée) — recalculé à

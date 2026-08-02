@@ -1027,19 +1027,14 @@ body.board-edit-mode .board-info-section-toggle {
 }
 
 /* Compacité des pads : mêmes proportions que .board-extent-row juste
-   au-dessus. N'a d'effet qu'en scène + skin basic (cf. applyPadCompactness
-   et la règle grid-auto-rows plus bas) — masqué ailleurs pour ne pas
-   afficher un contrôle inopérant. */
+   au-dessus. Actif dans tous les modes et tous les skins (cf.
+   applyPadCompactness et la règle grid-auto-rows sur .pads.has-pad-layout). */
 .pad-compactness-row {
-  display: none;
+  display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 7px;
   width: 100%;
-}
-
-body.stage-mode[data-skin="basic"] .pad-compactness-row {
-  display: grid;
 }
 
 .pad-compactness-row svg {
@@ -1053,26 +1048,16 @@ body.stage-mode[data-skin="basic"] .pad-compactness-row {
   min-width: 0;
 }
 
-/* Rangées sans pad texte-seul : se compactent librement vers la cible du
-   curseur (--pad-compact-height). Une rangée contenant un pad texte-seul
-   reste contrainte par le plancher de lisibilité .pad-trigger{min-height}
-   existant — minmax(auto, …) ne descend jamais sous le contenu, seul
-   "auto" (donc le plus grand min-height du lot) l'emporte dans ce cas. */
-body.stage-mode[data-skin="basic"] .pads.has-pad-layout {
-  /* Repli 9999px (≈ pas de plafond) plutôt que "none" : minmax(auto, none)
-     est invalide et annulerait toute la déclaration. */
-  grid-auto-rows: minmax(auto, var(--pad-compact-height, 9999px));
+/* Corps du volet ASPECT (repliable, cf. #aspectSectionToggle) : reproduit
+   l'espacement que les rangées avaient comme enfants directs du .board-strip
+   (grille, gap 8px). */
+.board-aspect-section-body {
+  display: grid;
+  gap: 8px;
 }
 
-/* Titre « ASPECT » au-dessus du bloc skin : visible dans les 3 modes. */
-.board-aspect-title {
-  display: block;
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 6px 0 2px;
+.board-aspect-section-body[hidden] {
+  display: none;
 }
 
 .live-tools {
@@ -1908,10 +1893,17 @@ button.is-pressed {
 
 .pads.has-pad-layout {
   grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
+  /* Compacité des pads (curseur du volet ASPECT, tous modes/skins) : les
+     rangées se compactent vers la cible --pad-compact-height, mais
+     minmax(auto, …) ne descend jamais sous le contenu — une rangée avec un
+     pad texte-seul garde sa hauteur minimale de lisibilité. Repli 9999px
+     (≈ pas de plafond) plutôt que "none" : minmax(auto, none) est invalide
+     et annulerait toute la déclaration. */
+  grid-auto-rows: minmax(auto, var(--pad-compact-height, 9999px));
 }
 
 body.stage-mode .pads.has-pad-layout {
-  grid-auto-rows: auto;
+  grid-auto-rows: minmax(auto, var(--pad-compact-height, 9999px));
 }
 
 .cable-overlay {
