@@ -8337,20 +8337,26 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 /* Skin basic avec illustration/couleur : la durée reste une pastille posée sur
-   l'image, sous le numéro — donc en absolu, à l'écart du replacement en grille des
-   pads en lecture (`.pad:not(.is-editing) .pad-time`, plus haut), dont ce bloc doit
-   redéclarer le positionnement puisqu'il n'en hérite plus. `right` reste à auto :
-   la pastille est centrée par left:50% + translateX (l'ancien `right: 6px` était
-   inopérant, il perdait déjà contre le left:50% de la règle de base). */
+   l'image (les badges y sont eux aussi en absolu, empilés : numéro à top 6px,
+   type à top 38px), donc à l'écart du replacement en grille des pads en lecture
+   (`.pad:not(.is-editing) .pad-time`, plus haut) — ce bloc doit redéclarer le
+   positionnement absolu puisqu'il n'en hérite plus.
+   La pastille est remontée sur la ligne du numéro : `top: 20px` = centre du badge
+   (6px + 28px / 2) et `translate(-50%, -50%)` la centre sur ce point dans les deux
+   axes. Centrer par le milieu plutôt que caler un `top` : la taille de la durée
+   varie (0.76rem en studio, jusqu'à 1.25rem en scène), l'alignement suit tout seul.
+   `right` reste à auto : la pastille est centrée horizontalement par left:50%
+   (l'ancien `right: 6px` était inopérant, il perdait déjà contre le left:50% de la
+   règle de base). */
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time {
   opacity: 1;
   position: absolute;
   grid-area: auto;
-  top: 36px;
+  top: 20px;
   left: 50%;
   right: auto;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   background: rgba(0, 0, 0, 0.38);
