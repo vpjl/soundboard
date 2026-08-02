@@ -266,7 +266,7 @@ const state = {
     phase: "target",
     sourcePadUid: null,
   },
-  randomEngine: null, // { tag, count, bag: [uid...], activeUids: Set } ou null si arrêté
+  randomEngine: null, // { tag, bag: [uid...], activeUids: Set, lastUid } ou null si arrêté
   randomEngineHandlingEnd: false,
   folderImportFiles: [],
   cueOutputDeviceId: "",
@@ -15632,11 +15632,13 @@ function stopGroup() {
 }
 
 // ===== Random playlist =====
-// Moteur "sac à shuffle" : pioche sans remise parmi les pads tagués, en
-// maintenant `count` pads audio actifs en permanence (count tiré au hasard
-// entre min et max à chaque lancement). Un seul moteur à la fois (en démarrer
-// un nouveau arrête l'ancien). Audio uniquement pour l'instant (vidéo/texte
-// ont chacun leur propre détection de fin, pas encore branchée ici).
+// Moteur "sac à shuffle" : pioche sans remise parmi les pads tagués, en gardant
+// le nombre de pads audio actifs dans la plage min–max du volet. La cible est
+// retirée au hasard dans cette plage à chaque fin de pad (et pas seulement au
+// lancement) : c'est ce qui fait varier le nombre de pads simultanés au fil de
+// la playlist. Un seul moteur à la fois (en démarrer un nouveau arrête
+// l'ancien). Audio uniquement pour l'instant (vidéo/texte ont chacun leur
+// propre détection de fin, pas encore branchée ici).
 function randomGroupTargetCount(memberCount) {
   const rawMin = Math.max(1, Number(els.randomGroupMin?.value) || 1);
   const rawMax = Math.max(1, Number(els.randomGroupCount?.value) || 1);
@@ -15722,18 +15724,42 @@ async function startRandomPadsTogether(pads, engine) {
 }
 
 // Appelé depuis clearPlayingPad() quand un pad membre de la random playlist
-// se termine naturellement (triggerEnd vrai) : pioche et lance le remplaçant.
+// se termine naturellement (triggerEnd vrai) : retire une nouvelle cible dans la
+// plage min–max et complète le lot si besoin.
+//
+// Avant, un pad terminé était toujours remplacé par exactement un autre : le
+// nombre de pads simultanés restait figé sur le tirage du lancement, donc le
+// minimum ne servait qu'une fois et la playlist tournait en permanence au même
+// effectif. Ici la cible est retirée à chaque fin, et :
+// - cible > effectif → on complète (souvent un seul pad, d'où le remplacement
+//   habituel) ;
+// - cible <= effectif → on ne relance rien et l'effectif redescend de lui-même,
+//   au rythme des fins de pads. Jamais de pad coupé en pleine lecture pour
+//   rejoindre la cible : seul l'ajustement manuel des champs le fait
+//   (adjustRandomEngineLiveCount).
+// L'effectif reste donc toujours dans [min, max] — il ne peut pas passer sous le
+// minimum (cible >= min) ni dépasser le maximum (on ne complète que jusqu'à la
+// cible) — et il ne tombe jamais à zéro, ce qui arrêterait la playlist.
 function advanceRandomEngine(pad) {
   const engine = state.randomEngine;
   if (!engine || !engine.activeUids.has(pad.uid)) return;
   engine.activeUids.delete(pad.uid);
-  const next = drawNextRandomPad(engine);
-  if (next) {
+  const members = randomGroupMembers(engine.tag);
+  if (!members.length) return;
+  const missing = randomGroupTargetCount(members.length) - engine.activeUids.size;
+  if (missing <= 0) return;
+  const padsToStart = [];
+  for (let i = 0; i < missing; i += 1) {
+    const next = drawNextRandomPad(engine);
+    if (!next) break;
     engine.activeUids.add(next.uid);
-    playPad(next, false, 0, { ignoreLoop: true }).catch(() => {
-      engine.activeUids.delete(next.uid);
-    });
+    padsToStart.push(next);
   }
+  // startRandomPadsTogether() plutôt qu'un playPad() direct : il pré-décode et
+  // partage une même référence temporelle, donc les pads partent ensemble quand
+  // la cible en demande plusieurs d'un coup (et pour un seul pad, il évite le
+  // trou du décodage à la volée).
+  startRandomPadsTogether(padsToStart, engine).catch(() => {});
 }
 
 // Empêche min > max dans les champs (échange automatique du côté modifié)
@@ -15796,8 +15822,11 @@ async function startRandomGroup() {
     return;
   }
   stopRandomGroup();
+  // Tirage de départ dans la plage min–max ; les tirages suivants ont lieu à
+  // chaque fin de pad (advanceRandomEngine), d'où l'absence de cible mémorisée
+  // dans l'engine.
   const count = randomGroupTargetCount(members.length);
-  const engine = { tag, count, bag: shuffledArray(members.map((pad) => pad.uid)), activeUids: new Set() };
+  const engine = { tag, bag: shuffledArray(members.map((pad) => pad.uid)), activeUids: new Set() };
   state.randomEngine = engine;
   const padsToStart = [];
   for (let i = 0; i < count; i += 1) {
