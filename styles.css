@@ -3064,13 +3064,19 @@ select:disabled,
   border-color: var(--color_ui_border);
 }
 
+/* Durée : centrée horizontalement dans le pad, en absolu. Ce positionnement absolu
+   reste la base des pads en édition (`.pad.is-editing`, garage) et de la pastille du
+   skin basic ; en lecture (`.pad:not(.is-editing)`) la durée est remise dans la grille,
+   sur la ligne du numéro et du type — voir `.pad:not(.is-editing) .pad-time` plus bas.
+   Les !important d'origine (grid-area/left/right/transform) étaient de la surenchère :
+   aucune règle ne leur faisait concurrence, et ils bloquaient ce replacement. */
 .pad-time {
   position: absolute;
-  grid-area: auto !important; /* ne pas être placé dans la cellule "time" de la grille (sinon left:50% = centre de cette cellule, à droite) */
+  grid-area: auto; /* ne pas être placé dans la cellule "time" de la grille (sinon left:50% = centre de cette cellule, à droite) */
   top: 10px;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   align-self: start;
   color: var(--color_pad_secondary_text);
   font-variant-numeric: tabular-nums;
@@ -7792,13 +7798,13 @@ body.stage-mode .pad-title {
   text-align: center;
 }
 
-/* NE PAS remettre `position: static !important` ici : la règle de base .pad-time centre
-   la durée en absolu (left:50% + translateX(-50%)), et son `transform` est en !important.
-   Forcer `static` ne désactivait que le positionnement, PAS le transform → la durée était
-   auto-placée puis décalée de la moitié de sa largeur vers la gauche (−15px mesurés en
-   studio et en scène). Le garage y échappait seulement parce qu'il re-force `absolute`.
-   `grid-area: time` est de toute façon battu par le `grid-area: auto !important` de base,
-   et justify/align-self sont sans effet sur un élément absolu. */
+/* Ne pas repasser la durée en flux ICI (sélecteur commun aux trois modes) : le garage
+   et la pastille du skin basic dépendent du positionnement absolu de la règle de base.
+   Le passage en static ne concerne que les pads en lecture, et il doit neutraliser
+   left/right/transform en même temps — sinon le translateX(-50%) survit au static et
+   décale la durée d'une demi-largeur vers la gauche (−15px mesurés en studio et en
+   scène à l'époque où la base portait ces déclarations en !important). Voir
+   `.pad:not(.is-editing) .pad-time` plus bas. */
 .pad-time,
 body.stage-mode .pad-time {
   font-size: 0.76rem;
@@ -8032,6 +8038,30 @@ body.stage-mode .pad:not(.is-editing) .pad-play-row {
 
 .pad:not(.is-editing) .pad-type {
   grid-area: type;
+}
+
+/* Scène et studio : la durée sur la même ligne que le numéro/lettre et le type,
+   comme en garage. Elle était posée en absolu à 10px du haut du pad, alors que la
+   première rangée de la grille commence après le padding (12px) et fait la hauteur
+   du plus grand item (28px : pense-bête/œil) — la durée tombait donc ~9px au-dessus
+   du centre des badges. Elle redevient ici un item de cette rangée, centré
+   verticalement avec eux (align-items:center du .pad-play-row) et toujours centré
+   horizontalement sur la largeur du pad (grid-column 1 / -1 + justify-self:center,
+   plutôt que la colonne « time » qui la collerait à droite).
+   `left/right/transform` doivent être neutralisés explicitement : le translateX(-50%)
+   de la règle de base survivrait au passage en static et décalerait la durée d'une
+   demi-largeur vers la gauche. pointer-events:none : elle chevauche les colonnes
+   voisines sur un pad étroit, elle ne doit pas intercepter leurs clics. */
+.pad:not(.is-editing) .pad-time {
+  grid-area: 1 / 1 / 2 / -1;
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  transform: none;
+  justify-self: center;
+  align-self: center;
+  pointer-events: none;
 }
 
 .pad:not(.is-editing) .pad-trigger,
@@ -8306,11 +8336,21 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   pointer-events: none;
 }
 
+/* Skin basic avec illustration/couleur : la durée reste une pastille posée sur
+   l'image, sous le numéro — donc en absolu, à l'écart du replacement en grille des
+   pads en lecture (`.pad:not(.is-editing) .pad-time`, plus haut), dont ce bloc doit
+   redéclarer le positionnement puisqu'il n'en hérite plus. `right` reste à auto :
+   la pastille est centrée par left:50% + translateX (l'ancien `right: 6px` était
+   inopérant, il perdait déjà contre le left:50% de la règle de base). */
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-time,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-time {
   opacity: 1;
+  position: absolute;
+  grid-area: auto;
   top: 36px;
-  right: 6px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   background: rgba(0, 0, 0, 0.38);
