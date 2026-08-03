@@ -619,6 +619,7 @@ const els = {
   boardInfoSectionToggle: document.querySelector("#boardInfoSectionToggle"),
   boardInfoSectionBody: document.querySelector("#boardInfoSectionBody"),
   boardInfoName: document.querySelector("#boardInfoName"),
+  boardInfoCreator: document.querySelector("#boardInfoCreator"),
   boardInfoCreatedAt: document.querySelector("#boardInfoCreatedAt"),
   boardInfoPadCounts: document.querySelector("#boardInfoPadCounts"),
   boardInfoMediaCounts: document.querySelector("#boardInfoMediaCounts"),
@@ -4380,6 +4381,7 @@ function renderBoardInfoSection() {
   const board = currentBoard();
   if (!board) return;
   if (els.boardInfoName) els.boardInfoName.textContent = board.name || "—";
+  if (els.boardInfoCreator && els.boardInfoCreator !== document.activeElement) els.boardInfoCreator.value = board.creator || "";
   if (els.boardInfoCreatedAt) els.boardInfoCreatedAt.textContent = formatBoardCreatedAt(board.createdAt);
   if (els.boardInfoPadCounts) {
     const activeCount = state.pads.filter((pad) => !isEmptyPad(pad)).length;
@@ -16516,6 +16518,12 @@ async function init() {
   });
   els.openAppNotice?.addEventListener("click", openAppNoticePdf);
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
+  els.boardInfoCreator?.addEventListener("change", () => {
+    const board = currentBoard();
+    if (!board) return;
+    board.creator = els.boardInfoCreator.value.trim();
+    saveBoards();
+  });
   els.addPad?.addEventListener("click", addPad);
   els.exportBoardAudioOnly?.addEventListener("click", () => {
     // Un export est une action de lecture seule : rester dans le mode courant

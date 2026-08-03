@@ -4236,6 +4236,19 @@ p.audio-library-item-detail {
   font-weight: 700;
 }
 
+.board-info-creator-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
 .board-info-actions {
   display: flex;
   gap: 8px;
