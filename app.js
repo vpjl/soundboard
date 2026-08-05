@@ -620,6 +620,7 @@ const els = {
   boardInfoSectionBody: document.querySelector("#boardInfoSectionBody"),
   boardInfoName: document.querySelector("#boardInfoName"),
   boardInfoCreator: document.querySelector("#boardInfoCreator"),
+  boardCreator: document.querySelector("#boardCreator"),
   boardInfoCreatedAt: document.querySelector("#boardInfoCreatedAt"),
   boardInfoPadCounts: document.querySelector("#boardInfoPadCounts"),
   boardInfoMediaCounts: document.querySelector("#boardInfoMediaCounts"),
@@ -4381,7 +4382,8 @@ function renderBoardInfoSection() {
   const board = currentBoard();
   if (!board) return;
   if (els.boardInfoName) els.boardInfoName.textContent = board.name || "—";
-  if (els.boardInfoCreator && els.boardInfoCreator !== document.activeElement) els.boardInfoCreator.value = board.creator || "";
+  if (els.boardInfoCreator) els.boardInfoCreator.textContent = board.creator || "—";
+  if (els.boardCreator && els.boardCreator !== document.activeElement) els.boardCreator.value = board.creator || "";
   if (els.boardInfoCreatedAt) els.boardInfoCreatedAt.textContent = formatBoardCreatedAt(board.createdAt);
   if (els.boardInfoPadCounts) {
     const activeCount = state.pads.filter((pad) => !isEmptyPad(pad)).length;
@@ -5011,6 +5013,7 @@ async function boardNoticeHtml() {
   <p class="meta">Générée le ${escapeHtml(date)} avec Soundboard Live · vincent lainé (c) 2026.</p>
   <p class="meta">Version imprimée : ${escapeHtml(printedVersion)}.</p>
   <h2>Board</h2>
+  ${board.creator ? `<p>Créateur : ${escapeHtml(board.creator)}</p>` : ""}
   <p>Ce board contient ${board.padCount} pad${board.padCount > 1 ? "s" : ""} et ${soundCount} son${soundCount > 1 ? "s" : ""} différent${soundCount > 1 ? "s" : ""}. ${escapeHtml(boardAudioNotice())}.</p>
   <h2>Versions</h2>
   ${versionRows.length ? `
@@ -16518,11 +16521,12 @@ async function init() {
   });
   els.openAppNotice?.addEventListener("click", openAppNoticePdf);
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
-  els.boardInfoCreator?.addEventListener("change", () => {
+  els.boardCreator?.addEventListener("change", () => {
     const board = currentBoard();
     if (!board) return;
-    board.creator = els.boardInfoCreator.value.trim();
+    board.creator = els.boardCreator.value.trim();
     saveBoards();
+    if (els.boardInfoCreator) els.boardInfoCreator.textContent = board.creator || "—";
   });
   els.addPad?.addEventListener("click", addPad);
   els.exportBoardAudioOnly?.addEventListener("click", () => {
@@ -17825,14 +17829,40 @@ function refreshPadCompactnessRange() {
   if (!els.padCompactness) return;
   const width = currentPadWidth();
   if (!width) return;
-  els.padCompactness.min = String(width);
+  // Plancher de compacité = hauteur RÉELLE du contenu du pad le plus haut. Le
+  // min-content utilisé par `grid-auto-rows: minmax(auto, …)` sous-estime cette
+  // hauteur (rangées de boutons / sliders compressibles) : une compacité trop
+  // forte rend alors la rangée plus courte que le contenu et les boutons du bas
+  // débordent sous le pad suivant (surtout mobile portrait). On force une
+  // compaction maximale (1px), on lit scrollHeight — qui révèle la hauteur
+  // réellement nécessaire — puis on restaure. Lecture synchrone : pas de repaint,
+  // donc pas de scintillement.
+  const root = document.documentElement;
+  const pads = document.querySelectorAll(".pads .pad");
+  let floor = width;
+  if (pads.length) {
+    const prev = root.style.getPropertyValue("--pad-compact-height");
+    root.style.setProperty("--pad-compact-height", "1px");
+    let contentH = 0;
+    let padBottom = 0;
+    pads.forEach((p) => {
+      const h = p.scrollHeight;
+      if (h > contentH) { contentH = h; padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0; }
+    });
+    if (prev) root.style.setProperty("--pad-compact-height", prev);
+    else root.style.removeProperty("--pad-compact-height");
+    // scrollHeight ne compte pas le padding-bottom quand le contenu déborde : on
+    // le rajoute (au moins 6px) pour garder une marge minimale entre le bas des
+    // boutons et la bordure inférieure du pad à compacité maximale.
+    floor = Math.max(width, Math.ceil(contentH) + Math.max(Math.round(padBottom), 6));
+  }
+  els.padCompactness.min = String(floor);
   // Max ≥ min + une marge, sinon un pad large (peu de colonnes) rendrait le
   // range invalide (min > max). À fond, minmax(auto, grande valeur) ≈ pas de
   // compactage, donc élargir le max est sans effet indésirable.
-  els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, width + 60));
-  // Le curseur ne doit pas dépasser sa valeur courante mémorisée : on
-  // réapplique simplement la valeur actuelle, applyPadCompactness se charge
-  // de la re-clamper si le nouveau minimum (largeur) la dépasse désormais.
+  els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, floor + 60));
+  // Réapplique la valeur courante : applyPadCompactness la re-clampe si le
+  // nouveau minimum (plancher) la dépasse désormais.
   applyPadCompactness(els.padCompactness.value, false);
 }
 

@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=643">
+    <link rel="stylesheet" href="styles.css?v=644">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -88,7 +88,7 @@
             <div id="boardInfoSectionBody" class="board-info-section-body" hidden>
               <dl class="board-info-grid">
                 <dt>Nom</dt><dd id="boardInfoName">—</dd>
-                <dt>Créateur</dt><dd><input id="boardInfoCreator" type="text" class="board-info-creator-input" placeholder="—" aria-label="Créateur du board"></dd>
+                <dt>Créateur</dt><dd id="boardInfoCreator">—</dd>
                 <dt>Créé le</dt><dd id="boardInfoCreatedAt">—</dd>
                 <dt>Pads actifs / vides</dt><dd id="boardInfoPadCounts">—</dd>
                 <dt>Sons / vidéos / textes</dt><dd id="boardInfoMediaCounts">—</dd>
@@ -149,6 +149,10 @@
               <label class="board-name">
                 <span>Nom</span>
                 <input id="boardName" type="text" maxlength="48">
+              </label>
+              <label class="board-name">
+                <span>Créateur</span>
+                <input id="boardCreator" type="text" maxlength="48" placeholder="—">
               </label>
               <div class="board-center-actions">
                 <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
@@ -2675,7 +2679,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=643"></script>
+    <script src="app.js?v=644"></script>
 
 
   </body>
