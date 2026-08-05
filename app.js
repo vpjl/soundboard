@@ -11624,6 +11624,7 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
     pad.visualPreviewEl?.style.removeProperty("background-image");
   }
   fitPadTitle(pad);
+  syncAllPadMinHeightsSoon();
 }
 
 function setPadColor(pad, color) {
@@ -17829,41 +17830,45 @@ function refreshPadCompactnessRange() {
   if (!els.padCompactness) return;
   const width = currentPadWidth();
   if (!width) return;
-  // Plancher de compacité = hauteur RÉELLE du contenu du pad le plus haut. Le
-  // min-content utilisé par `grid-auto-rows: minmax(auto, …)` sous-estime cette
-  // hauteur (rangées de boutons / sliders compressibles) : une compacité trop
-  // forte rend alors la rangée plus courte que le contenu et les boutons du bas
-  // débordent sous le pad suivant (surtout mobile portrait). On force une
-  // compaction maximale (1px), on lit scrollHeight — qui révèle la hauteur
-  // réellement nécessaire — puis on restaure. Lecture synchrone : pas de repaint,
-  // donc pas de scintillement.
-  const root = document.documentElement;
-  const pads = document.querySelectorAll(".pads .pad");
-  let floor = width;
-  if (pads.length) {
-    const prev = root.style.getPropertyValue("--pad-compact-height");
-    root.style.setProperty("--pad-compact-height", "1px");
-    let contentH = 0;
-    let padBottom = 0;
-    pads.forEach((p) => {
-      const h = p.scrollHeight;
-      if (h > contentH) { contentH = h; padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0; }
-    });
-    if (prev) root.style.setProperty("--pad-compact-height", prev);
-    else root.style.removeProperty("--pad-compact-height");
-    // scrollHeight ne compte pas le padding-bottom quand le contenu déborde : on
-    // le rajoute (au moins 6px) pour garder une marge minimale entre le bas des
-    // boutons et la bordure inférieure du pad à compacité maximale.
-    floor = Math.max(width, Math.ceil(contentH) + Math.max(Math.round(padBottom), 6));
-  }
-  els.padCompactness.min = String(floor);
-  // Max ≥ min + une marge, sinon un pad large (peu de colonnes) rendrait le
-  // range invalide (min > max). À fond, minmax(auto, grande valeur) ≈ pas de
-  // compactage, donc élargir le max est sans effet indésirable.
-  els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, floor + 60));
-  // Réapplique la valeur courante : applyPadCompactness la re-clampe si le
-  // nouveau minimum (plancher) la dépasse désormais.
+  // Minimum du curseur = largeur du pad (format carré). PAS de plancher global :
+  // chaque pad porte son propre min-height (cf. syncAllPadMinHeights), pour que la
+  // grille n'agrandisse QUE les rangées contenant un pad haut (boutons visibles),
+  // sans empêcher les pads illustrés d'être carrés ni bloquer le retour au carré.
+  els.padCompactness.min = String(width);
+  els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, width + 60));
   applyPadCompactness(els.padCompactness.value, false);
+  syncAllPadMinHeightsSoon();
+}
+
+let padMinHeightFrame = 0;
+function syncAllPadMinHeightsSoon() {
+  if (padMinHeightFrame) cancelAnimationFrame(padMinHeightFrame);
+  padMinHeightFrame = requestAnimationFrame(() => { padMinHeightFrame = 0; syncAllPadMinHeights(); });
+}
+
+// Pose sur CHAQUE pad un min-height = sa hauteur de contenu réelle, mesurée en
+// forçant brièvement la compaction maximale (1px) : scrollHeight révèle alors la
+// hauteur incompressible que le min-content de la grille sous-estime (rangées de
+// boutons / sliders compressibles). Ainsi `grid-auto-rows: minmax(auto, X)`
+// agrandit chaque rangée juste ce qu'il faut pour SON pad le plus haut — un pad
+// illustré reste carré, un pad qui montre ses boutons agrandit sa rangée — et le
+// curseur peut redescendre au carré sans plancher global. On rajoute le
+// padding-bottom (≥6px) car scrollHeight ne le compte pas quand le contenu
+// déborde, pour garder une marge basse. Lecture synchrone : pas de repaint.
+function syncAllPadMinHeights() {
+  const root = document.documentElement;
+  const pads = [...document.querySelectorAll(".pads .pad")];
+  if (!pads.length) return;
+  const prev = root.style.getPropertyValue("--pad-compact-height");
+  pads.forEach((p) => p.style.removeProperty("min-height"));
+  root.style.setProperty("--pad-compact-height", "1px");
+  const measures = pads.map((p) => {
+    const padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0;
+    return Math.ceil(p.scrollHeight) + Math.max(Math.round(padBottom), 6);
+  });
+  if (prev) root.style.setProperty("--pad-compact-height", prev);
+  else root.style.removeProperty("--pad-compact-height");
+  pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
 }
 
 if (els.padCompactness) {
