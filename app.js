@@ -587,7 +587,6 @@ const els = {
   movePadToBoard: document.querySelector("#movePadToBoard"),
   cancelPadTransfer: document.querySelector("#cancelPadTransfer"),
   saveVersion: document.querySelector("#saveVersion"),
-  restoreVersion: document.querySelector("#restoreVersion"),
   renameVersion: document.querySelector("#renameVersion"),
   archiveVersion: document.querySelector("#archiveVersion"),
   deleteVersion: document.querySelector("#deleteVersion"),
@@ -7428,7 +7427,7 @@ function syncVersionButtons(history = null) {
   const snapshot = snapshots.find((item) => item.id === selectedId);
   const hasSelection = Boolean(snapshot);
   const hasNotes = Boolean(String(snapshot?.notes || "").trim());
-  [els.restoreVersion, els.renameVersion, els.archiveVersion, els.deleteVersion].forEach((button) => {
+  [els.renameVersion, els.archiveVersion, els.deleteVersion].forEach((button) => {
     if (!button) return;
     button.disabled = !hasSelection;
     button.classList.toggle("is-disabled", !hasSelection);
@@ -7556,7 +7555,7 @@ async function restoreSelectedBoardVersion() {
   }
 
   const selectedLabel = els.versionSelect?.selectedOptions?.[0]?.textContent || versionOptionLabel(snapshot, history.indexOf(snapshot));
-  if (!window.confirm(`Restaurer "${board.name}" depuis ${selectedLabel} ?`)) return;
+  if (!window.confirm(`Restaurer la version sélectionnée ?\n\n${selectedLabel} remplacera l'état actuel de "${board.name}".`)) return;
 
   // "Versions" vit desormais dans le garage : rester en garage apres la
   // restauration plutot que de basculer en Studio (comme le reset board).
@@ -16469,7 +16468,6 @@ async function init() {
     }
   });
   bindSafeActionButton(els.saveVersion, () => saveBoardVersion().catch(() => setStatus("Sauvegarde impossible")));
-  bindSafeActionButton(els.restoreVersion, () => restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible")));
   els.renameVersion?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -16490,7 +16488,11 @@ async function init() {
   });
   bindSafeActionButton(els.deleteVersion, () => deleteSelectedBoardVersion().catch(() => setStatus("Suppression version impossible")));
   els.versionSelect?.addEventListener("change", () => {
-    selectedVersionSnapshot()
+    const restoring = els.versionSelect.value
+      ? restoreSelectedBoardVersion().catch(() => setStatus("Restauration impossible"))
+      : Promise.resolve();
+    restoring
+      .then(() => selectedVersionSnapshot())
       .then(({ history }) => syncVersionButtons(history))
       .catch(() => syncVersionButtons([]));
   });
