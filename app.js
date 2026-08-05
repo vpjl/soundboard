@@ -2605,6 +2605,7 @@ function normalizeBoard(board, fallbackName = "Projet") {
   return {
     id: board?.id || createId(),
     name: board?.name || fallbackName,
+    creator: typeof board?.creator === "string" ? board.creator : "",
     createdAt: board?.createdAt || new Date().toISOString(),
     padCount: Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT),
     masterVolume: clamp01(board?.masterVolume),
@@ -7091,6 +7092,7 @@ async function createBoardSnapshot(board, options = {}) {
     lightweight: !includeMedia,
     board: {
       name: board.name,
+      creator: board.creator || "",
       padCount: board.padCount,
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
       layoutMode: board.layoutMode || "auto",
@@ -7123,6 +7125,7 @@ async function applyBoardSnapshot(snapshot, options = {}) {
     if (uid) preservedAudioByUid.set(uid, record);
   }
   board.name = snapshot.board?.name || board.name;
+  board.creator = snapshot.board?.creator ?? board.creator ?? "";
   board.padCount = Math.max(1, Number(snapshot.board?.padCount) || DEFAULT_PAD_COUNT);
   board.masterVolume = clamp01(snapshot.board?.masterVolume);
   board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
@@ -7816,6 +7819,7 @@ async function importBoardFile(file) {
   const importedBoard = normalizeBoard({
     id: createId(),
     name: payload.board.name || cleanName(file.name),
+    creator: payload.board.creator || "",
     padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT, maxImportedIndex + 1),
     masterVolume: clamp01(payload.board.masterVolume),
     layoutMode: payload.board.layoutMode,
