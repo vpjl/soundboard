@@ -595,8 +595,11 @@ const els = {
   addBoard: document.querySelector("#addBoard"),
   duplicateBoard: document.querySelector("#duplicateBoard"),
   addPad: document.querySelector("#addPad"),
-  exportBoardAudioOnly: document.querySelector("#exportBoardAudioOnly"),
-  exportBoardLite: document.querySelector("#exportBoardLite"),
+  exportBoard: document.querySelector("#exportBoard"),
+  exportBoardDialog: document.querySelector("#exportBoardDialog"),
+  exportBoardSettingsOnly: document.querySelector("#exportBoardSettingsOnly"),
+  exportBoardWithAudio: document.querySelector("#exportBoardWithAudio"),
+  cancelExportBoard: document.querySelector("#cancelExportBoard"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
@@ -934,6 +937,7 @@ function closeOpenDialogFromEscape() {
     } },
     { dialog: els.bulkEditDialog },
     { dialog: els.patchBayDialog },
+    { dialog: els.exportBoardDialog },
     { dialog: els.cancelEditDialog },
     { dialog: els.helpDialog },
   ];
@@ -16536,16 +16540,25 @@ async function init() {
     if (els.boardInfoCreator) els.boardInfoCreator.textContent = board.creator || "—";
   });
   els.addPad?.addEventListener("click", addPad);
-  els.exportBoardAudioOnly?.addEventListener("click", () => {
+  els.exportBoard?.addEventListener("click", () => {
     // Un export est une action de lecture seule : rester dans le mode courant
     // (pas de setBoardPadEditing ici, cf. "ne pas changer de mode après une
     // action dans un mode").
+    if (els.exportBoardDialog?.showModal) els.exportBoardDialog.showModal();
+  });
+  els.exportBoardSettingsOnly?.addEventListener("click", () => {
+    els.exportBoardDialog?.close();
+    exportCurrentBoard("settings")
+      .catch(() => setStatus("Export sans audio impossible"));
+  });
+  els.exportBoardWithAudio?.addEventListener("click", () => {
+    els.exportBoardDialog?.close();
     exportCurrentBoard("audioOnly")
       .catch(() => setStatus("Export sons et réglages impossible"));
   });
-  els.exportBoardLite?.addEventListener("click", () => {
-    exportCurrentBoard("settings")
-      .catch(() => setStatus("Export sans audio impossible"));
+  els.cancelExportBoard?.addEventListener("click", () => els.exportBoardDialog?.close());
+  els.exportBoardDialog?.addEventListener("click", (event) => {
+    if (event.target === els.exportBoardDialog) els.exportBoardDialog.close();
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
   els.importBoardFile?.addEventListener("change", () => {
@@ -17266,6 +17279,7 @@ async function init() {
   });
   bindEscapeClose(els.helpDialog);
   bindEscapeClose(els.patchBayDialog);
+  bindEscapeClose(els.exportBoardDialog);
   bindEscapeClose(els.cancelEditDialog);
   bindEscapeClose(els.cueDialog, () => {
     clearCueDialogDraft();
