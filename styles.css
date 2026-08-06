@@ -1119,10 +1119,6 @@ body.board-edit-mode .live-tools {
   display: none;
 }
 
-.xfade-live-row .patch-bay-button {
-  display: grid;
-}
-
 body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
   display: grid;
 }
@@ -1510,11 +1506,8 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 }
 
 .master-audio-button {
-  grid-area: audio;
   width: 42px;
   height: 42px;
-  justify-self: start;
-  align-self: end;
 }
 
 .group-stop-control {
@@ -1534,18 +1527,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--color_ui_frame_background);
-  /* #masterHelp est en position:absolute, calé bottom:8px sur .master-strip
-     lui-même (pas sur une ligne de grille) : comme cette ligne devient le
-     nouveau bas du panneau, on réserve sa bande via une MARGE (pas un
-     padding) — la marge reste hors du cadre/fond du bloc, donc le bouton
-     Aide ne se retrouve plus visuellement "à l'intérieur" du bloc playlist. */
-  margin-bottom: calc(var(--master-corner-btn, 42px) + 12px);
-}
-
-/* En scène, les boutons Aide/Audio master (coin bas-droite en studio) sont
-   masqués : la marge réservée pour eux ci-dessus devient un vide inutile. */
-body.stage-mode .random-group-control {
-  margin-bottom: 0;
 }
 
 .random-group-section-toggle {
@@ -1668,17 +1649,37 @@ body.stage-mode .random-group-control {
   color: var(--color_ui_text);
 }
 
-.master-option-badges {
+/* Rangée regroupant les étiquettes d'options ET les boutons patchbay/audio/aide
+   master (auparavant flottants en position:absolute sur le coin bas-droite) :
+   tout tient désormais sur une seule ligne, en flux normal. */
+.master-corner-row {
   grid-area: badges;
-  grid-column: 1 / -1; /* étiquettes d'options alignées au bord gauche du bloc (studio + scène) */
+  grid-column: 1 / -1; /* aligné au bord gauche du bloc (studio + scène) */
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.master-corner-buttons {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.master-option-badges {
+  flex: 1 1 auto;
+  min-width: 0;
   align-self: end;
   flex-wrap: nowrap;
   justify-content: flex-start;
   overflow: hidden;
 }
 
-/* Bande basse réservée aux boutons absolus du coin (aide / audio master, bottom:8px) :
-   cette 4e rangée porte leur hauteur. Sans elle ils remontent et chevauchent STOP GROUPÉ.
+/* Bande basse réservée à la hauteur des boutons du coin (aide / audio master) :
+   sans elle la rangée remonte et chevauche STOP GROUPÉ quand les étiquettes sont vides.
    La réserve est calculée depuis la taille réelle des boutons (54px en portrait).
    Sélecteurs volontairement PLUS SPÉCIFIQUES que `.option-badges { min-height: 20px }` et
    `.option-badges:empty { display: none }` : ces deux règles sont plus bas dans le fichier
@@ -7504,7 +7505,6 @@ body.stage-mode .secondary-live-group {
     backdrop-filter: blur(10px);
   }
 
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .patch-bay-button,
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
   body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
     display: none !important;
@@ -8519,10 +8519,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 /* Aides contextuelles */
-.master-strip {
-  position: relative;
-}
-
 .master-help-button,
 .master-audio-help-button,
 .cues-help-button {
@@ -8533,24 +8529,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   border-color: var(--color_ui_help_border);
   background: var(--color_ui_help_background);
   color: var(--color_ui_help);
-  z-index: 3;
-}
-
-.master-help-button {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-}
-
-/* Studio : bouton « audio master » collé à gauche du bouton aide (coin bas-droite),
-   ce qui libère aussi le bord gauche pour les étiquettes d'options. En scène il est
-   masqué et en garage le strip entier est caché, donc on ne cible que le studio. */
-body:not(.stage-mode):not(.board-edit-mode) .master-audio-button {
-  grid-column: auto;
-  grid-row: auto;
-  position: absolute;
-  right: 58px; /* 8 (aide) + 42 (largeur aide) + 8 (écart) */
-  bottom: 8px;
   z-index: 3;
 }
 
@@ -9644,6 +9622,7 @@ body.stage-mode #boardName:focus {
 
 .skin-editor-preview .master-audio-button,
 .skin-editor-preview .master-help-button,
+.skin-editor-preview .patch-bay-button,
 .skin-editor-preview .master-output-name,
 .skin-editor-preview .master-vu {
   display: none;

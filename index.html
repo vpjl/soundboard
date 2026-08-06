@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=649">
+    <link rel="stylesheet" href="styles.css?v=651">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -395,18 +395,6 @@
               <span id="masterInputName" class="master-output-name master-input-line">Entrée : aucune</span>
             </div>
           </div>
-          <button id="masterAudio" class="icon-button master-audio-button" type="button" aria-label="Audio master">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-              <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </button>
-          <button id="masterHelp" class="icon-button help-button master-help-button" type="button" aria-label="Aide Master">
-            <svg viewBox="6 5 12 15" aria-hidden="true">
-              <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
           <label class="master-control group-stop-control">
             <span>Stop groupé</span>
             <span class="group-stop-row">
@@ -452,7 +440,31 @@
               </label>
             </div>
           </div>
-          <div id="masterOptionBadges" class="option-badges master-option-badges" aria-label="Options master"></div>
+          <div class="master-corner-row">
+            <div id="masterOptionBadges" class="option-badges master-option-badges" aria-label="Options master"></div>
+            <div class="master-corner-buttons">
+              <button id="patchBay" class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="masterAudio" class="icon-button master-audio-button" type="button" aria-label="Audio master">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+              <button id="masterHelp" class="icon-button help-button master-help-button" type="button" aria-label="Aide Master">
+                <svg viewBox="6 5 12 15" aria-hidden="true">
+                  <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
           <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
             <span>Stop global</span>
             <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
@@ -502,14 +514,6 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button id="patchBay" class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
             <button id="cuesHelp" class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade">
@@ -2444,6 +2448,14 @@
                       <span class="master-output-name master-output-line" data-skin-variable="--color_ui_text_muted">Sortie sono : par défaut</span>
                     </div>
                   </div>
+                  <button class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade" data-skin-variable="--color_ui_panel_secondary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
+                      <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                      <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                      <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  </button>
                   <button class="icon-button master-audio-button" type="button" aria-label="Audio master" data-skin-variable="--color_ui_panel_secondary">
                     <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
                       <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -2493,14 +2505,6 @@
                       <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
                         <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                        <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                       </svg>
                     </button>
                     <button class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade" data-skin-variable="--color_ui_help_background">
@@ -2673,7 +2677,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=649"></script>
+    <script src="app.js?v=651"></script>
 
 
   </body>
