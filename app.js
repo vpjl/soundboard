@@ -17344,7 +17344,20 @@ function shouldUseServiceWorker() {
 
 if ("serviceWorker" in navigator && window.isSecureContext && shouldUseServiceWorker()) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    // updateViaCache:"none" force le navigateur à revérifier service-worker.js sur le
+    // réseau (jamais via son cache HTTP) : sans ça, un CDN/cache intermédiaire peut
+    // continuer à servir l'ancien fichier et le SW ne voit jamais la mise à jour.
+    // L'appel .update() au retour au premier plan couvre le cas mobile/PWA où l'appli
+    // reprend depuis l'arrière-plan sans jamais refaire un "load" (donc sans jamais
+    // relancer register() ni la vérif d'update automatique du navigateur).
+    navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" })
+      .then((registration) => {
+        registration.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") registration.update().catch(() => {});
+        });
+      })
+      .catch(() => {});
   });
 } else if ("serviceWorker" in navigator && !shouldUseServiceWorker()) {
   navigator.serviceWorker.getRegistrations?.()
