@@ -1673,7 +1673,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   flex: 1 1 auto;
   min-width: 0;
   align-self: end;
-  flex-wrap: nowrap;
   justify-content: flex-start;
   overflow: hidden;
 }
@@ -1681,10 +1680,14 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 /* Bande basse réservée à la hauteur des boutons du coin (aide / audio master) :
    sans elle la rangée remonte et chevauche STOP GROUPÉ quand les étiquettes sont vides.
    La réserve est calculée depuis la taille réelle des boutons (54px en portrait).
-   Sélecteurs volontairement PLUS SPÉCIFIQUES que `.option-badges { min-height: 20px }` et
-   `.option-badges:empty { display: none }` : ces deux règles sont plus bas dans le fichier
-   et l'emporteraient à spécificité égale. */
+   `flex-wrap` est ici et pas dans le bloc au-dessus : sur une seule ligne, les étiquettes
+   qui passeraient à la ligne en écran étroit grandiraient la rangée et pousseraient les
+   boutons du coin sous les étiquettes (elles sont tronquées par overflow:hidden à la place).
+   Sélecteurs volontairement PLUS SPÉCIFIQUES que `.option-badges { flex-wrap: wrap }`,
+   `{ min-height: 20px }` et `:empty { display: none }` : ces règles sont plus bas dans le
+   fichier et l'emporteraient à spécificité égale. */
 .master-strip .master-option-badges {
+  flex-wrap: nowrap;
   min-height: calc(var(--master-corner-btn, 42px) + 8px);
 }
 
@@ -7108,6 +7111,30 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .controls span {
     font-size: 0.62rem;
+  }
+}
+
+/* 561–900px : `@media (max-width: 900px)` a déjà repassé la topbar à UNE colonne (1fr),
+   mais `@media (min-width: 561px) and (max-width: 950px)`, plus bas dans le fichier,
+   continue d'envoyer le master en `grid-column: 2` (avec width:100% / min-width:0). Cette
+   2e colonne n'étant plus qu'implicite, elle s'écrase à ~0 dès que les cues sont actives :
+   syncFloatingCueFrame impose alors au bloc cues la largeur des pads, qui remplit à elle
+   seule la colonne 1fr. Résultat mesuré à 800px : master réduit à 14px et rejeté à x=810,
+   donc hors de l'écran. On rétablit ici l'empilement une colonne board(2)/master(3)/cues(4),
+   celui déjà utilisé sous 560px. La ligne 4 doit être réaffirmée car le bloc
+   `@media (max-width: 950px), (pointer: coarse)` ci-dessus remet .live-tools en ligne 3. */
+@media (min-width: 561px) and (max-width: 900px) {
+  .master-strip,
+  body.stage-mode .master-strip {
+    grid-column: 1;
+    grid-row: 3;
+    width: fit-content;
+    justify-self: end;
+  }
+
+  .live-tools,
+  body.stage-mode .live-tools {
+    grid-row: 4;
   }
 }
 
