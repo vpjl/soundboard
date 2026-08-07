@@ -197,6 +197,8 @@ const state = {
   recordingWaveformFrame: null,
   armingRecordPad: null,
   recordingElapsedTimer: null,
+  micWarmStream: null,
+  micWarmPromise: null,
   selectedMicrophoneId: "",
   selectedMicrophoneLabel: "",
   drag: null,
@@ -1796,6 +1798,7 @@ function forgetSelectedMicrophone() {
   persistMicrophoneSelection();
   syncMicrophoneSelectValues();
   updateMasterInputLabel();
+  releaseMicWarm(); // le flux pré-branché pointait sur la source qu'on oublie
   updateRecordingUi();
 }
 
@@ -1893,6 +1896,8 @@ async function selectMicrophoneFromDialog() {
   }
   state.selectedMicrophoneId = select.value;
   state.selectedMicrophoneLabel = option?.textContent || "micro sélectionné";
+  releaseMicWarm();            // l'ancien flux visait une autre source
+  ensureMicWarm().catch(() => {}); // branche la nouvelle sans attendre le clic
   persistMicrophoneSelection();
   syncMicrophoneSelectValues();
   updateMasterInputLabel();
@@ -1907,6 +1912,8 @@ function selectMicrophoneFromMaster() {
   const option = select?.selectedOptions?.[0];
   state.selectedMicrophoneId = select?.value || "";
   state.selectedMicrophoneLabel = state.selectedMicrophoneId ? (option?.textContent || "micro sélectionné") : "";
+  releaseMicWarm();
+  if (state.selectedMicrophoneId) ensureMicWarm().catch(() => {});
   persistMicrophoneSelection();
   syncMicrophoneSelectValues();
   updateMasterInputLabel();
@@ -1920,24 +1927,72 @@ function microphoneConstraints() {
     : { audio: true };
 }
 
+// ——— Micro pré-branché ———————————————————————————————————————————————
+// L'ouverture du périphérique (getUserMedia) coûte de quelques centaines de ms à
+// plus d'une seconde : tant qu'elle avait lieu APRÈS le clic, tout enregistrement
+// commençait en retard, avec un blanc en tête de la forme d'onde. On ouvre donc le
+// flux À L'AVANCE et on le garde chaud ; le clic n'a alors plus qu'à démarrer le
+// MediaRecorder sur un flux déjà vivant, donc sans délai.
+// C'est ce qui donne son sens au vert : « prêt à enregistrer immédiatement », et
+// non plus seulement « un micro est choisi ».
+function micWarmIsLive() {
+  return Boolean(state.micWarmStream?.getAudioTracks?.().some((track) => track.readyState === "live"));
+}
+
+function ensureMicWarm() {
+  if (!state.selectedMicrophoneId) return Promise.resolve(null);
+  if (micWarmIsLive()) return Promise.resolve(state.micWarmStream);
+  if (state.micWarmPromise) return state.micWarmPromise;
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return Promise.resolve(null);
+  state.micWarmPromise = navigator.mediaDevices.getUserMedia(microphoneConstraints())
+    .then((stream) => {
+      state.micWarmStream = stream;
+      state.micWarmPromise = null;
+      updateRecordingUi();
+      return stream;
+    })
+    .catch((error) => {
+      state.micWarmPromise = null;
+      state.micWarmStream = null;
+      updateRecordingUi();
+      throw error;
+    });
+  updateRecordingUi(); // orange : branchement en cours
+  return state.micWarmPromise;
+}
+
+// Libère le micro (et éteint le témoin d'enregistrement du système) — jamais
+// pendant une capture, qui s'appuie sur ce même flux.
+function releaseMicWarm() {
+  if (state.recordingPad) return;
+  state.micWarmStream?.getTracks().forEach((track) => track.stop());
+  state.micWarmStream = null;
+  updateRecordingUi();
+}
+
 function updateRecordingUi() {
-  // 4e état, transitoire : « armement ». getUserMedia peut mettre plusieurs
-  // centaines de ms (ouverture du périphérique, invite d'autorisation) — sans
-  // repère, le bouton restait vert puis virait au rouge sans prévenir, et on ne
-  // savait pas quand la capture commençait réellement. Le rouge n'est désormais
-  // posé que sur l'évènement "start" du MediaRecorder, c'est-à-dire au vrai départ.
-  const arming = state.armingRecordPad;
+  // Quatre états, du moins prêt au plus engagé :
+  //   pointillé = aucun micro choisi
+  //   orange    = micro choisi mais pas encore branché (ouverture en cours)
+  //   vert      = flux ouvert : un clic démarre la capture SANS délai
+  //   rouge     = capture en cours (clignotant), posé sur l'évènement "start" du
+  //               MediaRecorder, seul instant où l'enregistrement démarre vraiment
+  const hasMic = Boolean(state.selectedMicrophoneId);
+  const ready = hasMic && micWarmIsLive();
+  const connecting = hasMic && !ready;
   state.pads.forEach((pad) => {
-    pad.recordButton?.classList.toggle("is-recording", state.recordingPad === pad);
-    pad.recordButton?.classList.toggle("is-mic-arming", arming === pad);
-    pad.recordButton?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && state.recordingPad !== pad && arming !== pad);
-    pad.recordButton?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && state.recordingPad !== pad && arming !== pad);
+    const recording = state.recordingPad === pad;
+    pad.recordButton?.classList.toggle("is-recording", recording);
+    pad.recordButton?.classList.toggle("is-mic-arming", !recording && connecting);
+    pad.recordButton?.classList.toggle("is-mic-ready", !recording && ready);
+    pad.recordButton?.classList.toggle("is-mic-unset", !recording && !hasMic);
   });
-  els.audioRecord?.classList.toggle("is-recording", Boolean(state.recordingPad));
-  els.audioRecord?.classList.toggle("is-mic-arming", Boolean(arming));
-  els.audioRecord?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && !state.recordingPad && !arming);
-  els.audioRecord?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && !state.recordingPad && !arming);
-  els.audioRecord?.setAttribute("aria-pressed", String(Boolean(state.recordingPad)));
+  const recordingNow = Boolean(state.recordingPad);
+  els.audioRecord?.classList.toggle("is-recording", recordingNow);
+  els.audioRecord?.classList.toggle("is-mic-arming", !recordingNow && connecting);
+  els.audioRecord?.classList.toggle("is-mic-ready", !recordingNow && ready);
+  els.audioRecord?.classList.toggle("is-mic-unset", !recordingNow && !hasMic);
+  els.audioRecord?.setAttribute("aria-pressed", String(recordingNow));
 }
 
 // Compteur du temps écoulé, rafraîchi 4x/s pendant l'enregistrement : rend le
@@ -9761,12 +9816,17 @@ async function toggleRecording(pad) {
   if (state.armingRecordPad) return;
 
   try {
-    // Retour visuel IMMÉDIAT : l'attente de getUserMedia ci-dessous est invisible
-    // (et parfois longue), le clic paraissait sans effet.
-    state.armingRecordPad = pad;
-    updateRecordingUi();
-    setStatus(`Ouverture du micro (${state.selectedMicrophoneLabel || "source sélectionnée"})…`, "progress");
-    const stream = await navigator.mediaDevices.getUserMedia(microphoneConstraints());
+    // Cas nominal (bouton vert) : le flux est déjà ouvert, on enchaîne sans await —
+    // aucun délai entre le clic et le début de la capture.
+    let stream = micWarmIsLive() ? state.micWarmStream : null;
+    if (!stream) {
+      // Micro pas encore branché : on l'indique (orange) puis on l'ouvre.
+      state.armingRecordPad = pad;
+      updateRecordingUi();
+      setStatus(`Branchement du micro (${state.selectedMicrophoneLabel || "source sélectionnée"})…`, "progress");
+      stream = await ensureMicWarm();
+      if (!stream) throw new Error("micro indisponible");
+    }
     const mimeType = bestRecordingType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
@@ -9901,7 +9961,12 @@ function drawRecordingWaveform(pad, data) {
 function resetRecordingState() {
   stopRecordingWaveform();
   stopRecordingElapsedTicker();
-  state.recordingStream?.getTracks().forEach((track) => track.stop());
+  // Le flux pré-branché est partagé et doit rester vivant : le couper ici
+  // rendrait le micro froid après chaque prise, et la suivante repartirait en
+  // retard. Seul un flux ouvert hors pré-branchement est refermé.
+  if (state.recordingStream && state.recordingStream !== state.micWarmStream) {
+    state.recordingStream.getTracks().forEach((track) => track.stop());
+  }
   state.recordingPad?.recordButton.classList.remove("is-recording");
   state.armingRecordPad?.recordButton?.classList.remove("is-mic-arming");
   state.armingRecordPad = null;
@@ -13006,6 +13071,9 @@ async function aeApply() {
 async function openAudioDialog(pad) {
   const perf = startPerfMeasure("openAudioDialog");
   state.audioPad = pad;
+  // Micro branché dès l'ouverture (le bouton d'enregistrement est ici) : il sera
+  // vert, donc réellement instantané, avant même que l'utilisateur ne le vise.
+  ensureMicWarm().catch(() => {});
   await ensureSpeechVoices();
   state.audioDraft = audioDraftFromPad(pad);
   state.audioMediaDraft = {
@@ -16076,6 +16144,16 @@ async function init() {
   refreshMicrophoneDevices(false).catch(() => {});
   navigator.mediaDevices?.addEventListener?.("devicechange", () => {
     refreshMicrophoneDevices(false).catch(() => {});
+    // Un débranchement tue le flux pré-branché sans prévenir : on le relâche pour
+    // que le bouton retombe en orange plutôt que de mentir en restant vert.
+    if (!micWarmIsLive()) releaseMicWarm();
+  });
+  // Le micro pré-branché tient le témoin d'enregistrement du système allumé : on le
+  // relâche dès que l'application passe en arrière-plan, et on le rebranche au retour
+  // pour retrouver un départ instantané.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") releaseMicWarm();
+    else if (state.selectedMicrophoneId) ensureMicWarm().catch(() => {});
   });
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;

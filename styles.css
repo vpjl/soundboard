@@ -3254,11 +3254,21 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   height: 20px;
 }
 
+/* Capture en cours : rouge CLIGNOTANT, pour qu'on ne puisse pas confondre un
+   enregistrement qui tourne avec un bouton simplement prêt. */
 .record-button.is-recording,
 .icon-button.is-recording {
   border-color: var(--color_status_stop);
   background: color-mix(in srgb, var(--color_status_stop) 24%, transparent);
   color: var(--color_ui_text);
+  animation: micRecordingPulse 1s ease-in-out infinite;
+}
+
+@keyframes micRecordingPulse {
+  50% {
+    border-color: color-mix(in srgb, var(--color_status_stop) 35%, transparent);
+    background: transparent;
+  }
 }
 
 .record-button.is-mic-ready,
@@ -3273,26 +3283,19 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border-style: dashed;
 }
 
-/* État transitoire entre le clic et le vrai départ de la capture (ouverture du
-   périphérique par getUserMedia) : clignotement pour montrer que la demande est
-   prise en compte, sans laisser croire que ça enregistre déjà — le rouge fixe est
-   réservé à l'évènement "start" du MediaRecorder. */
+/* Micro choisi mais pas encore branché : orange FIXE. Le flux est ouvert à
+   l'avance (cf. ensureMicWarm), donc cet état ne dure normalement qu'un instant
+   après le choix de la source ou au retour au premier plan — le vert signifie
+   alors « départ immédiat », et non plus seulement « une source est choisie ». */
 .record-button.is-mic-arming,
 .icon-button.is-mic-arming {
   border-color: var(--color_status_progress);
   color: var(--color_status_progress);
-  animation: micArmingPulse 0.8s ease-in-out infinite;
-}
-
-@keyframes micArmingPulse {
-  50% {
-    opacity: 0.45;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .record-button.is-mic-arming,
-  .icon-button.is-mic-arming {
+  .record-button.is-recording,
+  .icon-button.is-recording {
     animation: none;
   }
 }
