@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=657">
+    <link rel="stylesheet" href="styles.css?v=658">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1394,7 +1394,7 @@
         <div class="audio-head">
           <div>
             <h2 id="audioTitle">Réglages audio du pad</h2>
-            <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span><span id="audioCueOutputName" class="audio-output-name">Sortie cue : par défaut</span></p>
+            <p><strong id="audioPadName">Pad</strong><span id="audioFilePath">Aucun fichier</span><span id="audioInputName" class="audio-output-name">Entrée micro : aucune</span><span id="audioCueOutputName" class="audio-output-name">Sortie cue : par défaut</span></p>
           </div>
           <div class="audio-head-actions">
             <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
@@ -2676,7 +2676,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=657"></script>
+    <script src="app.js?v=658"></script>
 
 
   </body>

@@ -398,6 +398,7 @@ const els = {
   cancelAudio: document.querySelector("#cancelAudio"),
   audioPadName: document.querySelector("#audioPadName"),
   audioFilePath: document.querySelector("#audioFilePath"),
+  audioInputName: document.querySelector("#audioInputName"),
   audioCueOutputName: document.querySelector("#audioCueOutputName"),
   audioTestPlay: document.querySelector("#audioTestPlay"),
   audioTestStop: document.querySelector("#audioTestStop"),
@@ -1142,11 +1143,15 @@ function formatBoardCreatedAt(createdAt) {
 }
 
 function updateMasterInputLabel() {
-  if (!els.masterInputName) return;
   const id = String(state.selectedMicrophoneId || "").trim();
   const hasExplicitMicrophone = Boolean(id && id !== "__default__");
   const label = hasExplicitMicrophone ? String(state.selectedMicrophoneLabel || "").trim() : "";
-  els.masterInputName.textContent = `Entrée : ${hasExplicitMicrophone && label ? label : "aucune"}`;
+  const name = hasExplicitMicrophone && label ? label : "aucune";
+  if (els.masterInputName) els.masterInputName.textContent = `Entrée : ${name}`;
+  // Même information dans les réglages audio du pad, juste au-dessus de la sortie
+  // cue : le bouton d'enregistrement est dans cette fenêtre, la source utilisée
+  // doit donc y être lisible sans ouvrir Audio master.
+  if (els.audioInputName) els.audioInputName.textContent = `Entrée micro : ${name}`;
 }
 
 function setPadTitle(pad, title, options = {}) {
@@ -12296,6 +12301,7 @@ function syncAudioDialog(pad = state.audioPad, options = {}) {
   updateAudioOptionBadges(pad);
   fillAudioCrossfadeControls(pad);
   syncAudioDialogMediaAvailability(pad);
+  syncAudioResetButton(pad);
   syncAudioTestPlayButton();
   if (options.renderWaveform !== false) renderAudioDialogWaveform(pad);
 }
@@ -13240,6 +13246,58 @@ function refreshPlayingPadOutput(pad) {
   if (!pad?.source || !state.audioContext) return;
   const offset = playbackOffset(pad);
   playPad(pad, false, offset, { skipStartCrossfade: true }).catch(() => setStatus("Réglage audio impossible"));
+}
+
+// Vrai quand le pad est déjà dans l'état que produirait un reset : sert à griser le
+// bouton plutôt qu'à proposer une action sans effet. Les valeurs comparées sont
+// exactement celles écrites par resetAudioDialogSettings ci-dessous — les deux
+// listes doivent évoluer ensemble.
+// Cas particulier du ducking : le reset écrit "global" alors qu'un pad neuf naît en
+// "none" (cf. création du pad). Comparer à "global" allumerait donc le bouton sur
+// tout pad vierge ; on ne considère le ducking comme réglé que dans le mode "pad",
+// le seul à porter des valeurs propres au pad (le champ pourcentage n'est d'ailleurs
+// affiché que dans ce mode).
+function padAudioSettingsAreDefault(pad) {
+  if (!pad) return true;
+  const textUntouched = !(pad.textMode || pad.textContent)
+    || (String(pad.textLang || "fr-FR") === "fr-FR"
+      && String(pad.textGender || "female") === "female"
+      && !pad.textVoiceURI
+      && normalizedTextRate(pad.textRate) === DEFAULT_TEXT_RATE);
+  return pad.fadeMode === "global"
+    && !pad.fadeInSeconds
+    && !pad.fadeOutSeconds
+    && Number(pad.pitchSemitones) === 0
+    && Number(pad.pitchFine) === 0
+    && pad.reverbMode === "global"
+    && pad.reverbPreset === "none"
+    && Number(pad.reverbWet) === 0.5
+    && pad.duckMode !== "pad"
+    && pad.eqMode === "global"
+    && Number(pad.eqLow) === 0
+    && Number(pad.eqMid) === 0
+    && Number(pad.eqHigh) === 0
+    && !pad.mono
+    && !pad.reverse
+    && pad.normalizeEnabled === true
+    && !pad.loop
+    && pad.startStopMode === "none"
+    && pad.endStartMode === "none"
+    && !Number(pad.trimStart)
+    && !Number(pad.trimEnd)
+    && !(pad.regions?.length)
+    && !(pad.envelope?.length)
+    && textUntouched;
+}
+
+function syncAudioResetButton(pad = state.audioPad) {
+  if (!els.audioReset) return;
+  const nothingToReset = padAudioSettingsAreDefault(pad);
+  els.audioReset.disabled = nothingToReset;
+  els.audioReset.classList.toggle("is-disabled", nothingToReset);
+  els.audioReset.title = nothingToReset
+    ? "Réglages audio déjà à zéro"
+    : "Réinitialiser les réglages audio de ce pad";
 }
 
 function resetAudioDialogSettings() {
@@ -16887,7 +16945,13 @@ async function init() {
     if (state.audioPad) toggleRecording(state.audioPad);
   });
   els.audioErase?.addEventListener("click", () => {
-    if (state.audioPad) clearAudioPadMedia(state.audioPad).catch(() => setStatus("Effacement impossible"));
+    const pad = state.audioPad;
+    if (!pad) return;
+    // Confirmation AVANT d'agir (window.confirm s'affiche au-dessus du dialogue) :
+    // l'effacement vide le pad de son média et ne peut pas être annulé.
+    const kind = { video: "La vidéo", text: "Le texte" }[padType(pad)] || "Le son";
+    if (!window.confirm(`Effacer le média de « ${pad.title} » ?\n\n${kind} et son découpage seront retirés, le pad redeviendra vide. Les réglages audio du pad sont conservés.`)) return;
+    clearAudioPadMedia(pad).catch(() => setStatus("Effacement impossible"));
   });
   els.audioImport?.addEventListener("click", () => {
     if (state.audioPad) state.audioPad.fileInput?.click();
