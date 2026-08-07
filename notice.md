@@ -68,7 +68,7 @@ Vue de performance en temps réel. Interface épurée pour la régie : déclench
 
 - ![#audioImport] **Importer un fichier audio** : charge un fichier audio local (mp3, wav, ogg…) dans le pad.
 - ![#audioVideoImport] **Importer un fichier vidéo** : charge un fichier vidéo local dans le pad.
-- ![#audioRecord] **Micro** : enregistre directement au microphone et assigne l'enregistrement au pad.
+- ![#audioRecord] **Micro** : enregistre directement au microphone et assigne l'enregistrement au pad (il remplace le son en place). Le contour de l'icône indique l'état : **pointillé** = aucun micro sélectionné, le clic ouvre la fenêtre de choix du micro, il faut ensuite recliquer sur l'icône pour lancer l'enregistrement ; **vert** = micro sélectionné, prêt à enregistrer ; **rouge** = enregistrement en cours, recliquer pour l'arrêter. Le micro choisi est mémorisé d'une session à l'autre et se change dans Audio master (Entrée micro). L'enregistrement exige une connexion HTTPS (ou localhost).
 - ![#audioTextImport] **Lecture de texte** : saisit ou importe un texte à lire (synthèse vocale ou affichage).
 
 ### Pad — Réglages audio

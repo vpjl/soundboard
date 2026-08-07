@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=656">
+    <link rel="stylesheet" href="styles.css?v=657">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1292,7 +1292,7 @@
                     <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
                     <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Enregistre au micro.</dd>
+                </dt><dd>Enregistre au micro, et assigne l'enregistrement au pad (il remplace le son en place). Le contour de l'icône indique l'état : <strong>pointillé</strong> = aucun micro sélectionné, le clic ouvre la fenêtre de choix du micro — il faut ensuite recliquer sur l'icône pour lancer l'enregistrement ; <strong>vert</strong> = micro sélectionné, prêt à enregistrer ; <strong>rouge</strong> = enregistrement en cours, recliquer pour l'arrêter. Le micro choisi est mémorisé d'une session à l'autre et se change dans Audio master (Entrée micro).</dd>
                 <dt aria-label="Importer un fichier audio">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M10 17V6l9-2v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2676,7 +2676,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=656"></script>
+    <script src="app.js?v=657"></script>
 
 
   </body>

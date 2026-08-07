@@ -197,7 +197,6 @@ const state = {
   recordingWaveformFrame: null,
   selectedMicrophoneId: "",
   selectedMicrophoneLabel: "",
-  pendingRecordingPad: null,
   drag: null,
   trimDrag: null,
   progressDrag: null,
@@ -1782,6 +1781,17 @@ function persistMicrophoneSelection() {
   }));
 }
 
+// Oubli de la source mémorisée : remet le bouton micro en pointillé (« aucun micro
+// sélectionné ») et resynchronise les deux sélecteurs (fenêtre micro + Audio master).
+function forgetSelectedMicrophone() {
+  state.selectedMicrophoneId = "";
+  state.selectedMicrophoneLabel = "";
+  persistMicrophoneSelection();
+  syncMicrophoneSelectValues();
+  updateMasterInputLabel();
+  updateRecordingUi();
+}
+
 function loadMicrophoneSelection() {
   try {
     const saved = JSON.parse(localStorage.getItem(MICROPHONE_STORAGE) || "{}");
@@ -1823,13 +1833,16 @@ async function refreshMicrophoneDevices(requestPermission = false) {
       });
       select.value = [...select.options].some((option) => option.value === current) ? current : "";
     });
-    if (state.selectedMicrophoneId && !availableInputIds.has(state.selectedMicrophoneId)) {
-      state.selectedMicrophoneId = "";
-      state.selectedMicrophoneLabel = "";
-      persistMicrophoneSelection();
-      syncMicrophoneSelectValues();
-      updateMasterInputLabel();
-      updateRecordingUi();
+    // Purge du micro mémorisé quand il a disparu (débranché, changé de port) —
+    // c'est ce qui fait repasser le bouton en pointillé au lieu de le laisser vert
+    // sur une source injoignable. Conditionnée à `idsReadable` : tant que
+    // l'autorisation micro n'est pas accordée, enumerateDevices() renvoie des
+    // entrées aux deviceId VIDES, donc aucune ne peut correspondre à
+    // l'identifiant mémorisé — purger là-dessus effacerait une sélection
+    // parfaitement valide (cas vécu à la simple ouverture d'Audio master).
+    const idsReadable = inputs.some((device) => Boolean(device.deviceId));
+    if (idsReadable && state.selectedMicrophoneId && !availableInputIds.has(state.selectedMicrophoneId)) {
+      forgetSelectedMicrophone();
     }
     if (els.microphoneSummary) {
       els.microphoneSummary.textContent = inputs.length
@@ -1851,8 +1864,7 @@ async function refreshMicrophoneDevices(requestPermission = false) {
   }
 }
 
-function openMicrophoneDialog(pad) {
-  state.pendingRecordingPad = pad;
+function openMicrophoneDialog() {
   if (els.microphoneSummary) {
     els.microphoneSummary.textContent = "Autoriser l’accès au micro, choisir une source, puis cliquer à nouveau sur l’icône micro pour enregistrer.";
   }
@@ -1868,12 +1880,7 @@ async function selectMicrophoneFromDialog() {
   const select = els.microphoneSelect;
   const option = select?.selectedOptions?.[0];
   if (!select?.value) {
-    state.selectedMicrophoneId = "";
-    state.selectedMicrophoneLabel = "";
-    persistMicrophoneSelection();
-    syncMicrophoneSelectValues();
-    updateMasterInputLabel();
-    updateRecordingUi();
+    forgetSelectedMicrophone();
     setStatus("Micro non sélectionné", "stop");
     return;
   }
@@ -9708,7 +9715,7 @@ async function toggleRecording(pad) {
   }
 
   if (!state.selectedMicrophoneId) {
-    openMicrophoneDialog(pad);
+    openMicrophoneDialog();
     return;
   }
 
@@ -9755,6 +9762,14 @@ async function toggleRecording(pad) {
       setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système", "stop");
     } else if (error?.name === "NotFoundError") {
       setStatus("Aucun micro detecte", "stop");
+    } else if (error?.name === "OverconstrainedError") {
+      // microphoneConstraints() demande le micro mémorisé en `exact` : s'il a été
+      // débranché, getUserMedia échoue ici au lieu de basculer sur un autre. On
+      // oublie la source devenue introuvable (bouton repassé en pointillé) et on
+      // rouvre le choix, plutôt que d'afficher un nom d'erreur technique.
+      forgetSelectedMicrophone();
+      setStatus("Micro introuvable (débranché ?) : choisir une autre source", "stop");
+      openMicrophoneDialog();
     } else {
       setStatus(`Erreur micro${error?.name ? `: ${error.name}` : ""}`);
     }
@@ -15947,6 +15962,16 @@ async function init() {
   state.db = await openDb();
   loadOutputSettings();
   loadMicrophoneSelection();
+  // Le micro mémorisé peut avoir disparu depuis la dernière session : on revérifie
+  // sa présence dès le lancement, puis à chaque branchement/débranchement, sinon le
+  // bouton reste vert (« prêt ») sur une source injoignable jusqu'à l'échec de
+  // l'enregistrement. Sans autorisation micro accordée, la purge ne s'applique pas
+  // (cf. idsReadable dans refreshMicrophoneDevices) — l'erreur est alors rattrapée
+  // au moment de l'enregistrement. En tâche de fond : ne doit pas retarder l'init.
+  refreshMicrophoneDevices(false).catch(() => {});
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+    refreshMicrophoneDevices(false).catch(() => {});
+  });
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
   }
@@ -16613,13 +16638,11 @@ async function init() {
     selectMicrophoneFromDialog().catch(() => setStatus("Sélection micro impossible"));
   });
   els.cancelMicrophone?.addEventListener("click", () => {
-    state.pendingRecordingPad = null;
     els.microphoneDialog?.close();
     setStatus("Micro non sélectionné");
   });
   els.microphoneDialog?.addEventListener("click", (event) => {
     if (event.target === els.microphoneDialog) {
-      state.pendingRecordingPad = null;
       els.microphoneDialog.close();
     }
   });
@@ -17292,9 +17315,7 @@ async function init() {
     state.folderImportFiles = [];
   });
   bindEscapeClose(els.audioLibraryDialog);
-  bindEscapeClose(els.microphoneDialog, () => {
-    state.pendingRecordingPad = null;
-  });
+  bindEscapeClose(els.microphoneDialog);
   bindEscapeClose(els.audioDialog, () => {
     stopAudioDialogStartedPlayback();
     restoreAudioDraft().catch(() => setStatus("Annulation audio impossible"));
