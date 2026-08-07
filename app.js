@@ -195,6 +195,8 @@ const state = {
   recordingAnalyser: null,
   recordingMeterData: null,
   recordingWaveformFrame: null,
+  armingRecordPad: null,
+  recordingElapsedTimer: null,
   selectedMicrophoneId: "",
   selectedMicrophoneLabel: "",
   drag: null,
@@ -1919,15 +1921,42 @@ function microphoneConstraints() {
 }
 
 function updateRecordingUi() {
+  // 4e état, transitoire : « armement ». getUserMedia peut mettre plusieurs
+  // centaines de ms (ouverture du périphérique, invite d'autorisation) — sans
+  // repère, le bouton restait vert puis virait au rouge sans prévenir, et on ne
+  // savait pas quand la capture commençait réellement. Le rouge n'est désormais
+  // posé que sur l'évènement "start" du MediaRecorder, c'est-à-dire au vrai départ.
+  const arming = state.armingRecordPad;
   state.pads.forEach((pad) => {
     pad.recordButton?.classList.toggle("is-recording", state.recordingPad === pad);
-    pad.recordButton?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && state.recordingPad !== pad);
-    pad.recordButton?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && state.recordingPad !== pad);
+    pad.recordButton?.classList.toggle("is-mic-arming", arming === pad);
+    pad.recordButton?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && state.recordingPad !== pad && arming !== pad);
+    pad.recordButton?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && state.recordingPad !== pad && arming !== pad);
   });
   els.audioRecord?.classList.toggle("is-recording", Boolean(state.recordingPad));
-  els.audioRecord?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && !state.recordingPad);
-  els.audioRecord?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && !state.recordingPad);
+  els.audioRecord?.classList.toggle("is-mic-arming", Boolean(arming));
+  els.audioRecord?.classList.toggle("is-mic-ready", Boolean(state.selectedMicrophoneId) && !state.recordingPad && !arming);
+  els.audioRecord?.classList.toggle("is-mic-unset", !state.selectedMicrophoneId && !state.recordingPad && !arming);
   els.audioRecord?.setAttribute("aria-pressed", String(Boolean(state.recordingPad)));
+}
+
+// Compteur du temps écoulé, rafraîchi 4x/s pendant l'enregistrement : rend le
+// départ (et la progression) sans ambiguïté, là où le seul changement de couleur
+// laissait un doute sur le moment exact où la capture démarre.
+function startRecordingElapsedTicker(pad) {
+  stopRecordingElapsedTicker();
+  const tick = () => {
+    if (state.recordingPad !== pad || !state.recordingStartedAt) return;
+    const seconds = Math.max(0, (performance.now() - state.recordingStartedAt) / 1000);
+    setStatus(`● Enregistrement ${formatTime(seconds)} — ${pad.title}`, "stop");
+  };
+  tick();
+  state.recordingElapsedTimer = window.setInterval(tick, 250);
+}
+
+function stopRecordingElapsedTicker() {
+  if (state.recordingElapsedTimer) window.clearInterval(state.recordingElapsedTimer);
+  state.recordingElapsedTimer = null;
 }
 
 function clampEqGain(value) {
@@ -2113,8 +2142,12 @@ function makePad(index) {
     volume: 0.85,
     panValue: 0,
     loop: false,
-    duckTrigger: false,
-    duckMode: "none",
+    // "global" (et non "none") pour coïncider avec ce qu'écrit le reset : un pad
+    // neuf est ainsi déjà dans son état réinitialisé, ce qui permet de griser le
+    // bouton reset (cf. padAudioSettingsAreDefault). duckTrigger suit la règle de
+    // setPadDuckMode : vrai dès que le mode n'est pas "none".
+    duckTrigger: true,
+    duckMode: "global",
     duckPercent: 60,
     reverse: false,
     muted: false,
@@ -9724,20 +9757,34 @@ async function toggleRecording(pad) {
     return;
   }
 
+  // Un second clic pendant l'ouverture du micro ne doit pas lancer une 2e capture.
+  if (state.armingRecordPad) return;
+
   try {
-    setStatus(`Micro: ${state.selectedMicrophoneLabel || "source sélectionnée"}`);
+    // Retour visuel IMMÉDIAT : l'attente de getUserMedia ci-dessous est invisible
+    // (et parfois longue), le clic paraissait sans effet.
+    state.armingRecordPad = pad;
+    updateRecordingUi();
+    setStatus(`Ouverture du micro (${state.selectedMicrophoneLabel || "source sélectionnée"})…`, "progress");
     const stream = await navigator.mediaDevices.getUserMedia(microphoneConstraints());
     const mimeType = bestRecordingType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
-    state.recordingPad = pad;
     state.recordingChunks = [];
     state.recordingStream = stream;
-    state.recordingStartedAt = performance.now();
+    state.recordingStartedAt = 0;
     state.recorder = recorder;
-    startRecordingWaveform(stream, pad);
-    updateRecordingUi();
-    setStatus(`● Enregistrement en cours: ${pad.title}`);
+
+    // Le rouge et le compteur ne sont posés qu'ici : "start" est le seul instant
+    // où la capture commence vraiment (recorder.start() ne fait que la demander).
+    recorder.addEventListener("start", () => {
+      state.armingRecordPad = null;
+      state.recordingPad = pad;
+      state.recordingStartedAt = performance.now();
+      startRecordingWaveform(stream, pad);
+      updateRecordingUi();
+      startRecordingElapsedTicker(pad);
+    });
 
     recorder.addEventListener("dataavailable", (event) => {
       if (event.data.size) state.recordingChunks.push(event.data);
@@ -9853,8 +9900,11 @@ function drawRecordingWaveform(pad, data) {
 
 function resetRecordingState() {
   stopRecordingWaveform();
+  stopRecordingElapsedTicker();
   state.recordingStream?.getTracks().forEach((track) => track.stop());
   state.recordingPad?.recordButton.classList.remove("is-recording");
+  state.armingRecordPad?.recordButton?.classList.remove("is-mic-arming");
+  state.armingRecordPad = null;
   state.recorder = null;
   state.recordingPad = null;
   state.recordingChunks = [];
@@ -13252,11 +13302,8 @@ function refreshPlayingPadOutput(pad) {
 // bouton plutôt qu'à proposer une action sans effet. Les valeurs comparées sont
 // exactement celles écrites par resetAudioDialogSettings ci-dessous — les deux
 // listes doivent évoluer ensemble.
-// Cas particulier du ducking : le reset écrit "global" alors qu'un pad neuf naît en
-// "none" (cf. création du pad). Comparer à "global" allumerait donc le bouton sur
-// tout pad vierge ; on ne considère le ducking comme réglé que dans le mode "pad",
-// le seul à porter des valeurs propres au pad (le champ pourcentage n'est d'ailleurs
-// affiché que dans ce mode).
+// Le pourcentage de ducking n'est pas comparé : il n'a d'effet (et n'est affiché)
+// qu'en mode "pad", lequel suffit déjà à considérer le réglage comme personnalisé.
 function padAudioSettingsAreDefault(pad) {
   if (!pad) return true;
   const textUntouched = !(pad.textMode || pad.textContent)
@@ -13272,7 +13319,7 @@ function padAudioSettingsAreDefault(pad) {
     && pad.reverbMode === "global"
     && pad.reverbPreset === "none"
     && Number(pad.reverbWet) === 0.5
-    && pad.duckMode !== "pad"
+    && pad.duckMode === "global"
     && pad.eqMode === "global"
     && Number(pad.eqLow) === 0
     && Number(pad.eqMid) === 0

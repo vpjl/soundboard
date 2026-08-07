@@ -3273,6 +3273,30 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border-style: dashed;
 }
 
+/* État transitoire entre le clic et le vrai départ de la capture (ouverture du
+   périphérique par getUserMedia) : clignotement pour montrer que la demande est
+   prise en compte, sans laisser croire que ça enregistre déjà — le rouge fixe est
+   réservé à l'évènement "start" du MediaRecorder. */
+.record-button.is-mic-arming,
+.icon-button.is-mic-arming {
+  border-color: var(--color_status_progress);
+  color: var(--color_status_progress);
+  animation: micArmingPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes micArmingPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-button.is-mic-arming,
+  .icon-button.is-mic-arming {
+    animation: none;
+  }
+}
+
 .control-group button {
   display: grid;
   place-items: center;
