@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=661">
+    <link rel="stylesheet" href="styles.css?v=662">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2192,7 +2192,7 @@
         <div class="help-head">
           <div>
             <h2 id="microphoneTitle">Micro</h2>
-            <p id="microphoneSummary">Autoriser l’accès au micro, choisir une source, puis cliquer à nouveau sur l’icône micro pour enregistrer.</p>
+            <p id="microphoneSummary">Recherche des micros…</p>
           </div>
         </div>
         <label class="microphone-select-row">
@@ -2202,7 +2202,7 @@
           </select>
         </label>
         <div class="dialog-actions">
-          <button id="refreshMicrophones" class="small-button" type="button">Autoriser / actualiser</button>
+          <button id="refreshMicrophones" class="small-button" type="button" hidden>Réessayer</button>
           <button id="applyMicrophone" class="small-button" type="button">Sélectionner</button>
           <button id="cancelMicrophone" class="small-button" type="button">Annuler</button>
         </div>
@@ -2686,7 +2686,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=661"></script>
+    <script src="app.js?v=662"></script>
 
 
   </body>

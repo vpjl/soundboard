@@ -1778,6 +1778,10 @@ function microphoneSelects() {
   return [els.microphoneSelect, els.masterMicrophoneSelect].filter(Boolean);
 }
 
+function setMicrophoneRefreshButtonVisible(visible) {
+  if (els.refreshMicrophones) els.refreshMicrophones.hidden = !visible;
+}
+
 function syncMicrophoneSelectValues() {
   microphoneSelects().forEach((select) => {
     const value = state.selectedMicrophoneId || "";
@@ -1862,6 +1866,10 @@ async function refreshMicrophoneDevices(requestPermission = false) {
     if (idsReadable && state.selectedMicrophoneId && !availableInputIds.has(state.selectedMicrophoneId)) {
       forgetSelectedMicrophone();
     }
+    // L'autorisation étant demandée à l'ouverture du dialogue, ce bouton ne sert
+    // plus que de recours : on le masque dès que les noms sont lisibles, et on le
+    // laisse visible tant qu'ils ne le sont pas (refus, ou aucun micro détecté).
+    setMicrophoneRefreshButtonVisible(!idsReadable);
     if (els.microphoneSummary) {
       els.microphoneSummary.textContent = inputs.length
         ? "Choisir une source, puis cliquer sur Sélectionner. L’enregistrement démarrera au prochain clic sur l’icône micro."
@@ -1871,8 +1879,9 @@ async function refreshMicrophoneDevices(requestPermission = false) {
   } catch (error) {
     if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
       setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système", "stop");
+      setMicrophoneRefreshButtonVisible(true);
       if (els.microphoneSummary) {
-        els.microphoneSummary.textContent = "Micro inaccessible : autoriser l’accès au micro dans les préférences système, puis actualiser.";
+        els.microphoneSummary.textContent = "Micro inaccessible : autoriser l’accès au micro dans les préférences système, puis réessayer.";
       }
       return [];
     }
@@ -1884,9 +1893,15 @@ async function refreshMicrophoneDevices(requestPermission = false) {
 
 function openMicrophoneDialog() {
   if (els.microphoneSummary) {
-    els.microphoneSummary.textContent = "Autoriser l’accès au micro, choisir une source, puis cliquer à nouveau sur l’icône micro pour enregistrer.";
+    els.microphoneSummary.textContent = "Recherche des micros…";
   }
-  refreshMicrophoneDevices(false).catch(() => {});
+  // Autorisation demandée d'emblée (requestPermission = true) : sans elle,
+  // enumerateDevices() renvoie des entrées anonymes (libellés et deviceId vides) et
+  // la liste n'affiche que « Micro 1, Micro 2… », inexploitable. On ouvre le
+  // dialogue APRÈS l'appel pour rester dans la tâche du clic utilisateur, que
+  // Safari exige pour getUserMedia. Le bouton « Autoriser / actualiser » n'est
+  // alors plus qu'un recours, masqué dès que les noms sont lisibles.
+  refreshMicrophoneDevices(true).catch(() => {});
   if (els.microphoneDialog?.showModal) {
     els.microphoneDialog.showModal();
   } else {
