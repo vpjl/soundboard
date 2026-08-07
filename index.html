@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=660">
+    <link rel="stylesheet" href="styles.css?v=661">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1317,7 +1317,7 @@
 
               <h3 style="margin-top: 16px;">Réglages</h3>
               <dl class="help-grid">
-                <dt aria-label="Trim auto">Trim</dt><dd>Détecte et coupe automatiquement les silences en début et fin de son.</dd>
+                <dt aria-label="Trim auto">Trim</dt><dd>Détecte et coupe automatiquement les silences en début et fin de son. Le curseur <strong>Sensib.</strong> règle le seuil de détection : plus haut, les sons faibles sont considérés comme du son et sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus). Ce réglage est commun à l'éditeur audio et mémorisé.</dd>
                 <dt aria-label="Lire / Pause (test)">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
@@ -1425,6 +1425,11 @@
             </button>
             <span class="audio-head-transport" style="display:inline-flex; align-items:center; gap:6px; margin:0 14px;">
               <button id="audioAutoTrim" class="small-button" type="button">Trim auto</button>
+              <label class="auto-trim-sensitivity" title="Sensibilité de la détection des silences : plus haut, les sons faibles sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus).">
+                <span>Sensib.</span>
+                <input id="audioAutoTrimSensitivity" type="range" min="1" max="100" step="1" value="50" aria-label="Sensibilité du trim auto">
+                <output id="audioAutoTrimSensitivityValue">50</output>
+              </label>
               <button id="audioTestPlay" class="icon-button audio-test-play" type="button" aria-label="Lire / Pause (test, sortie cue si sélectionnée)">
                 <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
@@ -2549,6 +2554,11 @@
         <div class="ae-toolbar">
           <div class="ae-grp">
             <button class="ae-tbtn" id="aeTrimAuto" type="button">Trim auto</button>
+            <label class="auto-trim-sensitivity" title="Sensibilité de la détection des silences : plus haut, les sons faibles sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus).">
+              <span>Sensib.</span>
+              <input id="aeTrimAutoSensitivity" type="range" min="1" max="100" step="1" value="50" aria-label="Sensibilité du trim auto">
+              <output id="aeTrimAutoSensitivityValue">50</output>
+            </label>
           </div>
           <div class="ae-grp ae-frame" id="aeRegionGroup">
             <button class="ae-mode is-active" id="aeModeRegions" type="button">Régions</button>
@@ -2621,7 +2631,7 @@
           <h3>Outils</h3>
           <dl class="help-grid">
             <dt aria-label="Trim auto">Trim</dt>
-            <dd>Détecte et coupe automatiquement les silences en début et fin de son.</dd>
+            <dd>Détecte et coupe automatiquement les silences en début et fin de son. Le curseur <strong>Sensib.</strong> règle le seuil de détection : plus haut, les sons faibles sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus). Réglage commun aux réglages audio du pad, et mémorisé.</dd>
             <dt aria-label="Défaire">↶</dt>
             <dd>Retire la dernière région ajoutée.</dd>
             <dt aria-label="Réinitialiser">↻</dt>
@@ -2676,7 +2686,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=660"></script>
+    <script src="app.js?v=661"></script>
 
 
   </body>

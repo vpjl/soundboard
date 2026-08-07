@@ -73,7 +73,7 @@ Vue de performance en temps réel. Interface épurée pour la régie : déclench
 
 ### Pad — Réglages audio
 
-- **Trim auto** : détecte et coupe automatiquement les silences en début et fin de son.
+- **Trim auto** : détecte et coupe automatiquement les silences en début et fin de son. Le curseur **Sensib.** qui l'accompagne règle le seuil de détection : plus haut, les sons faibles sont considérés comme du son et donc conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus). Le réglage est commun aux réglages audio du pad et à l'éditeur audio, et il est mémorisé d'une session à l'autre.
 - ![#audioRegionsEdit] **Éditeur audio** : éditeur complet — trim, cut, mute de zones, enveloppe de volume.
 - ![action:loop] **Loop** : répète le son en boucle continue.
 - **Reverse** : lit le son à l'envers.

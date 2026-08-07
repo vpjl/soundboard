@@ -128,6 +128,10 @@ const MAX_TEXT_RATE = 1.6;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const DEFAULT_ENDING_ALERT_SECONDS = 10;
 const ENDING_ALERT_STORAGE = "soundboard-live-ending-alert-seconds";
+// Sensibilité du trim auto, partagée par les réglages audio du pad et l'éditeur.
+// 50 = seuil historique (le multiplicateur vaut alors exactement 1).
+const DEFAULT_AUTO_TRIM_SENSITIVITY = 50;
+const AUTO_TRIM_SENSITIVITY_STORAGE = "soundboard-live-auto-trim-sensitivity";
 const HISTORY_LIMIT = 8;
 const PAD_COLORS = {
   white: "#f7f7f2",
@@ -424,6 +428,10 @@ const els = {
   audioTrimStartValue: document.querySelector("#audioTrimStartValue"),
   audioTrimEndValue: document.querySelector("#audioTrimEndValue"),
   audioAutoTrim: document.querySelector("#audioAutoTrim"),
+  audioAutoTrimSensitivity: document.querySelector("#audioAutoTrimSensitivity"),
+  audioAutoTrimSensitivityValue: document.querySelector("#audioAutoTrimSensitivityValue"),
+  aeTrimAutoSensitivity: document.querySelector("#aeTrimAutoSensitivity"),
+  aeTrimAutoSensitivityValue: document.querySelector("#aeTrimAutoSensitivityValue"),
   audioNormalize: document.querySelector("#audioNormalize"),
   audioNormalizeValue: document.querySelector("#audioNormalizeValue"),
   audioMono: document.querySelector("#audioMono"),
@@ -11858,7 +11866,46 @@ function formatTrimAutoSummary(result) {
   return `${startText} → ${endText}`;
 }
 
-function autoTrimForBuffer(buffer) {
+function autoTrimSensitivity() {
+  const stored = Number(localStorage.getItem(AUTO_TRIM_SENSITIVITY_STORAGE));
+  return Number.isFinite(stored) && stored >= 1 && stored <= 100
+    ? Math.round(stored)
+    : DEFAULT_AUTO_TRIM_SENSITIVITY;
+}
+
+function setAutoTrimSensitivity(value) {
+  const number = Math.min(100, Math.max(1, Math.round(Number(value) || DEFAULT_AUTO_TRIM_SENSITIVITY)));
+  localStorage.setItem(AUTO_TRIM_SENSITIVITY_STORAGE, String(number));
+  syncAutoTrimSensitivityControls();
+  return number;
+}
+
+// Multiplicateur appliqué au seuil de détection. Échelle logarithmique (±1,5
+// décade) : les seuils utiles couvrent plusieurs ordres de grandeur, une échelle
+// linéaire rendrait la moitié de la course inutilisable. Vaut exactement 1 à 50,
+// ce qui préserve à l'identique le comportement d'avant ce réglage.
+// Sensibilité haute → seuil bas → les sons faibles comptent comme du son, donc on
+// coupe MOINS. Sensibilité basse → seuil haut → on ne garde que les passages
+// francs, donc on coupe PLUS.
+function autoTrimThresholdMultiplier(sensitivity = autoTrimSensitivity()) {
+  return 10 ** (((DEFAULT_AUTO_TRIM_SENSITIVITY - sensitivity) / DEFAULT_AUTO_TRIM_SENSITIVITY) * 1.5);
+}
+
+// Les deux curseurs (réglages audio du pad + éditeur) pilotent le MÊME réglage :
+// on les réaligne ensemble à chaque changement, sinon celui resté ouvert en
+// arrière-plan afficherait une valeur périmée.
+function syncAutoTrimSensitivityControls() {
+  const value = autoTrimSensitivity();
+  [
+    [els.audioAutoTrimSensitivity, els.audioAutoTrimSensitivityValue],
+    [els.aeTrimAutoSensitivity, els.aeTrimAutoSensitivityValue],
+  ].forEach(([input, output]) => {
+    if (input && input.value !== String(value)) input.value = String(value);
+    if (output) output.textContent = String(value);
+  });
+}
+
+function autoTrimForBuffer(buffer, sensitivity = autoTrimSensitivity()) {
   if (!buffer?.length || !buffer.sampleRate || !buffer.duration) return null;
   const channels = Math.max(1, Math.min(buffer.numberOfChannels || 1, 2));
   const sampleRate = buffer.sampleRate;
@@ -11884,7 +11931,7 @@ function autoTrimForBuffer(buffer) {
 
   if (globalPeak < 0.0005) return null;
 
-  const threshold = Math.max(0.0015, Math.min(0.02, globalPeak * 0.005));
+  const threshold = Math.max(0.0015, Math.min(0.02, globalPeak * 0.005)) * autoTrimThresholdMultiplier(sensitivity);
   let firstActive = -1;
   let lastActive = -1;
   for (let index = 0; index < blockPeaks.length; index += 1) {
@@ -16134,6 +16181,7 @@ async function init() {
   applyAppVersionDisplay();
   state.db = await openDb();
   loadOutputSettings();
+  syncAutoTrimSensitivityControls();
   loadMicrophoneSelection();
   // Le micro mémorisé peut avoir disparu depuis la dernière session : on revérifie
   // sa présence dès le lancement, puis à chaque branchement/débranchement, sinon le
@@ -17059,6 +17107,11 @@ async function init() {
   bindAudioDialogTrim();
   els.audioAutoTrim?.addEventListener("click", () => {
     applyAutoTrimToAudioDialog().catch(() => setStatus("Trim auto impossible"));
+  });
+  // Les deux curseurs pilotent le même réglage persisté : chacun resynchronise
+  // l'autre (l'éditeur peut être ouvert par-dessus les réglages du pad).
+  [els.audioAutoTrimSensitivity, els.aeTrimAutoSensitivity].forEach((input) => {
+    input?.addEventListener("input", () => setAutoTrimSensitivity(input.value));
   });
   els.audioTestPlay?.addEventListener("click", () => {
     toggleAudioDialogTest();

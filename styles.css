@@ -5605,6 +5605,31 @@ body[data-skin="contrast"] .color-field {
   display: none !important;
 }
 
+/* Sensibilité du trim auto : contrôle identique dans les réglages audio du pad et
+   dans l'éditeur, d'où une classe commune. Les couleurs viennent du thème ;
+   l'éditeur audio, qui a sa propre palette en dur, les redéfinit chez lui. */
+.auto-trim-sensitivity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.auto-trim-sensitivity input[type="range"] {
+  width: 96px;
+  min-width: 0;
+}
+
+.auto-trim-sensitivity output {
+  min-width: 2.5ch;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .audio-text-editor-frame {
   display: none;
 }
@@ -10514,6 +10539,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-tbtn.cut { color: #ff5b5b; }
 .ae-tbtn.silence { color: #ffa83a; }
 .ae-tbtn svg { width: 15px; height: 15px; }
+.ae-toolbar .auto-trim-sensitivity { color: #9aa1ad; font-size: .78rem; }
+.ae-toolbar .auto-trim-sensitivity output { color: #c7ccd6; }
 #aeWave { position: relative; border: 2px solid #3a9bff; border-radius: 6px; background: #04060a; padding: 2px 0; min-height: 200px; }
 .ae-trim-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .ae-trim-dim { position: absolute; top: 0; bottom: 0; background: rgba(4, 6, 10, 0.66); }
