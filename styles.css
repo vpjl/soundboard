@@ -745,14 +745,14 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   box-sizing: border-box;
 }
 
+/* Taille/couleurs communes à tous les boutons aide : cf. bundle « Aides
+   contextuelles » (.master-help-button, .cues-help-button…) plus bas dans le
+   fichier, qui inclut désormais .board-help-button. Ne reste ici que son
+   placement propre : dernier enfant de .board-main (grid 1 colonne), calé à
+   droite au lieu de suivre la stack sur toute la largeur. */
 .board-help-button {
-  width: 42px;
-  height: 42px;
   align-self: start;
   justify-self: end;
-  border-color: var(--color_ui_help_border);
-  background: var(--color_ui_help_background);
-  color: var(--color_ui_help);
 }
 
 
@@ -840,10 +840,6 @@ body.show-cables .cable-legend-panel {
   width: 42px;
   height: 42px;
   flex-shrink: 0;
-}
-
-.board-action-grid .board-help-button {
-  margin-left: auto;
 }
 
 #stageLock {
@@ -3201,12 +3197,6 @@ body.stage-mode .pad-note-button:not(.has-note) {
      mobile (32px), l'icône de 22px ne rentre plus dans l'espace restant après
      ce padding caché, ce qui la décale visiblement vers un bord. */
   padding: 0;
-}
-
-.board-action-grid .board-help-button {
-  border-color: var(--color_ui_help_border);
-  background: var(--color_ui_help_background);
-  color: var(--color_ui_help);
 }
 
 .duplicate-board-button,
@@ -7556,12 +7546,6 @@ body.stage-mode .secondary-live-group {
     height: 42px !important;
   }
 
-  body.board-edit-mode .board-action-grid .board-help-button {
-    grid-area: help !important;
-    width: 42px !important;
-    height: 42px !important;
-  }
-
   body.board-edit-mode .board-center-actions {
     grid-area: actions !important;
     justify-self: center !important;
@@ -7734,14 +7718,6 @@ body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) #openCueDialog {
 }
 
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
-  .board-action-grid .board-help-button {
-    width: 42px !important;
-    height: 42px !important;
-    min-width: 42px !important;
-    min-height: 42px !important;
-    aspect-ratio: 1;
-  }
-
   .cue-live-row,
   body.stage-mode .cue-live-row {
     grid-template-columns: repeat(4, minmax(44px, 1fr)) minmax(140px, 1.6fr) !important;
@@ -8605,7 +8581,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 /* Aides contextuelles */
 .master-help-button,
 .master-audio-help-button,
-.cues-help-button {
+.cues-help-button,
+.board-help-button {
   width: 42px;
   height: 42px;
   min-width: 42px;
