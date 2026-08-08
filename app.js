@@ -12502,6 +12502,7 @@ function syncAudioDialog(pad = state.audioPad, options = {}) {
   fillAudioCrossfadeControls(pad);
   syncAudioDialogMediaAvailability(pad);
   syncAudioResetButton(pad);
+  syncAudioRegionsEditButton(pad);
   syncAudioTestPlayButton();
   if (options.renderWaveform !== false) renderAudioDialogWaveform(pad);
 }
@@ -13498,6 +13499,16 @@ function syncAudioResetButton(pad = state.audioPad) {
   els.audioReset.title = nothingToReset
     ? "Réglages audio déjà à zéro"
     : "Réinitialiser les réglages audio de ce pad";
+}
+
+function syncAudioRegionsEditButton(pad = state.audioPad) {
+  if (!els.audioRegionsEdit) return;
+  const nothingToEdit = !pad || (!pad.buffer && !pad.audioStored && !pad.audioName);
+  els.audioRegionsEdit.disabled = nothingToEdit;
+  els.audioRegionsEdit.classList.toggle("is-disabled", nothingToEdit);
+  els.audioRegionsEdit.title = nothingToEdit
+    ? "Pas d'audio à éditer"
+    : "Éditeur audio (trim, cut, mute, enveloppe)";
 }
 
 function resetAudioDialogSettings() {
