@@ -3131,6 +3131,27 @@ function syncFloatingCueFrame(resetAnchor = false) {
       els.liveTools.style.removeProperty("left");
       els.liveTools.style.removeProperty("right");
     }
+    // DEBUG TEMPORAIRE — à retirer une fois le bug de décalage/chute diagnostiqué.
+    // Badge visible à l'écran (pas besoin de console sur le téléphone réel) :
+    // capture-le avec le reste du bloc cues quand le bug apparaît.
+    {
+      let dbg = document.getElementById("cueDebugBadge");
+      if (!dbg) {
+        dbg = document.createElement("div");
+        dbg.id = "cueDebugBadge";
+        dbg.style.cssText =
+          "position:fixed;bottom:4px;left:4px;z-index:99999;background:#000;color:#0f0;" +
+          "font:10px/1.3 monospace;padding:3px 5px;border-radius:4px;pointer-events:none;" +
+          "max-width:96vw;white-space:pre-wrap;";
+        document.body.appendChild(dbg);
+      }
+      const cs = getComputedStyle(els.liveTools);
+      const ltRect = els.liveTools.getBoundingClientRect();
+      dbg.textContent =
+        `stage:${document.body.classList.contains("stage-mode") ? 1 : 0} stuck:${shouldStick ? 1 : 0} ` +
+        `parent:${els.liveTools.parentElement?.className || "?"}\n` +
+        `pos:${cs.position} w:${Math.round(ltRect.width)} l:${Math.round(ltRect.left)} t:${Math.round(ltRect.top)} deckW:${w}`;
+    }
   }
 }
 
