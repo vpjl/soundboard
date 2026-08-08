@@ -1175,7 +1175,7 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
   overflow: hidden;
   color: var(--muted);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.18;
   max-height: calc(1.18em * 2);
   overflow-wrap: anywhere;
@@ -7187,14 +7187,56 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  /* Cues/Crossfade en portrait : tous les boutons sur UNE ligne, le statut sur la 2e.
-     Les deux rangées (.cue-live-row / .xfade-live-row) étant en display:contents, les
-     boutons sont déjà frères dans le flex .live-tools ; il suffit d'envoyer le statut
-     en fin d'ordre et de lui donner une ligne entière (mesuré : 306px de boutons pour
-     352px disponibles, ils tiennent). */
+  /* Cues/Crossfade en portrait, sur 3 lignes : 1re les deux titres, 2e tous les
+     boutons, 3e le statut du cue. Grille (et non plus flex) pour que le titre
+     « Crossfade » et son groupe de boutons (armer crossfade manuel + aide/stop
+     global, toujours l'un OU l'autre visible) partagent EXACTEMENT les mêmes
+     colonnes que les boutons en ligne 2 : le titre s'aligne ainsi pile sur le
+     bord gauche du bouton « armer crossfade manuel », et la colonne 1fr pousse
+     tout ce sous-groupe à droite du bloc. Les rangées (.cue-live-row /
+     .xfade-live-row) étant en display:contents, chaque bouton/titre reste un
+     enfant direct de la grille .live-tools et se positionne individuellement. */
+  /* Colonnes des boutons en max-content RIGIDE (pas minmax(0, ...)) : au collage
+     (cues-stuck), la largeur du bloc posée en JS (syncFloatingCueFrame, calée sur
+     .deck) varie de quelques px par rapport à l'état non collé, et des colonnes
+     rétrécissables redistribuaient cet écart sur TOUTES les colonnes → les 4
+     boutons de cue se décalaient visiblement à chaque passage collé/décollé.
+     Des colonnes rigides gardent une position pixel-perfect stable ; seul le
+     débordement éventuel (cas limite, board avec peu de pads) est absorbé par
+     overflow-x:hidden plutôt que de rétrécir les boutons. */
+  .live-tools {
+    display: grid;
+    grid-template-columns: repeat(4, max-content) minmax(6px, 1fr) max-content max-content;
+    align-items: center;
+    row-gap: 7px;
+    column-gap: 6px;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .live-tools-title {
+    grid-column: 1 / 6;
+    grid-row: 1;
+  }
+
+  .live-tools .xfade-live-title {
+    grid-column: 6 / 8;
+    grid-row: 1;
+    margin-left: 0;
+    justify-self: start;
+  }
+
+  #cueEditor { grid-column: 1; grid-row: 2; }
+  #resetCuePosition { grid-column: 2; grid-row: 2; }
+  #cueRun { grid-column: 3; grid-row: 2; }
+  #cueNext { grid-column: 4; grid-row: 2; }
+  #showCables { grid-column: 6; grid-row: 2; }
+  #cuesHelp,
+  #cueStopAll { grid-column: 7; grid-row: 2; }
+
   .live-tools .cue-status {
-    order: 1;
-    flex-basis: 100%;
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 
   .pads,
@@ -7225,8 +7267,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     padding-bottom: 38px;
   }
 
-  .master-audio-button,
-  .show-cables-button {
+  .master-audio-button {
     width: 54px;
     height: 54px;
     min-height: 54px;
@@ -7413,11 +7454,12 @@ body.stage-mode .secondary-live-group {
   }
 
   body.stage-mode .cue-status {
-    grid-column: 5 !important;
+    grid-column: 1 / -1 !important;
   }
 
   body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button {
+  body.stage-mode.cues-enabled .cue-stop-all-button,
+  body.stage-mode.cues-enabled .show-cables-button {
     width: 46px !important;
     height: 46px !important;
     min-width: 46px !important;
@@ -7431,9 +7473,9 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  /* Stop all exclu : même taille que les boutons de cue (cf. règle ci-dessus),
-     sinon son icône 42px déborde du bouton 34px et paraît décentrée. */
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
+  /* Aide exclue : même taille réduite qu'avant (34px), seuls stop global et
+     crossfade armé suivent désormais la taille des boutons de cue ci-dessus. */
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
     width: 34px !important;
     height: 34px !important;
     min-width: 34px !important;
@@ -7486,14 +7528,15 @@ body.stage-mode .secondary-live-group {
   }
 
   body.stage-mode .cue-status {
-    grid-column: 5 !important;
+    grid-column: 1 / -1 !important;
     align-self: stretch;
     display: flex;
     align-items: center;
   }
 
   body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button {
+  body.stage-mode.cues-enabled .cue-stop-all-button,
+  body.stage-mode.cues-enabled .show-cables-button {
     width: 44px !important;
     min-width: 44px !important;
     height: 44px !important;
@@ -7508,7 +7551,7 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
     width: 34px !important;
     min-width: 34px !important;
   }
@@ -10292,7 +10335,8 @@ body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
 
 @media (max-width: 950px), (pointer: coarse) {
   body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg {
+  body.stage-mode .cue-stop-all-button svg,
+  body.stage-mode .show-cables-button svg {
     width: 26px !important;
     height: 26px !important;
   }
@@ -10300,7 +10344,8 @@ body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
   body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg {
+  body.stage-mode .cue-stop-all-button svg,
+  body.stage-mode .show-cables-button svg {
     width: 22px !important;
     height: 22px !important;
   }

@@ -3026,7 +3026,7 @@ function syncCueControls() {
       ? "Cues désactivées"
       : hasCues
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
-      : "Pas de cue";
+      : "Pas de cues";
   }
   renderCueTimeline(cues);
   requestAnimationFrame(() => syncFloatingCueFrame(true));
@@ -3631,7 +3631,7 @@ function advanceCuePosition() {
     return;
   }
   if (!board?.cues?.length) {
-    setStatus("Pas de cue");
+    setStatus("Pas de cues");
     syncCueControls();
     return;
   }
@@ -3649,7 +3649,7 @@ async function runCurrentCue(options = {}) {
     return;
   }
   if (!board?.cues?.length) {
-    setStatus("Pas de cue");
+    setStatus("Pas de cues");
     syncCueControls();
     return;
   }
@@ -16550,7 +16550,21 @@ async function init() {
     syncFloatingCueFrame(true);
     window.setTimeout(() => state.pads.forEach(fitPadTitle), 0);
   });
-  window.addEventListener("scroll", () => syncFloatingCueFrame(false), { passive: true });
+  // rAF-throttlé : un scroll listener synchrone qui lit/écrit du layout (comme
+  // syncFloatingCueFrame, avec ses getBoundingClientRect + setProperty) est un
+  // "scroll-linked effect" que Firefox signale explicitement comme instable en
+  // défilement asynchrone (mobile, inertie) — les mesures peuvent être prises
+  // entre deux frames réelles, donc désynchronisées de la position affichée.
+  // On aligne l'exécution sur le rendu (1 appel par frame max) au lieu d'un
+  // appel par évènement scroll brut.
+  let scrollSyncFrame = null;
+  window.addEventListener("scroll", () => {
+    if (scrollSyncFrame != null) return;
+    scrollSyncFrame = requestAnimationFrame(() => {
+      scrollSyncFrame = null;
+      syncFloatingCueFrame(false);
+    });
+  }, { passive: true });
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
