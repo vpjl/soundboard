@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=664">
+    <link rel="stylesheet" href="styles.css?v=665">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -124,6 +124,12 @@
                   <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+              <button id="versionNotes" class="icon-button board-history-button version-notes-button" type="button" aria-label="Notes de la version sélectionnée" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5h16v11H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M8 9h8M8 13h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
               <select id="versionSelect" class="version-select board-history-button" aria-label="Version à restaurer">
@@ -2707,7 +2713,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=664"></script>
+    <script src="app.js?v=665"></script>
 
 
   </body>
