@@ -2842,10 +2842,6 @@ body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
   margin-left: 16px;
 }
 
-body.cues-enabled:not(.board-edit-mode) #openCueDialog {
-  display: none;
-}
-
 #boardManageSectionBody .board-center-actions {
   margin-top: 8px;
 }
@@ -6189,8 +6185,7 @@ body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) 
   height: 42px;
 }
 
-body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
-body.stage-mode.cues-enabled #openCueDialog {
+body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
   width: 42px;
   height: 42px;
   min-width: 42px;
@@ -7438,8 +7433,7 @@ body.stage-mode .secondary-live-group {
 
   /* Stop all exclu : même taille que les boutons de cue (cf. règle ci-dessus),
      sinon son icône 42px déborde du bouton 34px et paraît décentrée. */
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
-  body.stage-mode.cues-enabled #openCueDialog {
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
     width: 34px !important;
     height: 34px !important;
     min-width: 34px !important;
@@ -7514,8 +7508,7 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button),
-  body.stage-mode.cues-enabled #openCueDialog {
+  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
     width: 34px !important;
     min-width: 34px !important;
   }
@@ -7693,10 +7686,9 @@ body.stage-mode.cues-enabled:not(.board-edit-mode) .cue-live-row {
 }
 
 /* Les boutons de cue (.cue-live-row .icon-button) et le stop global gardent leur
-   taille scène (84px, hérités) dans la barre collée. Seuls le déclencheur
-   openCueDialog et la rangée crossfade restent compacts. */
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button:not(.cue-stop-all-button),
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) #openCueDialog {
+   taille scène (84px, hérités) dans la barre collée. Seule la rangée crossfade
+   reste compacte. */
+body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button:not(.cue-stop-all-button) {
   width: 42px !important;
   height: 42px !important;
   min-width: 42px !important;
