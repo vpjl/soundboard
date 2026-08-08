@@ -15390,6 +15390,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing", "is-stop-flash");
   hidePadNoteOverlay(pad);
+  if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
   updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
   updatePadTime(pad);
