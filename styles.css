@@ -7547,7 +7547,6 @@ body.stage-mode .secondary-live-group {
   }
 
   body.board-edit-mode .board-center-actions {
-    grid-area: actions !important;
     justify-self: center !important;
     grid-template-columns: repeat(5, minmax(30px, 34px)) !important;
     grid-auto-rows: 34px !important;
@@ -9640,11 +9639,6 @@ body.stage-mode #boardName:focus {
   gap: 10px;
 }
 
-.skin-editor-preview .board-action-grid {
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(3, 38px) minmax(180px, 1fr);
-}
-
 .skin-editor-preview .skin-preview-top-tools {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
@@ -9907,7 +9901,6 @@ body.stage-mode #boardName:focus {
   border-color: var(--color_ui_border);
 }
 
-#skinEditorDialog .skin-editor-preview .board-action-grid button:not(.help-button),
 #skinEditorDialog .skin-editor-preview .master-strip > button:not(.help-button),
 #skinEditorDialog .skin-editor-preview .live-tools button:not(.help-button),
 #skinEditorDialog .skin-editor-preview .board-layout-controls,
