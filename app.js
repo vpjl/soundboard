@@ -3055,7 +3055,6 @@ function syncFloatingCueFrame(resetAnchor = false) {
   // Le collage (position:fixed) ne se déclenche qu'au scroll, quand le bloc
   // sortirait sinon de l'écran — jamais à la simple activation des cues.
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
-  const stickChanged = shouldStick !== document.body.classList.contains("cues-stuck");
   document.body.classList.toggle("cues-stuck", shouldStick);
   // En scène, .live-tools est un descendant de <header class="topbar">, qui a
   // un transform permanent (cf. applyStageStudioLayout/pinPanelToStudioPosition,
@@ -3065,41 +3064,35 @@ function syncFloatingCueFrame(resetAnchor = false) {
   // donc pas le vrai scroll de la page, mais restait "fixé" par rapport au
   // topbar, qui lui défile normalement. On sort .live-tools du topbar pendant
   // qu'il est collé (hors de portée de ce transform), et on le replace à sa
-  // position d'origine au décollage. N'agir que sur un vrai changement d'état
-  // (stickChanged), pas à chaque scroll — cf. commit précédent.
-  if (stickChanged && document.body.classList.contains("stage-mode")) {
+  // position d'origine au décollage.
+  // Auto-correctif plutôt que déclenché sur stickChanged uniquement : un
+  // diagnostic sur téléphone réel a montré .live-tools parfois coincé dans
+  // .app (parent:app) alors que stuck:0 — le bloc tombait alors en flux normal
+  // TOUT EN BAS de .app (après tous les pads), le déplacement de retour vers
+  // .topbar n'ayant pas abouti (course entre évènements scroll rapprochés).
+  // On vérifie donc le parent RÉEL à chaque appel et on corrige si besoin, au
+  // lieu de ne réagir qu'au changement détecté d'un appel à l'autre.
+  if (document.body.classList.contains("stage-mode")) {
+    const appEl = document.querySelector(".app");
+    const topbarEl = document.querySelector(".topbar");
     if (shouldStick) {
-      state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
-      // Rattaché à .app (comme #openAppNotice), pas body : reste dans la
-      // portée des styles .app/.app * (user-select, etc.) tout en échappant
-      // au transform du topbar.
-      document.querySelector(".app")?.appendChild(els.liveTools);
-      els.liveTools.style.removeProperty("position");
-      els.liveTools.style.removeProperty("transform");
-    } else {
-      const topbar = document.querySelector(".topbar");
-      if (topbar) {
-        if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbar) {
-          topbar.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
-        } else {
-          topbar.appendChild(els.liveTools);
-        }
+      if (appEl && els.liveTools.parentElement !== appEl) {
+        state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
+        // Rattaché à .app (comme #openAppNotice), pas body : reste dans la
+        // portée des styles .app/.app * (user-select, etc.) tout en échappant
+        // au transform du topbar.
+        appEl.appendChild(els.liveTools);
+        els.liveTools.style.removeProperty("position");
+        els.liveTools.style.removeProperty("transform");
+      }
+    } else if (topbarEl && els.liveTools.parentElement !== topbarEl) {
+      if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbarEl) {
+        topbarEl.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
+      } else {
+        topbarEl.appendChild(els.liveTools);
       }
       state.liveToolsOriginalNextSibling = null;
       applyStageStudioLayoutSoon();
-    }
-  }
-  // La compensation CSS (main{padding-top:92px}) suppose la taille studio des
-  // boutons de cues : en scène ils sont bien plus grands (cf. "boutons plus
-  // gros" quand les cues sont actives), donc 92px est insuffisant et les pads
-  // remontent pour combler l'espace laissé par .live-tools sorti du flux
-  // (position:fixed). On mesure la vraie hauteur au lieu d'une valeur fixe.
-  if (mainEl) {
-    if (shouldStick) {
-      const liveToolsHeight = els.liveTools.getBoundingClientRect().height;
-      mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
-    } else {
-      mainEl.style.removeProperty("padding-top");
     }
   }
 
@@ -3108,11 +3101,15 @@ function syncFloatingCueFrame(resetAnchor = false) {
   // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne coïncide
   // pas avec le conteneur du bloc, donc on mesure sa géométrie et on l'y aligne
   // (studio ET scène). setProperty(..., "important") car des règles .live-tools
-  // posent width/left/transform en !important.
+  // posent width/left/transform en !important. Fait AVANT la mesure de hauteur
+  // ci-dessous (pour padding-top) : sinon cette mesure lit une géométrie encore
+  // partiellement stale (position:fixed déjà actif via la classe, mais
+  // left/width/transform pas encore réappliqués pour ce tick).
   const deck = document.querySelector(".deck");
+  let w = 0;
   if (deck) {
     const deckRect = deck.getBoundingClientRect();
-    const w = Math.round(deckRect.width);
+    w = Math.round(deckRect.width);
     if (shouldStick) {
       // Collé (position:fixed) : caler left + largeur sur la zone des pads.
       els.liveTools.style.setProperty("width", `${w}px`, "important");
@@ -3131,27 +3128,43 @@ function syncFloatingCueFrame(resetAnchor = false) {
       els.liveTools.style.removeProperty("left");
       els.liveTools.style.removeProperty("right");
     }
-    // DEBUG TEMPORAIRE — à retirer une fois le bug de décalage/chute diagnostiqué.
-    // Badge visible à l'écran (pas besoin de console sur le téléphone réel) :
-    // capture-le avec le reste du bloc cues quand le bug apparaît.
-    {
-      let dbg = document.getElementById("cueDebugBadge");
-      if (!dbg) {
-        dbg = document.createElement("div");
-        dbg.id = "cueDebugBadge";
-        dbg.style.cssText =
-          "position:fixed;bottom:4px;left:4px;z-index:99999;background:#000;color:#0f0;" +
-          "font:10px/1.3 monospace;padding:3px 5px;border-radius:4px;pointer-events:none;" +
-          "max-width:96vw;white-space:pre-wrap;";
-        document.body.appendChild(dbg);
-      }
-      const cs = getComputedStyle(els.liveTools);
-      const ltRect = els.liveTools.getBoundingClientRect();
-      dbg.textContent =
-        `stage:${document.body.classList.contains("stage-mode") ? 1 : 0} stuck:${shouldStick ? 1 : 0} ` +
-        `parent:${els.liveTools.parentElement?.className || "?"}\n` +
-        `pos:${cs.position} w:${Math.round(ltRect.width)} l:${Math.round(ltRect.left)} t:${Math.round(ltRect.top)} deckW:${w}`;
+  }
+
+  // La compensation CSS (main{padding-top:92px}) suppose la taille studio des
+  // boutons de cues : en scène ils sont bien plus grands (cf. "boutons plus
+  // gros" quand les cues sont actives), donc 92px est insuffisant et les pads
+  // remontent pour combler l'espace laissé par .live-tools sorti du flux
+  // (position:fixed). On mesure la vraie hauteur (largeur/position déjà à jour
+  // ci-dessus) au lieu d'une valeur fixe.
+  if (mainEl) {
+    if (shouldStick) {
+      const liveToolsHeight = els.liveTools.getBoundingClientRect().height;
+      mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
+    } else {
+      mainEl.style.removeProperty("padding-top");
     }
+  }
+
+  // DEBUG TEMPORAIRE — à retirer une fois le bug de décalage/chute diagnostiqué.
+  // Badge visible à l'écran (pas besoin de console sur le téléphone réel) :
+  // capture-le avec le reste du bloc cues quand le bug apparaît.
+  {
+    let dbg = document.getElementById("cueDebugBadge");
+    if (!dbg) {
+      dbg = document.createElement("div");
+      dbg.id = "cueDebugBadge";
+      dbg.style.cssText =
+        "position:fixed;bottom:4px;left:4px;z-index:99999;background:#000;color:#0f0;" +
+        "font:10px/1.3 monospace;padding:3px 5px;border-radius:4px;pointer-events:none;" +
+        "max-width:96vw;white-space:pre-wrap;";
+      document.body.appendChild(dbg);
+    }
+    const cs = getComputedStyle(els.liveTools);
+    const ltRect = els.liveTools.getBoundingClientRect();
+    dbg.textContent =
+      `stage:${document.body.classList.contains("stage-mode") ? 1 : 0} stuck:${shouldStick ? 1 : 0} ` +
+      `parent:${els.liveTools.parentElement?.className || "?"}\n` +
+      `pos:${cs.position} w:${Math.round(ltRect.width)} l:${Math.round(ltRect.left)} t:${Math.round(ltRect.top)} deckW:${w}`;
   }
 }
 
