@@ -1303,21 +1303,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   font-size: 0.82rem;
 }
 
-.version-notes-button {
-  background: color-mix(in srgb, var(--accent) 18%, var(--button));
-  align-self: start;
-}
-
-.version-notes-button.is-muted {
-  opacity: 0.45;
-  filter: grayscale(0.45);
-}
-
-.version-notes-button.has-version-notes {
-  opacity: 1;
-  filter: none;
-}
-
 .version-notes-dialog {
   max-width: calc(100vw - 24px);
   padding: 0;
@@ -6421,12 +6406,10 @@ body.stage-mode .pad-alerts {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px 42px minmax(0, 1fr) 42px 42px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: minmax(0, 1fr) 42px 42px;
     gap: 4px;
   }
 
@@ -6591,12 +6574,10 @@ body.stage-mode .pad-alerts {
   }
 
   .board-action-grid {
-    grid-template-columns: 34px 42px minmax(0, 1fr) 34px 34px;
     gap: 5px;
   }
 
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: minmax(0, 1fr) 30px 30px;
     gap: 4px;
   }
 
@@ -7442,14 +7423,6 @@ body.stage-mode .secondary-live-group {
   body.stage-mode .pad-live-row {
     grid-template-columns: minmax(0, 1fr) !important;
   }
-
-  body:not(.stage-mode):not(.board-edit-mode) .board-action-grid {
-    grid-template-columns: 34px max-content minmax(0, 1fr) 42px 42px !important;
-  }
-
-  body.stage-mode:not(.board-edit-mode) .board-action-grid {
-    grid-template-columns: 34px 34px max-content 42px 42px !important;
-  }
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
@@ -7520,30 +7493,21 @@ body.stage-mode .secondary-live-group {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
+  /* .board-action-grid est en flex (pas de display:grid déclaré nulle part) :
+     grid-template-columns/areas et grid-area ci-dessous n'ont donc aucun effet.
+     Ne reste que ce qui agit réellement en flex. */
   body.board-edit-mode .board-action-grid {
-    grid-template-columns: minmax(0, 1fr) 42px 42px 42px !important;
-    grid-template-areas:
-      "layout notes help close"
-      "actions actions actions actions" !important;
     gap: 7px !important;
     align-items: start !important;
   }
 
   body.board-edit-mode .board-action-grid .board-layout-controls {
     display: grid !important;
-    grid-area: layout !important;
-    justify-self: start !important;
     width: max-content;
   }
 
   body.board-edit-mode .board-action-grid #editPads {
     display: none !important;
-  }
-
-  body.board-edit-mode .board-action-grid .version-notes-button {
-    grid-area: notes !important;
-    width: 42px !important;
-    height: 42px !important;
   }
 
   body.board-edit-mode .board-center-actions {
@@ -8552,10 +8516,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
     overflow: hidden;
     text-overflow: ellipsis;
   }
-}
-
-body.stage-mode .board-action-grid .version-notes-button {
-  display: none !important;
 }
 
 body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags,
