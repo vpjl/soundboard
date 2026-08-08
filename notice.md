@@ -51,7 +51,7 @@ Vue de performance en temps réel. Interface épurée pour la régie : déclench
 ### Board
 
 - ![#addPad] **Ajouter un pad** : ajoute un nouveau pad vide au board courant.
-- ![#addBoard|#duplicateBoard] **Ajouter un board / Dupliquer** : crée un nouveau board ou duplique le board courant avec tous ses pads.
+- ![#addBoard|#duplicateBoard] **Ajouter un board / Dupliquer** : crée un nouveau board (nombre de pads, nom et créateur demandés à la création — le créateur n'est ensuite plus modifiable) ou duplique le board courant avec tous ses pads.
 - ![#relinkAudioFolder] **Sélectionner un dossier de sons** : relie le board à un dossier local pour retrouver les fichiers audio. À refaire si le dossier est déplacé.
 - ![#relinkVideoFolder] **Sélectionner un dossier de vidéos** : relie le board à un dossier local pour les fichiers vidéo.
 - ![#undoBoardEdit] **Annuler la dernière modification** : annule le dernier réglage modifié ou le dernier pad supprimé (pas à pas).

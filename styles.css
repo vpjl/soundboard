@@ -988,7 +988,11 @@ body.board-edit-mode .board-info-section-toggle {
   display: none;
 }
 
-.board-strip.is-editing .board-name {
+.board-strip.is-editing .board-name,
+/* Dialogue de création : hors de .board-strip, donc pas concerné par le
+   is-editing ci-dessus — même classe réutilisée pour son style (span/input),
+   juste rendue visible ici explicitement. */
+#newBoardDialog .board-name {
   display: grid;
 }
 

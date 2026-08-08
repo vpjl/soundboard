@@ -10,6 +10,9 @@ const PRESS_MS = 180;
 const PAD_NAME_REPAIR = "pad-title-repair-v1";
 const BOARDS_STORAGE = "soundboard-live-boards";
 const NEW_BOARD_PAD_COUNT_STORAGE = "soundboard-live-new-board-pad-count";
+// Dernier créateur saisi à la création d'un board : pré-remplit le champ (souvent
+// la même personne d'un board à l'autre), sans jamais présumer une valeur par défaut.
+const NEW_BOARD_CREATOR_STORAGE = "soundboard-live-new-board-creator";
 const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const MASTER_DUCK_ENABLED_STORAGE = "soundboard-live-ducking-enabled";
@@ -605,6 +608,13 @@ const els = {
   versionNotes: document.querySelector("#versionNotes"),
   versionSelect: document.querySelector("#versionSelect"),
   addBoard: document.querySelector("#addBoard"),
+  newBoardDialog: document.querySelector("#newBoardDialog"),
+  newBoardPadCount: document.querySelector("#newBoardPadCount"),
+  newBoardPadCountLabel: document.querySelector("#newBoardPadCountLabel"),
+  newBoardName: document.querySelector("#newBoardName"),
+  newBoardCreator: document.querySelector("#newBoardCreator"),
+  createNewBoard: document.querySelector("#createNewBoard"),
+  cancelNewBoard: document.querySelector("#cancelNewBoard"),
   duplicateBoard: document.querySelector("#duplicateBoard"),
   addPad: document.querySelector("#addPad"),
   exportBoard: document.querySelector("#exportBoard"),
@@ -634,7 +644,6 @@ const els = {
   boardInfoSectionBody: document.querySelector("#boardInfoSectionBody"),
   boardInfoName: document.querySelector("#boardInfoName"),
   boardInfoCreator: document.querySelector("#boardInfoCreator"),
-  boardCreator: document.querySelector("#boardCreator"),
   boardInfoCreatedAt: document.querySelector("#boardInfoCreatedAt"),
   boardInfoPadCounts: document.querySelector("#boardInfoPadCounts"),
   boardInfoMediaCounts: document.querySelector("#boardInfoMediaCounts"),
@@ -950,6 +959,7 @@ function closeOpenDialogFromEscape() {
     { dialog: els.bulkEditDialog },
     { dialog: els.patchBayDialog },
     { dialog: els.exportBoardDialog },
+    { dialog: els.newBoardDialog },
     { dialog: els.cancelEditDialog },
     { dialog: els.helpDialog },
   ];
@@ -4510,7 +4520,6 @@ function renderBoardInfoSection() {
   if (!board) return;
   if (els.boardInfoName) els.boardInfoName.textContent = board.name || "—";
   if (els.boardInfoCreator) els.boardInfoCreator.textContent = board.creator || "—";
-  if (els.boardCreator && els.boardCreator !== document.activeElement) els.boardCreator.value = board.creator || "";
   if (els.boardInfoCreatedAt) els.boardInfoCreatedAt.textContent = formatBoardCreatedAt(board.createdAt);
   if (els.boardInfoPadCounts) {
     const activeCount = state.pads.filter((pad) => !isEmptyPad(pad)).length;
@@ -4860,33 +4869,49 @@ function lastNewBoardPadCount() {
     : DEFAULT_PAD_COUNT;
 }
 
-// Demande le nombre de pads du nouveau board, pré-rempli avec la dernière valeur utilisée
-// (mémorisée). Renvoie null si l'utilisateur annule ou saisit une valeur invalide.
-function askNewBoardPadCount() {
-  const entered = window.prompt(
-    `Nombre de pads du nouveau board (1 à ${MAX_NEW_BOARD_PAD_COUNT}) ?\n\n`
-    + `Des pads pourront être ajoutés ou supprimés ensuite.`,
-    String(lastNewBoardPadCount()),
-  );
-  if (entered === null) return null;
-  const count = Math.round(Number(String(entered).trim().replace(",", ".")));
-  if (!Number.isFinite(count) || count < 1 || count > MAX_NEW_BOARD_PAD_COUNT) {
-    window.alert(`Nombre de pads invalide : indiquer un entier entre 1 et ${MAX_NEW_BOARD_PAD_COUNT}.`);
-    return null;
-  }
-  localStorage.setItem(NEW_BOARD_PAD_COUNT_STORAGE, String(count));
-  return count;
+// Dernier créateur saisi (pré-remplit le champ, cf. NEW_BOARD_CREATOR_STORAGE).
+function lastNewBoardCreator() {
+  return String(localStorage.getItem(NEW_BOARD_CREATOR_STORAGE) || "").trim();
 }
 
+// Ouvre le dialogue de création : nombre de pads, nom et créateur sont demandés
+// ensemble, en un seul geste, plutôt que d'enchaîner un prompt natif puis un
+// renommage a posteriori dans la gestion du board.
+function openNewBoardDialog() {
+  if (els.newBoardPadCount) {
+    els.newBoardPadCount.max = String(MAX_NEW_BOARD_PAD_COUNT);
+    els.newBoardPadCount.value = String(lastNewBoardPadCount());
+  }
+  if (els.newBoardPadCountLabel) els.newBoardPadCountLabel.textContent = `Nombre de pads (1 à ${MAX_NEW_BOARD_PAD_COUNT})`;
+  if (els.newBoardName) els.newBoardName.value = nextBoardName();
+  if (els.newBoardCreator) els.newBoardCreator.value = lastNewBoardCreator();
+  if (els.newBoardDialog?.showModal) {
+    els.newBoardDialog.showModal();
+  } else {
+    setStatus("Impossible d'ouvrir la création de board");
+  }
+}
+
+// Le créateur n'est saisi QU'ICI : aucun champ ne permet plus de le modifier après
+// coup (cf. suppression de #boardCreator dans la gestion du board), d'où la
+// mention « non modifiable » à côté du champ.
 async function addBoard() {
-  // Demander AVANT toute modification d'état : annuler ne doit rien changer.
-  const padCount = askNewBoardPadCount();
-  if (padCount === null) return;
+  const enteredCount = Math.round(Number(String(els.newBoardPadCount?.value ?? "").trim().replace(",", ".")));
+  if (!Number.isFinite(enteredCount) || enteredCount < 1 || enteredCount > MAX_NEW_BOARD_PAD_COUNT) {
+    window.alert(`Nombre de pads invalide : indiquer un entier entre 1 et ${MAX_NEW_BOARD_PAD_COUNT}.`);
+    return;
+  }
+  const padCount = enteredCount;
+  localStorage.setItem(NEW_BOARD_PAD_COUNT_STORAGE, String(padCount));
+  const name = els.newBoardName?.value.trim() || nextBoardName();
+  const creator = els.newBoardCreator?.value.trim() || "";
+  localStorage.setItem(NEW_BOARD_CREATOR_STORAGE, creator);
+  els.newBoardDialog?.close();
   setBoardPadEditing(false);
-  const name = nextBoardName();
   const board = {
     id: createId(),
     name,
+    creator,
     createdAt: new Date().toISOString(),
     padCount,
     masterVolume: DEFAULT_MASTER_VOLUME,
@@ -4906,7 +4931,7 @@ async function addBoard() {
   renderBoardOptions();
   await renderPads();
   // Rester en garage sur le nouveau board, section GESTION ouverte, nom en édition
-  // (renommer est la première chose à faire).
+  // (nom déjà choisi dans le dialogue, mais retouchable ici si besoin).
   setBoardPadEditing(true);
   state.boardManageSectionOpen = true;
   if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = false;
@@ -16796,20 +16821,20 @@ async function init() {
       els.boardName.blur();
     }
   });
-  els.addBoard?.addEventListener("click", addBoard);
+  els.addBoard?.addEventListener("click", openNewBoardDialog);
+  els.createNewBoard?.addEventListener("click", () => {
+    addBoard().catch(() => setStatus("Création du board impossible"));
+  });
+  els.cancelNewBoard?.addEventListener("click", () => els.newBoardDialog?.close());
+  els.newBoardDialog?.addEventListener("click", (event) => {
+    if (event.target === els.newBoardDialog) els.newBoardDialog.close();
+  });
   els.duplicateBoard?.addEventListener("click", duplicateCurrentBoard);
   els.boardInfoNotice?.addEventListener("click", () => {
     exportBoardNotice().catch(() => setStatus("Notice impossible"));
   });
   els.openAppNotice?.addEventListener("click", openAppNoticePdf);
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
-  els.boardCreator?.addEventListener("change", () => {
-    const board = currentBoard();
-    if (!board) return;
-    board.creator = els.boardCreator.value.trim();
-    saveBoards();
-    if (els.boardInfoCreator) els.boardInfoCreator.textContent = board.creator || "—";
-  });
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {
     // Un export est une action de lecture seule : rester dans le mode courant
@@ -17560,6 +17585,7 @@ async function init() {
   bindEscapeClose(els.helpDialog);
   bindEscapeClose(els.patchBayDialog);
   bindEscapeClose(els.exportBoardDialog);
+  bindEscapeClose(els.newBoardDialog);
   bindEscapeClose(els.cancelEditDialog);
   bindEscapeClose(els.cueDialog, () => {
     clearCueDialogDraft();

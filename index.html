@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=662">
+    <link rel="stylesheet" href="styles.css?v=663">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -143,10 +143,6 @@
               <label class="board-name">
                 <span>Nom</span>
                 <input id="boardName" type="text" maxlength="48">
-              </label>
-              <label class="board-name">
-                <span>Créateur</span>
-                <input id="boardCreator" type="text" maxlength="48" placeholder="—">
               </label>
               <div class="board-center-actions">
                 <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
@@ -1005,7 +1001,7 @@
                     <circle cx="6" cy="18" r="1.7" fill="currentColor"/>
                     <path d="M16 13v8M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                </dt><dd>Crée un nouveau board.</dd>
+                </dt><dd>Crée un nouveau board : nombre de pads, nom et créateur sont demandés ensemble. Le créateur n'est saisi qu'à cet instant et ne peut plus être changé ensuite.</dd>
                 <dt aria-label="Dupliquer le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="6" cy="6" r="1.7" fill="currentColor"/>
@@ -2137,6 +2133,31 @@
       </div>
     </dialog>
 
+    <dialog id="newBoardDialog" class="confirm-dialog" aria-labelledby="newBoardDialogTitle">
+      <div class="confirm-panel">
+        <div class="help-head">
+          <h2 id="newBoardDialogTitle">Nouveau board</h2>
+        </div>
+        <label class="board-name">
+          <span id="newBoardPadCountLabel">Nombre de pads</span>
+          <input id="newBoardPadCount" type="number" min="1" inputmode="numeric" aria-labelledby="newBoardPadCountLabel">
+        </label>
+        <label class="board-name">
+          <span>Nom du board</span>
+          <input id="newBoardName" type="text" maxlength="48">
+        </label>
+        <label class="board-name">
+          <span>Créateur (non modifiable)</span>
+          <input id="newBoardCreator" type="text" maxlength="48" placeholder="—">
+        </label>
+        <p class="dialog-note">Des pads pourront être ajoutés ou supprimés ensuite, et le board renommé. Le créateur, lui, ne pourra plus être changé une fois le board créé.</p>
+        <div class="dialog-actions">
+          <button id="createNewBoard" class="small-button" type="button">Créer</button>
+          <button id="cancelNewBoard" class="small-button" type="button">Annuler</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="stageMissingFilesDialog" class="confirm-dialog" aria-labelledby="stageMissingFilesTitle">
       <div class="confirm-panel">
         <div class="help-head">
@@ -2686,7 +2707,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=662"></script>
+    <script src="app.js?v=663"></script>
 
 
   </body>
