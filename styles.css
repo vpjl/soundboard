@@ -1103,6 +1103,15 @@ body.board-edit-mode .board-info-section-toggle {
   max-width: max-content;
 }
 
+.xfade-live-title {
+  margin: 0;
+  color: var(--color_ui_text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .cue-live-row,
 .xfade-live-row {
   display: contents;
@@ -2829,16 +2838,12 @@ body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
   cursor: default;
 }
 
-.live-tools #openCueDialog {
-  margin-left: auto;
+.live-tools .xfade-live-title {
+  margin-left: 16px;
 }
 
-body.cues-enabled:not(.board-edit-mode) .live-tools #openCueDialog {
+body.cues-enabled:not(.board-edit-mode) #openCueDialog {
   display: none;
-}
-
-body.cues-enabled:not(.board-edit-mode) .live-tools #showCables {
-  margin-left: auto;
 }
 
 #boardManageSectionBody .board-center-actions {
@@ -6854,7 +6859,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .cue-editor-button,
   .cue-run-button,
-  .cue-window-button,
   .xfade-live-row .icon-button {
     width: 32px;
     height: 32px;
@@ -7679,13 +7683,6 @@ body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
   width: fit-content !important;
   max-width: 100% !important;
   justify-self: start !important;
-}
-
-/* Le titre "Cues/Crossfade" (flex-basis:100%) fait compter le bloc en max-content
-   (titre + boutons sur une seule ligne → largeur gonflée). Masqué à l'état
-   inactif pour que le bloc se réduise à ses boutons ; réaffiché à l'activation. */
-body:not(.board-edit-mode):not(.cues-enabled) .live-tools .live-tools-title {
-  display: none !important;
 }
 
 /* Grille dès l'activation (collé ou non) : 1re colonne compacte pour le bouton
