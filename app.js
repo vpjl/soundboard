@@ -694,7 +694,8 @@ const els = {
   versionNotesBoard: document.querySelector("#versionNotesBoard"),
   versionNotesBoardCreated: document.querySelector("#versionNotesBoardCreated"),
   versionNotesEditor: document.querySelector("#versionNotesEditor"),
-  closeVersionNotes: document.querySelector("#closeVersionNotes"),
+  applyVersionNotes: document.querySelector("#applyVersionNotes"),
+  cancelVersionNotes: document.querySelector("#cancelVersionNotes"),
   padNoteOverlay: document.querySelector("#padNoteOverlay"),
 };
 
@@ -7629,7 +7630,8 @@ async function openVersionNotesDialog() {
     els.versionNotesBoard.textContent = `Board : ${board?.name || "—"}`;
   }
   if (els.versionNotesBoardCreated) {
-    els.versionNotesBoardCreated.textContent = `Board créé le : ${formatBoardCreatedAt(board?.createdAt)}`;
+    const creator = String(board?.creator || "").trim();
+    els.versionNotesBoardCreated.textContent = `Créé le : ${formatBoardCreatedAt(board?.createdAt)}${creator ? ` par ${creator}` : ""}`;
   }
   if (els.versionNotesLabel) {
     els.versionNotesLabel.textContent = `${snapshot.archived ? "Archive" : "Version"} · ${label}`;
@@ -7656,11 +7658,7 @@ async function saveVersionNotesDialog() {
   setStatus("Notes de version enregistrées");
 }
 
-async function closeVersionNotesDialog() {
-  if (els.versionNotesDialog?.open) {
-    await saveVersionNotesDialog();
-    return;
-  }
+function cancelVersionNotesDialog() {
   state.versionNotesDraft = null;
   els.versionNotesDialog?.close();
 }
@@ -16797,12 +16795,13 @@ async function init() {
       .catch(() => syncVersionButtons([]));
   });
   bindSafeActionButton(els.versionNotes, () => openVersionNotesDialog().catch(() => setStatus("Notes indisponibles")));
-  els.closeVersionNotes?.addEventListener("click", () => {
-    closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
+  els.applyVersionNotes?.addEventListener("click", () => {
+    saveVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
   });
+  els.cancelVersionNotes?.addEventListener("click", cancelVersionNotesDialog);
   els.versionNotesDialog?.addEventListener("click", (event) => {
     if (event.target === els.versionNotesDialog) {
-      closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
+      cancelVersionNotesDialog();
     }
   });
   els.boardSelect?.addEventListener("change", () => switchBoard(els.boardSelect.value));
@@ -17614,9 +17613,7 @@ async function init() {
     state.imageDraft = null;
   });
   bindEscapeClose(els.noteDialog, cancelNoteDialog);
-  bindEscapeClose(els.versionNotesDialog, () => {
-    closeVersionNotesDialog().catch(() => setStatus("Enregistrement notes impossible"));
-  });
+  bindEscapeClose(els.versionNotesDialog, cancelVersionNotesDialog);
   bindEscapeClose(els.shortcutDialog, () => {
     restoreShortcutDraft();
     state.shortcutDraft = null;

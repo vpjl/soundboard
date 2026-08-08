@@ -1336,6 +1336,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 .version-notes-head {
   align-items: start;
   gap: 12px;
+  margin-bottom: -6px;
 }
 
 .dialog-close-button {
@@ -1347,13 +1348,14 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   line-height: 1;
 }
 
-.version-notes-meta {
-  margin: 0;
-  line-height: 1;
+.version-notes-info {
+  display: grid;
+  gap: 0;
 }
 
-.version-notes-meta + .version-notes-meta {
-  margin-top: 0;
+.version-notes-meta {
+  margin: 0;
+  line-height: 1.35;
 }
 
 .version-notes-panel textarea[readonly] {

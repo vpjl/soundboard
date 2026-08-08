@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=665">
+    <link rel="stylesheet" href="styles.css?v=666">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1665,12 +1665,17 @@
       <div class="note-panel version-notes-panel">
         <div class="help-head version-notes-head">
           <h2 id="versionNotesTitle">Notes de version</h2>
-          <button id="closeVersionNotes" class="icon-button dialog-close-button" type="button" aria-label="Fermer les notes de version">×</button>
         </div>
-        <p id="versionNotesBoard" class="dialog-note version-notes-meta">Board : —</p>
-        <p id="versionNotesBoardCreated" class="dialog-note version-notes-meta">Board créé le : —</p>
-        <p id="versionNotesLabel" class="dialog-note version-notes-meta">Choisir une version.</p>
+        <div class="version-notes-info">
+          <p id="versionNotesBoard" class="dialog-note version-notes-meta">Board : —</p>
+          <p id="versionNotesBoardCreated" class="dialog-note version-notes-meta">Créé le : —</p>
+          <p id="versionNotesLabel" class="dialog-note version-notes-meta">Choisir une version.</p>
+        </div>
         <textarea id="versionNotesEditor" rows="6" maxlength="1200" placeholder="Notes attachées à cette version..."></textarea>
+        <div class="dialog-actions">
+          <button id="applyVersionNotes" class="small-button" type="button">Enregistrer</button>
+          <button id="cancelVersionNotes" class="small-button ghost" type="button">Annuler</button>
+        </div>
       </div>
     </dialog>
 
@@ -2713,7 +2718,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=665"></script>
+    <script src="app.js?v=666"></script>
 
 
   </body>
