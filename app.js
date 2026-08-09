@@ -3165,9 +3165,13 @@ function syncFloatingCueFrame(resetAnchor = false) {
       const xfadeTitleEl = document.querySelector(".xfade-live-title");
       const xfadeTitleLeft = xfadeTitleEl ? Math.round(xfadeTitleEl.getBoundingClientRect().left) : "-";
       const ltRect = els.liveTools.getBoundingClientRect();
+      const ltStyle = getComputedStyle(els.liveTools);
+      const editEl = document.getElementById("cueEditor");
+      const editRect = editEl ? editEl.getBoundingClientRect() : null;
       window.__cueDebugLog.push(
         `${new Date().toLocaleTimeString("fr-FR").slice(0, 8)} stuck:${shouldStick ? 1 : 0} stage:${document.body.classList.contains("stage-mode") ? 1 : 0} w:${Math.round(ltRect.width)} l:${Math.round(ltRect.left)}\n` +
-        `  edit:${leftOf("cueEditor")} reset:${leftOf("resetCuePosition")} run:${leftOf("cueRun")} next:${leftOf("cueNext")} xfadeTitle:${xfadeTitleLeft}`
+        `  edit:${leftOf("cueEditor")}(w${editRect ? Math.round(editRect.width) : "-"}) reset:${leftOf("resetCuePosition")} run:${leftOf("cueRun")} next:${leftOf("cueNext")} xfadeTitle:${xfadeTitleLeft}\n` +
+        `  disp:${ltStyle.display} cols:${ltStyle.gridTemplateColumns}`
       );
       if (window.__cueDebugLog.length > 6) window.__cueDebugLog.shift();
     }
