@@ -3167,48 +3167,7 @@ function syncFloatingCueFrame(resetAnchor = false) {
     }
   }
 
-  // DEBUG TEMPORAIRE — à retirer une fois le bug de décalage diagnostiqué.
-  // Un screenshot pris "au bon moment" pendant un scroll réel n'est pas
-  // possible (les deux mains sont prises par le scroll) : on garde donc un
-  // JOURNAL des derniers changements d'état collé/décollé (pas la valeur
-  // instantanée) avec la position (left) de chaque bouton de cue à cet
-  // instant précis — le journal reste affiché une fois le scroll arrêté, donc
-  // capturable sans course contre la montre. S'il apparaît un écart entre
-  // deux lignes consécutives sur edit/reset/run/next, le décalage est réel et
-  // localisé ; sinon c'est un artefact de rendu (pas une vraie valeur CSS).
-  {
-    if (!window.__cueDebugLog) window.__cueDebugLog = [];
-    if (window.__cueDebugLastStuck !== shouldStick) {
-      window.__cueDebugLastStuck = shouldStick;
-      const leftOf = (id) => {
-        const el = document.getElementById(id);
-        return el ? Math.round(el.getBoundingClientRect().left) : "-";
-      };
-      const xfadeTitleEl = document.querySelector(".xfade-live-title");
-      const xfadeTitleLeft = xfadeTitleEl ? Math.round(xfadeTitleEl.getBoundingClientRect().left) : "-";
-      const ltRect = els.liveTools.getBoundingClientRect();
-      const ltStyle = getComputedStyle(els.liveTools);
-      const editEl = document.getElementById("cueEditor");
-      const editRect = editEl ? editEl.getBoundingClientRect() : null;
-      window.__cueDebugLog.push(
-        `${new Date().toLocaleTimeString("fr-FR").slice(0, 8)} stuck:${shouldStick ? 1 : 0} stage:${document.body.classList.contains("stage-mode") ? 1 : 0} w:${Math.round(ltRect.width)} l:${Math.round(ltRect.left)}\n` +
-        `  edit:${leftOf("cueEditor")}(w${editRect ? Math.round(editRect.width) : "-"}) reset:${leftOf("resetCuePosition")} run:${leftOf("cueRun")} next:${leftOf("cueNext")} xfadeTitle:${xfadeTitleLeft}\n` +
-        `  disp:${ltStyle.display} cols:${ltStyle.gridTemplateColumns}`
-      );
-      if (window.__cueDebugLog.length > 6) window.__cueDebugLog.shift();
-    }
-    let dbg = document.getElementById("cueDebugBadge");
-    if (!dbg) {
-      dbg = document.createElement("div");
-      dbg.id = "cueDebugBadge";
-      dbg.style.cssText =
-        "position:fixed;bottom:4px;left:4px;z-index:99999;background:#000;color:#0f0;" +
-        "font:10px/1.3 monospace;padding:3px 5px;border-radius:4px;pointer-events:none;" +
-        "max-width:96vw;white-space:pre-wrap;max-height:40vh;overflow:hidden;";
-      document.body.appendChild(dbg);
-    }
-    dbg.textContent = window.__cueDebugLog.join("\n");
-  }
+  document.getElementById("cueDebugBadge")?.remove();
 }
 
 function cueSelectablePads() {
