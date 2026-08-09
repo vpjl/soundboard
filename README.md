@@ -21,3 +21,7 @@ Fonctions principales :
 5. Ouvrir l'URL GitHub Pages fournie.
 
 Sur iPhone, ouvrir l'URL HTTPS GitHub Pages dans Safari, puis `Partager > Sur l'ecran d'accueil`.
+
+## Licence
+
+Ce projet est distribué sous licence [CC BY-NC-SA 4.0](LICENSE.md) (Creative Commons Attribution — Pas d'Utilisation Commerciale — Partage dans les Mêmes Conditions 4.0 International).

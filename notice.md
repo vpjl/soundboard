@@ -167,3 +167,7 @@ Limites spécifiques à certains navigateurs uniquement.
 | Synthèse vocale (lecture de texte) | Oui | Oui | Oui | Oui |
 
 > Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter sons et réglages ».
+
+## Licence
+
+Soundboard VL est distribué sous licence **Creative Commons Attribution — Pas d'Utilisation Commerciale — Partage dans les Mêmes Conditions 4.0 International (CC BY-NC-SA 4.0)**. Détails : https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr
