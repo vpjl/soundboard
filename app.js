@@ -3032,8 +3032,30 @@ function syncCueControls() {
   requestAnimationFrame(() => syncFloatingCueFrame(true));
 }
 
+// Aligne le bord gauche du titre "Crossfade" sur celui du bouton "armer
+// crossfade manuel" (#showCables) — utile uniquement quand ils sont empilés
+// sur deux lignes séparées (bloc cues portable) : le flex seul ne peut pas
+// garantir cet alignement entre deux lignes différentes (contrairement à une
+// grille, mais une grille ici redistribuait l'espace de façon incohérente au
+// collage/décollage du bloc, cf. commentaire CSS de .live-tools en portrait).
+// No-op si les deux sont déjà sur la même ligne (desktop : title juste avant
+// le bouton, sur une seule ligne — un margin-left calculé les ferait alors
+// se chevaucher).
+function alignXfadeTitle() {
+  const title = document.querySelector(".xfade-live-title");
+  const btn = document.getElementById("showCables");
+  if (!title || !btn) return;
+  title.style.removeProperty("margin-left");
+  const btnRect = btn.getBoundingClientRect();
+  const titleRect = title.getBoundingClientRect();
+  if (Math.round(titleRect.top) === Math.round(btnRect.top)) return;
+  const delta = Math.round(btnRect.left - titleRect.left);
+  if (delta > 0) title.style.marginLeft = `${delta}px`;
+}
+
 function syncFloatingCueFrame(resetAnchor = false) {
   if (!els.liveTools) return;
+  alignXfadeTitle();
   const mainEl = document.querySelector("main");
   const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
   if (!shouldFloat) {
