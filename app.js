@@ -25,6 +25,7 @@ const ARMED_CROSSFADE_SECONDS_STORAGE = "soundboard-live-armed-crossfade-seconds
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const MASTER_COMPRESSOR_STORAGE = "soundboard-live-master-compressor";
+const MASTER_LIVE_FX_PANEL_ENABLED_STORAGE = "soundboard-live-master-fx-panel-enabled";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
 const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
@@ -191,6 +192,9 @@ const state = {
   masterEqHigh: null,
   masterCompressor: null,
   masterCompressorMakeup: null,
+  liveFxPanelDocked: false,
+  liveFxPanelAllowed: true,
+  liveFxPadSettings: {},
   masterOutputDestination: null,
   masterOutputAudio: null,
   masterMeterData: null,
@@ -349,6 +353,11 @@ const els = {
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
+  liveFxPanel: document.querySelector("#liveFxPanel"),
+  masterLiveFxPanelEnabled: document.querySelector("#masterLiveFxPanelEnabled"),
+  liveFxPanelHandle: document.querySelector("#liveFxPanelHandle"),
+  liveFxPanelDock: document.querySelector("#liveFxPanelDock"),
+  liveFxPanelBody: document.querySelector("#liveFxPanelBody"),
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterMicrophoneSelect: document.querySelector("#masterMicrophoneSelect"),
@@ -2086,6 +2095,456 @@ function configureCompressor(node, makeupNode, preset) {
   if (makeupNode) makeupNode.gain.value = dbToGain(values.makeup || 0);
 }
 
+const LIVE_FILTER_RANGE = 50;
+const LIVE_FILTER_LOWPASS_MAX_FREQ = 18000;
+const LIVE_FILTER_LOWPASS_MIN_FREQ = 100;
+const LIVE_FILTER_HIGHPASS_MIN_FREQ = 20;
+const LIVE_FILTER_HIGHPASS_MAX_FREQ = 8000;
+const LIVE_FILTER_Q = 0.9;
+
+// value : -50 (étouffé) .. 0 (neutre) .. 50 (aminci). Au centre, allpass = réponse
+// en amplitude parfaitement plate (contrairement à un lowpass/highpass extrême,
+// qui colore encore légèrement le signal).
+function liveFilterParamsForValue(value) {
+  const v = Math.max(-LIVE_FILTER_RANGE, Math.min(LIVE_FILTER_RANGE, Number(value) || 0));
+  if (v === 0) return { type: "allpass", frequency: 1000 };
+  const t = Math.abs(v) / LIVE_FILTER_RANGE;
+  if (v < 0) {
+    const frequency = LIVE_FILTER_LOWPASS_MAX_FREQ * (LIVE_FILTER_LOWPASS_MIN_FREQ / LIVE_FILTER_LOWPASS_MAX_FREQ) ** t;
+    return { type: "lowpass", frequency };
+  }
+  const frequency = LIVE_FILTER_HIGHPASS_MIN_FREQ * (LIVE_FILTER_HIGHPASS_MAX_FREQ / LIVE_FILTER_HIGHPASS_MIN_FREQ) ** t;
+  return { type: "highpass", frequency };
+}
+
+function applyPadLiveFilter(pad, value) {
+  const node = pad.liveFilterNode;
+  if (!node || !state.audioContext) return;
+  const { type, frequency } = liveFilterParamsForValue(value);
+  node.type = type;
+  node.Q.value = LIVE_FILTER_Q;
+  node.frequency.setTargetAtTime(frequency, state.audioContext.currentTime, 0.015);
+}
+
+const LIVE_DISTORTION_CURVE_SAMPLES = 1024;
+const LIVE_DISTORTION_MAX_K = 18;
+
+// Soft-clip borné [-1,1] : (1+k)x / (1+k|x|). k=0 → quasi-identité (curseur à 0
+// = transparent), k grand → écrêtage progressif sans jamais dépasser ±1.
+function distortionCurve(amount) {
+  const k = (Math.max(0, Math.min(100, Number(amount) || 0)) / 100) * LIVE_DISTORTION_MAX_K;
+  const curve = new Float32Array(LIVE_DISTORTION_CURVE_SAMPLES);
+  for (let i = 0; i < LIVE_DISTORTION_CURVE_SAMPLES; i += 1) {
+    const x = (i / (LIVE_DISTORTION_CURVE_SAMPLES - 1)) * 2 - 1;
+    curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
+  }
+  return curve;
+}
+
+function applyPadLiveDistortion(pad, value) {
+  const node = pad.liveDistortionNode;
+  const makeup = pad.liveDistortionMakeup;
+  if (!node) return;
+  const amount = Math.max(0, Math.min(100, Number(value) || 0));
+  const k = (amount / 100) * LIVE_DISTORTION_MAX_K;
+  node.curve = distortionCurve(amount);
+  // La courbe soft-clip a une pente de (1+k) près de zéro (c'est ce qui fait
+  // "crunch"), donc le niveau global grimpe fort avec le drive si on ne
+  // compense pas : on ramène le niveau au même ordre de grandeur qu'à k=0.
+  if (makeup && state.audioContext) {
+    makeup.gain.setTargetAtTime(1 / (1 + k), state.audioContext.currentTime, 0.03);
+  }
+}
+
+// Réassigner .curve d'un WaveShaperNode est instantané et non interpolé : si le
+// signal traverse le node au moment du switch, le saut de forme d'onde produit
+// un clic/bruit métallique — surtout net entre "identité" (bypass) et une
+// courbe très driveée. On l'évite en creusant très brièvement le gain de
+// compensation autour du swap (le saut a lieu pendant un instant quasi muet).
+function applyPadLiveDistortionSafely(pad, value) {
+  const node = pad.liveDistortionNode;
+  const makeup = pad.liveDistortionMakeup;
+  if (!node || !makeup || !state.audioContext) {
+    applyPadLiveDistortion(pad, value);
+    return;
+  }
+  const amount = Math.max(0, Math.min(100, Number(value) || 0));
+  const k = (amount / 100) * LIVE_DISTORTION_MAX_K;
+  const now = state.audioContext.currentTime;
+  makeup.gain.cancelScheduledValues(now);
+  makeup.gain.setValueAtTime(makeup.gain.value, now);
+  makeup.gain.linearRampToValueAtTime(0.0001, now + 0.008);
+  node.curve = distortionCurve(amount);
+  makeup.gain.setValueAtTime(0.0001, now + 0.008);
+  makeup.gain.linearRampToValueAtTime(1 / (1 + k), now + 0.028);
+}
+
+const LIVE_FLANGER_RATE = 0.25;
+const LIVE_FLANGER_BASE_DELAY = 0.006;
+const LIVE_FLANGER_MAX_DEPTH = 0.004;
+const LIVE_FLANGER_MAX_WET = 0.6;
+
+function createLiveFlangerUnit(ctx, now) {
+  const input = ctx.createGain();
+  const dry = ctx.createGain();
+  const wet = ctx.createGain();
+  const delay = ctx.createDelay(0.05);
+  const lfo = ctx.createOscillator();
+  const lfoDepth = ctx.createGain();
+  const output = ctx.createGain();
+  input.connect(dry).connect(output);
+  input.connect(delay).connect(wet).connect(output);
+  delay.delayTime.value = LIVE_FLANGER_BASE_DELAY;
+  lfo.type = "sine";
+  lfo.frequency.value = LIVE_FLANGER_RATE;
+  lfoDepth.gain.value = 0;
+  lfo.connect(lfoDepth).connect(delay.delayTime);
+  dry.gain.value = 1;
+  wet.gain.value = 0;
+  lfo.start(now);
+  return { input, output, dry, wet, delay, lfo, lfoDepth };
+}
+
+function applyPadLiveFlanger(pad, value) {
+  const unit = pad.liveFlangerUnit;
+  if (!unit || !state.audioContext) return;
+  const amount = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
+  const now = state.audioContext.currentTime;
+  unit.wet.gain.setTargetAtTime(amount * LIVE_FLANGER_MAX_WET, now, 0.03);
+  unit.lfoDepth.gain.setTargetAtTime(amount * LIVE_FLANGER_MAX_DEPTH, now, 0.03);
+}
+
+const LIVE_DELAY_TIME = 0.28;
+const LIVE_DELAY_FEEDBACK = 0.35;
+const LIVE_DELAY_MAX_WET = 0.5;
+
+function createLiveDelayUnit(ctx) {
+  const input = ctx.createGain();
+  const dry = ctx.createGain();
+  const wet = ctx.createGain();
+  const delay = ctx.createDelay(1);
+  const feedback = ctx.createGain();
+  const output = ctx.createGain();
+  input.connect(dry).connect(output);
+  input.connect(delay);
+  delay.connect(feedback).connect(delay);
+  delay.connect(wet).connect(output);
+  delay.delayTime.value = LIVE_DELAY_TIME;
+  feedback.gain.value = LIVE_DELAY_FEEDBACK;
+  dry.gain.value = 1;
+  wet.gain.value = 0;
+  return { input, output, dry, wet, delay, feedback };
+}
+
+function applyPadLiveDelay(pad, value) {
+  const unit = pad.liveDelayUnit;
+  if (!unit || !state.audioContext) return;
+  const amount = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
+  unit.wet.gain.setTargetAtTime(amount * LIVE_DELAY_MAX_WET, state.audioContext.currentTime, 0.03);
+}
+
+function liveFxRowId(pad) {
+  return `live-fx-row-${pad.uid}`;
+}
+
+const LIVE_FX_PAD_SETTINGS_STORAGE = "soundboard-live-fx-pad-settings";
+
+// Mémorisation légère, indépendante des métadonnées du pad (pas d'export/
+// duplication/versions à suivre) : un réglage "machine locale", comme un
+// potard qu'on laisse en place d'une lecture à l'autre.
+function loadLiveFxPadSettings() {
+  try {
+    state.liveFxPadSettings = JSON.parse(localStorage.getItem(LIVE_FX_PAD_SETTINGS_STORAGE)) || {};
+  } catch {
+    state.liveFxPadSettings = {};
+  }
+}
+
+function getLiveFxPadSettings(pad) {
+  return state.liveFxPadSettings[pad.uid] || { distortion: 0, filter: 0, flanger: 0, delay: 0 };
+}
+
+function saveLiveFxPadSetting(pad, key, value) {
+  if (!pad.uid) return;
+  const current = getLiveFxPadSettings(pad);
+  state.liveFxPadSettings[pad.uid] = { ...current, [key]: Number(value) || 0 };
+  localStorage.setItem(LIVE_FX_PAD_SETTINGS_STORAGE, JSON.stringify(state.liveFxPadSettings));
+}
+
+function createLiveFxControl({ key, label, min, max, step = "1", value = "0", centered, resetValue, separated, applyFn, ariaLabel }) {
+  const control = document.createElement("label");
+  control.className = separated ? "live-fx-control is-separated" : "live-fx-control";
+  const caption = document.createElement("span");
+  caption.textContent = label;
+  const slider = document.createElement("input");
+  slider.type = "range";
+  slider.className = centered ? "range-nominal range-center" : "range-nominal";
+  slider.min = String(min);
+  slider.max = String(max);
+  slider.step = String(step);
+  slider.value = String(value);
+  if (key) slider.dataset.fx = key;
+  slider.setAttribute("aria-label", ariaLabel);
+  slider.addEventListener("input", () => applyFn(slider.value));
+  if (resetValue != null) {
+    slider.addEventListener("dblclick", () => {
+      slider.value = String(resetValue);
+      applyFn(resetValue);
+    });
+  }
+  control.append(caption, slider);
+  return control;
+}
+
+// Registre effet→fonction d'application, utilisé par le bouton "couper les
+// effets" (setLiveFxBypassed) pour ré-appliquer la valeur affichée des
+// curseurs après un dé-bypass, sans dupliquer la logique de chaque effet.
+const LIVE_FX_APPLY_BY_KEY = {
+  distortion: applyPadLiveDistortionSafely,
+  filter: applyPadLiveFilter,
+  flanger: applyPadLiveFlanger,
+  delay: applyPadLiveDelay,
+};
+
+function reapplyLiveFxRow(pad, row) {
+  row.querySelectorAll("input[data-fx]").forEach((slider) => {
+    LIVE_FX_APPLY_BY_KEY[slider.dataset.fx]?.(pad, slider.value);
+  });
+}
+
+function setLiveFxBypassed(pad, bypassed) {
+  pad.liveFxBypassed = bypassed;
+  const row = document.getElementById(liveFxRowId(pad));
+  if (!row) return;
+  row.classList.toggle("is-bypassed", bypassed);
+  row.querySelector(".live-fx-row-bypass")?.setAttribute("aria-pressed", String(bypassed));
+  if (bypassed) {
+    applyPadLiveDistortionSafely(pad, 0);
+    applyPadLiveFilter(pad, 0);
+    applyPadLiveFlanger(pad, 0);
+    applyPadLiveDelay(pad, 0);
+  } else {
+    reapplyLiveFxRow(pad, row);
+  }
+}
+
+function addLiveFxRow(pad) {
+  if (!els.liveFxPanelBody || !pad.gain || !pad.liveFilterNode) return;
+  if (document.getElementById(liveFxRowId(pad))) return;
+  pad.liveFxBypassed = false;
+  const row = document.createElement("div");
+  row.className = "live-fx-row";
+  row.id = liveFxRowId(pad);
+
+  const head = document.createElement("div");
+  head.className = "live-fx-row-head";
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "random-group-section-toggle is-active";
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.title = `Déplier/replier les effets — ${pad.title}`;
+  const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  chevron.setAttribute("viewBox", "0 0 24 24");
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.setAttribute("class", "filter-section-chevron");
+  chevron.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  const dot = document.createElement("span");
+  dot.className = "random-group-playing-dot";
+  const label = document.createElement("span");
+  label.className = "live-fx-row-title";
+  label.textContent = pad.title;
+  toggle.append(chevron, dot, label);
+
+  const bypassBtn = document.createElement("button");
+  bypassBtn.type = "button";
+  bypassBtn.className = "icon-button live-fx-row-bypass";
+  bypassBtn.setAttribute("aria-pressed", "false");
+  bypassBtn.setAttribute("aria-label", `Couper les effets — ${pad.title}`);
+  bypassBtn.title = `Couper/rétablir les effets — ${pad.title}`;
+  bypassBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 6a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  bypassBtn.addEventListener("click", () => setLiveFxBypassed(pad, !pad.liveFxBypassed));
+
+  head.append(toggle, bypassBtn);
+
+  const remembered = getLiveFxPadSettings(pad);
+  const body = document.createElement("div");
+  body.className = "live-fx-row-body";
+  body.hidden = false;
+  body.append(
+    createLiveFxControl({
+      key: "distortion", label: "Distorsion", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.distortion,
+      applyFn: (v) => { applyPadLiveDistortion(pad, v); saveLiveFxPadSetting(pad, "distortion", v); },
+      ariaLabel: `Distorsion live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "filter", label: "Filtre", min: -LIVE_FILTER_RANGE, max: LIVE_FILTER_RANGE, centered: true, resetValue: 0, value: remembered.filter,
+      applyFn: (v) => { applyPadLiveFilter(pad, v); saveLiveFxPadSetting(pad, "filter", v); },
+      ariaLabel: `Filtre live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "flanger", label: "Flanger", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.flanger,
+      applyFn: (v) => { applyPadLiveFlanger(pad, v); saveLiveFxPadSetting(pad, "flanger", v); },
+      ariaLabel: `Flanger live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "delay", label: "Delay", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.delay,
+      applyFn: (v) => { applyPadLiveDelay(pad, v); saveLiveFxPadSetting(pad, "delay", v); },
+      ariaLabel: `Delay live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      label: "Pan", min: -1, max: 1, step: "0.01", value: pad.panValue ?? 0, centered: true, resetValue: 0, separated: true,
+      applyFn: (v) => {
+        pad.panEl.value = v;
+        pad.panEl.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      ariaLabel: `Pan live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      label: "Volume", min: 0, max: 1, step: "0.01", value: pad.volume ?? 0.85, centered: false,
+      applyFn: (v) => {
+        pad.volumeEl.value = v;
+        pad.volumeEl.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      ariaLabel: `Volume live — ${pad.title}`,
+    }),
+  );
+
+  toggle.addEventListener("click", () => {
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    body.hidden = expanded;
+  });
+
+  row.append(head, body);
+  els.liveFxPanelBody.appendChild(row);
+  // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
+  // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
+  // pas explicitement les effets (pas de surprise sonore à l'ouverture).
+  setLiveFxBypassed(pad, true);
+}
+
+function removeLiveFxRow(pad) {
+  document.getElementById(liveFxRowId(pad))?.remove();
+}
+
+const LIVE_FX_PANEL_POSITION_STORAGE = "soundboard-live-fx-panel-position";
+const LIVE_FX_PANEL_DOCKED_STORAGE = "soundboard-live-fx-panel-docked";
+
+function clampLiveFxPanelPosition() {
+  const panel = els.liveFxPanel;
+  if (!panel || panel.classList.contains("is-docked") || panel.style.left === "") return;
+  const rect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+  const left = Math.min(maxLeft, Math.max(8, rect.left));
+  const top = Math.min(maxTop, Math.max(8, rect.top));
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
+function saveLiveFxPanelPosition(left, top) {
+  localStorage.setItem(LIVE_FX_PANEL_POSITION_STORAGE, JSON.stringify({ left, top }));
+}
+
+function applyStoredLiveFxPanelPosition() {
+  const panel = els.liveFxPanel;
+  if (!panel) return;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(LIVE_FX_PANEL_POSITION_STORAGE));
+  } catch {
+    saved = null;
+  }
+  if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.left = `${saved.left}px`;
+    panel.style.top = `${saved.top}px`;
+    clampLiveFxPanelPosition();
+  }
+}
+
+function setLiveFxPanelDocked(docked, persist = true) {
+  state.liveFxPanelDocked = docked;
+  els.liveFxPanel?.classList.toggle("is-docked", docked);
+  if (els.liveFxPanelDock) {
+    els.liveFxPanelDock.setAttribute("aria-label", docked ? "Déplier le panneau" : "Rabattre le panneau");
+    els.liveFxPanelDock.classList.toggle("is-flipped", docked);
+  }
+  if (persist) localStorage.setItem(LIVE_FX_PANEL_DOCKED_STORAGE, docked ? "on" : "off");
+  if (!docked) applyStoredLiveFxPanelPosition();
+}
+
+function setupLiveFxPanelDrag() {
+  const handle = els.liveFxPanelHandle;
+  const panel = els.liveFxPanel;
+  if (!handle || !panel) return;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  let dragging = false;
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (state.liveFxPanelDocked || event.target.closest("#liveFxPanelDock")) return;
+    const rect = panel.getBoundingClientRect();
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    dragOffsetX = event.clientX - rect.left;
+    dragOffsetY = event.clientY - rect.top;
+    dragging = true;
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }, { passive: false });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
+    const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+    const left = Math.min(maxLeft, Math.max(8, event.clientX - dragOffsetX));
+    const top = Math.min(maxTop, Math.max(8, event.clientY - dragOffsetY));
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    event.preventDefault();
+  }, { passive: false });
+
+  const endDrag = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("is-dragging");
+    try { handle.releasePointerCapture(event.pointerId); } catch {
+      // Déjà relâché.
+    }
+    const rect = panel.getBoundingClientRect();
+    saveLiveFxPanelPosition(rect.left, rect.top);
+  };
+  handle.addEventListener("pointerup", endDrag);
+  handle.addEventListener("pointercancel", endDrag);
+}
+
+function setLiveFxPanelAllowed(allowed, persist = true) {
+  state.liveFxPanelAllowed = allowed;
+  document.body.classList.toggle("live-fx-panel-disabled", !allowed);
+  if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = allowed;
+  if (persist) localStorage.setItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE, allowed ? "on" : "off");
+  updateMasterOptionBadges();
+}
+
+function initLiveFxPanelChrome() {
+  applyStoredLiveFxPanelPosition();
+  setLiveFxPanelDocked(localStorage.getItem(LIVE_FX_PANEL_DOCKED_STORAGE) === "on", false);
+  setupLiveFxPanelDrag();
+  els.liveFxPanelDock?.addEventListener("click", () => setLiveFxPanelDocked(!state.liveFxPanelDocked));
+  window.addEventListener("resize", () => clampLiveFxPanelPosition());
+  const storedAllowed = localStorage.getItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE);
+  setLiveFxPanelAllowed(storedAllowed == null ? true : storedAllowed === "on", false);
+  els.masterLiveFxPanelEnabled?.addEventListener("change", () => {
+    setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled.checked));
+  });
+}
+
 function prepareAudio() {
   if (!state.audioContext) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -2210,6 +2669,12 @@ function makePad(index) {
     hasDirectAudio: false,
     source: null,
     gain: null,
+    liveFilterNode: null,
+    liveDistortionNode: null,
+    liveDistortionMakeup: null,
+    liveFlangerUnit: null,
+    liveDelayUnit: null,
+    liveFxBypassed: false,
     pan: null,
     analyser: null,
     meterData: null,
@@ -2659,6 +3124,11 @@ function makePad(index) {
     updatePadPanValue(pad);
     if (pad.pan) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
     savePadMeta(pad);
+  });
+
+  pad.panEl.addEventListener("dblclick", () => {
+    pad.panEl.value = "0";
+    pad.panEl.dispatchEvent(new Event("input", { bubbles: true }));
   });
 
   pad.loopEl.addEventListener("click", () => {
@@ -11429,6 +11899,7 @@ function updateMasterOptionBadges() {
   const eq = masterEqSettings();
   if ([eq.low, eq.mid, eq.high].some((value) => value !== 0)) items.push("EQ");
   if (masterCompressorSettings().preset !== "off") items.push("Comp");
+  if (els.masterLiveFxPanelEnabled && !els.masterLiveFxPanelEnabled.checked) items.push("FX off");
   if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
 }
 
@@ -13653,6 +14124,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = "off";
+  if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = true;
   if (els.masterEqLow) els.masterEqLow.value = "0";
   if (els.masterEqMid) els.masterEqMid.value = "0";
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
@@ -13673,6 +14145,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   saveMasterReverbSettings();
   saveMasterEqSettings();
   saveMasterCompressorSettings();
+  setLiveFxPanelAllowed(true);
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -13701,6 +14174,7 @@ function masterAudioDraftFromControls() {
     reverbPreset: els.masterReverbPreset?.value || "none",
     reverbWet: els.masterReverbWet?.value ?? "0.5",
     compressorPreset: els.masterCompressorPreset?.value || "off",
+    liveFxPanelEnabled: Boolean(els.masterLiveFxPanelEnabled?.checked),
     eqLow: els.masterEqLow?.value ?? "0",
     eqMid: els.masterEqMid?.value ?? "0",
     eqHigh: els.masterEqHigh?.value ?? "0",
@@ -13721,6 +14195,7 @@ function persistMasterAudioControls() {
   saveMasterReverbSettings();
   saveMasterEqSettings();
   saveMasterCompressorSettings();
+  setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled?.checked));
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -13746,6 +14221,7 @@ function restoreMasterAudioDraft() {
   if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = draft.compressorPreset;
+  if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = draft.liveFxPanelEnabled;
   if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
@@ -15481,6 +15957,15 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.source = null;
   pad.gain = null;
   pad.envGain = null;
+  pad.liveFilterNode = null;
+  try { pad.liveFlangerUnit?.lfo.stop(); } catch {
+    // Déjà arrêté.
+  }
+  pad.liveDistortionNode = null;
+  pad.liveDistortionMakeup = null;
+  pad.liveFlangerUnit = null;
+  pad.liveDelayUnit = null;
+  pad.liveFxBypassed = false;
   pad.pan = null;
   pad.analyser = null;
   pad.meterData = null;
@@ -15490,6 +15975,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.stopAt = 0;
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing", "is-stop-flash");
+  removeLiveFxRow(pad);
   hidePadNoteOverlay(pad);
   if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
   updatePadModeButtons(pad);
@@ -15671,6 +16157,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const ctx = state.audioContext;
   const source = ctx.createBufferSource();
   const gain = ctx.createGain();
+  const liveFilter = ctx.createBiquadFilter();
   const pan = ctx.createStereoPanner();
   const analyser = ctx.createAnalyser();
   // Par défaut, l'heure de référence est lue à cet instant précis — correct
@@ -15682,6 +16169,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   // référence temporelle, fixée une fois pour tout le lot avant de les
   // démarrer (cf. startRandomPadsTogether), pour qu'ils partent ensemble.
   const now = options.scheduledNow ?? ctx.currentTime;
+  const liveDistortion = ctx.createWaveShaper();
+  const liveDistortionMakeup = ctx.createGain();
+  const liveFlangerUnit = createLiveFlangerUnit(ctx, now);
+  const liveDelayUnit = createLiveDelayUnit(ctx);
   const fadeTime = options.fadeInSecondsOverride != null
     ? Math.max(0, Number(options.fadeInSecondsOverride) || 0)
     : fadeDurationForPad(pad, "in");
@@ -15715,7 +16206,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     preGain = envGain;
   }
   connectSourceToGain(pad, source, preGain);
-  connectPadEq(pad, gain, pan);
+  connectPadEq(pad, gain, liveDistortion);
+  liveDistortion.connect(liveDistortionMakeup);
+  liveDistortionMakeup.connect(liveFilter);
+  liveFilter.connect(liveFlangerUnit.input);
+  liveFlangerUnit.output.connect(liveDelayUnit.input);
+  liveDelayUnit.output.connect(pan);
   connectPadOutput(pad, pan, analyser);
 
   if (effectiveFadeInTime > 0) {
@@ -15731,6 +16227,11 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   pad.source = source;
   pad.gain = gain;
+  pad.liveFilterNode = liveFilter;
+  pad.liveDistortionNode = liveDistortion;
+  pad.liveDistortionMakeup = liveDistortionMakeup;
+  pad.liveFlangerUnit = liveFlangerUnit;
+  pad.liveDelayUnit = liveDelayUnit;
   pad.pan = pan;
   pad.analyser = analyser;
   state.lastStartedPad = pad;
@@ -15740,6 +16241,11 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.stopAt = 0;
   pad.keepResumeOffsetOnEnd = false;
   pad.node.classList.add("is-playing");
+  applyPadLiveFilter(pad, 0);
+  applyPadLiveDistortion(pad, 0);
+  applyPadLiveFlanger(pad, 0);
+  applyPadLiveDelay(pad, 0);
+  addLiveFxRow(pad);
   showPadNoteOverlay(pad);
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -16370,6 +16876,8 @@ async function init() {
   loadMasterReverbSettings();
   loadMasterEqSettings();
   loadMasterCompressorSettings();
+  loadLiveFxPadSettings();
+  initLiveFxPanelChrome();
   loadCueVolume();
   if (els.randomGroupCount) {
     els.randomGroupCount.value = localStorage.getItem(RANDOM_GROUP_COUNT_STORAGE) || "2";

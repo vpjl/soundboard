@@ -1090,6 +1090,190 @@ body.board-edit-mode .board-info-section-toggle {
   text-transform: uppercase;
 }
 
+/* Panneau flottant des filtres live par pad : toujours position:fixed (pas de
+   mécanique sticky-scroll comme .live-tools), déplaçable par sa poignée
+   (setupLiveFxPanelDrag) et rabattable en bas de l'écran (setLiveFxPanelDocked).
+   Une rangée repliable par pad en cours de lecture, ajoutée/retirée directement
+   par addLiveFxRow/removeLiveFxRow. */
+.live-fx-panel {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 69;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  max-width: calc(100vw - 16px);
+}
+
+.live-fx-panel:not(:has(.live-fx-row)) {
+  display: none;
+}
+
+body.board-edit-mode .live-fx-panel,
+body.live-fx-panel-disabled .live-fx-panel {
+  display: none;
+}
+
+.live-fx-panel-handle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px 8px 0 0;
+  background: var(--color_ui_panel);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.live-fx-panel-handle.is-dragging {
+  cursor: grabbing;
+}
+
+.live-fx-panel-grip {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.live-fx-panel-title {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--color_ui_text);
+}
+
+#liveFxPanelDock svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.18s;
+}
+
+#liveFxPanelDock.is-flipped svg {
+  transform: rotate(180deg);
+}
+
+.live-fx-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--panel);
+}
+
+.live-fx-panel.is-docked {
+  top: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: 0 !important;
+  width: auto;
+  transform: translateX(-50%);
+}
+
+.live-fx-panel.is-docked .live-fx-panel-handle {
+  border-radius: 8px 8px 0 0;
+}
+
+.live-fx-panel.is-docked .live-fx-panel-body {
+  display: none;
+}
+
+.live-fx-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--color_ui_frame_background);
+  overflow: hidden;
+}
+
+.live-fx-row-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* .random-group-section-toggle est réutilisé tel quel (repli/dépli, pastille,
+   chevron) mais sans padding propre — on l'ajoute ici, scopé à ce contexte.
+   Bouton compact (pas seulement le chevron) : la rangée reste dense même
+   avec plusieurs pads actifs en même temps. */
+.live-fx-row .random-group-section-toggle {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 3px;
+}
+
+.live-fx-row .filter-section-chevron {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+.live-fx-row-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sélecteur à 2 classes (pas juste .live-fx-row-bypass) : nécessaire pour
+   battre .icon-button (42px, définie plus loin dans le fichier) à spécificité
+   égale sans recourir à !important — sinon la règle la plus tardive du
+   fichier gagne et le bouton reste à sa taille .icon-button par défaut. */
+.live-fx-row-head .live-fx-row-bypass {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  padding: 0;
+}
+
+.live-fx-row-head .live-fx-row-bypass svg {
+  width: 8px;
+  height: 8px;
+}
+
+.live-fx-row-bypass[aria-pressed="true"] {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+/* Coupé : les curseurs restent visibles/réglables (comparaison avant/après)
+   mais s'estompent pour signaler que le son en cours est sec. */
+.live-fx-row.is-bypassed .live-fx-row-body {
+  opacity: 0.45;
+}
+
+.live-fx-row-body {
+  padding: 0 8px 8px;
+}
+
+.live-fx-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-fx-control.is-separated {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+.live-fx-control span {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.live-fx-control input[type="range"] {
+  flex: 1;
+}
+
 /* Le titre garde sa ligne dédiée (flex-basis:100%) mais ne dilate plus la largeur
    intrinsèque du bloc : plafonné à la largeur de son texte, il ne force plus le
    bloc compact (cues inactives) à s'étirer sur toute la colonne. Ciblé sur le
@@ -5448,6 +5632,22 @@ body[data-skin="contrast"] .color-field {
   grid-column: 2 / 4;
   white-space: nowrap;
   font-size: 0.62rem;
+}
+
+/* Variante « Afficher le panneau » : label long mais avec une vraie case à
+   cocher (pas de champ nombre) → même trick que .no-check pour le libellé,
+   mais étendu jusqu'à la colonne 4 incluse (82+8+22+8+72 = 192px) : sur 2-3
+   seul (112px) le texte en nowrap déborde encore et se retrouve caché sous la
+   case. La case cocher part donc en colonne 5 (max-content), avec une marge
+   de respiration avant elle. */
+.master-audio-control.live-fx-panel-toggle > span:not(.field-unit) {
+  grid-column: 2 / 5;
+  white-space: nowrap;
+  font-size: 0.62rem;
+}
+.master-audio-control.live-fx-panel-toggle input[type="checkbox"] {
+  grid-column: 5;
+  margin-left: 4px;
 }
 
 /* Précision sous le champ « Alerte fin » : petits caractères atténués. */

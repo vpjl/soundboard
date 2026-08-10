@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=691">
+    <link rel="stylesheet" href="styles.css?v=703">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1836,6 +1836,16 @@
               <span class="field-unit">%</span>
             </label>
           </section>
+          <section class="audio-section" aria-label="Panneau d'effets live">
+            <h3>Effets live</h3>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Autoriser le panneau d'effets live des pads">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20V12M8 20V6M12 20V9M16 20V6M20 20V13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Afficher le panneau</span>
+              <input id="masterLiveFxPanelEnabled" type="checkbox" checked>
+            </label>
+          </section>
           <section class="audio-section" aria-label="Reverb master">
             <h3>Reverb <output id="masterReverbValue">50%</output></h3>
             <label><span>Preset</span><select id="masterReverbPreset">
@@ -2755,6 +2765,17 @@
       </div>
     </dialog>
 
+    <div id="liveFxPanel" class="live-fx-panel" aria-label="Filtres live des pads en cours">
+      <div class="live-fx-panel-handle" id="liveFxPanelHandle">
+        <span class="live-fx-panel-grip" aria-hidden="true">⠿</span>
+        <span class="live-fx-panel-title">Effets live</span>
+        <button type="button" id="liveFxPanelDock" class="icon-button" aria-label="Rabattre le panneau">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="live-fx-panel-body" id="liveFxPanelBody"></div>
+    </div>
+
     <script type="module">
       import WaveSurfer from "./lib/wavesurfer.esm.js?v=1";
       import RegionsPlugin from "./lib/regions.esm.js?v=1";
@@ -2764,7 +2785,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=691"></script>
+    <script src="app.js?v=703"></script>
 
 
   </body>
