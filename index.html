@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=688">
+    <link rel="stylesheet" href="styles.css?v=689">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1811,6 +1811,15 @@
             </select></label>
             <label><span>Wet / dry</span><input id="masterReverbWet" class="range-nominal range-center" type="range" min="0" max="1" step="0.01" value="0.5"></label>
           </section>
+          <section class="audio-section" aria-label="Compresseur master">
+            <h3>Compresseur / Limiteur</h3>
+            <label><span>Preset</span><select id="masterCompressorPreset">
+              <option value="off">Off</option>
+              <option value="doux">Doux</option>
+              <option value="punchy">Punchy</option>
+              <option value="broadcast">Broadcast</option>
+            </select></label>
+          </section>
           <section class="audio-section audio-eq-section" aria-label="Égalisation master">
             <h3>Égalisation</h3>
             <label><span>Basses</span><input id="masterEqLow" class="range-nominal range-center" type="range" min="-12" max="12" step="1" value="0"><output id="masterEqLowValue">0 dB</output></label>
@@ -2719,7 +2728,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=688"></script>
+    <script src="app.js?v=689"></script>
 
 
   </body>

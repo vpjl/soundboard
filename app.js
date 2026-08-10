@@ -24,6 +24,7 @@ const ARMED_CROSSFADE_ENABLED_STORAGE = "soundboard-live-armed-crossfade-enabled
 const ARMED_CROSSFADE_SECONDS_STORAGE = "soundboard-live-armed-crossfade-seconds";
 const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
+const MASTER_COMPRESSOR_STORAGE = "soundboard-live-master-compressor";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
 const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
@@ -166,6 +167,12 @@ const REVERB_PRESETS = {
   plate: { duration: 1.2, decay: 1.1 },
   cathedral: { duration: 3.6, decay: 3.2 },
 };
+const COMPRESSOR_PRESETS = {
+  off: null,
+  doux: { threshold: -18, ratio: 2, attack: 0.02, release: 0.25, knee: 12 },
+  punchy: { threshold: -14, ratio: 4, attack: 0.005, release: 0.15, knee: 6 },
+  broadcast: { threshold: -8, ratio: 12, attack: 0.001, release: 0.1, knee: 3 },
+};
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
 const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
@@ -182,6 +189,7 @@ const state = {
   masterEqLow: null,
   masterEqMid: null,
   masterEqHigh: null,
+  masterCompressor: null,
   masterOutputDestination: null,
   masterOutputAudio: null,
   masterMeterData: null,
@@ -346,6 +354,7 @@ const els = {
   masterReverbPreset: document.querySelector("#masterReverbPreset"),
   masterReverbWet: document.querySelector("#masterReverbWet"),
   masterReverbValue: document.querySelector("#masterReverbValue"),
+  masterCompressorPreset: document.querySelector("#masterCompressorPreset"),
   masterEqLow: document.querySelector("#masterEqLow"),
   masterEqMid: document.querySelector("#masterEqMid"),
   masterEqHigh: document.querySelector("#masterEqHigh"),
@@ -2061,6 +2070,16 @@ function configureEqFilter(filter, type, frequency, gain, q = 1) {
   filter.gain.value = clampEqGain(gain);
 }
 
+function configureCompressor(node, preset) {
+  if (!node) return;
+  const values = preset || { threshold: 0, ratio: 1, attack: 0, release: 0.05, knee: 0 };
+  node.threshold.value = values.threshold;
+  node.ratio.value = values.ratio;
+  node.attack.value = values.attack;
+  node.release.value = values.release;
+  node.knee.value = values.knee;
+}
+
 function prepareAudio() {
   if (!state.audioContext) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -2074,6 +2093,7 @@ function prepareAudio() {
     state.masterEqLow = state.audioContext.createBiquadFilter();
     state.masterEqMid = state.audioContext.createBiquadFilter();
     state.masterEqHigh = state.audioContext.createBiquadFilter();
+    state.masterCompressor = state.audioContext.createDynamicsCompressor();
     state.masterAnalyser.fftSize = 256;
     state.masterMeterData = new Uint8Array(state.masterAnalyser.fftSize);
     state.masterGain.gain.value = clamp01(els.masterVolume.value);
@@ -2084,10 +2104,12 @@ function prepareAudio() {
     state.masterAnalyser
       .connect(state.masterEqLow)
       .connect(state.masterEqMid)
-      .connect(state.masterEqHigh);
+      .connect(state.masterEqHigh)
+      .connect(state.masterCompressor);
     applyStoredMasterOutput().catch(() => {});
     applyMasterReverb();
     applyMasterEq();
+    applyMasterCompressor();
   }
 }
 
@@ -2109,33 +2131,33 @@ function ensureMasterOutputAudioElement() {
 }
 
 function disconnectMasterFinalOutput() {
-  if (!state.masterEqHigh) return;
+  if (!state.masterCompressor) return;
   try {
-    state.masterEqHigh.disconnect();
+    state.masterCompressor.disconnect();
   } catch {
     // Already disconnected.
   }
 }
 
 function connectMasterDirectOutput() {
-  if (!state.audioContext || !state.masterEqHigh) return false;
+  if (!state.audioContext || !state.masterCompressor) return false;
   disconnectMasterFinalOutput();
   state.masterOutputDestination = null;
   if (state.masterOutputAudio) {
     state.masterOutputAudio.pause();
     state.masterOutputAudio.srcObject = null;
   }
-  state.masterEqHigh.connect(state.audioContext.destination);
+  state.masterCompressor.connect(state.audioContext.destination);
   return true;
 }
 
 async function connectMasterStreamOutput(deviceId) {
-  if (!state.audioContext || !state.masterEqHigh || !deviceId || !masterOutputCanUseElementSink()) return false;
+  if (!state.audioContext || !state.masterCompressor || !deviceId || !masterOutputCanUseElementSink()) return false;
   const audio = ensureMasterOutputAudioElement();
   const destination = state.audioContext.createMediaStreamDestination();
   disconnectMasterFinalOutput();
   state.masterOutputDestination = destination;
-  state.masterEqHigh.connect(destination);
+  state.masterCompressor.connect(destination);
   audio.srcObject = destination.stream;
   try {
     await audio.setSinkId(deviceId);
@@ -2148,7 +2170,7 @@ async function connectMasterStreamOutput(deviceId) {
 }
 
 async function applyStoredMasterOutput() {
-  if (!state.audioContext || !state.masterEqHigh) return false;
+  if (!state.audioContext || !state.masterCompressor) return false;
   if (!state.masterOutputDeviceId) return connectMasterDirectOutput();
   if (await connectMasterStreamOutput(state.masterOutputDeviceId)) return true;
   if (typeof state.audioContext.setSinkId !== "function") {
@@ -11398,6 +11420,7 @@ function updateMasterOptionBadges() {
   if (reverb.preset !== "none" && reverb.wet > 0) items.push("rev");
   const eq = masterEqSettings();
   if ([eq.low, eq.mid, eq.high].some((value) => value !== 0)) items.push("EQ");
+  if (masterCompressorSettings().preset !== "off") items.push("Comp");
   if (els.masterOptionBadges) els.masterOptionBadges.innerHTML = badgeMarkup(items);
 }
 
@@ -13621,6 +13644,7 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.endingAlertSeconds) els.endingAlertSeconds.value = String(DEFAULT_ENDING_ALERT_SECONDS);
   if (els.masterReverbPreset) els.masterReverbPreset.value = "none";
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
+  if (els.masterCompressorPreset) els.masterCompressorPreset.value = "off";
   if (els.masterEqLow) els.masterEqLow.value = "0";
   if (els.masterEqMid) els.masterEqMid.value = "0";
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
@@ -13640,9 +13664,11 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   }
   saveMasterReverbSettings();
   saveMasterEqSettings();
+  saveMasterCompressorSettings();
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
+  applyMasterCompressor();
   applyDucking();
   syncArmedCrossfadeControls();
   updateMasterOptionBadges();
@@ -13666,6 +13692,7 @@ function masterAudioDraftFromControls() {
     endingAlertSeconds: els.endingAlertSeconds?.value ?? String(DEFAULT_ENDING_ALERT_SECONDS),
     reverbPreset: els.masterReverbPreset?.value || "none",
     reverbWet: els.masterReverbWet?.value ?? "0.5",
+    compressorPreset: els.masterCompressorPreset?.value || "off",
     eqLow: els.masterEqLow?.value ?? "0",
     eqMid: els.masterEqMid?.value ?? "0",
     eqHigh: els.masterEqHigh?.value ?? "0",
@@ -13685,9 +13712,11 @@ function persistMasterAudioControls() {
   updateEndingAlertHint();
   saveMasterReverbSettings();
   saveMasterEqSettings();
+  saveMasterCompressorSettings();
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
+  applyMasterCompressor();
   applyDucking();
   syncArmedCrossfadeControls();
   updateMasterOptionBadges();
@@ -13708,6 +13737,7 @@ function restoreMasterAudioDraft() {
   if (els.endingAlertSeconds) els.endingAlertSeconds.value = draft.endingAlertSeconds;
   if (els.masterReverbPreset) els.masterReverbPreset.value = draft.reverbPreset;
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
+  if (els.masterCompressorPreset) els.masterCompressorPreset.value = draft.compressorPreset;
   if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
@@ -14827,6 +14857,33 @@ function applyMasterReverb() {
   state.masterDry.gain.value = 1 - activeWet;
   state.masterWet.gain.value = activeWet;
   updateMasterReverbValue();
+}
+
+function masterCompressorSettings() {
+  return {
+    preset: Object.prototype.hasOwnProperty.call(COMPRESSOR_PRESETS, els.masterCompressorPreset?.value) ? els.masterCompressorPreset.value : "off",
+  };
+}
+
+function saveMasterCompressorSettings() {
+  localStorage.setItem(MASTER_COMPRESSOR_STORAGE, JSON.stringify(masterCompressorSettings()));
+}
+
+function loadMasterCompressorSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(MASTER_COMPRESSOR_STORAGE)) || {};
+  } catch {
+    saved = {};
+  }
+  if (els.masterCompressorPreset) els.masterCompressorPreset.value = Object.prototype.hasOwnProperty.call(COMPRESSOR_PRESETS, saved.preset) ? saved.preset : "off";
+}
+
+function applyMasterCompressor() {
+  if (!state.audioContext || !state.masterCompressor) return;
+  const { preset } = masterCompressorSettings();
+  configureCompressor(state.masterCompressor, COMPRESSOR_PRESETS[preset]);
+  updateMasterOptionBadges();
 }
 
 function masterEqSettings() {
@@ -16304,6 +16361,7 @@ async function init() {
   updateEndingAlertHint();
   loadMasterReverbSettings();
   loadMasterEqSettings();
+  loadMasterCompressorSettings();
   loadCueVolume();
   if (els.randomGroupCount) {
     els.randomGroupCount.value = localStorage.getItem(RANDOM_GROUP_COUNT_STORAGE) || "2";
@@ -17184,6 +17242,10 @@ async function init() {
       saveMasterReverbSettings();
       applyMasterReverb();
     });
+  });
+  els.masterCompressorPreset?.addEventListener("input", () => {
+    saveMasterCompressorSettings();
+    applyMasterCompressor();
   });
   [els.masterEqLow, els.masterEqMid, els.masterEqHigh].forEach((element) => {
     element?.addEventListener("input", () => {
