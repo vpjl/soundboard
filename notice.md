@@ -41,6 +41,7 @@ Vue de performance en temps réel. Interface épurée pour la régie : déclench
 - **Fade in / Fade out global** : durée de fondu entrant et sortant appliquée par défaut à tous les pads (sauf réglage individuel).
 - **Ducking global** : atténuation automatique des autres pads lorsqu'un pad prioritaire se déclenche.
 - **Reverb globale** : réverbération appliquée globalement à l'ensemble des sorties audio.
+- **Compresseur / limiteur global** : preset de compression appliqué en sortie master (Doux, Punchy, Broadcast — ce dernier agissant comme un vrai limiteur), avec compensation de gain automatique.
 - **Égalisation globale** : égaliseur appliqué en sortie master.
 - ![#keyboardShortcuts] **Raccourcis clavier** : gestion des raccourcis clavier pour déclencher les pads sans souris.
 

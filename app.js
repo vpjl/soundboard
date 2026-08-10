@@ -169,9 +169,9 @@ const REVERB_PRESETS = {
 };
 const COMPRESSOR_PRESETS = {
   off: null,
-  doux: { threshold: -18, ratio: 2, attack: 0.02, release: 0.25, knee: 12 },
-  punchy: { threshold: -14, ratio: 4, attack: 0.005, release: 0.15, knee: 6 },
-  broadcast: { threshold: -8, ratio: 12, attack: 0.001, release: 0.1, knee: 3 },
+  doux: { threshold: -24, ratio: 3, attack: 0.01, release: 0.2, knee: 6, makeup: 3 },
+  punchy: { threshold: -18, ratio: 6, attack: 0.003, release: 0.15, knee: 3, makeup: 5 },
+  broadcast: { threshold: -12, ratio: 20, attack: 0.001, release: 0.08, knee: 1, makeup: 7 },
 };
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
@@ -190,6 +190,7 @@ const state = {
   masterEqMid: null,
   masterEqHigh: null,
   masterCompressor: null,
+  masterCompressorMakeup: null,
   masterOutputDestination: null,
   masterOutputAudio: null,
   masterMeterData: null,
@@ -2070,14 +2071,19 @@ function configureEqFilter(filter, type, frequency, gain, q = 1) {
   filter.gain.value = clampEqGain(gain);
 }
 
-function configureCompressor(node, preset) {
+function dbToGain(db) {
+  return 10 ** (db / 20);
+}
+
+function configureCompressor(node, makeupNode, preset) {
   if (!node) return;
-  const values = preset || { threshold: 0, ratio: 1, attack: 0, release: 0.05, knee: 0 };
+  const values = preset || { threshold: 0, ratio: 1, attack: 0, release: 0.05, knee: 0, makeup: 0 };
   node.threshold.value = values.threshold;
   node.ratio.value = values.ratio;
   node.attack.value = values.attack;
   node.release.value = values.release;
   node.knee.value = values.knee;
+  if (makeupNode) makeupNode.gain.value = dbToGain(values.makeup || 0);
 }
 
 function prepareAudio() {
@@ -2094,6 +2100,7 @@ function prepareAudio() {
     state.masterEqMid = state.audioContext.createBiquadFilter();
     state.masterEqHigh = state.audioContext.createBiquadFilter();
     state.masterCompressor = state.audioContext.createDynamicsCompressor();
+    state.masterCompressorMakeup = state.audioContext.createGain();
     state.masterAnalyser.fftSize = 256;
     state.masterMeterData = new Uint8Array(state.masterAnalyser.fftSize);
     state.masterGain.gain.value = clamp01(els.masterVolume.value);
@@ -2105,7 +2112,8 @@ function prepareAudio() {
       .connect(state.masterEqLow)
       .connect(state.masterEqMid)
       .connect(state.masterEqHigh)
-      .connect(state.masterCompressor);
+      .connect(state.masterCompressor)
+      .connect(state.masterCompressorMakeup);
     applyStoredMasterOutput().catch(() => {});
     applyMasterReverb();
     applyMasterEq();
@@ -2131,33 +2139,33 @@ function ensureMasterOutputAudioElement() {
 }
 
 function disconnectMasterFinalOutput() {
-  if (!state.masterCompressor) return;
+  if (!state.masterCompressorMakeup) return;
   try {
-    state.masterCompressor.disconnect();
+    state.masterCompressorMakeup.disconnect();
   } catch {
     // Already disconnected.
   }
 }
 
 function connectMasterDirectOutput() {
-  if (!state.audioContext || !state.masterCompressor) return false;
+  if (!state.audioContext || !state.masterCompressorMakeup) return false;
   disconnectMasterFinalOutput();
   state.masterOutputDestination = null;
   if (state.masterOutputAudio) {
     state.masterOutputAudio.pause();
     state.masterOutputAudio.srcObject = null;
   }
-  state.masterCompressor.connect(state.audioContext.destination);
+  state.masterCompressorMakeup.connect(state.audioContext.destination);
   return true;
 }
 
 async function connectMasterStreamOutput(deviceId) {
-  if (!state.audioContext || !state.masterCompressor || !deviceId || !masterOutputCanUseElementSink()) return false;
+  if (!state.audioContext || !state.masterCompressorMakeup || !deviceId || !masterOutputCanUseElementSink()) return false;
   const audio = ensureMasterOutputAudioElement();
   const destination = state.audioContext.createMediaStreamDestination();
   disconnectMasterFinalOutput();
   state.masterOutputDestination = destination;
-  state.masterCompressor.connect(destination);
+  state.masterCompressorMakeup.connect(destination);
   audio.srcObject = destination.stream;
   try {
     await audio.setSinkId(deviceId);
@@ -2170,7 +2178,7 @@ async function connectMasterStreamOutput(deviceId) {
 }
 
 async function applyStoredMasterOutput() {
-  if (!state.audioContext || !state.masterCompressor) return false;
+  if (!state.audioContext || !state.masterCompressorMakeup) return false;
   if (!state.masterOutputDeviceId) return connectMasterDirectOutput();
   if (await connectMasterStreamOutput(state.masterOutputDeviceId)) return true;
   if (typeof state.audioContext.setSinkId !== "function") {
@@ -14880,9 +14888,9 @@ function loadMasterCompressorSettings() {
 }
 
 function applyMasterCompressor() {
-  if (!state.audioContext || !state.masterCompressor) return;
+  if (!state.audioContext || !state.masterCompressor || !state.masterCompressorMakeup) return;
   const { preset } = masterCompressorSettings();
-  configureCompressor(state.masterCompressor, COMPRESSOR_PRESETS[preset]);
+  configureCompressor(state.masterCompressor, state.masterCompressorMakeup, COMPRESSOR_PRESETS[preset]);
   updateMasterOptionBadges();
 }
 
