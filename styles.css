@@ -3647,8 +3647,8 @@ body.board-edit-mode .pad-tags-chips {
   border: 1px solid var(--color_ui_border);
   background: var(--color_pad_tag_background);
   color: var(--color_pad_tag_text);
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 400;
 }
 
 .pad-tag-chip-remove {
@@ -3675,7 +3675,10 @@ body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
 }
 
 body.board-edit-mode .pad.is-editing .tag-field {
-  grid-template-columns: 1fr auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   min-height: 38px;
 }
 
@@ -3699,15 +3702,19 @@ body.board-edit-mode .pad.is-editing .tag-field {
 }
 
 body.board-edit-mode .pad.is-editing .tag-field > span {
-  grid-column: 1 / -1;
+  order: 0;
+  flex: 0 0 auto;
 }
 
 body.board-edit-mode .pad.is-editing .pad-tags-chips {
+  order: 2;
   margin-bottom: 0;
-  align-self: center;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 body.board-edit-mode .pad.is-editing .tags-add-btn {
+  order: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3721,7 +3728,6 @@ body.board-edit-mode .pad.is-editing .tags-add-btn {
   color: var(--color_pad_button_text);
   cursor: pointer;
   flex-shrink: 0;
-  align-self: center;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
@@ -3742,7 +3748,8 @@ body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
 /* Click the [+] button → reveal the tag input (and hide [+] while open) */
 body.board-edit-mode .pad.is-editing .tag-field.tags-input-open input[data-tags] {
   display: block;
-  grid-column: 1 / -1;
+  order: 3;
+  flex: 1 1 100%;
 }
 
 body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
@@ -3787,7 +3794,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 }
 
 .name-field > span,
-.tag-field span,
+.tag-field > span,
 .pad-fade-field span,
 .color-field > span,
 .normalize-field > span,
