@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=704">
+    <link rel="stylesheet" href="styles.css?v=712">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -549,6 +549,8 @@
 
     <template id="padTemplate">
       <article class="pad" data-pad>
+       <div class="pad-flip" data-pad-flip>
+        <div class="pad-face pad-face-front" data-pad-face-front>
         <div class="pad-head">
           <div class="pad-play-row">
             <span class="pad-shortcut" data-shortcut></span>
@@ -710,6 +712,14 @@
           </div>
           <input class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
         </div>
+        </div>
+        <div class="pad-face pad-face-back" data-pad-face-back>
+          <div class="pad-fx-back-head">
+            <span class="pad-fx-back-title" data-pad-fx-back-title>Effets</span>
+          </div>
+          <div class="pad-fx-back-body" data-pad-fx-back-body></div>
+        </div>
+       </div>
 
         <div class="pad-actions">
           <div class="pad-live-row">
@@ -2785,7 +2795,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=704"></script>
+    <script src="app.js?v=713"></script>
 
 
   </body>

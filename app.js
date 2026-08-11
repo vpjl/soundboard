@@ -2121,9 +2121,31 @@ function applyPadLiveFilter(pad, value) {
   const node = pad.liveFilterNode;
   if (!node || !state.audioContext) return;
   const { type, frequency } = liveFilterParamsForValue(value);
-  node.type = type;
+  const now = state.audioContext.currentTime;
+  if (node.type !== type) {
+    // Comme .curve sur le WaveShaper (cf. applyPadLiveDistortionSafely), le
+    // type d'un BiquadFilterNode bascule sans transition : passer de lowpass
+    // étouffé à allpass plein spectre (ou l'inverse) en un instant sonne
+    // comme un décrochage. On masque la bascule par un creux de gain, en
+    // réutilisant le gain d'entrée du flanger (juste après le filtre dans la
+    // chaîne) plutôt que d'ajouter un nœud dédié.
+    const dip = pad.liveFlangerUnit?.input?.gain;
+    if (dip) {
+      clearTimeout(pad.liveFilterTypeSwapTimer);
+      dip.cancelScheduledValues(now);
+      dip.setValueAtTime(dip.value, now);
+      dip.linearRampToValueAtTime(0.0001, now + 0.008);
+      pad.liveFilterTypeSwapTimer = setTimeout(() => {
+        node.type = type;
+      }, 8);
+      dip.setValueAtTime(0.0001, now + 0.008);
+      dip.linearRampToValueAtTime(1, now + 0.028);
+    } else {
+      node.type = type;
+    }
+  }
   node.Q.value = LIVE_FILTER_Q;
-  node.frequency.setTargetAtTime(frequency, state.audioContext.currentTime, 0.015);
+  node.frequency.setTargetAtTime(frequency, now, 0.015);
 }
 
 const LIVE_DISTORTION_CURVE_SAMPLES = 1024;
@@ -2171,10 +2193,19 @@ function applyPadLiveDistortionSafely(pad, value) {
   const amount = Math.max(0, Math.min(100, Number(value) || 0));
   const k = (amount / 100) * LIVE_DISTORTION_MAX_K;
   const now = state.audioContext.currentTime;
+  clearTimeout(pad.liveDistortionCurveTimer);
   makeup.gain.cancelScheduledValues(now);
   makeup.gain.setValueAtTime(makeup.gain.value, now);
   makeup.gain.linearRampToValueAtTime(0.0001, now + 0.008);
-  node.curve = distortionCurve(amount);
+  // node.curve doit être réassigné PENDANT le creux, donc différé de 8ms en
+  // temps réel (setTimeout) — l'affecter tout de suite ici l'appliquait
+  // encore au volume courant, avant que la rampe n'ait eu le temps de
+  // descendre : le clic n'était jamais masqué et le creux de 28ms qui suivait
+  // s'entendait comme un arrêt/redémarrage du son à chaque geste sur le
+  // curseur.
+  pad.liveDistortionCurveTimer = setTimeout(() => {
+    node.curve = distortionCurve(amount);
+  }, 8);
   makeup.gain.setValueAtTime(0.0001, now + 0.008);
   makeup.gain.linearRampToValueAtTime(1 / (1 + k), now + 0.028);
 }
@@ -2314,18 +2345,180 @@ function reapplyLiveFxRow(pad, row) {
 
 function setLiveFxBypassed(pad, bypassed) {
   pad.liveFxBypassed = bypassed;
-  const row = document.getElementById(liveFxRowId(pad));
-  if (!row) return;
-  row.classList.toggle("is-bypassed", bypassed);
-  row.querySelector(".live-fx-row-bypass")?.setAttribute("aria-pressed", String(bypassed));
+  // Deux instances possibles pour un même pad (rangée du panneau flottant +
+  // verso du pad en scène, cf. buildLiveFxControlsBody) : on les tient
+  // toutes les deux en phase plutôt que de supposer une rangée unique.
+  const bodies = document.querySelectorAll(`[data-live-fx-for="${pad.uid}"]`);
+  if (!bodies.length) return;
+  document.querySelectorAll(`[data-live-fx-bypass-for="${pad.uid}"]`).forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(bypassed));
+  });
+  bodies.forEach((body) => {
+    body.classList.toggle("is-bypassed", bypassed);
+    // Pan/Volume n'ont pas de data-fx : ils restent réglables même coupé (ce
+    // sont des réglages du pad, pas des effets live).
+    body.querySelectorAll("input[data-fx]").forEach((slider) => {
+      slider.disabled = bypassed;
+    });
+  });
   if (bypassed) {
     applyPadLiveDistortionSafely(pad, 0);
     applyPadLiveFilter(pad, 0);
     applyPadLiveFlanger(pad, 0);
     applyPadLiveDelay(pad, 0);
   } else {
-    reapplyLiveFxRow(pad, row);
+    bodies.forEach((body) => reapplyLiveFxRow(pad, body));
   }
+}
+
+// Bouton "couper les effets", partagé entre la rangée du panneau flottant et
+// le verso du pad en scène (cf. buildLiveFxControlsBody) : même geste, même
+// pad.liveFxBypassed, deux instances DOM possibles.
+function createLiveFxBypassButton(pad) {
+  const bypassBtn = document.createElement("button");
+  bypassBtn.type = "button";
+  bypassBtn.className = "icon-button live-fx-row-bypass";
+  bypassBtn.dataset.liveFxBypassFor = pad.uid;
+  bypassBtn.setAttribute("aria-pressed", "false");
+  bypassBtn.setAttribute("aria-label", `Couper les effets — ${pad.title}`);
+  bypassBtn.title = `Couper/rétablir les effets — ${pad.title}`;
+  bypassBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 6a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  bypassBtn.addEventListener("click", () => setLiveFxBypassed(pad, !pad.liveFxBypassed));
+  return bypassBtn;
+}
+
+// Les 4 curseurs d'effets (distortion/filtre/flanger/delay), partagés entre
+// la rangée du panneau flottant (créée à la lecture) et le verso du pad en
+// scène (créé une seule fois, sans dépendre de la lecture — cf. point 1 de la
+// demande : pouvoir préparer les réglages d'un son trop court pour manipuler
+// la fenêtre flottante pendant qu'il joue). applyPadLiveXxx sort en no-op
+// tant que les nœuds live du pad n'existent pas (pad à l'arrêt) ; seule la
+// valeur mémorisée (saveLiveFxPadSetting) compte alors. Pan/Volume ne sont
+// PAS inclus ici : ce sont les vrais curseurs du pad (.controls), en dehors
+// de .pad-flip désormais — seule la moitié supérieure du pad bascule (cf.
+// setupPadFxFlipTrigger) ; Volume/Pan et les boutons restent inchangés sur
+// les deux faces. createLiveFxPanVolumeControls fournit juste au panneau
+// flottant sa propre présentation compacte de Pan/Volume (existante).
+function buildLiveFxControlsBody(pad) {
+  const remembered = getLiveFxPadSettings(pad);
+  const body = document.createElement("div");
+  body.className = "live-fx-row-body";
+  body.dataset.liveFxFor = pad.uid;
+  body.append(
+    createLiveFxControl({
+      key: "distortion", label: "Distorsion", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.distortion,
+      applyFn: (v) => { applyPadLiveDistortion(pad, v); saveLiveFxPadSetting(pad, "distortion", v); },
+      ariaLabel: `Distorsion live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "filter", label: "Filtre", min: -LIVE_FILTER_RANGE, max: LIVE_FILTER_RANGE, centered: true, resetValue: 0, value: remembered.filter,
+      applyFn: (v) => { applyPadLiveFilter(pad, v); saveLiveFxPadSetting(pad, "filter", v); },
+      ariaLabel: `Filtre live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "flanger", label: "Flanger", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.flanger,
+      applyFn: (v) => { applyPadLiveFlanger(pad, v); saveLiveFxPadSetting(pad, "flanger", v); },
+      ariaLabel: `Flanger live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      key: "delay", label: "Delay", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.delay,
+      applyFn: (v) => { applyPadLiveDelay(pad, v); saveLiveFxPadSetting(pad, "delay", v); },
+      ariaLabel: `Delay live — ${pad.title}`,
+    }),
+  );
+  return body;
+}
+
+// Pan/Volume au format compact du panneau flottant (inchangé visuellement :
+// c'est la présentation existante avant cette évolution).
+function createLiveFxPanVolumeControls(pad) {
+  return [
+    createLiveFxControl({
+      label: "Pan", min: -1, max: 1, step: "0.01", value: pad.panValue ?? 0, centered: true, resetValue: 0, separated: true,
+      applyFn: (v) => {
+        pad.panEl.value = v;
+        pad.panEl.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      ariaLabel: `Pan live — ${pad.title}`,
+    }),
+    createLiveFxControl({
+      label: "Volume", min: 0, max: 1, step: "0.01", value: pad.volume ?? 0.85, centered: false,
+      applyFn: (v) => {
+        pad.volumeEl.value = v;
+        pad.volumeEl.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      ariaLabel: `Volume live — ${pad.title}`,
+    }),
+  ];
+}
+
+// Bascule recto (pad habituel) / verso (effets live) en mode Scène — double-
+// clic sur la moitié supérieure du pad (.pad-flip), cf. setupPadFxFlipTrigger.
+// Seule cette moitié bascule : .pad-actions et .controls (boutons live,
+// Volume/Pan) restent en place, inchangés, sur les deux faces — donc pas de
+// double Volume/Pan à garder synchronisé/aligné. Le verso est reconstruit à
+// chaque ouverture (au lieu d'être tenu à jour en continu) : plus simple, et
+// ça garantit des valeurs toujours à jour (mémorisées pendant que le pad ne
+// jouait pas, ou modifiées depuis le panneau flottant pendant qu'il jouait)
+// sans mécanisme de synchronisation permanent.
+// .pad-flip est un item de la grille de .pad, donc soumis au même étirement
+// que .pad-head avant cette évolution (ex. rangée de pads dont un voisin est
+// plus grand). Avant, .pad-head (display:contents autour) absorbait cet
+// étirement en silence. Maintenant .pad-flip doit aussi accueillir
+// .pad-face-back en grid-area partagée : le laisser "auto" rouvre la
+// question de combien d'espace supplémentaire revient à .pad-flip vs
+// .pad-actions/.controls (répartition peu prévisible, constatée : décalage
+// vers le bas qui persistait même après être revenu au recto). On fixe donc
+// sa hauteur en dur sur la hauteur naturelle de .pad-head (mesurable même
+// masqué par visibility:hidden), ce qui la sort du calcul d'étirement de la
+// grille de .pad. Idempotent — peut être rappelée à tout moment (bascule,
+// entrée en scène) sans dépendre de l'état courant de .pad-flip.
+function syncPadFxFlipHeight(pad) {
+  if (!pad.fxFlipEl || !pad.headEl) return;
+  const naturalHeight = pad.headEl.getBoundingClientRect().height;
+  if (naturalHeight > 0) pad.fxFlipEl.style.height = `${naturalHeight}px`;
+}
+
+function setPadFxFaceFlipped(pad, flipped) {
+  if (!pad.fxFlipEl) return;
+  syncPadFxFlipHeight(pad);
+  pad.fxFaceFlipped = flipped;
+  pad.node.classList.toggle("is-fx-flipped", flipped);
+  if (flipped) {
+    if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
+    if (pad.fxBackBodyEl) {
+      const freshBody = buildLiveFxControlsBody(pad);
+      // buildLiveFxControlsBody ne pose que "live-fx-row-body" (classe du
+      // panneau flottant, l'autre appelant) : sans cet ajout, le corps
+      // reconstruit perd "pad-fx-back-body" (flex:1 en CSS) dès la première
+      // bascule et n'occupe plus que sa hauteur naturelle.
+      freshBody.classList.add("pad-fx-back-body");
+      pad.fxBackBodyEl.replaceWith(freshBody);
+      pad.fxBackBodyEl = freshBody;
+    }
+    pad.fxBackHeadEl?.querySelector(".live-fx-row-bypass")?.remove();
+    pad.fxBackHeadEl?.appendChild(createLiveFxBypassButton(pad));
+    setLiveFxBypassed(pad, Boolean(pad.liveFxBypassed));
+  }
+}
+
+// Double-clic sur une zone vide de la moitié supérieure du pad (.pad-flip :
+// fond, espaces entre les blocs) en mode Scène : bascule recto/verso. Pas de
+// bouton dédié (plus de place sur le pad) — on exclut tout ce qui est déjà
+// interactif ou fait partie des curseurs d'effets pour ne détecter qu'un
+// vrai double-clic « dans le vide ». Le reste du pad (.pad-actions,
+// .controls) n'écoute pas ce double-clic : il reste inchangé sur les deux
+// faces, donc pas concerné par la bascule.
+function setupPadFxFlipTrigger(pad) {
+  // Double-clic plutôt que simple clic (retour utilisateur : la zone vide
+  // disponible entre boutons/curseurs est trop fine pour un clic fiable) —
+  // un geste délibéré tolère une zone fine sans provoquer de bascules
+  // accidentelles, et laisse le simple clic intact pour jouer/interagir.
+  pad.fxFlipEl?.addEventListener("dblclick", (event) => {
+    if (!document.body.classList.contains("stage-mode")) return;
+    if (event.target.closest("button, input, select, textarea, a, [data-action], .live-fx-control, .pad-tags-chips")) return;
+    setPadFxFaceFlipped(pad, !pad.fxFaceFlipped);
+  });
 }
 
 function addLiveFxRow(pad) {
@@ -2356,59 +2549,13 @@ function addLiveFxRow(pad) {
   label.textContent = pad.title;
   toggle.append(chevron, dot, label);
 
-  const bypassBtn = document.createElement("button");
-  bypassBtn.type = "button";
-  bypassBtn.className = "icon-button live-fx-row-bypass";
-  bypassBtn.setAttribute("aria-pressed", "false");
-  bypassBtn.setAttribute("aria-label", `Couper les effets — ${pad.title}`);
-  bypassBtn.title = `Couper/rétablir les effets — ${pad.title}`;
-  bypassBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 6a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  bypassBtn.addEventListener("click", () => setLiveFxBypassed(pad, !pad.liveFxBypassed));
+  const bypassBtn = createLiveFxBypassButton(pad);
 
   head.append(toggle, bypassBtn);
 
-  const remembered = getLiveFxPadSettings(pad);
-  const body = document.createElement("div");
-  body.className = "live-fx-row-body";
+  const body = buildLiveFxControlsBody(pad);
+  body.append(...createLiveFxPanVolumeControls(pad));
   body.hidden = false;
-  body.append(
-    createLiveFxControl({
-      key: "distortion", label: "Distorsion", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.distortion,
-      applyFn: (v) => { applyPadLiveDistortion(pad, v); saveLiveFxPadSetting(pad, "distortion", v); },
-      ariaLabel: `Distorsion live — ${pad.title}`,
-    }),
-    createLiveFxControl({
-      key: "filter", label: "Filtre", min: -LIVE_FILTER_RANGE, max: LIVE_FILTER_RANGE, centered: true, resetValue: 0, value: remembered.filter,
-      applyFn: (v) => { applyPadLiveFilter(pad, v); saveLiveFxPadSetting(pad, "filter", v); },
-      ariaLabel: `Filtre live — ${pad.title}`,
-    }),
-    createLiveFxControl({
-      key: "flanger", label: "Flanger", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.flanger,
-      applyFn: (v) => { applyPadLiveFlanger(pad, v); saveLiveFxPadSetting(pad, "flanger", v); },
-      ariaLabel: `Flanger live — ${pad.title}`,
-    }),
-    createLiveFxControl({
-      key: "delay", label: "Delay", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.delay,
-      applyFn: (v) => { applyPadLiveDelay(pad, v); saveLiveFxPadSetting(pad, "delay", v); },
-      ariaLabel: `Delay live — ${pad.title}`,
-    }),
-    createLiveFxControl({
-      label: "Pan", min: -1, max: 1, step: "0.01", value: pad.panValue ?? 0, centered: true, resetValue: 0, separated: true,
-      applyFn: (v) => {
-        pad.panEl.value = v;
-        pad.panEl.dispatchEvent(new Event("input", { bubbles: true }));
-      },
-      ariaLabel: `Pan live — ${pad.title}`,
-    }),
-    createLiveFxControl({
-      label: "Volume", min: 0, max: 1, step: "0.01", value: pad.volume ?? 0.85, centered: false,
-      applyFn: (v) => {
-        pad.volumeEl.value = v;
-        pad.volumeEl.dispatchEvent(new Event("input", { bubbles: true }));
-      },
-      ariaLabel: `Volume live — ${pad.title}`,
-    }),
-  );
 
   toggle.addEventListener("click", () => {
     const expanded = toggle.getAttribute("aria-expanded") === "true";
@@ -2829,6 +2976,11 @@ function makePad(index) {
   pad.startStopTagEl = node.querySelector("[data-start-stop-tag]");
   pad.endStartModeEl = node.querySelector("[data-end-start-mode]");
   pad.endStartTargetEl = node.querySelector("[data-end-start-target]");
+  pad.fxFlipEl = node.querySelector("[data-pad-flip]");
+  pad.headEl = node.querySelector(".pad-head");
+  pad.fxBackTitleEl = node.querySelector("[data-pad-fx-back-title]");
+  pad.fxBackHeadEl = node.querySelector(".pad-fx-back-head");
+  pad.fxBackBodyEl = node.querySelector("[data-pad-fx-back-body]");
 
   setPadTitle(pad, pad.title);
   setPadTags(pad, pad.tags);
@@ -2964,6 +3116,8 @@ function makePad(index) {
       }
     }
   });
+
+  setupPadFxFlipTrigger(pad);
 
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
@@ -11739,6 +11893,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     // recalibre ici, un rAF après la compensation de layout pour être sûr
     // qu'elle a déjà tourné.
     requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
+    // Fige la hauteur de .pad-flip (cf. syncPadFxFlipHeight) dès l'entrée en
+    // scène plutôt que d'attendre la première bascule d'un pad : sans ça, le
+    // tout premier rendu (avant tout double-clic) reste soumis à
+    // l'étirement de grille peu prévisible que cette fonction évite.
+    requestAnimationFrame(() => state.pads.forEach((pad) => syncPadFxFlipHeight(pad)));
     // Relâche le gel de mise en page studio (voir stageStudioLayoutReleased)
     // une fois la transition visuelle passée, pour que .live-tools retrouve
     // la largeur réelle de la scène au lieu de rester bridé par les
@@ -11762,6 +11921,9 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   } else {
     state.stageSkipPreload = false;
     syncStageVisiblePads();
+    // Sortie de scène : ne pas laisser un pad affiché côté verso (effets) au
+    // retour en scène — la bascule recto/verso n'a de sens qu'en scène.
+    state.pads.forEach((pad) => { if (pad.fxFaceFlipped) setPadFxFaceFlipped(pad, false); });
     // Sortie de scène : effacer le message « Board prêt pour la scène… »
     if (/^(Board prêt pour la scène|Mode scène)/.test(els.status.textContent || "")) {
       setStatus("");

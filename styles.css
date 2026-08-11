@@ -1145,9 +1145,17 @@ body.live-fx-panel-disabled .live-fx-panel {
   color: var(--color_ui_text);
 }
 
+/* Bat .icon-button (42px) : bouton compact pour la barre de poignée du
+   panneau (padding 6px 8px), sinon le bouton forçait toute la barre à
+   grandir pour loger ses 42px. */
+#liveFxPanelDock {
+  width: 24px;
+  height: 24px;
+}
+
 #liveFxPanelDock svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   transition: transform 0.18s;
 }
 
@@ -1225,15 +1233,15 @@ body.live-fx-panel-disabled .live-fx-panel {
    fichier gagne et le bouton reste à sa taille .icon-button par défaut. */
 .live-fx-row-head .live-fx-row-bypass {
   flex: 0 0 auto;
-  width: 15px;
-  height: 15px;
+  width: 22px;
+  height: 22px;
   margin-right: 4px;
   padding: 0;
 }
 
 .live-fx-row-head .live-fx-row-bypass svg {
-  width: 8px;
-  height: 8px;
+  width: 13px;
+  height: 13px;
 }
 
 .live-fx-row-bypass[aria-pressed="true"] {
@@ -1242,10 +1250,19 @@ body.live-fx-panel-disabled .live-fx-panel {
   background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
-/* Coupé : les curseurs restent visibles/réglables (comparaison avant/après)
-   mais s'estompent pour signaler que le son en cours est sec. */
-.live-fx-row.is-bypassed .live-fx-row-body {
+/* Coupé : seuls les curseurs d'effets (data-fx) sont désactivés/estompés
+   pour signaler que le son en cours est sec. Pan/Volume n'ont pas de
+   data-fx — ce sont des réglages du pad, pas des effets live — et restent
+   pleinement réglables. .is-bypassed est posé directement sur
+   .live-fx-row-body (setLiveFxBypassed) : ça vaut aussi bien pour la rangée
+   du panneau flottant que pour le verso du pad en scène, qui partagent le
+   même marquage. */
+.live-fx-row-body.is-bypassed .live-fx-control:has(input[data-fx]) {
   opacity: 0.45;
+}
+
+.live-fx-row-body input[data-fx]:disabled {
+  cursor: not-allowed;
 }
 
 .live-fx-row-body {
@@ -2134,6 +2151,143 @@ body.show-cables .cable-overlay {
   border-radius: 8px;
   background: var(--color_pad_background);
   box-shadow: 0 12px 32px var(--color_ui_shadow);
+}
+
+/* Recto/verso de la MOITIÉ SUPÉRIEURE du pad en scène (setupPadFxFlipTrigger/
+   setPadFxFaceFlipped, app.js) : double-clic sur une zone vide de .pad-flip
+   (= l'ancien .pad-head) pour révéler les effets live sans attendre que le
+   son joue. .pad-actions (boutons live) et .controls (Volume/Pan) restent en
+   dehors de .pad-flip, inchangés sur les deux faces — pas de second jeu de
+   curseurs à garder synchronisé/aligné. Hors scène, .pad-flip/.pad-face-front
+   s'effacent (display:contents) pour laisser .pad-head en enfant direct de la
+   grille de .pad, comme avant cette évolution — même principe que
+   .control-group sur les 3 modes. .pad-face-back reste display:none : jamais
+   montré hors scène. */
+.pad-flip,
+.pad-face-front {
+  display: contents;
+}
+
+.pad-face-back {
+  display: none;
+}
+
+body.stage-mode .pad {
+  -webkit-perspective: 1200px;
+  perspective: 1200px;
+}
+
+/* .pad-flip prend la place de .pad-head dans l'ordre visuel existant
+   (".pad:not(.is-editing) .pad-head{order:1}", ".controls{order:2}",
+   ".pad-actions{order:3}", plus bas dans ce fichier) : en scène, .pad-head
+   n'est plus un enfant direct de la grille de .pad (il est descendu dans
+   .pad-flip > .pad-face-front), donc son order:1 n'a plus d'effet sur le
+   classement de .pad — c'est .pad-flip qu'il faut positionner à sa place. */
+body.stage-mode .pad:not(.is-editing) .pad-flip {
+  order: 1;
+}
+
+body.stage-mode .pad-flip {
+  display: grid;
+  position: relative;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+
+body.stage-mode .pad.is-fx-flipped .pad-flip {
+  -webkit-transform: rotateY(180deg);
+  transform: rotateY(180deg);
+}
+
+/* Recto et verso empilés dans LA MÊME cellule de grille (grid-area partagée)
+   plutôt qu'un recto en flux normal + un verso en position:absolute : les
+   deux s'étirent alors identiquement à la taille de .pad-flip (grid stretch
+   par défaut), sans dépendre l'un de l'autre pour leur hauteur.
+   backface-visibility ne suffit pas à masquer la face arrière (constaté :
+   les deux faces restent visibles superposées). On la garde en filet de
+   sécurité, mais le masquage réel vient d'un visibility caché/affiché au
+   milieu de la rotation (transition-delay = moitié de la durée de
+   .pad-flip) : la face qui s'éloigne disparaît quand elle est de toute
+   façon vue par la tranche, donc sans à-coup visible, indépendamment du
+   support de backface-visibility. */
+body.stage-mode .pad-face-front,
+body.stage-mode .pad-face-back {
+  grid-area: 1 / 1;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transition: visibility 0s linear 0.25s;
+}
+
+/* display:contents (règle par défaut plus haut) rendrait grid-area/
+   backface-visibility/visibility sans effet — .pad-face-front doit redevenir
+   une vraie boîte en scène. display:block suffit : un seul enfant
+   (.pad-head), pas de rangées à empiler comme avant cette évolution. */
+body.stage-mode .pad-face-front {
+  display: block;
+}
+
+body.stage-mode .pad-face-back {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  visibility: hidden;
+  -webkit-transform: rotateY(180deg);
+  transform: rotateY(180deg);
+  overflow-y: auto;
+  /* overflow-x explicite : sans lui, la spec le fait passer à "auto" dès que
+     overflow-y n'est pas "visible" — un débordement horizontal de l'ordre du
+     pixel (arrondi flex/grid) suffisait à faire apparaître une scrollbar
+     horizontale pleine largeur en bas. */
+  overflow-x: hidden;
+}
+
+body.stage-mode .pad.is-fx-flipped .pad-face-front {
+  visibility: hidden;
+}
+
+body.stage-mode .pad.is-fx-flipped .pad-face-back {
+  visibility: visible;
+}
+
+.pad-fx-back-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pad-fx-back-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--color_ui_text);
+}
+
+/* Même gabarit que le bouton bypass du panneau flottant (.live-fx-row-head
+   .live-fx-row-bypass) : ancestor différent ici, donc règle séparée. */
+.pad-fx-back-head .live-fx-row-bypass {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+.pad-fx-back-head .live-fx-row-bypass svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pad-fx-back-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pad.is-playing {
