@@ -2193,6 +2193,13 @@ body.stage-mode .pad-flip {
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
   transition: transform 0.5s ease;
+  /* Sans ça, un double-tap tactile est intercepté par le zoom au double-tap
+     du navigateur avant d'atteindre le JS (dblclick ne se déclenche jamais) —
+     même correctif que .pad-actions applique déjà pour ses boutons. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body.stage-mode .pad.is-fx-flipped .pad-flip {
