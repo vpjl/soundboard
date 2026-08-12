@@ -2514,10 +2514,23 @@ function setupPadFxFlipTrigger(pad) {
   // disponible entre boutons/curseurs est trop fine pour un clic fiable) —
   // un geste délibéré tolère une zone fine sans provoquer de bascules
   // accidentelles, et laisse le simple clic intact pour jouer/interagir.
-  pad.fxFlipEl?.addEventListener("dblclick", (event) => {
+  //
+  // Détection manuelle via deux "click" rapprochés plutôt que l'événement
+  // "dblclick" natif : sur mobile, même avec touch-action:manipulation,
+  // certains navigateurs ne synthétisent pas dblclick de façon fiable à
+  // partir de deux taps (constaté : double-tap sans effet). "click" est
+  // le seul événement garanti à la fois pour souris et tactile.
+  let lastFlipClickAt = 0;
+  pad.fxFlipEl?.addEventListener("click", (event) => {
     if (!document.body.classList.contains("stage-mode")) return;
     if (event.target.closest("button, input, select, textarea, a, [data-action], .live-fx-control, .pad-tags-chips")) return;
-    setPadFxFaceFlipped(pad, !pad.fxFaceFlipped);
+    const now = event.timeStamp || Date.now();
+    if (now - lastFlipClickAt < 400) {
+      lastFlipClickAt = 0;
+      setPadFxFaceFlipped(pad, !pad.fxFaceFlipped);
+    } else {
+      lastFlipClickAt = now;
+    }
   });
 }
 
