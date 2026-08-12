@@ -2498,7 +2498,15 @@ function setPadFxFaceFlipped(pad, flipped) {
     }
     pad.fxBackHeadEl?.querySelector(".live-fx-row-bypass")?.remove();
     pad.fxBackHeadEl?.appendChild(createLiveFxBypassButton(pad));
-    setLiveFxBypassed(pad, Boolean(pad.liveFxBypassed));
+    // Le panneau flottant s'ouvre toujours coupé (par sécurité, à chaque
+    // lecture — comportement existant avant cette évolution). Le verso,
+    // ouvert par un geste délibéré, l'ignore et rétablit les effets : sinon
+    // il apparaît systématiquement "coupé" (bouton rouge) dès qu'un pad a
+    // déjà joué une fois, ce qui va à l'encontre du but recherché (préparer
+    // les effets d'un son trop court). pad.liveFxBypassed est partagé avec
+    // le panneau flottant s'il est affiché en même temps (un seul graphe
+    // audio réel) : ce rétablissement s'applique donc aussi à lui.
+    setLiveFxBypassed(pad, false);
   }
 }
 
