@@ -877,6 +877,37 @@ body.board-edit-mode .board-action-grid .stage-lock-button {
   display: block;
 }
 
+.remote-control-button {
+  position: relative;
+}
+
+.remote-control-button.is-active svg {
+  color: var(--color_status_progress, #f6c451);
+}
+
+.remote-control-button.is-connected svg {
+  color: var(--color_status_success, #49d3a0);
+}
+
+.remote-control-indicator {
+  display: none;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color_status_progress, #f6c451);
+}
+
+.remote-control-button.is-active .remote-control-indicator {
+  display: block;
+}
+
+.remote-control-button.is-connected .remote-control-indicator {
+  background: var(--color_status_success, #49d3a0);
+}
+
 .board-section-toggle {
   display: flex;
   align-items: center;
@@ -2306,6 +2337,14 @@ body.stage-mode .pad.is-fx-flipped .pad-face-back {
      est indiqué par « Pad actif » (fond du titre) + le halo ci-dessous. Avant, border-color
      = Succès masquait « Bordure pad » (surtout en scène où les pads jouent). */
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color_status_success) 18%, transparent), 0 18px 38px var(--color_ui_shadow);
+}
+
+/* Mirroring côté régie : ce pad joue réellement sur la façade (pas de lecture
+   locale ici, donc pas de .is-playing) — contour en tirets pour distinguer
+   un état reçu par réseau d'un état de lecture local. */
+.pad.is-remote-playing {
+  outline: 2px dashed var(--color_status_success);
+  outline-offset: 2px;
 }
 
 
@@ -4460,6 +4499,37 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 .audio-library-panel {
   max-width: min(960px, calc(100vw - 24px));
   width: 100%;
+}
+
+.remote-control-panel {
+  max-width: min(480px, calc(100vw - 24px));
+}
+
+.remote-control-role-group {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.remote-control-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.remote-control-field input {
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #111319;
+  color: var(--text);
+}
+
+.remote-control-status {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .audio-library-section-title {

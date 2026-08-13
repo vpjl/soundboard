@@ -113,6 +113,7 @@ const SKIN_FONTS_STORAGE = "soundboard-skin-fonts";
 const STAGE_MODE_STORAGE = "soundboard-live-stage-mode";
 const BOARD_EDIT_MODE_STORAGE = "soundboard-live-board-edit-mode";
 const STAGE_LOCK_STORAGE = "soundboard-live-stage-lock";
+const REMOTE_CONTROL_STORAGE = "soundboard-live-remote-control";
 const SHORTCUTS_STORAGE_PREFIX = "soundboard-live-shortcuts";
 const SHORTCUTS_ENABLED_STORAGE_PREFIX = "soundboard-live-shortcuts-enabled";
 const CUE_OUTPUT_STORAGE = "soundboard-live-cue-output";
@@ -201,6 +202,13 @@ const state = {
   masterMeterData: null,
   crossfadeDucks: new Map(),
   crossfadeDuckTimers: new Map(),
+  remoteRole: "off", // "off" | "controller" (régie) | "display" (façade)
+  remoteHost: "",
+  remoteRoomCode: "",
+  remoteSocket: null,
+  remoteConnected: false,
+  remoteReconnectTimer: null,
+  remoteReconnectDelay: 1000,
   boards: [],
   currentBoardId: DEFAULT_BOARD_ID,
   pads: [],
@@ -395,6 +403,16 @@ const els = {
   randomGroupAvoidRepeat: document.querySelector("#randomGroupAvoidRepeat"),
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
+  remoteControlButton: document.querySelector("#remoteControlButton"),
+  remoteControlIndicator: document.querySelector("#remoteControlIndicator"),
+  remoteControlDialog: document.querySelector("#remoteControlDialog"),
+  closeRemoteControl: document.querySelector("#closeRemoteControl"),
+  closeRemoteControlBtn: document.querySelector("#closeRemoteControlBtn"),
+  applyRemoteControl: document.querySelector("#applyRemoteControl"),
+  remoteControlHost: document.querySelector("#remoteControlHost"),
+  remoteControlRoom: document.querySelector("#remoteControlRoom"),
+  remoteControlStatus: document.querySelector("#remoteControlStatus"),
+  remoteRoleRadios: document.querySelectorAll('input[name="remoteRole"]'),
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   tagFilterChipsRow: document.querySelector("#tagFilterChipsRow"),
@@ -15902,6 +15920,7 @@ function clearSpeechPad(pad, triggerEnd = false) {
   pad.textStartedAt = 0;
   pad.stopAt = 0;
   pad.node.classList.remove("is-playing");
+  broadcastRemotePadState(pad, false);
   hidePadNoteOverlay(pad);
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -15947,6 +15966,7 @@ function speakPadTextFromOffset(pad, offset = 0) {
   pad.isPaused = false;
   pad.startedAt = performance.now() / 1000 - Math.max(0, offset);
   pad.node.classList.add("is-playing");
+  broadcastRemotePadState(pad, true);
   utterance.onend = () => {
     if (pad.speechUtterance === utterance) clearSpeechPad(pad, true);
   };
@@ -16018,6 +16038,7 @@ async function playPadText(pad, options = {}) {
   pad.stopAt = 0;
   pad.isPaused = false;
   pad.node.classList.add("is-playing");
+  broadcastRemotePadState(pad, true);
   state.lastStartedPad = pad;
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -16045,6 +16066,7 @@ function markVideoStopped(pad, triggerEnd = false) {
   pad.startedAt = 0;
   pad.stopAt = 0;
   pad.node.classList.remove("is-playing");
+  broadcastRemotePadState(pad, false);
   updatePadModeButtons(pad);
   updatePadTime(pad);
   if (triggerEnd) {
@@ -16146,6 +16168,7 @@ async function playPadVideo(pad, options = {}) {
     }
     video.addEventListener("play", () => {
       pad.node.classList.add("is-playing");
+      broadcastRemotePadState(pad, true);
       state.lastStartedPad = pad;
       pad.isPaused = false;
       pad.startedAt = performance.now() / 1000 - (video.currentTime || 0);
@@ -16203,6 +16226,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   pad.stopAt = 0;
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing", "is-stop-flash");
+  broadcastRemotePadState(pad, false);
   removeLiveFxRow(pad);
   hidePadNoteOverlay(pad);
   if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
@@ -16322,7 +16346,177 @@ function reversedBufferForPad(pad) {
   return reversed;
 }
 
+// ===== Contrôle à distance (2e appareil) =====
+// Rôle "controller" (régie) : les fonctions playPad/stopPad/togglePad/stopAll
+// n'exécutent rien localement, elles envoient la commande au relais réseau.
+// Rôle "display" (façade) : ces mêmes fonctions tournent normalement, et
+// diffusent en plus un événement d'état à chaque vrai changement de lecture
+// (via broadcastRemotePadState, appelée aux points où la classe "is-playing"
+// est déjà posée/retirée), pour que la régie affiche ce qui joue réellement.
+function remoteControlUrl() {
+  const host = (state.remoteHost || "").trim();
+  const room = (state.remoteRoomCode || "").trim().toUpperCase() || "DEFAULT";
+  return `ws://${host}:5175/ws?room=${encodeURIComponent(room)}`;
+}
+
+function saveRemoteControlSettings() {
+  localStorage.setItem(REMOTE_CONTROL_STORAGE, JSON.stringify({
+    role: state.remoteRole,
+    host: state.remoteHost,
+    room: state.remoteRoomCode,
+  }));
+}
+
+function loadRemoteControlSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REMOTE_CONTROL_STORAGE) || "{}");
+    state.remoteRole = saved.role === "controller" || saved.role === "display" ? saved.role : "off";
+    state.remoteHost = typeof saved.host === "string" ? saved.host : "";
+    state.remoteRoomCode = typeof saved.room === "string" ? saved.room : "";
+  } catch {
+    state.remoteRole = "off";
+    state.remoteHost = "";
+    state.remoteRoomCode = "";
+  }
+}
+
+function updateRemoteControlUi() {
+  els.remoteRoleRadios?.forEach((radio) => {
+    radio.checked = radio.value === state.remoteRole;
+  });
+  if (els.remoteControlHost && document.activeElement !== els.remoteControlHost) {
+    els.remoteControlHost.value = state.remoteHost;
+  }
+  if (els.remoteControlRoom && document.activeElement !== els.remoteControlRoom) {
+    els.remoteControlRoom.value = state.remoteRoomCode;
+  }
+  if (els.remoteControlStatus) {
+    if (state.remoteRole === "off") {
+      els.remoteControlStatus.textContent = "Désactivé";
+    } else {
+      const roleLabel = state.remoteRole === "controller" ? "Régie" : "Façade";
+      els.remoteControlStatus.textContent = state.remoteConnected ? `${roleLabel} — connecté` : `${roleLabel} — connexion…`;
+    }
+  }
+  const active = state.remoteRole !== "off";
+  els.remoteControlButton?.classList.toggle("is-active", active);
+  els.remoteControlButton?.classList.toggle("is-connected", active && state.remoteConnected);
+  els.remoteControlButton?.setAttribute("aria-pressed", String(active));
+}
+
+function scheduleRemoteReconnect() {
+  if (state.remoteRole === "off") return;
+  window.clearTimeout(state.remoteReconnectTimer);
+  state.remoteReconnectTimer = window.setTimeout(connectRemoteControl, state.remoteReconnectDelay);
+  state.remoteReconnectDelay = Math.min(state.remoteReconnectDelay * 2, 10000);
+}
+
+function connectRemoteControl() {
+  window.clearTimeout(state.remoteReconnectTimer);
+  state.remoteReconnectTimer = null;
+  if (state.remoteSocket) {
+    const previous = state.remoteSocket;
+    state.remoteSocket = null;
+    previous.onopen = null;
+    previous.onmessage = null;
+    previous.onclose = null;
+    previous.onerror = null;
+    try { previous.close(); } catch {
+      // Déjà fermée.
+    }
+  }
+  state.remoteConnected = false;
+  if (state.remoteRole === "off" || !state.remoteHost || !state.remoteRoomCode) {
+    updateRemoteControlUi();
+    return;
+  }
+
+  let socket;
+  try {
+    socket = new WebSocket(remoteControlUrl());
+  } catch {
+    scheduleRemoteReconnect();
+    updateRemoteControlUi();
+    return;
+  }
+  state.remoteSocket = socket;
+
+  socket.onopen = () => {
+    if (state.remoteSocket !== socket) return;
+    state.remoteReconnectDelay = 1000;
+    state.remoteConnected = true;
+    updateRemoteControlUi();
+  };
+  socket.onmessage = (event) => handleRemoteMessage(event.data);
+  socket.onclose = () => {
+    if (state.remoteSocket !== socket) return;
+    state.remoteSocket = null;
+    state.remoteConnected = false;
+    updateRemoteControlUi();
+    scheduleRemoteReconnect();
+  };
+  socket.onerror = () => {
+    try { socket.close(); } catch {
+      // onclose prendra le relais.
+    }
+  };
+  updateRemoteControlUi();
+}
+
+function setRemoteRole(role, host, room) {
+  state.remoteRole = role === "controller" || role === "display" ? role : "off";
+  if (host != null) state.remoteHost = host.trim();
+  if (room != null) state.remoteRoomCode = room.trim().toUpperCase();
+  saveRemoteControlSettings();
+  connectRemoteControl();
+}
+
+function sendRemoteCommand(action, target, extra = {}) {
+  if (state.remoteRole !== "controller") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  state.remoteSocket.send(JSON.stringify({ type: "cmd", action, target, ...extra }));
+}
+
+function broadcastRemotePadState(pad, playing) {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  state.remoteSocket.send(JSON.stringify({ type: "state", target: padTargetValue(pad), playing: Boolean(playing) }));
+}
+
+function handleRemoteMessage(raw) {
+  let msg;
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!msg || typeof msg !== "object") return;
+
+  if (msg.type === "cmd" && state.remoteRole === "display") {
+    if (msg.action === "stopAll") {
+      stopAll();
+      return;
+    }
+    const pad = padFromTarget(msg.target);
+    if (!pad) return;
+    if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
+    else if (msg.action === "stop") stopPad(pad, Boolean(msg.fade));
+    else if (msg.action === "toggle") togglePad(pad);
+    return;
+  }
+
+  if (msg.type === "state" && state.remoteRole === "controller") {
+    const pad = padFromTarget(msg.target);
+    if (!pad) return;
+    pad.node.classList.toggle("is-remote-playing", Boolean(msg.playing));
+  }
+}
+
 async function playPad(pad, fade = false, offset = 0, options = {}) {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("play", padTargetValue(pad), { fade: Boolean(fade), offset });
+    return;
+  }
   if (pad.videoName) {
     await playPadVideo(pad, { ...options, offset, fadeIn: fade });
     return;
@@ -16469,6 +16663,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.stopAt = 0;
   pad.keepResumeOffsetOnEnd = false;
   pad.node.classList.add("is-playing");
+  broadcastRemotePadState(pad, true);
   applyPadLiveFilter(pad, 0);
   applyPadLiveDistortion(pad, 0);
   applyPadLiveFlanger(pad, 0);
@@ -16498,6 +16693,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 }
 
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("stop", padTargetValue(pad), { fade: Boolean(fade) });
+    return;
+  }
   if (!isPadPlaying(pad)) {
     if (!preservePosition && pad.isPaused) {
       pad.resumeOffset = 0;
@@ -16712,6 +16911,10 @@ function bindPerformanceTouchGuards() {
 }
 
 function togglePad(pad) {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("toggle", padTargetValue(pad));
+    return;
+  }
   if (pad?.speechUtterance) {
     if (pad.isPaused) {
       pad.speechUtterance.volume = speechTargetVolume(pad);
@@ -16719,6 +16922,7 @@ function togglePad(pad) {
       pad.startedAt = performance.now() / 1000 - Math.max(0, pad.resumeOffset || 0);
       pad.isPaused = false;
       pad.node.classList.add("is-playing");
+      broadcastRemotePadState(pad, true);
       updatePadModeButtons(pad);
       startTimer();
       setStatus(`${pad.title} reprend`);
@@ -16728,6 +16932,7 @@ function togglePad(pad) {
     window.speechSynthesis?.pause?.();
     pad.isPaused = true;
     pad.node.classList.remove("is-playing");
+    broadcastRemotePadState(pad, false);
     updatePadModeButtons(pad);
     updatePadTime(pad);
     setStatus(`${pad.title} pause`);
@@ -16745,6 +16950,10 @@ function togglePad(pad) {
 }
 
 function stopAll() {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("stopAll", "");
+    return;
+  }
   stopRandomGroup();
   const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
   state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
@@ -17144,6 +17353,9 @@ async function init() {
     setBoardPadEditing(true);
   }
   updateStageLockUi();
+  loadRemoteControlSettings();
+  updateRemoteControlUi();
+  connectRemoteControl();
   updateMasterOptionBadges();
   syncHoverLabels();
 
@@ -17793,6 +18005,20 @@ async function init() {
   els.closeAudioLibraryBtn?.addEventListener("click", () => els.audioLibraryDialog?.close());
   els.audioLibraryDialog?.addEventListener("click", (event) => {
     if (event.target === els.audioLibraryDialog) els.audioLibraryDialog.close();
+  });
+  els.remoteControlButton?.addEventListener("click", () => {
+    updateRemoteControlUi();
+    els.remoteControlDialog?.showModal?.();
+  });
+  els.closeRemoteControl?.addEventListener("click", () => els.remoteControlDialog?.close());
+  els.closeRemoteControlBtn?.addEventListener("click", () => els.remoteControlDialog?.close());
+  els.remoteControlDialog?.addEventListener("click", (event) => {
+    if (event.target === els.remoteControlDialog) els.remoteControlDialog.close();
+  });
+  els.applyRemoteControl?.addEventListener("click", () => {
+    const checked = [...(els.remoteRoleRadios || [])].find((radio) => radio.checked);
+    setRemoteRole(checked?.value || "off", els.remoteControlHost?.value || "", els.remoteControlRoom?.value || "");
+    els.remoteControlDialog?.close();
   });
   const openContextHelp = (sectionKeys, title = "Aide") => {
     if (!els.helpDialog) return;
@@ -18465,6 +18691,7 @@ async function init() {
     state.folderImportFiles = [];
   });
   bindEscapeClose(els.audioLibraryDialog);
+  bindEscapeClose(els.remoteControlDialog);
   bindEscapeClose(els.microphoneDialog);
   bindEscapeClose(els.audioDialog, () => {
     stopAudioDialogStartedPlayback();

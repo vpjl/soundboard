@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=724">
+    <link rel="stylesheet" href="styles.css?v=725">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -456,6 +456,14 @@
                   <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
                   <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+              <button id="remoteControlButton" class="icon-button remote-control-button" type="button" aria-label="Contrôle à distance" aria-pressed="false">
+                <span id="remoteControlIndicator" class="remote-control-indicator" aria-hidden="true"></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="5" y="7" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M9 21h6M12 17v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M9 11.5a3 3 0 0 1 6 0M12 13.5v.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                 </svg>
               </button>
               <button id="masterHelp" class="icon-button help-button master-help-button" type="button" aria-label="Aide Master">
@@ -2328,6 +2336,36 @@
       </div>
     </dialog>
 
+    <dialog id="remoteControlDialog" class="confirm-dialog" aria-labelledby="remoteControlTitle">
+      <div class="confirm-panel remote-control-panel">
+        <div class="help-head">
+          <div>
+            <h2 id="remoteControlTitle">Contrôle à distance</h2>
+            <p>Pilote les pads depuis un 2e appareil (régie), sur le même réseau Wi-Fi, pendant qu'un autre appareil (façade) joue le son. Nécessite <code>node remote-relay.js</code> lancé sur un des deux appareils.</p>
+          </div>
+          <button id="closeRemoteControl" class="icon-button dialog-close-button" type="button" aria-label="Fermer">×</button>
+        </div>
+        <div class="remote-control-role-group">
+          <label><input id="remoteRoleOff" name="remoteRole" type="radio" value="off" checked> Désactivé</label>
+          <label><input id="remoteRoleController" name="remoteRole" type="radio" value="controller"> Régie (j'envoie les commandes)</label>
+          <label><input id="remoteRoleDisplay" name="remoteRole" type="radio" value="display"> Façade (je joue le son)</label>
+        </div>
+        <label class="remote-control-field">
+          <span>Adresse du relais (IP affichée par remote-relay.js)</span>
+          <input id="remoteControlHost" type="text" placeholder="192.168.1.23" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </label>
+        <label class="remote-control-field">
+          <span>Code de room (identique des deux côtés)</span>
+          <input id="remoteControlRoom" type="text" placeholder="EX: SOIR1" autocapitalize="characters" autocorrect="off" spellcheck="false">
+        </label>
+        <p id="remoteControlStatus" class="remote-control-status">Désactivé</p>
+        <div class="dialog-actions">
+          <button id="applyRemoteControl" class="small-button" type="button">Appliquer</button>
+          <button id="closeRemoteControlBtn" class="small-button" type="button">Fermer</button>
+        </div>
+      </div>
+    </dialog>
+
     <input id="audioVideoFile" class="file-input" type="file" accept="video/*,.mp4,.mov,.m4v,.webm">
     <input id="audioTextFile" class="file-input" type="file" accept=".txt,.text,.md,.rtf,.docx,text/plain,text/markdown,application/rtf,text/rtf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
 
@@ -2796,7 +2834,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=724"></script>
+    <script src="app.js?v=725"></script>
 
 
   </body>
