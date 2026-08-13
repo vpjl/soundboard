@@ -2588,8 +2588,12 @@ function addLiveFxRow(pad) {
   els.liveFxPanelBody.appendChild(row);
   // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
   // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
-  // pas explicitement les effets (pas de surprise sonore à l'ouverture).
-  setLiveFxBypassed(pad, true);
+  // pas explicitement les effets (pas de surprise sonore à l'ouverture) —
+  // SAUF si le verso du pad est déjà déplié : pad.liveFxBypassed est partagé
+  // avec lui (un seul graphe audio réel), et l'utilisateur vient alors de
+  // rétablir les effets explicitement en le dépliant (cf.
+  // setPadFxFaceFlipped) ; lancer le pad ne doit pas annuler ce choix.
+  if (!pad.fxFaceFlipped) setLiveFxBypassed(pad, true);
 }
 
 function removeLiveFxRow(pad) {
