@@ -2318,9 +2318,19 @@ function createLiveFxControl({ key, label, min, max, step = "1", value = "0", ce
   slider.setAttribute("aria-label", ariaLabel);
   slider.addEventListener("input", () => applyFn(slider.value));
   if (resetValue != null) {
-    slider.addEventListener("dblclick", () => {
-      slider.value = String(resetValue);
-      applyFn(resetValue);
+    // "click" plutôt que "dblclick" natif (même constat que pour le double-tap
+    // de bascule recto/verso du pad : peu fiable sur mobile même avec
+    // touch-action:manipulation). Détection manuelle sur deux "click" rapprochés.
+    let lastResetClickAt = 0;
+    slider.addEventListener("click", (event) => {
+      const now = event.timeStamp || Date.now();
+      if (now - lastResetClickAt < 400) {
+        lastResetClickAt = 0;
+        slider.value = String(resetValue);
+        applyFn(resetValue);
+      } else {
+        lastResetClickAt = now;
+      }
     });
   }
   control.append(caption, slider);
