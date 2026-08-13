@@ -177,6 +177,7 @@ const COMPRESSOR_PRESETS = {
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
 const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
+const VIDEO_FILE_RE = /\.(mp4|mov|m4v|webm)$/i;
 
 const state = {
   audioContext: null,
@@ -2652,7 +2653,21 @@ function applyStoredLiveFxPanelPosition() {
   }
 }
 
-function setLiveFxPanelDocked(docked, persist = true) {
+// Déplier le panneau (bouton chevron) le fait toujours réapparaître en bas
+// de l'écran (position CSS par défaut), quelle que soit la position où il
+// avait été déplacé avant d'être rabattu — on peut ensuite le redéplacer à
+// volonté via sa poignée (setupLiveFxPanelDrag).
+function resetLiveFxPanelPositionToBottom() {
+  const panel = els.liveFxPanel;
+  if (!panel) return;
+  panel.style.left = "";
+  panel.style.top = "";
+  panel.style.right = "";
+  panel.style.bottom = "";
+  localStorage.removeItem(LIVE_FX_PANEL_POSITION_STORAGE);
+}
+
+function setLiveFxPanelDocked(docked, persist = true, resetPosition = false) {
   state.liveFxPanelDocked = docked;
   els.liveFxPanel?.classList.toggle("is-docked", docked);
   if (els.liveFxPanelDock) {
@@ -2660,7 +2675,10 @@ function setLiveFxPanelDocked(docked, persist = true) {
     els.liveFxPanelDock.classList.toggle("is-flipped", docked);
   }
   if (persist) localStorage.setItem(LIVE_FX_PANEL_DOCKED_STORAGE, docked ? "on" : "off");
-  if (!docked) applyStoredLiveFxPanelPosition();
+  if (!docked) {
+    if (resetPosition) resetLiveFxPanelPositionToBottom();
+    else applyStoredLiveFxPanelPosition();
+  }
 }
 
 function setupLiveFxPanelDrag() {
@@ -2723,7 +2741,10 @@ function initLiveFxPanelChrome() {
   applyStoredLiveFxPanelPosition();
   setLiveFxPanelDocked(localStorage.getItem(LIVE_FX_PANEL_DOCKED_STORAGE) === "on", false);
   setupLiveFxPanelDrag();
-  els.liveFxPanelDock?.addEventListener("click", () => setLiveFxPanelDocked(!state.liveFxPanelDocked));
+  els.liveFxPanelDock?.addEventListener("click", () => {
+    const opening = state.liveFxPanelDocked;
+    setLiveFxPanelDocked(!opening, true, opening);
+  });
   window.addEventListener("resize", () => clampLiveFxPanelPosition());
   const storedAllowed = localStorage.getItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE);
   setLiveFxPanelAllowed(storedAllowed == null ? true : storedAllowed === "on", false);
@@ -9990,8 +10011,13 @@ function isTextDocFile(file) {
 }
 
 function contentFileKind(file) {
-  if (/^video\//.test(file.type)) return "video";
+  const name = file?.name || "";
+  // L'extension prime sur le type MIME : certains navigateurs/OS sniffent
+  // mal le type de fichiers audio (ex. .wav identifié comme video/*).
+  if (AUDIO_FILE_RE.test(name)) return "audio";
+  if (VIDEO_FILE_RE.test(name)) return "video";
   if (isTextDocFile(file)) return "text";
+  if (/^video\//.test(file.type)) return "video";
   if (/^audio\//.test(file.type)) return "audio";
   return null;
 }
@@ -10287,7 +10313,7 @@ function audioFileIdentity(file) {
 function videoFilesFromSelection(files) {
   return [...(files || [])].filter((file) => (
     file?.type?.startsWith("video/")
-    || /\.(mp4|mov|m4v|webm)$/i.test(file?.name || "")
+    || VIDEO_FILE_RE.test(file?.name || "")
   )).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
 }
 

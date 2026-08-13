@@ -2016,6 +2016,10 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 input[type="range"] {
   width: 100%;
   accent-color: var(--color_status_success);
+  /* Sans ça, un double-tap sur un curseur (reset à la valeur par défaut,
+     cf. createLiveFxControl) peut être intercepté par le zoom natif au
+     double-tap du navigateur — même correctif que .pad-flip. */
+  touch-action: manipulation;
 }
 
 .danger-button,
