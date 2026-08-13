@@ -2589,11 +2589,16 @@ function addLiveFxRow(pad) {
   // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
   // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
   // pas explicitement les effets (pas de surprise sonore à l'ouverture) —
-  // SAUF si le verso du pad est déjà déplié : pad.liveFxBypassed est partagé
-  // avec lui (un seul graphe audio réel), et l'utilisateur vient alors de
+  // SAUF si le verso du pad est déjà déplié : l'utilisateur vient alors de
   // rétablir les effets explicitement en le dépliant (cf.
-  // setPadFxFaceFlipped) ; lancer le pad ne doit pas annuler ce choix.
-  if (!pad.fxFaceFlipped) setLiveFxBypassed(pad, true);
+  // setPadFxFaceFlipped), lancer le pad ne doit pas annuler ce choix. On
+  // passe par setLiveFxBypassed(pad, false) plutôt que de simplement sauter
+  // l'appel : les nœuds audio effets sont recréés à zéro à chaque lecture
+  // (juste avant addLiveFxRow), donc sans repasser par son branche
+  // "non coupé" (reapplyLiveFxRow), les valeurs mémorisées des curseurs
+  // n'étaient jamais réappliquées aux nouveaux nœuds — le bouton affichait
+  // le bon état mais le son restait sec.
+  setLiveFxBypassed(pad, !pad.fxFaceFlipped);
 }
 
 function removeLiveFxRow(pad) {
