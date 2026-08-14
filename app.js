@@ -2527,6 +2527,14 @@ function setPadFxFaceFlipped(pad, flipped) {
     }
     pad.fxBackHeadEl?.querySelector(".live-fx-row-bypass")?.remove();
     pad.fxBackHeadEl?.appendChild(createLiveFxBypassButton(pad));
+    // Le pad joue déjà (ligne présente dans le panneau flottant) : on
+    // ramène ce panneau en bas d'écran, qu'il ait été rabattu ou déplacé
+    // ailleurs par l'utilisateur — sinon le verso s'ouvre sur le pad sans
+    // que le rack (mêmes réglages, vue globale) soit visible à côté.
+    if (document.getElementById(liveFxRowId(pad))) {
+      if (state.liveFxPanelDocked) setLiveFxPanelDocked(false, true, true);
+      else resetLiveFxPanelPositionToBottom();
+    }
     // Le panneau flottant s'ouvre toujours coupé (par sécurité, à chaque
     // lecture — comportement existant avant cette évolution). Le verso,
     // ouvert par un geste délibéré, l'ignore et rétablit les effets : sinon

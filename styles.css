@@ -4196,6 +4196,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 .audio-trim-actions .icon-button {
   width: 36px;
   height: 36px;
+  margin-left: auto;
 }
 
 .audio-trim-actions #audioAutoTrim {
@@ -5754,10 +5755,6 @@ body[data-skin="contrast"] .color-field {
   align-items: center;
 }
 
-.audio-head-actions .audio-head-regions {
-  margin-left: 14px;
-}
-
 .audio-head-actions .audio-head-reset {
   margin-left: auto;
 }
@@ -6035,13 +6032,13 @@ body[data-skin="contrast"] .color-field {
   display: none !important;
 }
 
-/* Vidéo : masquer le cadre waveform et les outils audio (trim auto, lire, éditeur) dans
-   « Réglages du pad » — ces outils agissent sur un buffer audio, absent en vidéo.
-   !important pour battre .audio-section{display:grid}, .icon-button{display:grid} et le
-   style inline display:inline-flex du conteneur transport (trim auto + lire). */
+/* Vidéo : masquer le cadre waveform (trim auto et éditeur inclus, posés dedans) et le
+   bouton lire dans « Réglages du pad » — ces outils agissent sur un buffer audio,
+   absent en vidéo. !important pour battre .audio-section{display:grid},
+   .icon-button{display:grid} et le style inline display:inline-flex du conteneur
+   transport (bouton lire). */
 .audio-dialog.is-video-pad [aria-label="Waveform et trim"],
-.audio-dialog.is-video-pad .audio-head-transport,
-.audio-dialog.is-video-pad .audio-head-regions {
+.audio-dialog.is-video-pad .audio-head-transport {
   display: none !important;
 }
 
@@ -6056,6 +6053,14 @@ body[data-skin="contrast"] .color-field {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* Bat .audio-section label{display:grid} (plus spécifique que .auto-trim-sensitivity
+   seule) depuis que ce contrôle vit dans le bloc waveform : sinon "Sensib.", le
+   curseur et la valeur s'empilent chacun sur leur ligne au lieu de rester en rang. */
+.audio-trim-actions .auto-trim-sensitivity {
+  display: inline-flex;
+  align-items: center;
 }
 
 .auto-trim-sensitivity input[type="range"] {
@@ -6101,8 +6106,7 @@ body[data-skin="contrast"] .color-field {
 
 .audio-dialog.is-text-pad .audio-waveform,
 .audio-dialog.is-text-pad .trim-values,
-.audio-dialog.is-text-pad #audioAutoTrim,
-.audio-dialog.is-text-pad #audioRegionsEdit {
+.audio-dialog.is-text-pad .audio-trim-actions {
   display: none;
 }
 

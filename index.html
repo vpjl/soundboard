@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=725">
+    <link rel="stylesheet" href="styles.css?v=727">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -1482,12 +1482,6 @@
               </svg>
             </button>
             <span class="audio-head-transport" style="display:inline-flex; align-items:center; gap:6px; margin:0 14px;">
-              <button id="audioAutoTrim" class="small-button" type="button">Trim auto</button>
-              <label class="auto-trim-sensitivity" title="Sensibilité de la détection des silences : plus haut, les sons faibles sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus).">
-                <span>Sensib.</span>
-                <input id="audioAutoTrimSensitivity" type="range" min="1" max="100" step="1" value="50" aria-label="Sensibilité du trim auto">
-                <output id="audioAutoTrimSensitivityValue">50</output>
-              </label>
               <button id="audioTestPlay" class="icon-button audio-test-play" type="button" aria-label="Lire / Pause (test, sortie cue si sélectionnée)">
                 <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
@@ -1497,11 +1491,6 @@
                 </svg>
               </button>
             </span>
-            <button id="audioRegionsEdit" class="icon-button audio-head-regions" type="button" aria-label="Éditeur audio (trim, cut, mute, enveloppe)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
             <button id="audioReset" class="icon-button audio-head-reset" type="button" aria-label="Reset audio">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1537,6 +1526,19 @@
             <div class="trim-values" aria-live="polite">
               <span>Début <output id="audioTrimStartValue">0.0s</output></span>
               <span>Fin <output id="audioTrimEndValue">0.0s</output></span>
+            </div>
+            <div class="audio-trim-actions">
+              <button id="audioAutoTrim" class="small-button" type="button">Trim auto</button>
+              <label class="auto-trim-sensitivity" title="Sensibilité de la détection des silences : plus haut, les sons faibles sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus).">
+                <span>Sensib.</span>
+                <input id="audioAutoTrimSensitivity" type="range" min="1" max="100" step="1" value="50" aria-label="Sensibilité du trim auto">
+                <output id="audioAutoTrimSensitivityValue">50</output>
+              </label>
+              <button id="audioRegionsEdit" class="icon-button audio-head-regions" type="button" aria-label="Éditeur audio (trim, cut, mute, enveloppe)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
             </div>
           </section>
           <section class="audio-section" aria-label="Normalisation">
@@ -2834,7 +2836,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=725"></script>
+    <script src="app.js?v=727"></script>
 
 
   </body>
