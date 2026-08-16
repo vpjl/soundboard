@@ -16478,9 +16478,19 @@ function connectRemoteControl() {
   updateRemoteControlUi();
 }
 
+// Tolère un collage de l'adresse complète affichée par remote-relay.js
+// (ex. "http://192.168.1.23:5175") au lieu de la simple IP attendue.
+function normalizeRemoteHost(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^\w+:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/:\d+$/, "");
+}
+
 function setRemoteRole(role, host, room) {
   state.remoteRole = role === "controller" || role === "display" ? role : "off";
-  if (host != null) state.remoteHost = host.trim();
+  if (host != null) state.remoteHost = normalizeRemoteHost(host);
   if (room != null) state.remoteRoomCode = room.trim().toUpperCase();
   saveRemoteControlSettings();
   connectRemoteControl();
