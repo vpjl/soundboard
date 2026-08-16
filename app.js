@@ -5537,7 +5537,7 @@ async function renderPads(options = {}) {
   const perf = startPerfMeasure("renderPads");
   const preserveEditMode = options.preserveEditMode === true && state.boardEditMode;
   cancelManualCrossfade({ silent: true });
-  stopAll();
+  stopAllLocal();
   resetRecordingState();
   if (!preserveEditMode) {
     state.boardEditMode = false;
@@ -5737,7 +5737,7 @@ function fileSafeName(value) {
 
 async function duplicateCurrentBoard() {
   if (!state.boardEditMode) return;
-  stopAll();
+  stopAllLocal();
   resetRecordingState();
   const sourceBoard = currentBoard();
   const newBoard = {
@@ -8042,7 +8042,7 @@ async function createBoardSnapshot(board, options = {}) {
 
 async function applyBoardSnapshot(snapshot, options = {}) {
   const board = currentBoard();
-  stopAll();
+  stopAllLocal();
   resetRecordingState();
   const previousPadCount = board.padCount;
   const preservedAudio = new Map();
@@ -9291,7 +9291,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   commitPendingUndoCheckpoint();
   const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
 
-  stopAll();
+  stopAllLocal();
   if (state.recordingPad === pad) resetRecordingState();
 
   const boardId = state.currentBoardId;
@@ -9379,7 +9379,7 @@ async function deleteCurrentBoard() {
   const board = currentBoard();
   if (!window.confirm(`Supprimer le board "${board.name}" et tous ses pads ?`)) return;
 
-  stopAll();
+  stopAllLocal();
   resetRecordingState();
   for (let index = 0; index < board.padCount; index += 1) {
     const record = await dbGet(padAudioKeyFor(board.id, index));
@@ -10425,7 +10425,7 @@ async function boardHasAnyMedia(board = currentBoard()) {
 async function fillBlankBoardFromAudioFiles(files) {
   const wasEditing = state.boardEditMode;
   const board = currentBoard();
-  stopAll();
+  stopAllLocal();
   resetRecordingState();
   const previousPadCount = board.padCount;
   for (let index = 0; index < previousPadCount; index += 1) {
@@ -16717,11 +16717,21 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   updateAllPadAlerts();
 }
 
+// stopPad() est le point d'entrée "intention utilisateur/show" (clic, raccourci,
+// cue) : redirige vers le réseau en rôle régie. stopPadLocal() est la vraie
+// logique, utilisée telle quelle par le ménage interne (changement de board,
+// suppression, undo…) qui n'a rien à voir avec une commande de spectacle et
+// ne doit donc jamais déclencher l'envoi réseau (sinon la façade recevrait
+// des "stop" parasites à chaque manipulation de board côté régie).
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   if (state.remoteRole === "controller") {
     sendRemoteCommand("stop", padTargetValue(pad), { fade: Boolean(fade) });
     return;
   }
+  stopPadLocal(pad, fade, preservePosition, options);
+}
+
+function stopPadLocal(pad, fade = false, preservePosition = false, options = {}) {
   if (!isPadPlaying(pad)) {
     if (!preservePosition && pad.isPaused) {
       pad.resumeOffset = 0;
@@ -16974,14 +16984,21 @@ function togglePad(pad) {
   playPad(pad, false, pad.resumeOffset, { skipStartCrossfade: true }).catch(() => setStatus("Reprise impossible"));
 }
 
+// Même logique que stopPad/stopPadLocal ci-dessus : stopAll() est la commande
+// "spectacle" (redirige en rôle régie), stopAllLocal() le ménage interne pur
+// (jamais envoyé au réseau).
 function stopAll() {
   if (state.remoteRole === "controller") {
     sendRemoteCommand("stopAll", "");
     return;
   }
+  stopAllLocal();
+}
+
+function stopAllLocal() {
   stopRandomGroup();
   const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
-  state.pads.forEach((pad) => stopPad(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
+  state.pads.forEach((pad) => stopPadLocal(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
   setStatus("Tout est stoppé");
 }
 
