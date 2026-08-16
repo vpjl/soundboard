@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=731">
+    <link rel="stylesheet" href="styles.css?v=732">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2343,24 +2343,30 @@
         <div class="help-head">
           <div>
             <h2 id="remoteControlTitle">Contrôle à distance</h2>
-            <p>Pilote les pads depuis un 2e appareil (régie), sur le même réseau Wi-Fi, pendant qu'un autre appareil (façade) joue le son. Double-cliquer <code>demarrer-controle-distance.command</code> sur un des deux appareils : une fenêtre s'ouvre avec une adresse à ouvrir.</p>
           </div>
           <button id="closeRemoteControl" class="icon-button dialog-close-button" type="button" aria-label="Fermer">×</button>
         </div>
-        <p id="remoteControlHttpsWarning" class="remote-control-warning" hidden>⚠️ Cette page est ouverte en <code>https://</code> (ex. GitHub Pages) : le navigateur bloque la connexion au relais local depuis une page sécurisée. Ouvrez l'app avec l'adresse <code>http://…</code> affichée par <code>demarrer-controle-distance.command</code> — sur les deux appareils — au lieu du raccourci habituel.</p>
+        <p id="remoteControlHttpsWarning" class="remote-control-warning" hidden>⚠️ Ouvrez l'app avec l'adresse <code>http://…</code> affichée par <code>demarrer-controle-distance.command</code> (pas le raccourci habituel) : une page https ne peut pas s'y connecter.</p>
         <div class="remote-control-role-group">
-          <label><input id="remoteRoleController" name="remoteRole" type="radio" value="controller" checked> Régie (j'envoie les commandes)</label>
-          <label><input id="remoteRoleDisplay" name="remoteRole" type="radio" value="display"> Façade (je joue le son)</label>
+          <button id="remoteRoleDisplay" class="small-button" type="button" data-role="display">Façade (joue le son)</button>
+          <button id="remoteRoleController" class="small-button" type="button" data-role="controller">Régie (pilote)</button>
         </div>
-        <label class="remote-control-field">
-          <span>Adresse du relais (IP affichée par remote-relay.js)</span>
-          <input id="remoteControlHost" type="text" placeholder="192.168.1.23" autocapitalize="off" autocorrect="off" spellcheck="false">
-        </label>
-        <label class="remote-control-field">
-          <span>Code de room (identique des deux côtés)</span>
-          <input id="remoteControlRoom" type="text" placeholder="EX: SOIR1" autocapitalize="characters" autocorrect="off" spellcheck="false">
-        </label>
+        <div id="remoteFacadeFields" class="remote-control-role-panel" hidden>
+          <p class="remote-control-hint">Code à saisir sur l'appareil régie :</p>
+          <p id="remoteControlCode" class="remote-control-code">— — —</p>
+        </div>
+        <div id="remoteControllerFields" class="remote-control-role-panel" hidden>
+          <label class="remote-control-field">
+            <span>Adresse du relais</span>
+            <input id="remoteControlHost" type="text" placeholder="192.168.1.23" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <label class="remote-control-field">
+            <span>Code</span>
+            <input id="remoteControlRoom" type="text" placeholder="123 456" inputmode="numeric" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+        </div>
         <p id="remoteControlStatus" class="remote-control-status">Désactivé</p>
+        <p class="remote-control-hint">Les deux appareils doivent être sur le même Wi-Fi (désactivez l'isolation clients/AP sur les grands réseaux si besoin).</p>
         <div class="dialog-actions">
           <button id="toggleRemoteControl" class="small-button" type="button">Activer</button>
           <button id="closeRemoteControlBtn" class="small-button" type="button">Fermer</button>
@@ -2836,7 +2842,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=731"></script>
+    <script src="app.js?v=732"></script>
 
 
   </body>

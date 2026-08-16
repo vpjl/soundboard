@@ -203,6 +203,7 @@ const state = {
   crossfadeDucks: new Map(),
   crossfadeDuckTimers: new Map(),
   remoteRole: "off", // "off" | "controller" (régie) | "display" (façade)
+  remotePendingRole: "display", // rôle sélectionné dans le panneau, en attente d'activation
   remoteHost: "",
   remoteRoomCode: "",
   remoteSocket: null,
@@ -413,7 +414,10 @@ const els = {
   remoteControlRoom: document.querySelector("#remoteControlRoom"),
   remoteControlStatus: document.querySelector("#remoteControlStatus"),
   remoteControlHttpsWarning: document.querySelector("#remoteControlHttpsWarning"),
-  remoteRoleRadios: document.querySelectorAll('input[name="remoteRole"]'),
+  remoteRoleButtons: document.querySelectorAll(".remote-control-role-group [data-role]"),
+  remoteFacadeFields: document.querySelector("#remoteFacadeFields"),
+  remoteControllerFields: document.querySelector("#remoteControllerFields"),
+  remoteControlCode: document.querySelector("#remoteControlCode"),
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
   tagFilterChipsRow: document.querySelector("#tagFilterChipsRow"),
@@ -16378,6 +16382,7 @@ function remoteControlUrl() {
 function saveRemoteControlSettings() {
   localStorage.setItem(REMOTE_CONTROL_STORAGE, JSON.stringify({
     role: state.remoteRole,
+    pendingRole: state.remotePendingRole,
     host: state.remoteHost,
     room: state.remoteRoomCode,
   }));
@@ -16387,33 +16392,54 @@ function loadRemoteControlSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(REMOTE_CONTROL_STORAGE) || "{}");
     state.remoteRole = saved.role === "controller" || saved.role === "display" ? saved.role : "off";
+    state.remotePendingRole = saved.pendingRole === "controller" ? "controller" : "display";
     state.remoteHost = typeof saved.host === "string" ? saved.host : "";
     state.remoteRoomCode = typeof saved.room === "string" ? saved.room : "";
   } catch {
     state.remoteRole = "off";
+    state.remotePendingRole = "display";
     state.remoteHost = "";
     state.remoteRoomCode = "";
   }
+}
+
+function generateRemoteRoomCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function formatRemoteCode(code) {
+  const digits = String(code || "").replace(/\D/g, "");
+  return digits ? `${digits.slice(0, 3)} ${digits.slice(3)}`.trim() : "— — —";
 }
 
 function updateRemoteControlUi() {
   if (els.remoteControlHttpsWarning) {
     els.remoteControlHttpsWarning.hidden = location.protocol !== "https:";
   }
-  // "off" n'est plus une valeur de radio (c'est un état, pas un choix de rôle) : on
-  // ne touche aux radios que si un rôle réel est actif, sinon on laisse la sélection
-  // en cours (le dernier rôle choisi avant désactivation, ou "Régie" par défaut).
-  if (state.remoteRole === "controller" || state.remoteRole === "display") {
-    els.remoteRoleRadios?.forEach((radio) => {
-      radio.checked = radio.value === state.remoteRole;
-    });
+  // Le rôle affiché/édité dans le panneau : celui déjà actif s'il y en a un,
+  // sinon le dernier choisi (état "pending", jamais "off" — off n'est plus un
+  // choix, c'est juste l'absence d'activation).
+  const displayedRole = state.remoteRole !== "off" ? state.remoteRole : state.remotePendingRole;
+  els.remoteRoleButtons?.forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.role === displayedRole);
+  });
+
+  const isFacade = displayedRole === "display";
+  if (els.remoteFacadeFields) els.remoteFacadeFields.hidden = !isFacade;
+  if (els.remoteControllerFields) els.remoteControllerFields.hidden = isFacade;
+
+  if (isFacade) {
+    if (!state.remoteRoomCode) state.remoteRoomCode = generateRemoteRoomCode();
+    if (els.remoteControlCode) els.remoteControlCode.textContent = formatRemoteCode(state.remoteRoomCode);
+  } else {
+    if (els.remoteControlHost && document.activeElement !== els.remoteControlHost) {
+      els.remoteControlHost.value = state.remoteHost;
+    }
+    if (els.remoteControlRoom && document.activeElement !== els.remoteControlRoom) {
+      els.remoteControlRoom.value = state.remoteRoomCode;
+    }
   }
-  if (els.remoteControlHost && document.activeElement !== els.remoteControlHost) {
-    els.remoteControlHost.value = state.remoteHost;
-  }
-  if (els.remoteControlRoom && document.activeElement !== els.remoteControlRoom) {
-    els.remoteControlRoom.value = state.remoteRoomCode;
-  }
+
   if (els.remoteControlStatus) {
     if (state.remoteRole === "off") {
       els.remoteControlStatus.textContent = "Désactivé";
@@ -16422,7 +16448,9 @@ function updateRemoteControlUi() {
       if (state.remoteConnected) {
         els.remoteControlStatus.textContent = `${roleLabel} — connecté`;
       } else if (location.protocol === "https:") {
-        els.remoteControlStatus.textContent = `${roleLabel} — bloqué (page en https, voir avertissement ci-dessus)`;
+        els.remoteControlStatus.textContent = `${roleLabel} — bloqué (voir avertissement ci-dessus)`;
+      } else if (!state.remoteHost) {
+        els.remoteControlStatus.textContent = `${roleLabel} — adresse introuvable, rouvrez via l'adresse de remote-relay.js`;
       } else {
         els.remoteControlStatus.textContent = `${roleLabel} — connexion…`;
       }
@@ -16517,7 +16545,7 @@ function normalizeRemoteHost(value) {
 function setRemoteRole(role, host, room) {
   state.remoteRole = role === "controller" || role === "display" ? role : "off";
   if (host != null) state.remoteHost = normalizeRemoteHost(host);
-  if (room != null) state.remoteRoomCode = room.trim().toUpperCase();
+  if (room != null) state.remoteRoomCode = room.replace(/\s+/g, "").toUpperCase();
   saveRemoteControlSettings();
   connectRemoteControl();
 }
@@ -18087,12 +18115,19 @@ async function init() {
   els.remoteControlDialog?.addEventListener("click", (event) => {
     if (event.target === els.remoteControlDialog) els.remoteControlDialog.close();
   });
+  els.remoteRoleButtons?.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.remotePendingRole = button.dataset.role === "controller" ? "controller" : "display";
+      updateRemoteControlUi();
+    });
+  });
   els.toggleRemoteControl?.addEventListener("click", () => {
     if (state.remoteRole !== "off") {
       setRemoteRole("off");
+    } else if (state.remotePendingRole === "display") {
+      setRemoteRole("display", guessRemoteHost(), state.remoteRoomCode || generateRemoteRoomCode());
     } else {
-      const checked = [...(els.remoteRoleRadios || [])].find((radio) => radio.checked);
-      setRemoteRole(checked?.value || "controller", els.remoteControlHost?.value || "", els.remoteControlRoom?.value || "");
+      setRemoteRole("controller", els.remoteControlHost?.value || "", els.remoteControlRoom?.value || "");
     }
     els.remoteControlDialog?.close();
   });

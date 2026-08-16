@@ -4508,8 +4508,31 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 
 .remote-control-role-group {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   margin: 12px 0;
+}
+
+.remote-control-role-group [data-role] {
+  border: 1px solid var(--line);
+  background: #111319;
+}
+
+.remote-control-role-group [data-role].is-selected {
+  border-color: var(--color_status_success, #49d3a0);
+  background: color-mix(in srgb, var(--color_status_success, #49d3a0) 16%, #111319);
+}
+
+.remote-control-role-panel {
+  margin: 4px 0 12px;
+}
+
+.remote-control-code {
+  margin: 4px 0 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: center;
 }
 
 .remote-control-field {
@@ -4531,6 +4554,13 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.remote-control-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .remote-control-warning {
