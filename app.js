@@ -16361,6 +16361,13 @@ function reversedBufferForPad(pad) {
 // diffusent en plus un événement d'état à chaque vrai changement de lecture
 // (via broadcastRemotePadState, appelée aux points où la classe "is-playing"
 // est déjà posée/retirée), pour que la régie affiche ce qui joue réellement.
+// Si l'app est ouverte via l'URL affichée par remote-relay.js (http://<ip>:5175/),
+// location.hostname EST déjà l'adresse du relais : pas besoin de la ressaisir. Ne
+// s'applique pas à l'ouverture via GitHub Pages (hostname = domaine, pas une IP).
+function guessRemoteHost() {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname) ? location.hostname : "";
+}
+
 function remoteControlUrl() {
   const host = (state.remoteHost || "").trim();
   const room = (state.remoteRoomCode || "").trim().toUpperCase() || "DEFAULT";
@@ -18016,6 +18023,10 @@ async function init() {
   });
   els.remoteControlButton?.addEventListener("click", () => {
     updateRemoteControlUi();
+    if (!state.remoteHost && els.remoteControlHost) {
+      const guess = guessRemoteHost();
+      if (guess) els.remoteControlHost.value = guess;
+    }
     els.remoteControlDialog?.showModal?.();
   });
   els.closeRemoteControl?.addEventListener("click", () => els.remoteControlDialog?.close());
