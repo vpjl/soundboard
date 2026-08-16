@@ -16429,7 +16429,10 @@ function updateRemoteControlUi() {
   if (els.remoteControllerFields) els.remoteControllerFields.hidden = isFacade;
 
   if (isFacade) {
-    if (!state.remoteRoomCode) state.remoteRoomCode = generateRemoteRoomCode();
+    // Régénère si le code stocké n'est pas un vrai code à 6 chiffres — couvre
+    // le cas vide, mais aussi un résidu d'un ancien code texte libre (avant le
+    // panneau actuel, ex. "SOIR1") qui ne contient aucun chiffre à afficher.
+    if (!/^\d{6}$/.test(state.remoteRoomCode || "")) state.remoteRoomCode = generateRemoteRoomCode();
     if (els.remoteControlCode) els.remoteControlCode.textContent = formatRemoteCode(state.remoteRoomCode);
   } else {
     if (els.remoteControlHost && document.activeElement !== els.remoteControlHost) {
