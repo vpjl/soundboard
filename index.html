@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=730">
+    <link rel="stylesheet" href="styles.css?v=731">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -2349,8 +2349,7 @@
         </div>
         <p id="remoteControlHttpsWarning" class="remote-control-warning" hidden>⚠️ Cette page est ouverte en <code>https://</code> (ex. GitHub Pages) : le navigateur bloque la connexion au relais local depuis une page sécurisée. Ouvrez l'app avec l'adresse <code>http://…</code> affichée par <code>demarrer-controle-distance.command</code> — sur les deux appareils — au lieu du raccourci habituel.</p>
         <div class="remote-control-role-group">
-          <label><input id="remoteRoleOff" name="remoteRole" type="radio" value="off" checked> Désactivé</label>
-          <label><input id="remoteRoleController" name="remoteRole" type="radio" value="controller"> Régie (j'envoie les commandes)</label>
+          <label><input id="remoteRoleController" name="remoteRole" type="radio" value="controller" checked> Régie (j'envoie les commandes)</label>
           <label><input id="remoteRoleDisplay" name="remoteRole" type="radio" value="display"> Façade (je joue le son)</label>
         </div>
         <label class="remote-control-field">
@@ -2363,7 +2362,7 @@
         </label>
         <p id="remoteControlStatus" class="remote-control-status">Désactivé</p>
         <div class="dialog-actions">
-          <button id="applyRemoteControl" class="small-button" type="button">Appliquer</button>
+          <button id="toggleRemoteControl" class="small-button" type="button">Activer</button>
           <button id="closeRemoteControlBtn" class="small-button" type="button">Fermer</button>
         </div>
       </div>
@@ -2837,7 +2836,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=730"></script>
+    <script src="app.js?v=731"></script>
 
 
   </body>

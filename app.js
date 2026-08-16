@@ -408,7 +408,7 @@ const els = {
   remoteControlDialog: document.querySelector("#remoteControlDialog"),
   closeRemoteControl: document.querySelector("#closeRemoteControl"),
   closeRemoteControlBtn: document.querySelector("#closeRemoteControlBtn"),
-  applyRemoteControl: document.querySelector("#applyRemoteControl"),
+  toggleRemoteControl: document.querySelector("#toggleRemoteControl"),
   remoteControlHost: document.querySelector("#remoteControlHost"),
   remoteControlRoom: document.querySelector("#remoteControlRoom"),
   remoteControlStatus: document.querySelector("#remoteControlStatus"),
@@ -16400,9 +16400,14 @@ function updateRemoteControlUi() {
   if (els.remoteControlHttpsWarning) {
     els.remoteControlHttpsWarning.hidden = location.protocol !== "https:";
   }
-  els.remoteRoleRadios?.forEach((radio) => {
-    radio.checked = radio.value === state.remoteRole;
-  });
+  // "off" n'est plus une valeur de radio (c'est un état, pas un choix de rôle) : on
+  // ne touche aux radios que si un rôle réel est actif, sinon on laisse la sélection
+  // en cours (le dernier rôle choisi avant désactivation, ou "Régie" par défaut).
+  if (state.remoteRole === "controller" || state.remoteRole === "display") {
+    els.remoteRoleRadios?.forEach((radio) => {
+      radio.checked = radio.value === state.remoteRole;
+    });
+  }
   if (els.remoteControlHost && document.activeElement !== els.remoteControlHost) {
     els.remoteControlHost.value = state.remoteHost;
   }
@@ -16427,6 +16432,10 @@ function updateRemoteControlUi() {
   els.remoteControlButton?.classList.toggle("is-active", active);
   els.remoteControlButton?.classList.toggle("is-connected", active && state.remoteConnected);
   els.remoteControlButton?.setAttribute("aria-pressed", String(active));
+  if (els.toggleRemoteControl) {
+    els.toggleRemoteControl.textContent = active ? "Désactiver" : "Activer";
+    els.toggleRemoteControl.classList.toggle("danger-button", active);
+  }
 }
 
 function scheduleRemoteReconnect() {
@@ -18078,9 +18087,13 @@ async function init() {
   els.remoteControlDialog?.addEventListener("click", (event) => {
     if (event.target === els.remoteControlDialog) els.remoteControlDialog.close();
   });
-  els.applyRemoteControl?.addEventListener("click", () => {
-    const checked = [...(els.remoteRoleRadios || [])].find((radio) => radio.checked);
-    setRemoteRole(checked?.value || "off", els.remoteControlHost?.value || "", els.remoteControlRoom?.value || "");
+  els.toggleRemoteControl?.addEventListener("click", () => {
+    if (state.remoteRole !== "off") {
+      setRemoteRole("off");
+    } else {
+      const checked = [...(els.remoteRoleRadios || [])].find((radio) => radio.checked);
+      setRemoteRole(checked?.value || "controller", els.remoteControlHost?.value || "", els.remoteControlRoom?.value || "");
+    }
     els.remoteControlDialog?.close();
   });
   const openContextHelp = (sectionKeys, title = "Aide") => {
