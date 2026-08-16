@@ -412,6 +412,7 @@ const els = {
   remoteControlHost: document.querySelector("#remoteControlHost"),
   remoteControlRoom: document.querySelector("#remoteControlRoom"),
   remoteControlStatus: document.querySelector("#remoteControlStatus"),
+  remoteControlHttpsWarning: document.querySelector("#remoteControlHttpsWarning"),
   remoteRoleRadios: document.querySelectorAll('input[name="remoteRole"]'),
   boardTagFilter: document.querySelector("#boardTagFilter"),
   boardTagFilterLabel: document.querySelector("#boardTagFilterLabel"),
@@ -16396,6 +16397,9 @@ function loadRemoteControlSettings() {
 }
 
 function updateRemoteControlUi() {
+  if (els.remoteControlHttpsWarning) {
+    els.remoteControlHttpsWarning.hidden = location.protocol !== "https:";
+  }
   els.remoteRoleRadios?.forEach((radio) => {
     radio.checked = radio.value === state.remoteRole;
   });
@@ -16410,7 +16414,13 @@ function updateRemoteControlUi() {
       els.remoteControlStatus.textContent = "Désactivé";
     } else {
       const roleLabel = state.remoteRole === "controller" ? "Régie" : "Façade";
-      els.remoteControlStatus.textContent = state.remoteConnected ? `${roleLabel} — connecté` : `${roleLabel} — connexion…`;
+      if (state.remoteConnected) {
+        els.remoteControlStatus.textContent = `${roleLabel} — connecté`;
+      } else if (location.protocol === "https:") {
+        els.remoteControlStatus.textContent = `${roleLabel} — bloqué (page en https, voir avertissement ci-dessus)`;
+      } else {
+        els.remoteControlStatus.textContent = `${roleLabel} — connexion…`;
+      }
     }
   }
   const active = state.remoteRole !== "off";
@@ -16442,6 +16452,13 @@ function connectRemoteControl() {
   }
   state.remoteConnected = false;
   if (state.remoteRole === "off" || !state.remoteHost || !state.remoteRoomCode) {
+    updateRemoteControlUi();
+    return;
+  }
+  // Une page https:// (ex. GitHub Pages) ne peut pas ouvrir de WebSocket ws://
+  // non chiffré (mixed content, bloqué par le navigateur) : inutile d'essayer
+  // et de boucler sur des tentatives vouées à l'échec.
+  if (location.protocol === "https:") {
     updateRemoteControlUi();
     return;
   }
