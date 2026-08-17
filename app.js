@@ -4406,6 +4406,10 @@ async function executeCueStep(step) {
 }
 
 function advanceCuePosition() {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("cueNext", "");
+    return;
+  }
   const board = currentBoard();
   if (board?.cuesEnabled === false) {
     setStatus("Cues désactivées");
@@ -4424,6 +4428,10 @@ function advanceCuePosition() {
 }
 
 async function runCurrentCue(options = {}) {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("cueRun", "");
+    return;
+  }
   const board = currentBoard();
   if (board?.cuesEnabled === false) {
     setStatus("Cues désactivées");
@@ -16577,6 +16585,14 @@ function handleRemoteMessage(raw) {
   if (msg.type === "cmd" && state.remoteRole === "display") {
     if (msg.action === "stopAll") {
       stopAll();
+      return;
+    }
+    if (msg.action === "cueRun") {
+      runCurrentCue().catch(() => setStatus("Cue impossible", "stop"));
+      return;
+    }
+    if (msg.action === "cueNext") {
+      advanceCuePosition();
       return;
     }
     const pad = padFromTarget(msg.target);
