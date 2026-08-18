@@ -16540,6 +16540,7 @@ function connectRemoteControl() {
     state.crossfadeArm.active = false;
     state.crossfadeArm.phase = "target";
     document.body.classList.remove("crossfade-armed");
+    document.body.dataset.crossfadePrompt = "";
     els.showCables?.classList.remove("is-active");
     els.showCables?.setAttribute("aria-pressed", "false");
   }
@@ -16702,11 +16703,20 @@ function handleRemoteMessage(raw) {
     els.showCables?.setAttribute("aria-pressed", String(state.crossfadeArm.active));
     els.showCables?.setAttribute("aria-label", state.crossfadeArm.active ? "Annuler crossfade armé" : "Armer crossfade manuel");
     if (state.crossfadeArm.active) {
+      // La vraie bannière visible (coin haut-droit) est un ::after CSS qui lit
+      // data-crossfade-prompt sur <body> (cf. body.crossfade-armed::after,
+      // styles.css) — c'est ce que syncManualCrossfadeUi() pose côté façade.
+      // setStatus() seul ne suffit pas : sans ce data-attribute, le bandeau
+      // s'affiche vide côté régie.
+      document.body.dataset.crossfadePrompt = state.crossfadeArm.phase === "source"
+        ? "Étape 1/2 : choisissez la source à fondre"
+        : "Étape 2/2 : choisissez la cible audio";
       const step = state.crossfadeArm.phase === "source"
         ? "étape 1/2 — choisissez le pad source"
         : `étape 2/2 — choisissez le pad cible${msg.sourceTitle ? ` (source : ${msg.sourceTitle})` : ""}`;
       setStatus(`Crossfade armé (façade) : ${step}`, "progress");
     } else {
+      document.body.dataset.crossfadePrompt = "";
       setStatus("Crossfade annulé ou terminé (façade)");
     }
   }
