@@ -16720,7 +16720,14 @@ function handleRemoteMessage(raw) {
       setStatus(`Crossfade armé (façade) : ${step}`, "progress");
     } else {
       document.body.dataset.crossfadePrompt = "";
-      setStatus("Crossfade annulé ou terminé (façade)");
+      const clearedMessage = "Crossfade annulé ou terminé (façade)";
+      setStatus(clearedMessage);
+      // Message transitoire : sans ça il reste affiché indéfiniment (setStatus
+      // n'a pas d'auto-effacement) tant qu'aucun autre statut ne le remplace.
+      // Vérifie que le texte n'a pas déjà changé entre-temps avant d'effacer.
+      window.setTimeout(() => {
+        if (els.status?.textContent === clearedMessage) setStatus("");
+      }, 3000);
     }
   }
 }
