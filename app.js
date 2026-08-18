@@ -3358,18 +3358,13 @@ function makePad(index) {
   });
 
   pad.volumeEl.addEventListener("input", () => {
-    pad.volume = Number(pad.volumeEl.value);
-    updatePadVolumeValue(pad);
-    if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
-    syncVideoProjectionAudio(pad);
-    savePadMeta(pad);
+    applyPadVolumeChange(pad, pad.volumeEl.value);
+    if (state.remoteRole === "controller") sendRemoteCommand("volume", padTargetValue(pad), { value: pad.volume });
   });
 
   pad.panEl.addEventListener("input", () => {
-    pad.panValue = Number(pad.panEl.value);
-    updatePadPanValue(pad);
-    if (pad.pan) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
-    savePadMeta(pad);
+    applyPadPanChange(pad, pad.panEl.value);
+    if (state.remoteRole === "controller") sendRemoteCommand("pan", padTargetValue(pad), { value: pad.panValue });
   });
 
   pad.panEl.addEventListener("dblclick", () => {
@@ -3552,6 +3547,25 @@ function updatePadPanValue(pad) {
   if (!pad?.panValueEl) return;
   const value = Number(pad.panValue) || 0;
   pad.panValueEl.textContent = Math.abs(value) < 0.005 ? "0" : value.toFixed(2).replace(/0$/, "").replace(/\.0$/, "");
+}
+
+// Logique de volume/pan factorisée pour être appelable aussi bien par le
+// curseur local que par une commande réseau reçue côté façade.
+function applyPadVolumeChange(pad, value) {
+  pad.volume = Number(value) || 0;
+  if (pad.volumeEl) pad.volumeEl.value = pad.volume;
+  updatePadVolumeValue(pad);
+  if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+  syncVideoProjectionAudio(pad);
+  savePadMeta(pad);
+}
+
+function applyPadPanChange(pad, value) {
+  pad.panValue = Number(value) || 0;
+  if (pad.panEl) pad.panEl.value = pad.panValue;
+  updatePadPanValue(pad);
+  if (pad.pan) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
+  savePadMeta(pad);
 }
 
 function applyPadLayout(board = currentBoard()) {
@@ -15134,6 +15148,23 @@ function syncManualCrossfadeUi() {
     pad.node?.classList.toggle("is-crossfade-target", isTarget);
     pad.node?.classList.toggle("is-crossfade-unavailable", armed && phase === "target" && !isSource && !isTarget);
   });
+  broadcastRemoteCrossfadeState();
+}
+
+// Miroir minimal pour la régie : pas de recalcul des pads candidats/cibles
+// (elle ignore quels pads jouent réellement sur la façade), juste de quoi
+// savoir qu'un crossfade est armé et router les clics de pad en conséquence
+// (voir handleManualCrossfadePadClick) + afficher un statut texte.
+function broadcastRemoteCrossfadeState() {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  const sourcePad = manualCrossfadeSourcePad();
+  state.remoteSocket.send(JSON.stringify({
+    type: "crossfadeState",
+    active: Boolean(state.crossfadeArm.active),
+    phase: state.crossfadeArm.phase,
+    sourceTitle: sourcePad?.title || "",
+  }));
 }
 
 function cancelManualCrossfade(options = {}) {
@@ -15150,6 +15181,10 @@ function cancelManualCrossfade(options = {}) {
 }
 
 function armManualCrossfade() {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("crossfadeArm", "");
+    return;
+  }
   if (!cuesEnabledForManualCrossfade()) {
     setStatus("Activer les cues pour armer le crossfade manuel.");
     return;
@@ -15268,6 +15303,14 @@ function handleManualCrossfadePadClick(pad, event) {
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation?.();
+  if (state.remoteRole === "controller") {
+    // state.crossfadeArm est ici un simple miroir reçu de la façade (voir
+    // handleRemoteMessage/"crossfadeState") : la régie ne résout jamais le
+    // choix elle-même (elle ignore quels pads jouent réellement), elle
+    // transmet juste le pad cliqué à la façade qui décide.
+    sendRemoteCommand("crossfadeChoice", padTargetValue(pad));
+    return true;
+  }
   if (state.crossfadeArm.phase === "source") {
     chooseManualCrossfadeSource(pad);
   } else {
@@ -16595,11 +16638,21 @@ function handleRemoteMessage(raw) {
       advanceCuePosition();
       return;
     }
+    if (msg.action === "crossfadeArm") {
+      armManualCrossfade();
+      return;
+    }
     const pad = padFromTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
     else if (msg.action === "stop") stopPad(pad, Boolean(msg.fade));
     else if (msg.action === "toggle") togglePad(pad);
+    else if (msg.action === "volume") applyPadVolumeChange(pad, msg.value);
+    else if (msg.action === "pan") applyPadPanChange(pad, msg.value);
+    else if (msg.action === "crossfadeChoice") {
+      if (state.crossfadeArm.phase === "source") chooseManualCrossfadeSource(pad);
+      else executeManualCrossfade(pad).catch(() => {});
+    }
     return;
   }
 
@@ -16607,6 +16660,24 @@ function handleRemoteMessage(raw) {
     const pad = padFromTarget(msg.target);
     if (!pad) return;
     pad.node.classList.toggle("is-remote-playing", Boolean(msg.playing));
+    return;
+  }
+
+  if (msg.type === "crossfadeState" && state.remoteRole === "controller") {
+    state.crossfadeArm.active = Boolean(msg.active);
+    state.crossfadeArm.phase = msg.phase === "source" ? "source" : "target";
+    document.body.classList.toggle("crossfade-armed", state.crossfadeArm.active);
+    els.showCables?.classList.toggle("is-active", state.crossfadeArm.active);
+    els.showCables?.setAttribute("aria-pressed", String(state.crossfadeArm.active));
+    els.showCables?.setAttribute("aria-label", state.crossfadeArm.active ? "Annuler crossfade armé" : "Armer crossfade manuel");
+    if (state.crossfadeArm.active) {
+      const step = state.crossfadeArm.phase === "source"
+        ? "étape 1/2 — choisissez le pad source"
+        : `étape 2/2 — choisissez le pad cible${msg.sourceTitle ? ` (source : ${msg.sourceTitle})` : ""}`;
+      setStatus(`Crossfade armé (façade) : ${step}`, "progress");
+    } else {
+      setStatus("Crossfade annulé ou terminé (façade)");
+    }
   }
 }
 
