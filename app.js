@@ -3359,12 +3359,12 @@ function makePad(index) {
 
   pad.volumeEl.addEventListener("input", () => {
     applyPadVolumeChange(pad, pad.volumeEl.value);
-    if (state.remoteRole === "controller") sendRemoteCommand("volume", padTargetValue(pad), { value: pad.volume });
+    if (state.remoteRole === "controller") sendRemoteCommand("volume", remotePadTarget(pad), { value: pad.volume });
   });
 
   pad.panEl.addEventListener("input", () => {
     applyPadPanChange(pad, pad.panEl.value);
-    if (state.remoteRole === "controller") sendRemoteCommand("pan", padTargetValue(pad), { value: pad.panValue });
+    if (state.remoteRole === "controller") sendRemoteCommand("pan", remotePadTarget(pad), { value: pad.panValue });
   });
 
   pad.panEl.addEventListener("dblclick", () => {
@@ -15308,7 +15308,7 @@ function handleManualCrossfadePadClick(pad, event) {
     // handleRemoteMessage/"crossfadeState") : la régie ne résout jamais le
     // choix elle-même (elle ignore quels pads jouent réellement), elle
     // transmet juste le pad cliqué à la façade qui décide.
-    sendRemoteCommand("crossfadeChoice", padTargetValue(pad));
+    sendRemoteCommand("crossfadeChoice", remotePadTarget(pad));
     return true;
   }
   if (state.crossfadeArm.phase === "source") {
@@ -16619,6 +16619,22 @@ function setRemoteRole(role, host, room) {
   connectRemoteControl();
 }
 
+// Ciblage réseau par INDEX (position dans le board), pas par pad.uid : régie
+// et façade ont chacune leur propre copie locale du board (voir mémoire
+// "contrôle à distance : boards non synchronisés"), donc même deux pads qui
+// se ressemblent (même titre, même son) peuvent avoir un uid différent d'un
+// appareil à l'autre — un ciblage par uid échouerait silencieusement. L'index
+// suppose seulement que les deux boards ont le même nombre de pads dans le
+// même ordre, ce qui est l'hypothèse la plus robuste entre deux appareils.
+function remotePadTarget(pad) {
+  return String(pad.index);
+}
+
+function padFromRemoteTarget(target) {
+  const index = Number(target);
+  return Number.isInteger(index) ? state.pads[index] || null : null;
+}
+
 function sendRemoteCommand(action, target, extra = {}) {
   if (state.remoteRole !== "controller") return;
   if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
@@ -16628,7 +16644,7 @@ function sendRemoteCommand(action, target, extra = {}) {
 function broadcastRemotePadState(pad, playing) {
   if (state.remoteRole !== "display") return;
   if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
-  state.remoteSocket.send(JSON.stringify({ type: "state", target: padTargetValue(pad), playing: Boolean(playing) }));
+  state.remoteSocket.send(JSON.stringify({ type: "state", target: remotePadTarget(pad), playing: Boolean(playing) }));
 }
 
 function handleRemoteMessage(raw) {
@@ -16657,7 +16673,7 @@ function handleRemoteMessage(raw) {
       armManualCrossfade();
       return;
     }
-    const pad = padFromTarget(msg.target);
+    const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
     else if (msg.action === "stop") stopPad(pad, Boolean(msg.fade));
@@ -16672,7 +16688,7 @@ function handleRemoteMessage(raw) {
   }
 
   if (msg.type === "state" && state.remoteRole === "controller") {
-    const pad = padFromTarget(msg.target);
+    const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     pad.node.classList.toggle("is-remote-playing", Boolean(msg.playing));
     return;
@@ -16698,7 +16714,7 @@ function handleRemoteMessage(raw) {
 
 async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (state.remoteRole === "controller") {
-    sendRemoteCommand("play", padTargetValue(pad), { fade: Boolean(fade), offset });
+    sendRemoteCommand("play", remotePadTarget(pad), { fade: Boolean(fade), offset });
     return;
   }
   if (pad.videoName) {
@@ -16884,7 +16900,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 // des "stop" parasites à chaque manipulation de board côté régie).
 function stopPad(pad, fade = false, preservePosition = false, options = {}) {
   if (state.remoteRole === "controller") {
-    sendRemoteCommand("stop", padTargetValue(pad), { fade: Boolean(fade) });
+    sendRemoteCommand("stop", remotePadTarget(pad), { fade: Boolean(fade) });
     return;
   }
   stopPadLocal(pad, fade, preservePosition, options);
@@ -17106,7 +17122,7 @@ function bindPerformanceTouchGuards() {
 
 function togglePad(pad) {
   if (state.remoteRole === "controller") {
-    sendRemoteCommand("toggle", padTargetValue(pad));
+    sendRemoteCommand("toggle", remotePadTarget(pad));
     return;
   }
   if (pad?.speechUtterance) {
