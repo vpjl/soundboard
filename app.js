@@ -16528,6 +16528,21 @@ function scheduleRemoteReconnect() {
 }
 
 function connectRemoteControl() {
+  // Repart d'un crossfade-armé désarmé à chaque (re)connexion/changement de
+  // rôle côté régie/off : sinon un miroir "armé" reçu pendant un test
+  // resterait bloqué à true après un changement de rôle ou une coupure
+  // réseau, et interceptait alors tous les clics de pad (voir
+  // handleManualCrossfadePadClick) au lieu de les laisser déclencher la
+  // lecture — plus aucun son ne jouait. Ne jamais faire ça en rôle "display" :
+  // là, state.crossfadeArm est le vrai état du crossfade en cours (pas un
+  // miroir) et une reconnexion réseau ne doit pas l'annuler.
+  if (state.remoteRole !== "display") {
+    state.crossfadeArm.active = false;
+    state.crossfadeArm.phase = "target";
+    document.body.classList.remove("crossfade-armed");
+    els.showCables?.classList.remove("is-active");
+    els.showCables?.setAttribute("aria-pressed", "false");
+  }
   window.clearTimeout(state.remoteReconnectTimer);
   state.remoteReconnectTimer = null;
   if (state.remoteSocket) {
