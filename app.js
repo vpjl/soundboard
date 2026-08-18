@@ -322,6 +322,7 @@ const els = {
   pads: document.querySelector("#pads"),
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
+  remoteStatusBanner: document.querySelector("#remoteStatusBanner"),
   skinSelect: document.querySelector("#skinSelect"),
   boardExtent: document.querySelector("#boardExtent"),
   padCompactness: document.querySelector("#padCompactness"),
@@ -11728,6 +11729,7 @@ async function safeSaveRestoredPadMeta(pad, meta) {
 function setStatus(text, type = "", options = {}) {
   const normalizedType = type || "neutral";
   els.status.textContent = text;
+  if (els.remoteStatusBanner) els.remoteStatusBanner.textContent = text;
   // Types de message : succès / progression / stop uniquement (les anciens « warning »
   // et « danger » ont été convertis en « stop », cf. mission #8).
   els.status.classList.toggle("is-success", normalizedType === "success");
@@ -16464,6 +16466,7 @@ function formatRemoteCode(code) {
 }
 
 function updateRemoteControlUi() {
+  document.body.classList.toggle("remote-controller-active", state.remoteRole === "controller");
   if (els.remoteControlHttpsWarning) {
     els.remoteControlHttpsWarning.hidden = location.protocol !== "https:";
   }
