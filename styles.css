@@ -8125,7 +8125,8 @@ body.stage-mode .secondary-live-group {
   }
 
   body.stage-mode #stopAll,
-  body.stage-mode #stopGroup {
+  body.stage-mode #stopGroup,
+  body.stage-mode #masterMute {
     width: var(--master-stop-size) !important;
     height: var(--master-stop-size) !important;
     min-height: var(--master-stop-size) !important;
