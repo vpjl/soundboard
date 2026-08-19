@@ -3374,21 +3374,19 @@ function makePad(index) {
   });
 
   pad.loopEl.addEventListener("click", () => {
-    setPadLoop(pad, !pad.loop);
-    if (pad.source) pad.source.loop = pad.loop;
-    syncVideoProjectionAudio(pad);
-    savePadMeta(pad);
+    applyPadLoopChange(pad, !pad.loop);
+    if (state.remoteRole === "controller") sendRemoteCommand("loop", remotePadTarget(pad), { value: pad.loop });
   });
 
   pad.duckEl.addEventListener("click", () => {
-    setPadDuckMode(pad, pad.duckTrigger ? "none" : "global", pad.duckPercent);
-    applyDucking();
-    savePadMeta(pad);
+    applyPadDuckChange(pad, pad.duckTrigger ? "none" : "global", pad.duckPercent);
+    if (state.remoteRole === "controller") sendRemoteCommand("duck", remotePadTarget(pad), { mode: pad.duckMode, percent: pad.duckPercent });
   });
 
   pad.muteEl?.addEventListener("click", (event) => {
     stopEvent(event);
-    setPadMuted(pad, !pad.muted, false);
+    applyPadMuteChange(pad, !pad.muted);
+    if (state.remoteRole === "controller") sendRemoteCommand("mute", remotePadTarget(pad), { value: pad.muted });
   });
 
   pad.noteButton?.addEventListener("click", (event) => {
@@ -3567,6 +3565,25 @@ function applyPadPanChange(pad, value) {
   updatePadPanValue(pad);
   if (pad.pan) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
   savePadMeta(pad);
+}
+
+// Même logique factorisée que ci-dessus, pour loop/duck/mute : réutilisable
+// telle quelle par le clic local et par une commande réseau reçue en façade.
+function applyPadLoopChange(pad, loop) {
+  setPadLoop(pad, loop);
+  if (pad.source) pad.source.loop = pad.loop;
+  syncVideoProjectionAudio(pad);
+  savePadMeta(pad);
+}
+
+function applyPadDuckChange(pad, mode, percent) {
+  setPadDuckMode(pad, mode, percent);
+  applyDucking();
+  savePadMeta(pad);
+}
+
+function applyPadMuteChange(pad, muted) {
+  setPadMuted(pad, muted, false);
 }
 
 function applyPadLayout(board = currentBoard()) {
@@ -16705,6 +16722,18 @@ function handleRemoteMessage(raw) {
       armManualCrossfade();
       return;
     }
+    if (msg.action === "stopGroup") {
+      stopGroup(msg.tag);
+      return;
+    }
+    if (msg.action === "masterVolume") {
+      setMasterVolume(msg.value);
+      return;
+    }
+    if (msg.action === "cueVolume") {
+      setCueVolume(msg.value);
+      return;
+    }
     const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
@@ -16712,6 +16741,9 @@ function handleRemoteMessage(raw) {
     else if (msg.action === "toggle") togglePad(pad);
     else if (msg.action === "volume") applyPadVolumeChange(pad, msg.value);
     else if (msg.action === "pan") applyPadPanChange(pad, msg.value);
+    else if (msg.action === "loop") applyPadLoopChange(pad, Boolean(msg.value));
+    else if (msg.action === "duck") applyPadDuckChange(pad, msg.mode, Number(msg.percent) || 0);
+    else if (msg.action === "mute") applyPadMuteChange(pad, Boolean(msg.value));
     else if (msg.action === "crossfadeChoice") {
       if (state.crossfadeArm.phase === "source") chooseManualCrossfadeSource(pad);
       else executeManualCrossfade(pad).catch(() => {});
@@ -17234,8 +17266,15 @@ function stopAllLocal() {
   setStatus("Tout est stoppé");
 }
 
-function stopGroup() {
-  const tag = els.stopGroupSelect?.value;
+function stopGroup(tag = els.stopGroupSelect?.value) {
+  if (state.remoteRole === "controller") {
+    if (!tag) {
+      setStatus("Choisir un groupe");
+      return;
+    }
+    sendRemoteCommand("stopGroup", "", { tag });
+    return;
+  }
   if (!tag) {
     setStatus("Choisir un groupe");
     return;
@@ -17636,9 +17675,11 @@ async function init() {
   els.masterVolume.addEventListener("input", async () => {
     await ensureAudio();
     setMasterVolume(els.masterVolume.value);
+    if (state.remoteRole === "controller") sendRemoteCommand("masterVolume", "", { value: els.masterVolume.value });
   });
   els.cueVolume?.addEventListener("input", () => {
     setCueVolume(els.cueVolume.value);
+    if (state.remoteRole === "controller") sendRemoteCommand("cueVolume", "", { value: state.cueVolume });
   });
   els.skinSelect?.addEventListener("input", handleSkinSelectChange);
   els.skinSelect?.addEventListener("change", handleSkinSelectChange);
