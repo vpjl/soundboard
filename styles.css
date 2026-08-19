@@ -6857,6 +6857,9 @@ body.stage-mode .stop-all-control {
   height: auto;
   box-sizing: border-box;
   padding: 3px;
+  /* Explicite ici aussi (pas juste hérité de la règle de base) : bouton ancré
+     en bas du bloc, même principe qu'en studio. */
+  align-content: space-between;
 }
 
 body.stage-mode .group-stop-row {
