@@ -1096,6 +1096,13 @@ body.board-edit-mode .board-info-section-toggle {
 }
 
 .live-tools {
+  /* --master-stop-size n'existe que sur .master-strip (pas de portée globale) ;
+     .live-tools est un bloc frère (pas un descendant), donc sans cette
+     redéfinition en miroir, .cue-stop-all-button ne pouvait pas la lire du
+     tout (var() invalide → ignorée). Valeurs alignées sur .master-strip à
+     chaque breakpoint non-scène (.cue-stop-all-button a ses propres règles
+     dédiées en mode scène, indépendantes de cette variable). */
+  --master-stop-size: 70px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -6939,6 +6946,12 @@ body.stage-mode .pad-alerts {
     padding: 6px;
   }
 
+  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
+     règle de base .live-tools (styles.css ~1098). */
+  .live-tools {
+    --master-stop-size: 56px;
+  }
+
   #fadeInSeconds,
   #fadeSeconds,
   #duckPercent {
@@ -7191,6 +7204,12 @@ body.stage-mode .pad-alerts {
       "master master . group"
       "audio badges badges badges";
     align-items: stretch;
+  }
+
+  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
+     règle de base .live-tools (styles.css ~1098). */
+  .live-tools {
+    --master-stop-size: 56px;
   }
 
   #fadeInSeconds,
@@ -7589,6 +7608,14 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
       "audio badges badges badges";
     gap: 6px;
     overflow: hidden;
+  }
+
+  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
+     règle de base .live-tools (styles.css ~1098). C'est cette valeur (54px)
+     que .cue-stop-all-button doit reprendre via .xfade-live-row .cue-stop-all-button
+     plus bas dans ce même bloc. */
+  .live-tools {
+    --master-stop-size: 54px;
   }
 
   .master-volume-control,
