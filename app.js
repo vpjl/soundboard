@@ -12016,6 +12016,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       syncBoardModeSelector();
       syncStagePending();
       localStorage.setItem(STAGE_MODE_STORAGE, "off");
+      // Échec côté façade (entrée en scène refusée) : la régie a pu basculer
+      // de façon optimiste en envoyant sa commande (cf. setBoardModeFromSelector) ;
+      // sans ce rattrapage, elle resterait affichée en scène alors que la
+      // façade, seule autorité, n'y est jamais entrée.
+      broadcastRemoteBoardMode();
       return;
     }
     if (!ok) {
@@ -12026,6 +12031,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
         syncBoardModeSelector();
         syncStagePending();
         localStorage.setItem(STAGE_MODE_STORAGE, "off");
+        broadcastRemoteBoardMode();
         return;
       }
     }
@@ -12110,6 +12116,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   syncStagePending();
+  broadcastRemoteBoardMode();
 }
 
 function syncStagePending() {
@@ -15273,6 +15280,18 @@ function broadcastRemoteCueState(board = currentBoard()) {
   state.remoteSocket.send(JSON.stringify({ type: "cueState", index: cueIndexForBoard(board) }));
 }
 
+// Façade autorité pour le mode board (studio/scène) : diffusé à chaque
+// changement de state.stageMode (fin de setStageMode) ET dès l'ouverture de
+// la connexion (voir connectRemoteControl), pour que la régie parte alignée
+// sur l'état réel plutôt que d'imposer le sien (cf. handleRemoteMessage,
+// msg.type === "boardMode"). Le mode garage reste hors mécanisme
+// (strictement local, voir setBoardModeFromSelector).
+function broadcastRemoteBoardMode() {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  state.remoteSocket.send(JSON.stringify({ type: "boardMode", stage: Boolean(state.stageMode) }));
+}
+
 function cancelManualCrossfade(options = {}) {
   const wasArmed = Boolean(state.crossfadeArm.active);
   state.crossfadeArm = {
@@ -16700,6 +16719,10 @@ function connectRemoteControl() {
     state.remoteReconnectDelay = 1000;
     state.remoteConnected = true;
     updateRemoteControlUi();
+    // Façade autorité pour le mode board : la régie doit repartir alignée
+    // dès la connexion, pas seulement au prochain changement de mode (cf.
+    // broadcastRemoteBoardMode). No-op côté régie/off (guard interne).
+    broadcastRemoteBoardMode();
   };
   socket.onmessage = (event) => handleRemoteMessage(event.data);
   socket.onclose = () => {
@@ -16914,6 +16937,19 @@ function handleRemoteMessage(raw) {
     state.remoteRandomGroupRunning = running;
     syncRandomGroupButton(running);
     if (changed) setStatus(running ? "Random playlist lancée (façade)" : "Random playlist arrêtée (façade)");
+  }
+
+  // Façade autorité pour le mode board (studio/scène) : la régie s'aligne
+  // plutôt que d'imposer le sien, aussi bien à la connexion (voir
+  // broadcastRemoteBoardMode() dans connectRemoteControl) qu'à chaque
+  // changement en cours de session. skipLock : le mot de passe scène a déjà
+  // été validé côté façade, pas la peine de le redemander côté régie pour un
+  // simple miroir. Le mode garage reste hors mécanisme (strictement local).
+  if (msg.type === "boardMode" && state.remoteRole === "controller") {
+    const stage = Boolean(msg.stage);
+    if (state.stageMode !== stage) {
+      setStageMode(stage, false, { skipLock: true }).catch(() => {});
+    }
   }
 }
 
