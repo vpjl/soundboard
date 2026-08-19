@@ -7841,9 +7841,10 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   .master-audio-button {
-    width: 54px;
-    height: 54px;
-    min-height: 54px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
     aspect-ratio: 1 / 1;
   }
 
