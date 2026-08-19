@@ -465,7 +465,8 @@ textarea *,
 .pads-edit-button.is-active,
 .cue-editor-button.is-active,
 .cue-run-button.is-active,
-.show-cables-button.is-active {
+.show-cables-button.is-active,
+#masterMute.is-active {
   border-color: var(--color_ui_text_muted);
   background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
   color: var(--color_ui_text);
@@ -1967,6 +1968,19 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   display: flex;
 }
 
+/* Regroupe stop-all-control (Stop global) et group-stop-control (Stop
+   groupé) côte à côte : le wrapper hérite de la zone nommée "stop" du grid
+   .master-strip (inchangée à tous les breakpoints), les deux enfants perdent
+   leur propre grid-area (ignoré, plus des enfants directs de la grille) mais
+   gardent leur CSS interne telle quelle. */
+.master-stop-cluster {
+  grid-area: stop;
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
 .stop-all-control {
   grid-area: stop;
   align-self: start;
@@ -2049,6 +2063,13 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   grid-template-rows: 28px var(--master-stop-size);
   gap: 3px;
   min-width: 0;
+}
+
+/* .master-mute-control n'a qu'un bouton (pas de select) : une seule ligne à
+   la taille du bouton, sinon l'auto-placement grid le coince dans la
+   première ligne (28px, prévue pour le select). */
+.master-mute-control .group-stop-row {
+  grid-template-rows: var(--master-stop-size);
 }
 
 .group-stop-control {

@@ -185,6 +185,7 @@ const state = {
   cueAudioContext: null,
   masterGain: null,
   masterBypassGain: null,
+  masterMuted: false,
   masterDry: null,
   masterWet: null,
   masterConvolver: null,
@@ -356,6 +357,7 @@ const els = {
   cueVolumeValue: document.querySelector("#cueVolumeValue"),
   cueVu: document.querySelector("#cueVu"),
   masterAudio: document.querySelector("#masterAudio"),
+  masterMute: document.querySelector("#masterMute"),
   masterOutputName: document.querySelector("#masterOutputName"),
   cueOutputName: document.querySelector("#cueOutputName"),
   masterInputName: document.querySelector("#masterInputName"),
@@ -3518,17 +3520,26 @@ function currentBoard() {
   return state.boards.find((board) => board.id === state.currentBoardId) || state.boards[0];
 }
 
+// Applique le volume/mute master au graphe Web Audio (pads audio) — les pads
+// vidéo ne passent pas par ce graphe (élément <video> séparé), traités à part
+// dans syncVideoProjectionAudio via state.masterMuted.
+function applyMasterGain() {
+  const volume = clamp01(els.masterVolume?.value);
+  const effective = state.masterMuted ? 0 : volume;
+  if (state.masterGain && state.audioContext) {
+    state.masterGain.gain.setTargetAtTime(effective, state.audioContext.currentTime, 0.02);
+  }
+  if (state.masterBypassGain && state.audioContext) {
+    state.masterBypassGain.gain.setTargetAtTime(effective, state.audioContext.currentTime, 0.02);
+  }
+  state.pads.forEach((pad) => syncVideoProjectionAudio(pad));
+}
+
 function setMasterVolume(value, persist = true) {
   const volume = clamp01(value);
   if (els.masterVolume) els.masterVolume.value = String(volume);
   if (els.masterVolumeValue) els.masterVolumeValue.textContent = `${Math.round(volume * 100)}%`;
-  if (state.masterGain && state.audioContext) {
-    state.masterGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
-  }
-  if (state.masterBypassGain && state.audioContext) {
-    state.masterBypassGain.gain.setTargetAtTime(volume, state.audioContext.currentTime, 0.02);
-  }
-  state.pads.forEach((pad) => syncVideoProjectionAudio(pad));
+  applyMasterGain();
   if (persist) {
     const board = currentBoard();
     if (board) {
@@ -3536,6 +3547,15 @@ function setMasterVolume(value, persist = true) {
       saveBoards();
     }
   }
+}
+
+// Mute master : état de session (comme le mute par pad, non persisté). Ne
+// modifie pas la valeur du curseur — juste le gain réellement appliqué.
+function setMasterMuted(muted) {
+  state.masterMuted = Boolean(muted);
+  els.masterMute?.classList.toggle("is-active", state.masterMuted);
+  els.masterMute?.setAttribute("aria-pressed", String(state.masterMuted));
+  applyMasterGain();
 }
 
 function updatePadVolumeValue(pad) {
@@ -15882,7 +15902,7 @@ function syncVideoProjectionAudio(pad) {
   const video = videoElementForPad(pad);
   if (!video) return;
   video.volume = videoTargetVolume(pad);
-  video.muted = Boolean(pad.muted);
+  video.muted = Boolean(pad.muted) || Boolean(state.masterMuted);
   video.loop = Boolean(pad.loop);
 }
 
@@ -16732,6 +16752,10 @@ function handleRemoteMessage(raw) {
     }
     if (msg.action === "cueVolume") {
       setCueVolume(msg.value);
+      return;
+    }
+    if (msg.action === "masterMute") {
+      setMasterMuted(Boolean(msg.value));
       return;
     }
     const pad = padFromRemoteTarget(msg.target);
@@ -18001,6 +18025,10 @@ async function init() {
   bindSafeActionButton(els.stopAll, () => stopAll());
   bindSafeActionButton(els.cueStopAll, () => stopAll());
   bindSafeActionButton(els.stopGroup, () => stopGroup());
+  bindSafeActionButton(els.masterMute, () => {
+    setMasterMuted(!state.masterMuted);
+    if (state.remoteRole === "controller") sendRemoteCommand("masterMute", "", { value: state.masterMuted });
+  });
   bindSafeActionButton(els.randomGroupToggle, () => toggleRandomGroup());
   bindSafeActionButton(els.stageMode, () => {
     setStageMode(!state.stageMode, true);

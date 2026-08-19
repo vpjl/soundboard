@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=757">
+    <link rel="stylesheet" href="styles.css?v=758">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
     <div class="app">
@@ -389,16 +389,13 @@
               <span id="masterInputName" class="master-output-name master-input-line">Entrée : aucune</span>
             </div>
           </div>
-          <label class="master-control group-stop-control">
-            <span>Stop groupé</span>
+          <label class="master-control group-stop-control master-mute-control">
+            <span>Mute master</span>
             <span class="group-stop-row">
-              <select id="stopGroupSelect" aria-label="Groupe à arrêter">
-                <option value="">Tags</option>
-              </select>
-              <button id="stopGroup" class="danger-button icon-button" type="button" aria-label="Arrêter le groupe">
+              <button id="masterMute" class="icon-button" type="button" aria-label="Couper le son master" aria-pressed="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                  <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path class="master-mute-cross" d="M17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
             </span>
@@ -473,13 +470,29 @@
               </button>
             </div>
           </div>
-          <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
-            <span>Stop global</span>
-            <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-              </svg>
-            </button>
+          <div class="master-stop-cluster">
+            <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
+              <span>Stop global</span>
+              <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+            <label class="master-control group-stop-control">
+              <span>Stop groupé</span>
+              <span class="group-stop-row">
+                <select id="stopGroupSelect" aria-label="Groupe à arrêter">
+                  <option value="">Tags</option>
+                </select>
+                <button id="stopGroup" class="danger-button icon-button" type="button" aria-label="Arrêter le groupe">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </span>
+            </label>
           </div>
         </div>
 
@@ -2851,7 +2864,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=757"></script>
+    <script src="app.js?v=758"></script>
 
 
   </body>
