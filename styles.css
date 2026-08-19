@@ -1955,6 +1955,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   grid-row: 2 / 4;
   grid-column: 4;
   flex-direction: column-reverse;
+  /* nowrap : sinon .option-badges (règle de base, flex-wrap:wrap) démarre une
+     2e colonne dès que les badges dépassent la hauteur dispo (2 lignes
+     "stop"/"group") — chaque colonne a son propre bord gauche, d'où le
+     désalignement. Une seule colonne, quitte à déborder verticalement. */
+  flex-wrap: nowrap;
   align-items: flex-start;
   align-self: end;
   justify-self: start;
