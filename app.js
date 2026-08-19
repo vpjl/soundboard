@@ -16723,6 +16723,14 @@ function connectRemoteControl() {
     // dès la connexion, pas seulement au prochain changement de mode (cf.
     // broadcastRemoteBoardMode). No-op côté régie/off (guard interne).
     broadcastRemoteBoardMode();
+    // Cas où la façade s'est connectée AVANT la régie : son propre onopen
+    // (seul déclencheur du broadcast ci-dessus) est déjà passé à ce moment-là,
+    // donc la régie ne reçoit rien tant que la façade ne change pas à nouveau
+    // de mode. La régie demande donc explicitement l'état courant plutôt que
+    // d'attendre un changement qui peut ne jamais arriver.
+    if (state.remoteRole === "controller") {
+      sendRemoteCommand("requestBoardMode", "");
+    }
   };
   socket.onmessage = (event) => handleRemoteMessage(event.data);
   socket.onclose = () => {
@@ -16834,6 +16842,10 @@ function handleRemoteMessage(raw) {
     }
     if (msg.action === "stageMode") {
       setStageMode(Boolean(msg.value), false);
+      return;
+    }
+    if (msg.action === "requestBoardMode") {
+      broadcastRemoteBoardMode();
       return;
     }
     if (msg.action === "masterAudio") {
