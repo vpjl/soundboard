@@ -1981,6 +1981,17 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   min-width: 0;
 }
 
+/* Pas assez de largeur sur téléphone pour stop-all-control + group-stop-control
+   (avec son select) côte à côte sans déborder de l'écran — empilés à la
+   place, seulement sous ce breakpoint (portrait ET paysage, cf. incident
+   testé sur iPhone réel : les deux boutons se chevauchaient / le select
+   "Tags" était coupé hors écran). */
+@media (max-width: 950px), (pointer: coarse) {
+  .master-stop-cluster {
+    flex-direction: column;
+  }
+}
+
 .stop-all-control {
   grid-area: stop;
   align-self: start;
@@ -1992,7 +2003,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   gap: 3px;
   align-content: start;
   justify-items: stretch;
-  min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  /* Plus lié à --stop-group-width (longueur des tags) : depuis que ce bloc
+     est côte à côte avec group-stop-control (master-stop-cluster) plutôt
+     qu'empilé dans la même colonne de grille, il n'a plus besoin de suivre
+     cette largeur — juste assez pour son propre bouton + libellé. */
+  min-width: calc(var(--master-stop-size) + 24px);
   height: var(--master-stop-panel-height);
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
@@ -2076,6 +2091,12 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   grid-template-rows: var(--master-stop-size);
 }
 
+/* Idem : pas de select à accueillir, donc pas besoin de suivre
+   --stop-group-width (longueur des tags) pour la largeur du bloc. */
+.master-mute-control {
+  min-width: calc(var(--master-stop-size) + 24px);
+}
+
 .group-stop-control {
   min-width: calc(var(--stop-group-width, 8ch) + 54px);
   min-height: var(--master-stop-panel-height);
@@ -2095,6 +2116,14 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   min-height: var(--master-stop-size);
   aspect-ratio: 1 / 1;
   align-self: end;
+}
+
+#masterMute {
+  justify-self: center;
+  width: var(--master-stop-size);
+  height: var(--master-stop-size);
+  min-height: var(--master-stop-size);
+  aspect-ratio: 1 / 1;
 }
 
 input[type="range"] {
