@@ -1981,7 +1981,12 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  align-items: start;
+  /* stretch (pas start) : les 3 blocs prennent la hauteur du plus grand
+     (group-stop-control, avec son select en plus) — chaque bloc a déjà
+     align-content:start en interne, donc titre+bouton restent calés en haut,
+     l'espace en trop va sous le bouton plutôt que de désaligner quoi que ce
+     soit. */
+  align-items: stretch;
   gap: 8px;
   min-width: 0;
 }
@@ -2007,7 +2012,9 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
      qu'empilé dans la même colonne de grille, il n'a plus besoin de suivre
      cette largeur — juste assez pour son propre bouton + libellé. */
   min-width: calc(var(--master-stop-size) + 24px);
-  height: var(--master-stop-panel-height);
+  /* min-height (pas height) : laisse align-items:stretch du cluster parent
+     l'étirer à la hauteur du plus grand voisin (group-stop-control). */
+  min-height: var(--master-stop-panel-height);
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
