@@ -11744,6 +11744,10 @@ function setStatus(text, type = "", options = {}) {
   const normalizedType = type || "neutral";
   els.status.textContent = text;
   if (els.remoteStatusBanner) els.remoteStatusBanner.textContent = text;
+  // Un nouveau message réaffiche le bloc même s'il avait été fermé par un clic
+  // (cf. écouteur "click" sur els.status) — seulement sur portable, où le
+  // clic-pour-fermer existe (voir la règle CSS #audioStatus.is-dismissed).
+  if (text) els.status.classList.remove("is-dismissed");
   // Types de message : succès / progression / stop uniquement (les anciens « warning »
   // et « danger » ont été convertis en « stop », cf. mission #8).
   els.status.classList.toggle("is-success", normalizedType === "success");
@@ -18172,6 +18176,11 @@ async function init() {
     exportBoardNotice().catch(() => setStatus("Notice impossible"));
   });
   els.openAppNotice?.addEventListener("click", openAppNoticePdf);
+  // Sur portable, le bloc message est fixé en bas de l'écran (cf. CSS
+  // #audioStatus en portrait) : un clic dessus le ferme, un nouveau message
+  // le rouvre (cf. setStatus). Sans effet sur desktop, où la règle
+  // .is-dismissed ne s'applique pas.
+  els.status?.addEventListener("click", () => els.status.classList.add("is-dismissed"));
   els.boardInfoDelete?.addEventListener("click", deleteCurrentBoard);
   els.addPad?.addEventListener("click", addPad);
   els.exportBoard?.addEventListener("click", () => {

@@ -7868,6 +7868,42 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .audio-normalize-field {
     flex-basis: 100%;
   }
+
+  /* Message (#audioStatus) : fixé en bas de l'écran plutôt qu'ancré en haut
+     dans la topbar, pour rester visible et accessible au pouce pendant qu'on
+     scrolle la grille de pads. Un clic dessus le ferme (.is-dismissed,
+     ajoutée par app.js) ; un nouveau message le rouvre automatiquement (cf.
+     setStatus, qui retire .is-dismissed dès qu'un texte non vide arrive). */
+  #audioStatus {
+    position: fixed;
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 120;
+    max-width: min(480px, calc(100vw - 28px));
+    margin: 0;
+    padding: 8px 14px;
+    border: 1px solid var(--color_ui_border);
+    border-radius: 8px;
+    background: var(--color_ui_panel);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  #audioStatus:empty,
+  #audioStatus.is-dismissed {
+    display: none;
+  }
+
+  /* #audioStatus étant désormais fixé (donc déjà visible en permanence,
+     scroll ou pas), l'écho du haut réservé au rôle régie (cf. définition de
+     .remote-status-banner) devient redondant sur portable — masqué ici avec
+     la même spécificité que `body.remote-controller-active
+     .remote-status-banner:not(:empty)`, en second dans la cascade. */
+  body.remote-controller-active .remote-status-banner:not(:empty) {
+    display: none;
+  }
 }
 
 @media (max-width: 950px), (pointer: coarse) {
