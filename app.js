@@ -16856,6 +16856,7 @@ function handleRemoteMessage(raw) {
   }
 
   if (msg.type === "crossfadeState" && state.remoteRole === "controller") {
+    const wasActive = Boolean(state.crossfadeArm.active);
     state.crossfadeArm.active = Boolean(msg.active);
     state.crossfadeArm.phase = msg.phase === "source" ? "source" : "target";
     document.body.classList.toggle("crossfade-armed", state.crossfadeArm.active);
@@ -16877,14 +16878,24 @@ function handleRemoteMessage(raw) {
       setStatus(`Crossfade armé (façade) : ${step}`, "progress");
     } else {
       document.body.dataset.crossfadePrompt = "";
-      const clearedMessage = "Crossfade annulé ou terminé (façade)";
-      setStatus(clearedMessage);
-      // Message transitoire : sans ça il reste affiché indéfiniment (setStatus
-      // n'a pas d'auto-effacement) tant qu'aucun autre statut ne le remplace.
-      // Vérifie que le texte n'a pas déjà changé entre-temps avant d'effacer.
-      window.setTimeout(() => {
-        if (els.status?.textContent === clearedMessage) setStatus("");
-      }, 3000);
+      // syncManualCrossfadeUi() (façade) rebroadcast cet état "désarmé" à
+      // chaque appel, y compris pour des raisons sans rapport avec le
+      // crossfade (ex. lancer/arrêter la random playlist, qui appelle
+      // syncArmedCrossfadeControls() pour désactiver le bouton d'armement
+      // pendant que la playlist tourne). Sans ce garde, chacun de ces appels
+      // écrasait le statut régie avec ce message, y compris par-dessus celui
+      // de la random playlist qu'on vient de lancer. On ne l'affiche donc que
+      // sur une vraie transition armé → désarmé.
+      if (wasActive) {
+        const clearedMessage = "Crossfade annulé ou terminé (façade)";
+        setStatus(clearedMessage);
+        // Message transitoire : sans ça il reste affiché indéfiniment (setStatus
+        // n'a pas d'auto-effacement) tant qu'aucun autre statut ne le remplace.
+        // Vérifie que le texte n'a pas déjà changé entre-temps avant d'effacer.
+        window.setTimeout(() => {
+          if (els.status?.textContent === clearedMessage) setStatus("");
+        }, 3000);
+      }
     }
   }
 
@@ -16898,8 +16909,11 @@ function handleRemoteMessage(raw) {
   }
 
   if (msg.type === "randomGroupState" && state.remoteRole === "controller") {
-    state.remoteRandomGroupRunning = Boolean(msg.running);
-    syncRandomGroupButton(state.remoteRandomGroupRunning);
+    const running = Boolean(msg.running);
+    const changed = state.remoteRandomGroupRunning !== running;
+    state.remoteRandomGroupRunning = running;
+    syncRandomGroupButton(running);
+    if (changed) setStatus(running ? "Random playlist lancée (façade)" : "Random playlist arrêtée (façade)");
   }
 }
 
