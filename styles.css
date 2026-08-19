@@ -7407,6 +7407,18 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     min-height: 32px;
   }
 
+  /* Garantie de parité avec #cueEditor via sélecteur #id (spécificité max,
+     imbattable par n'importe quelle règle .classe non repérée) : la règle
+     ci-dessus donne déjà 32px à .xfade-live-row .icon-button (donc showCables),
+     mais sans trouver de conflit précis expliquant un écart observé, ce
+     doublon élimine le risque plutôt que de continuer à deviner. */
+  #showCables {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
   .cue-next-button,
   .cue-reset-button {
     width: 32px;
