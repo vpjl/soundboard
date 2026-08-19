@@ -1783,10 +1783,9 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   height: 42px;
 }
 
-.group-stop-control {
-  grid-area: group;
-  align-self: start;
-}
+/* grid-area:group (et align-self:start) : obsolète depuis le regroupement en
+   .master-stop-cluster — supprimé (le 2e align-self:start bloquait le
+   align-items:stretch du cluster parent, empêchant ce bloc de s'étirer). */
 
 /* Hasard groupé : pas de grid-area dédiée dans le layout du master-strip (très
    finement calé sur de nombreux breakpoints) — placé en 5e ligne implicite,
@@ -1996,11 +1995,9 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   min-width: max-content;
 }
 
-.stop-all-control {
-  grid-area: stop;
-  align-self: start;
-}
-
+/* grid-area:stop (et align-self:start) : obsolète depuis le regroupement en
+   .master-stop-cluster — supprimé (même raison que group-stop-control
+   ci-dessus, l'align-self bloquait le stretch du cluster parent). */
 .stop-all-control {
   display: grid;
   grid-template-rows: auto var(--master-stop-size);
