@@ -1960,10 +1960,17 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
      "stop"/"group") — chaque colonne a son propre bord gauche, d'où le
      désalignement. Une seule colonne, quitte à déborder verticalement. */
   flex-wrap: nowrap;
-  align-items: flex-start;
   align-self: end;
   justify-self: start;
   min-width: 0;
+}
+
+/* Sélecteur #id : .option-badges (règle de base, plus tardive dans le fichier,
+   même spécificité à 1 classe) impose align-items:center, qui gagnait sur le
+   flex-start ci-dessus — d'où les badges centrés (bords gauches décalés selon
+   la largeur de chacun) au lieu d'alignés à gauche. */
+#masterOptionBadges {
+  align-items: flex-start;
 }
 
 /* Regroupe Stop global, Stop groupé et Mute master sur une seule ligne pleine
