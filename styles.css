@@ -1968,28 +1968,27 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   display: flex;
 }
 
-/* Regroupe stop-all-control (Stop global) et group-stop-control (Stop
-   groupé) côte à côte : le wrapper hérite de la zone nommée "stop" du grid
-   .master-strip (inchangée à tous les breakpoints), les deux enfants perdent
+/* Regroupe Stop global, Stop groupé et Mute master sur une seule ligne pleine
+   largeur, sur desktop comme mobile (au lieu des zones nommées "stop"/"group"
+   du grid .master-strip — étroites, confinées à la dernière colonne, ce qui
+   provoquait débordement/chevauchement sur téléphone). grid-column:1/-1 sans
+   grid-row explicite : auto-placé par la grille dans une nouvelle ligne après
+   les zones nommées existantes (title/master/stop/group/audio, inchangées,
+   simplement plus utilisées par ces trois contrôles). Les enfants perdent
    leur propre grid-area (ignoré, plus des enfants directs de la grille) mais
    gardent leur CSS interne telle quelle. */
 .master-stop-cluster {
-  grid-area: stop;
+  grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: start;
   gap: 8px;
   min-width: 0;
 }
 
-/* Pas assez de largeur sur téléphone pour stop-all-control + group-stop-control
-   (avec son select) côte à côte sans déborder de l'écran — empilés à la
-   place, seulement sous ce breakpoint (portrait ET paysage, cf. incident
-   testé sur iPhone réel : les deux boutons se chevauchaient / le select
-   "Tags" était coupé hors écran). */
-@media (max-width: 950px), (pointer: coarse) {
-  .master-stop-cluster {
-    flex-direction: column;
-  }
+.master-stop-cluster > * {
+  flex: 1 1 0;
+  min-width: max-content;
 }
 
 .stop-all-control {
