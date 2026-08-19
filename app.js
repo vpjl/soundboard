@@ -12458,7 +12458,12 @@ function refreshStopGroupOptions() {
   els.stopGroupSelect.style.minWidth = width;
   els.stopGroupSelect.closest(".group-stop-row")?.style.setProperty("--stop-group-width", width);
   els.stopGroupSelect.closest(".group-stop-control")?.style.setProperty("--stop-group-width", width);
-  els.stopGroupSelect.closest(".master-strip")?.style.setProperty("--stop-group-width", width);
+  // Pas de propagation jusqu'à .master-strip : cette variable y pilotait la
+  // largeur de la 4e colonne de la grille (zones "stop"/"group", plus
+  // utilisées depuis le regroupement en .master-stop-cluster pleine largeur),
+  // et comme le cluster couvre justement toutes les colonnes (grid-column:1/-1),
+  // l'élargissement de cette colonne élargissait toute la ligne — d'où les
+  // blocs qui grossissaient 1-2s après le chargement des tags des pads.
   refreshRandomGroupOptions(tags);
 }
 
