@@ -7626,10 +7626,20 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   #stopAll,
-  #stopGroup,
+  #stopGroup {
+    width: var(--master-stop-size);
+    height: var(--master-stop-size);
+    min-height: var(--master-stop-size);
+  }
+
+  /* min-width en plus (contrairement à #stopAll/#stopGroup ci-dessus) : ce
+     bouton est un item parmi beaucoup d'autres dans une rangée flex-wrap
+     serrée (.live-tools) — sans min-width égal à width, flex-shrink l'écrase
+     en dessous de la taille visée dès que la rangée manque de place. */
   .xfade-live-row .cue-stop-all-button {
     width: var(--master-stop-size);
     height: var(--master-stop-size);
+    min-width: var(--master-stop-size);
     min-height: var(--master-stop-size);
   }
 
