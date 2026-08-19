@@ -7284,16 +7284,6 @@ body.stage-mode .pad-alerts {
     height: 34px;
   }
 
-  /* Même piège de spécificité que corrigé plus bas pour le breakpoint
-     ≤950px/coarse (.cue-editor-button etc. à 1 classe perdaient contre la
-     règle de base .cue-live-row .icon-button à 2 classes) : présent aussi
-     ici, entre 561 et 950px sans pointeur tactile. */
-  .cue-live-row .icon-button,
-  .xfade-live-row .icon-button {
-    width: 34px;
-    height: 34px;
-  }
-
   .icon-button svg {
     width: 18px;
     height: 18px;
@@ -7414,22 +7404,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .cue-status {
     grid-column: 5;
     min-width: 0;
-  }
-
-  /* Sélecteurs alignés sur la règle de base (.cue-live-row .icon-button,
-     .xfade-live-row .icon-button — 2 classes chacun) plutôt que sur des
-     classes isolées (.cue-editor-button, .cue-next-button, etc., 1 classe) :
-     une spécificité plus faible que la règle de base ne peut jamais la battre,
-     peu importe l'ordre des règles ou le média — c'est ce qui laissait
-     cueEditor/cueRun/resetCuePosition/cueNext bloqués à 42px sur mobile alors
-     que showCables (déjà sur .xfade-live-row .icon-button, 2 classes, égalité
-     de spécificité + règle plus tardive) passait bien à 32px. */
-  .cue-live-row .icon-button,
-  .xfade-live-row .icon-button {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
   }
 
   .xfade-live-row {
