@@ -301,6 +301,7 @@ const state = {
     sourcePadUid: null,
   },
   randomEngine: null, // { tag, bag: [uid...], activeUids: Set, lastUid } ou null si arrêté
+  remoteRandomGroupRunning: false, // miroir régie de l'état façade (pas de moteur local côté régie)
   folderImportFiles: [],
   cueOutputDeviceId: "",
   cueOutputLabel: "par défaut",
@@ -16646,6 +16647,18 @@ function connectRemoteControl() {
     els.showCables?.classList.remove("is-active");
     els.showCables?.setAttribute("aria-pressed", "false");
   }
+  // Même logique pour le miroir régie de la random playlist : sans reset, une
+  // reconnexion après coupure réseau peut laisser le bouton bloqué sur "en
+  // cours" alors que la façade est déjà arrêtée (ou l'inverse), forçant un
+  // double clic. Ne s'applique qu'au rôle "controller" : state.randomEngine
+  // reste toujours null côté régie (voir gardes dans startRandomGroup/
+  // stopRandomGroup), donc rien à préserver ici contrairement au rôle "display".
+  if (state.remoteRole === "controller") {
+    state.remoteRandomGroupRunning = false;
+    els.randomGroupToggle?.classList.remove("is-active");
+    els.randomGroupToggle?.setAttribute("aria-pressed", "false");
+    els.randomGroupSectionToggle?.classList.remove("is-active");
+  }
   window.clearTimeout(state.remoteReconnectTimer);
   state.remoteReconnectTimer = null;
   if (state.remoteSocket) {
@@ -16804,6 +16817,20 @@ function handleRemoteMessage(raw) {
       applyRemoteMasterAudioSettings(msg.settings);
       return;
     }
+    if (msg.action === "randomGroupSettings") {
+      applyRemoteRandomGroupSettings(msg.settings);
+      return;
+    }
+    if (msg.action === "randomGroupStart") {
+      applyRemoteRandomGroupSettings(msg.settings);
+      startRandomGroup().catch(() => setStatus("Random playlist impossible", "stop"));
+      return;
+    }
+    if (msg.action === "randomGroupStop") {
+      stopRandomGroup();
+      setStatus("Random playlist arrêtée (régie)");
+      return;
+    }
     const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
@@ -16868,6 +16895,11 @@ function handleRemoteMessage(raw) {
       syncCueControls();
       renderCueRows();
     }
+  }
+
+  if (msg.type === "randomGroupState" && state.remoteRole === "controller") {
+    state.remoteRandomGroupRunning = Boolean(msg.running);
+    syncRandomGroupButton(state.remoteRandomGroupRunning);
   }
 }
 
@@ -17411,14 +17443,54 @@ function drawNextRandomPad(engine) {
   return state.pads.find((pad) => pad.uid === uid) || null;
 }
 
-function syncRandomGroupButton() {
-  const running = Boolean(state.randomEngine);
+function syncRandomGroupButton(running = Boolean(state.randomEngine)) {
   els.randomGroupToggle?.classList.toggle("is-active", running);
   els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
   els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la random playlist" : "Lancer la random playlist");
   els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la random playlist" : "Lancer la random playlist");
   // Reflet visible même volet replié : sinon rien n'indique que la playlist tourne.
   els.randomGroupSectionToggle?.classList.toggle("is-active", running);
+  broadcastRemoteRandomGroupState(running);
+}
+
+// Miroir régie : la régie n'exécute jamais le moteur localement (voir gardes
+// dans startRandomGroup/stopRandomGroup), donc son bouton reflète l'état réel
+// de la façade plutôt que state.randomEngine (toujours null côté régie).
+function broadcastRemoteRandomGroupState(running) {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  state.remoteSocket.send(JSON.stringify({ type: "randomGroupState", running: Boolean(running) }));
+}
+
+function randomGroupSettingsFromControls() {
+  return {
+    tag: els.randomGroupSelect?.value || RANDOM_GROUP_ALL_VALUE,
+    min: els.randomGroupMin?.value ?? "1",
+    max: els.randomGroupCount?.value ?? "2",
+    avoidRepeat: Boolean(els.randomGroupAvoidRepeat?.checked),
+  };
+}
+
+// Répercute le volet Random playlist de la régie vers la façade — même bundle
+// complet que broadcastMasterAudioSettings, envoyé à chaque changement.
+function broadcastRandomGroupSettings() {
+  if (state.remoteRole !== "controller") return;
+  sendRemoteCommand("randomGroupSettings", "", { settings: randomGroupSettingsFromControls() });
+}
+
+// Reçu côté façade quand la régie modifie le volet Random playlist à distance.
+function applyRemoteRandomGroupSettings(settings) {
+  if (!settings) return;
+  if (els.randomGroupSelect && settings.tag != null) els.randomGroupSelect.value = settings.tag;
+  if (els.randomGroupMin && settings.min != null) els.randomGroupMin.value = settings.min;
+  if (els.randomGroupCount && settings.max != null) els.randomGroupCount.value = settings.max;
+  if (els.randomGroupAvoidRepeat) els.randomGroupAvoidRepeat.checked = Boolean(settings.avoidRepeat);
+  localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect?.value || "");
+  localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin?.value || "1");
+  localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount?.value || "1");
+  localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat?.checked ? "on" : "off");
+  clampRandomGroupMinMax("min");
+  adjustRandomEngineLiveCount();
 }
 
 // Lance plusieurs pads du même lot "ensemble" : deux causes de décalage
@@ -17540,6 +17612,10 @@ async function startRandomGroup() {
     setStatus("Choisir un groupe");
     return;
   }
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("randomGroupStart", "", { settings: randomGroupSettingsFromControls() });
+    return;
+  }
   const members = randomGroupMembers(tag);
   if (!members.length) {
     setStatus(`Aucun pad audio pour: ${randomGroupLabel(tag)}`, "stop");
@@ -17566,6 +17642,10 @@ async function startRandomGroup() {
 }
 
 function stopRandomGroup() {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("randomGroupStop", "");
+    return;
+  }
   const engine = state.randomEngine;
   if (!engine) return;
   state.randomEngine = null; // avant d'arrêter les pads : un triggerEnd tardif ne relancera rien
@@ -17578,7 +17658,11 @@ function stopRandomGroup() {
 }
 
 function toggleRandomGroup() {
-  if (state.randomEngine) {
+  // Côté régie, state.randomEngine reste toujours null (aucun moteur local,
+  // voir gardes dans startRandomGroup/stopRandomGroup) : la direction du
+  // bascule s'appuie alors sur le miroir de l'état façade.
+  const running = state.remoteRole === "controller" ? state.remoteRandomGroupRunning : Boolean(state.randomEngine);
+  if (running) {
     stopRandomGroup();
     setStatus("Random playlist arrêtée");
   } else {
@@ -18050,23 +18134,29 @@ async function init() {
   });
   els.randomGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect.value || "");
+    broadcastRandomGroupSettings();
   });
   els.randomGroupCount?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount.value || "1");
+    broadcastRandomGroupSettings();
   });
   els.randomGroupCount?.addEventListener("input", () => {
     clampRandomGroupMinMax("max");
     adjustRandomEngineLiveCount();
+    broadcastRandomGroupSettings();
   });
   els.randomGroupMin?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
+    broadcastRandomGroupSettings();
   });
   els.randomGroupMin?.addEventListener("input", () => {
     clampRandomGroupMinMax("min");
     adjustRandomEngineLiveCount();
+    broadcastRandomGroupSettings();
   });
   els.randomGroupAvoidRepeat?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat.checked ? "on" : "off");
+    broadcastRandomGroupSettings();
   });
   bindSafeActionButton(els.stopAll, () => stopAll());
   bindSafeActionButton(els.cueStopAll, () => stopAll());
