@@ -3791,6 +3791,7 @@ function syncCueControls() {
   }
   renderCueTimeline(cues);
   requestAnimationFrame(() => syncFloatingCueFrame(true));
+  broadcastRemoteCueState(board);
 }
 
 // Aligne le bord gauche du titre "Crossfade" sur celui du bouton "armer
@@ -4440,6 +4441,19 @@ function advanceCuePosition() {
   board.cueIndex = (cueIndexForBoard(board) + 1) % board.cues.length;
   saveBoards();
   syncCueControls();
+}
+
+function resetCuePosition() {
+  if (state.remoteRole === "controller") {
+    sendRemoteCommand("cueReset", "");
+    return;
+  }
+  const board = currentBoard();
+  if (!board) return;
+  board.cueIndex = 0;
+  saveBoards();
+  syncCueControls();
+  setStatus("Cues au début");
 }
 
 async function runCurrentCue(options = {}) {
@@ -15169,6 +15183,18 @@ function broadcastRemoteCrossfadeState() {
   }));
 }
 
+// Miroir de la position de cue courante : sans ça, "Cue suivante"/"Revenir au
+// début" déclenchés depuis la régie changent bien board.cueIndex côté façade
+// (seule copie qui compte pour le spectacle), mais l'affichage régie
+// (panneau cues, dialogue des étapes) reste figé sur son propre board.cueIndex
+// local, jamais mis à jour — d'où l'impression que ces boutons "n'ont pas
+// d'effet" vus depuis la régie.
+function broadcastRemoteCueState(board = currentBoard()) {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  state.remoteSocket.send(JSON.stringify({ type: "cueState", index: cueIndexForBoard(board) }));
+}
+
 function cancelManualCrossfade(options = {}) {
   const wasArmed = Boolean(state.crossfadeArm.active);
   state.crossfadeArm = {
@@ -16673,6 +16699,10 @@ function handleRemoteMessage(raw) {
       advanceCuePosition();
       return;
     }
+    if (msg.action === "cueReset") {
+      resetCuePosition();
+      return;
+    }
     if (msg.action === "crossfadeArm") {
       armManualCrossfade();
       return;
@@ -16728,6 +16758,15 @@ function handleRemoteMessage(raw) {
       window.setTimeout(() => {
         if (els.status?.textContent === clearedMessage) setStatus("");
       }, 3000);
+    }
+  }
+
+  if (msg.type === "cueState" && state.remoteRole === "controller") {
+    const board = currentBoard();
+    if (board) {
+      board.cueIndex = Number(msg.index) || 0;
+      syncCueControls();
+      renderCueRows();
     }
   }
 }
@@ -17979,14 +18018,7 @@ async function init() {
     renderCueRows();
   });
   els.addAllCuePads?.addEventListener("click", addAllPadsToCueDraft);
-  bindSafeActionButton(els.resetCuePosition, () => {
-    const board = currentBoard();
-    if (!board) return;
-    board.cueIndex = 0;
-    saveBoards();
-    syncCueControls();
-    setStatus("Cues au début");
-  });
+  bindSafeActionButton(els.resetCuePosition, () => resetCuePosition());
   els.applyCues?.addEventListener("click", () => {
     saveCueDraft();
     els.cueDialog?.close();
