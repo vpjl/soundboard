@@ -1407,6 +1407,14 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
   margin: 0;
 }
 
+/* Le tracé de l'icône crossfade (deux câbles courbés) laisse beaucoup de vide
+   au centre du viewBox par rapport aux icônes cues (traits pleins) — même
+   boîte et même taille de svg (confirmé aux devtools), mais l'icône parait
+   plus fine/petite à l'œil. Trait plus épais pour compenser visuellement. */
+.show-cables-button svg path {
+  stroke-width: 2.6;
+}
+
 .cue-run-button {
   width: 42px;
   height: 42px;
