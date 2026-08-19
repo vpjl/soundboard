@@ -1929,7 +1929,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   grid-column: 1 / -1; /* aligné au bord gauche du bloc (studio + scène) */
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  /* Ne contient plus que .master-corner-buttons depuis que
+     .master-option-badges a sa propre zone de grille (ci-dessous) — flex-end
+     pour garder les boutons calés à droite comme avant (c'était le rôle de
+     space-between face aux étiquettes, qui ne sont plus ici). */
+  justify-content: flex-end;
   gap: 8px;
   min-width: 0;
 }
@@ -1941,30 +1945,20 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   flex: 0 0 auto;
 }
 
+/* Occupe la zone de grille libérée par stop/group (colonne de droite, à côté
+   du bloc curseurs) depuis leur regroupement en .master-stop-cluster pleine
+   largeur — plus besoin de partager une ligne avec les boutons du coin, d'où
+   les anciennes règles de troncature/réserve de hauteur (chevauchement avec
+   Stop groupé) devenues obsolètes et retirées. Empilées du bas vers le haut
+   (column-reverse) et calées à gauche. */
 .master-option-badges {
-  flex: 1 1 auto;
-  min-width: 0;
+  grid-row: 2 / 4;
+  grid-column: 4;
+  flex-direction: column-reverse;
+  align-items: flex-start;
   align-self: end;
-  justify-content: flex-start;
-  overflow: hidden;
-}
-
-/* Bande basse réservée à la hauteur des boutons du coin (aide / audio master) :
-   sans elle la rangée remonte et chevauche STOP GROUPÉ quand les étiquettes sont vides.
-   La réserve est calculée depuis la taille réelle des boutons (54px en portrait).
-   `flex-wrap` est ici et pas dans le bloc au-dessus : sur une seule ligne, les étiquettes
-   qui passeraient à la ligne en écran étroit grandiraient la rangée et pousseraient les
-   boutons du coin sous les étiquettes (elles sont tronquées par overflow:hidden à la place).
-   Sélecteurs volontairement PLUS SPÉCIFIQUES que `.option-badges { flex-wrap: wrap }`,
-   `{ min-height: 20px }` et `:empty { display: none }` : ces règles sont plus bas dans le
-   fichier et l'emporteraient à spécificité égale. */
-.master-strip .master-option-badges {
-  flex-wrap: nowrap;
-  min-height: calc(var(--master-corner-btn, 42px) + 8px);
-}
-
-.master-strip .master-option-badges:empty {
-  display: flex;
+  justify-self: start;
+  min-width: 0;
 }
 
 /* Regroupe Stop global, Stop groupé et Mute master sur une seule ligne pleine
