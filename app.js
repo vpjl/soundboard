@@ -14522,6 +14522,13 @@ function masterAudioDraftFromControls() {
   };
 }
 
+// Répercute la fenêtre Audio master de la régie vers la façade — envoie le
+// bundle complet (comme masterVolume/masterMute) plutôt qu'un diff par champ.
+function broadcastMasterAudioSettings() {
+  if (state.remoteRole !== "controller") return;
+  sendRemoteCommand("masterAudio", "", { settings: masterAudioDraftFromControls() });
+}
+
 function persistMasterAudioControls() {
   localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled?.checked ? "on" : "off");
   localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled?.checked ? "on" : "off");
@@ -14567,6 +14574,32 @@ function restoreMasterAudioDraft() {
   if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
   persistMasterAudioControls();
+}
+
+// Reçu côté façade quand la régie modifie la fenêtre Audio master à distance
+// — même mapping de champs que restoreMasterAudioDraft, mais depuis le réseau
+// plutôt que depuis state.masterAudioDraft. Les périphériques (sortie/cue/micro)
+// ne sont volontairement pas inclus : ce sont des réglages propres à chaque machine.
+function applyRemoteMasterAudioSettings(settings) {
+  if (!settings) return;
+  if (els.masterFadeInEnabled) els.masterFadeInEnabled.checked = Boolean(settings.fadeInEnabled);
+  if (els.masterFadeOutEnabled) els.masterFadeOutEnabled.checked = Boolean(settings.fadeOutEnabled);
+  if (els.masterDuckEnabled) els.masterDuckEnabled.checked = Boolean(settings.duckEnabled);
+  if (els.armedCrossfadeEnabled) els.armedCrossfadeEnabled.checked = Boolean(settings.armedCrossfadeEnabled);
+  if (els.fadeInSeconds) els.fadeInSeconds.value = settings.fadeInSeconds;
+  if (els.fadeSeconds) els.fadeSeconds.value = settings.fadeOutSeconds;
+  if (els.armedCrossfadeSeconds) els.armedCrossfadeSeconds.value = settings.armedCrossfadeSeconds;
+  if (els.duckPercent) els.duckPercent.value = settings.duckPercent;
+  if (els.endingAlertSeconds) els.endingAlertSeconds.value = settings.endingAlertSeconds;
+  if (els.masterReverbPreset) els.masterReverbPreset.value = settings.reverbPreset;
+  if (els.masterReverbWet) els.masterReverbWet.value = settings.reverbWet;
+  if (els.masterCompressorPreset) els.masterCompressorPreset.value = settings.compressorPreset;
+  if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = Boolean(settings.liveFxPanelEnabled);
+  if (els.masterEqLow) els.masterEqLow.value = settings.eqLow;
+  if (els.masterEqMid) els.masterEqMid.value = settings.eqMid;
+  if (els.masterEqHigh) els.masterEqHigh.value = settings.eqHigh;
+  persistMasterAudioControls();
+  state.pads.forEach(refreshPlayingPadOutput);
 }
 
 function syncImageDialog(pad = state.imagePad) {
@@ -16767,6 +16800,10 @@ function handleRemoteMessage(raw) {
       setStageMode(Boolean(msg.value), false);
       return;
     }
+    if (msg.action === "masterAudio") {
+      applyRemoteMasterAudioSettings(msg.settings);
+      return;
+    }
     const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
@@ -18495,9 +18532,25 @@ async function init() {
   els.cancelMasterAudio?.addEventListener("click", () => {
     restoreMasterAudioDraft();
     state.masterAudioDraft = null;
+    broadcastMasterAudioSettings();
     els.masterAudioDialog?.close();
   });
-  els.masterAudioReset?.addEventListener("click", resetMasterAudioSettings);
+  els.masterAudioReset?.addEventListener("click", () => {
+    resetMasterAudioSettings();
+    broadcastMasterAudioSettings();
+  });
+  // Répercute à distance tout changement dans la fenêtre Audio master, hors
+  // sélecteurs de périphériques (propres à chaque machine, non pertinents à distance).
+  els.masterAudioDialog?.addEventListener("input", (event) => {
+    if (state.remoteRole !== "controller") return;
+    if ([els.masterOutputSelect, els.masterCueOutputSelect, els.masterMicrophoneSelect].includes(event.target)) return;
+    broadcastMasterAudioSettings();
+  });
+  els.masterAudioDialog?.addEventListener("change", (event) => {
+    if (state.remoteRole !== "controller") return;
+    if ([els.masterOutputSelect, els.masterCueOutputSelect, els.masterMicrophoneSelect].includes(event.target)) return;
+    broadcastMasterAudioSettings();
+  });
   els.masterOutputSelect?.addEventListener("pointerdown", (event) => {
     handleOutputSelectPointer(event, "master").catch(() => setStatus("Sortie master impossible"));
   });
@@ -18526,6 +18579,7 @@ async function init() {
     if (event.target === els.masterAudioDialog) {
       restoreMasterAudioDraft();
       state.masterAudioDraft = null;
+      broadcastMasterAudioSettings();
       els.masterAudioDialog.close();
     }
   });
