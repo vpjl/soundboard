@@ -2002,7 +2002,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   display: grid;
   grid-template-rows: auto var(--master-stop-size);
   gap: 3px;
-  align-content: start;
+  /* space-between (pas start) : ancre le bouton en bas du bloc — les 3 blocs
+     du cluster ont la même hauteur (align-items:stretch du parent), donc ça
+     aligne les boutons entre eux même quand group-stop-control a un select
+     en plus entre son titre et son bouton. */
+  align-content: space-between;
   justify-items: stretch;
   /* Plus lié à --stop-group-width (longueur des tags) : depuis que ce bloc
      est côte à côte avec group-stop-control (master-stop-cluster) plutôt
@@ -2078,10 +2082,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 .group-stop-row {
   display: grid;
   grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-  /* Bouton d'abord (aligné sur la hauteur du bouton Stop global voisin),
-     select des tags en dessous — pas l'inverse : sinon le bouton stop-groupé
-     se retrouve plus bas que Stop global. */
-  grid-template-rows: var(--master-stop-size) 28px;
+  /* Select des tags d'abord, bouton en dessous (ordre "naturel" titre→select→
+     bouton). L'alignement horizontal des boutons entre les 3 blocs vient
+     désormais de align-content:space-between sur .group-stop-control /
+     .stop-all-control (bouton ancré en bas), pas de cet ordre de lignes. */
+  grid-template-rows: 28px var(--master-stop-size);
   gap: 3px;
   min-width: 0;
   justify-items: center;
@@ -2109,7 +2114,10 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   min-height: var(--master-stop-panel-height);
   display: grid;
   gap: 3px;
-  align-content: start;
+  /* space-between : voir commentaire sur .stop-all-control (styles.css ~2005) —
+     même principe, s'applique aussi à .master-mute-control via cette classe
+     partagée. */
+  align-content: space-between;
   padding: 3px 6px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -6853,7 +6861,7 @@ body.stage-mode .stop-all-control {
 
 body.stage-mode .group-stop-row {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--master-stop-size) 24px;
+  grid-template-rows: 24px var(--master-stop-size);
   width: 100%;
 }
 
@@ -7100,7 +7108,7 @@ body.stage-mode .pad-alerts {
 
   .group-stop-row {
     grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: var(--master-stop-size) 32px;
+    grid-template-rows: 32px var(--master-stop-size);
     gap: 4px;
   }
 
@@ -7293,7 +7301,7 @@ body.stage-mode .pad-alerts {
 
   .group-stop-row {
     grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: var(--master-stop-size) 32px;
+    grid-template-rows: 32px var(--master-stop-size);
     gap: 4px;
   }
 
@@ -7698,7 +7706,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 
   .group-stop-row {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--master-stop-size) 30px;
+    grid-template-rows: 30px var(--master-stop-size);
     width: 100%;
   }
 
