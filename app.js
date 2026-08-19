@@ -19874,8 +19874,21 @@ function syncAllPadMinHeights() {
     const padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0;
     return Math.ceil(p.scrollHeight) + Math.max(Math.round(padBottom), 6);
   });
-  if (prev) root.style.setProperty("--pad-compact-height", prev);
-  else root.style.removeProperty("--pad-compact-height");
+  if (prev) {
+    root.style.setProperty("--pad-compact-height", prev);
+  } else if (els.padCompactness) {
+    // Filet de sécurité : si --pad-compact-height n'était pas encore posée à cet
+    // instant (ex. cette fonction déclenchée avant l'initialisation normale du
+    // curseur de compacité, ou après une remise à zéro), ne jamais la laisser
+    // vide — le repli CSS (grid-auto-rows: minmax(auto, var(--pad-compact-height,
+    // 9999px)) sur .pads.has-pad-layout) fait alors exploser la hauteur des
+    // rangées (pads étirés sur tout l'écran, vus côté façade au clic sur
+    // "Désactiver" en scène). On repose une vraie valeur plutôt que de retirer
+    // la propriété.
+    applyPadCompactness(els.padCompactness.value, false);
+  } else {
+    root.style.removeProperty("--pad-compact-height");
+  }
   pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
 }
 
