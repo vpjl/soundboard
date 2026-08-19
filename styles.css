@@ -4977,14 +4977,17 @@ body.no-cue-output .pad-live-row .pad-cue-button,
    rect rempli + ligne au trait). Ne touche pas aux autres .danger-button. */
 #stopAll svg,
 #stopGroup svg,
-#cueStopAll svg {
+#cueStopAll svg,
+#masterMute svg {
   color: var(--color_status_stop);
 }
 
-/* Icône plus grande dans les boutons stop global / stop groupé, sans changer la
-   taille des boutons (% de --master-stop-size → suit studio, scène et mobile). */
+/* Icône plus grande dans les boutons stop global / stop groupé / mute master,
+   sans changer la taille des boutons (% de --master-stop-size → suit studio,
+   scène et mobile). */
 #stopAll svg,
-#stopGroup svg {
+#stopGroup svg,
+#masterMute svg {
   width: 58%;
   height: 58%;
 }
