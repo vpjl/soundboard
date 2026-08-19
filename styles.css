@@ -7782,6 +7782,13 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     order: 3;
   }
 
+  /* Même rangée (order:3 ci-dessus) que les autres boutons, mais poussé à
+     l'extrémité droite de cette rangée flex (margin-left:auto), plutôt que
+     simplement adjacent au dernier bouton crossfade. */
+  #cueStopAll {
+    margin-left: auto;
+  }
+
   .live-tools .cue-status {
     order: 4;
     flex-basis: 100%;
