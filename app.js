@@ -16763,6 +16763,10 @@ function handleRemoteMessage(raw) {
       setMasterMuted(Boolean(msg.value));
       return;
     }
+    if (msg.action === "stageMode") {
+      setStageMode(Boolean(msg.value), false);
+      return;
+    }
     const pad = padFromRemoteTarget(msg.target);
     if (!pad) return;
     if (msg.action === "play") playPad(pad, Boolean(msg.fade), Number(msg.offset) || 0).catch(() => {});
@@ -19214,6 +19218,11 @@ function setBoardModeFromSelector(targetMode) {
     // sans ça, l'en-tête garde le message du mode précédent (longueur variable),
     // ce qui contribue au décalage de mise en page au changement de mode.
     setStatus("Entrée en studio");
+    // Le mode garage reste strictement local (pas de pendant côté façade) :
+    // on ne répercute la sortie de studio que si on quittait vraiment la scène.
+    if (current === "stage" && state.remoteRole === "controller") {
+      sendRemoteCommand("stageMode", "", { value: false });
+    }
     return;
   }
 
@@ -19239,6 +19248,9 @@ function setBoardModeFromSelector(targetMode) {
     }
     setBoardModePending("stage");
     setStageMode(true, false);
+    if (state.remoteRole === "controller") {
+      sendRemoteCommand("stageMode", "", { value: true });
+    }
   }
 }
 
