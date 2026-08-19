@@ -12452,7 +12452,7 @@ function refreshStopGroupOptions() {
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
   const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
   const maxChars = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches ? 16 : 34;
-  const width = `${Math.min(maxChars, longestLength + 8)}ch`;
+  const width = `${Math.min(maxChars, longestLength + 3)}ch`;
   els.stopGroupSelect.style.setProperty("--stop-group-width", width);
   els.stopGroupSelect.style.width = width;
   els.stopGroupSelect.style.minWidth = width;

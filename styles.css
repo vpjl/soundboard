@@ -2097,7 +2097,11 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 }
 
 .group-stop-control {
-  min-width: calc(var(--stop-group-width, 8ch) + 54px);
+  /* +16px = juste la bordure/le padding du bloc, pas de marge supplémentaire
+     (le +54px précédent datait d'avant le regroupement en cluster pleine
+     largeur, où ce bloc avait besoin d'être plus large pour rester visuellement
+     cohérent avec stop-all-control voisin — plus la peine maintenant). */
+  min-width: calc(var(--stop-group-width, 8ch) + 16px);
   min-height: var(--master-stop-panel-height);
   display: grid;
   gap: 3px;
