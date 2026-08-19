@@ -1344,6 +1344,19 @@ body.live-fx-panel-disabled .live-fx-panel {
   white-space: nowrap;
 }
 
+/* .cue-live-row/.xfade-live-row sont display:contents (cf. plus bas) : leurs
+   enfants sont de vrais items flex/grid directs de .live-tools, dans l'ordre
+   du DOM. .cue-stop-all-button reste dans .xfade-live-row (tout le CSS de
+   visibilité/taille qui le cible via ce parent continue de s'appliquer sans
+   changement), mais order pousse le reste du bloc crossfade après lui, ce qui
+   le fait apparaître juste à droite du bloc cues plutôt qu'à la fin du bloc
+   crossfade. */
+.xfade-live-title,
+.show-cables-button,
+.cues-help-button {
+  order: 1;
+}
+
 .cue-live-row,
 .xfade-live-row {
   display: contents;
@@ -7613,7 +7626,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 
   #stopAll,
-  #stopGroup {
+  #stopGroup,
+  .xfade-live-row .cue-stop-all-button {
     width: var(--master-stop-size);
     height: var(--master-stop-size);
     min-height: var(--master-stop-size);

@@ -12112,15 +12112,13 @@ function armedCrossfadeSeconds() {
   return Math.max(0, Number(els.armedCrossfadeSeconds?.value) || 0);
 }
 
-function cuesEnabledForManualCrossfade() {
-  return currentBoard()?.cuesEnabled === true;
-}
-
 function armedCrossfadeAvailable() {
   // Random playlist gère son propre enchaînement de pads : le crossfade
   // manuel (armé) est désactivé pendant qu'elle tourne, pour les mêmes
   // raisons que le crossfade automatique par pad (cf. executeCrossfadeAction).
-  return cuesEnabledForManualCrossfade() && armedCrossfadeEnabled() && manualCrossfadeDuration() > 0 && !state.randomEngine;
+  // Indépendant des cues : le crossfade armé reste utilisable même cues
+  // désactivées (les deux fonctionnalités n'ont pas à être liées).
+  return armedCrossfadeEnabled() && manualCrossfadeDuration() > 0 && !state.randomEngine;
 }
 
 function syncArmedCrossfadeControls() {
@@ -15211,10 +15209,6 @@ function cancelManualCrossfade(options = {}) {
 function armManualCrossfade() {
   if (state.remoteRole === "controller") {
     sendRemoteCommand("crossfadeArm", "");
-    return;
-  }
-  if (!cuesEnabledForManualCrossfade()) {
-    setStatus("Activer les cues pour armer le crossfade manuel.");
     return;
   }
   if (!armedCrossfadeAvailable()) {
