@@ -6868,6 +6868,14 @@ body.stage-mode .group-stop-row {
   width: 100%;
 }
 
+/* Spécificité : body.stage-mode .group-stop-row (type+classe) bat
+   .master-mute-control .group-stop-row (2 classes) — sans ce contre-poids,
+   le bouton mute (une seule ligne, pas de select) hérite du gabarit à 2
+   lignes ci-dessus et déborde de sa case en mode scène. */
+body.stage-mode .master-mute-control .group-stop-row {
+  grid-template-rows: var(--master-stop-size);
+}
+
 body.stage-mode .group-stop-row select {
   width: 100% !important;
   min-width: 0 !important;
