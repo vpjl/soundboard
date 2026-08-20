@@ -3950,20 +3950,20 @@ function syncFloatingCueFrame(resetAnchor = false) {
     }
   }
 
-  // Largeur du bloc cues activé = largeur de la zone des pads (.deck), aligné sur
-  // eux (du bord gauche du 1er pad au bord droit du dernier). .deck fait
-  // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne coïncide
-  // pas avec le conteneur du bloc, donc on mesure sa géométrie et on l'y aligne
-  // (studio ET scène). setProperty(..., "important") car des règles .live-tools
-  // posent width/left/transform en !important. Fait AVANT la mesure de hauteur
-  // ci-dessous (pour padding-top) : sinon cette mesure lit une géométrie encore
-  // partiellement stale (position:fixed déjà actif via la classe, mais
-  // left/width/transform pas encore réappliqués pour ce tick).
+  // Bloc cues activé aligné sur le bord GAUCHE de la zone des pads (.deck) —
+  // plus sur sa largeur entière depuis le 2026-08-20 (le bloc épouse son
+  // contenu, cf. width:fit-content sur .live-tools). .deck fait
+  // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne
+  // coïncide pas avec le conteneur du bloc, donc on mesure sa géométrie et on
+  // y cale le bord gauche (studio ET scène). setProperty(..., "important")
+  // car des règles .live-tools posent left/transform en !important. Fait
+  // AVANT la mesure de hauteur ci-dessous (pour padding-top) : sinon cette
+  // mesure lit une géométrie encore partiellement stale (position:fixed déjà
+  // actif via la classe, mais left/transform pas encore réappliqués pour ce
+  // tick).
   const deck = document.querySelector(".deck");
-  let w = 0;
   if (deck) {
     const deckRect = deck.getBoundingClientRect();
-    w = Math.round(deckRect.width);
     if (shouldStick) {
       // Collé (position:fixed) : caler left sur le bord gauche des pads, mais
       // PAS la largeur — le bloc épouse son contenu (width:fit-content côté
@@ -3975,11 +3975,14 @@ function syncFloatingCueFrame(resetAnchor = false) {
       els.liveTools.style.setProperty("transform", "none", "important");
       els.liveTools.style.setProperty("margin-left", "0px", "important");
     } else {
-      // Dans le flux : largeur = zone des pads, marge compensée pour l'aligner
-      // exactement sur son bord gauche (le blocLeft mesuré inclut un éventuel
+      // Dans le flux : PAS de largeur forcée (le bloc épouse son contenu,
+      // width:fit-content côté CSS, demandé le 2026-08-20 — un vide à droite
+      // apparaissait quand le contenu de Cues était plus étroit que la zone
+      // des pads). Seule la marge est compensée pour aligner le bord GAUCHE
+      // du bloc sur celui des pads (le blocLeft mesuré inclut un éventuel
       // transform d'épinglage studio, donc la compensation reste correcte).
       els.liveTools.style.setProperty("margin-left", "0px", "important");
-      els.liveTools.style.setProperty("width", `${w}px`, "important");
+      els.liveTools.style.removeProperty("width");
       const blocLeft = els.liveTools.getBoundingClientRect().left;
       els.liveTools.style.setProperty("margin-left", `${Math.round(deckRect.left - blocLeft)}px`, "important");
       els.liveTools.style.removeProperty("left");

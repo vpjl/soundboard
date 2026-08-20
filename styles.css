@@ -725,6 +725,12 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   grid-column: 1;
   grid-row: 2;
   min-width: 0;
+  /* start (pas le stretch implicite par défaut) : sans ça, Board s'étire sur
+     toute la largeur de sa cellule de grille dès que celle-ci dépasse ses
+     besoins réels (ex. .topbar à 1 colonne sous 900px) — vide à droite du
+     bloc, repéré le 2026-08-20 en scène ET en studio (aucune règle
+     spécifique à un mode ne fixait déjà ce comportement). */
+  justify-self: start;
 }
 
 .board-strip {
@@ -1111,7 +1117,13 @@ body.board-edit-mode .board-info-section-toggle {
   grid-column: 1;
   grid-row: 3;
   align-self: end;
-  width: 100%;
+  /* fit-content (pas 100%) + justify-self:start : Cues n'a pas besoin de
+     toute la largeur de sa cellule de grille (souvent bien plus large que
+     ses quelques boutons, surtout en studio) — l'étirer laissait un grand
+     vide à droite dans le bloc, repéré le 2026-08-20. */
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
   box-sizing: border-box;
   margin: 0;
   padding: 8px;
@@ -6813,11 +6825,14 @@ body.stage-mode .board-skin-select select {
 
 body.stage-mode .live-tools {
   gap: 12px;
-  /* Neutralise le margin-top:-6px de la règle de base (.live-tools, styles.css
-     ~1099 — Cues pleine largeur sous Board+Master, uniquement demandé pour
-     Studio/Garage) : sans ça, il fuitait ici aussi malgré grid-column:1 (non
-     pleine largeur) posé plus bas pour la scène. */
+  /* Neutralise le margin-top:-6px et le justify-self:start de la règle de
+     base (.live-tools, styles.css ~1099 — Cues ajusté à son contenu, en
+     largeur pleine sous Board+Master, uniquement demandé pour Studio/Garage) :
+     sans ça, ils fuitaient ici aussi malgré grid-column:1 (non pleine
+     largeur) posé plus bas pour la scène — stretch restaure le comportement
+     scène d'origine (implicite avant l'ajout de justify-self:start ici). */
   margin-top: 0;
+  justify-self: stretch;
 }
 
 body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) {
