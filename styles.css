@@ -717,22 +717,6 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   display: grid !important;
 }
 
-/* Regroupe Board + Cues (colonne 1 de .topbar) pour qu'ils s'empilent l'un
-   sous l'autre indépendamment de la hauteur de Master (colonne 2) : avant ce
-   wrapper, Board et Master partageaient la même ligne de grille — dont la
-   hauteur suit le plus grand des deux, presque toujours Master — ce qui
-   repoussait Cues (ligne suivante) sous Master au lieu de sous Board. En
-   scène, .topbar reste à 2 colonnes à toute largeur (règle sans condition
-   ~11229, !important) donc ce wrapper s'applique sans condition là aussi. */
-.topbar-stack {
-  grid-column: 1;
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-width: 0;
-}
-
 .board-area {
   display: grid;
   grid-template-columns: max-content minmax(260px, 360px);
@@ -1134,6 +1118,29 @@ body.board-edit-mode .board-info-section-toggle {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--color_ui_panel);
+}
+
+/* Studio/Garage, largeur réelle (.topbar vraiment à 2 colonnes, board+master
+   côte à côte — cf. .topbar, repli 1 colonne sous 900px) : Cues occupe sa
+   propre ligne sur toute la largeur des 2 colonnes, au-dessus des pads, sous
+   Board ET Master (pas seulement sous Board), quelle que soit leur hauteur
+   respective. Demandé le 2026-08-20, après un essai de regroupement
+   Board+Cues (colonne 1 seule) qui ne correspondait pas au design voulu.
+   Scopé à min-width:901px : sous ce seuil, .topbar passe à 1 seule colonne
+   et Board/Master/Cues ont déjà chacun leur propre ligne (2/3/4, cf. plus
+   bas) — un design différent, correct, pas touché ici (élargir grid-column
+   là-dessous provoquait un chevauchement Cues/Master, repéré le 2026-08-20). */
+@media (min-width: 901px) {
+  .live-tools {
+    grid-column: 1 / -1;
+    /* margin-top négatif : compense le gap uniforme de .topbar (18px, cf.
+       .topbar) pour que l'écart Board/Master → Cues retombe à 12px — la
+       même valeur que le gap entre pads (cf. .pads) — au lieu des 18px
+       hérités. CSS Grid ne permet pas un gap différent par paire de lignes ;
+       c'est le seul point de couplage avec la valeur de gap de .topbar (à
+       ajuster si l'un des deux change). */
+    margin-top: -6px;
+  }
 }
 
 .live-tools-title {
@@ -6806,6 +6813,11 @@ body.stage-mode .board-skin-select select {
 
 body.stage-mode .live-tools {
   gap: 12px;
+  /* Neutralise le margin-top:-6px de la règle de base (.live-tools, styles.css
+     ~1099 — Cues pleine largeur sous Board+Master, uniquement demandé pour
+     Studio/Garage) : sans ça, il fuitait ici aussi malgré grid-column:1 (non
+     pleine largeur) posé plus bas pour la scène. */
+  margin-top: 0;
 }
 
 body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) {
@@ -7258,10 +7270,16 @@ body.stage-mode .pad-alerts {
     grid-row: 3;
   }
 
+  /* grid-row:2 (pas 2/4) : Master ne doit plus s'étendre sur la ligne 3, qui
+     appartient maintenant à Cues pleine largeur (cf. .live-tools, styles.css
+     ~1131) — l'ancien span évitait le partage de ligne Board/Master en
+     étirant Master par-dessus, mais rentrait en collision avec Cues une fois
+     celui-ci passé pleine largeur sur cette même ligne 3. Repéré le
+     2026-08-20. */
   .master-strip,
   body.stage-mode .master-strip {
     grid-column: 2;
-    grid-row: 2 / 4;
+    grid-row: 2;
     min-width: 0;
     width: 100%;
     justify-self: stretch;
@@ -7904,6 +7922,30 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 }
 
+/* Même correctif que ci-dessus, pour en dessous de 561px : la restriction
+   min-width:561px de la règle précédente laissait passer le même conflit
+   Cues/Master (tous deux ligne 3) en dessous de ce seuil — repéré le
+   2026-08-20 (chevauchement mesuré à 400px). Bug préexistant à cette
+   session, simplement jamais couvert sous 561px. */
+@media (max-width: 560px) {
+  .live-tools,
+  body.stage-mode .live-tools {
+    grid-row: 4;
+  }
+}
+
+/* Réaffirme le design pleine largeur (studio/garage, styles.css ~1131) pour
+   901-950px : la plage historique "561-950px" ci-dessus (widerange que le
+   vrai seuil d'empilement 1 colonne de .topbar, ≤900px) repose grid-column:1
+   après la règle de ~1131, l'écrasant dans cette fourchette précise — repéré
+   le 2026-08-20 (Cues resté à la largeur de la colonne 1 au lieu de pleine
+   largeur, entre 901 et 950px). */
+@media (min-width: 901px) {
+  .live-tools {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
   /* Cues/Crossfade en portrait, sur 3 lignes : 1re les deux titres, 2e tous les
      boutons, 3e le statut du cue. Grille (et non plus flex) pour que le titre
@@ -8280,35 +8322,26 @@ body.stage-mode .secondary-live-group {
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
 
-  /* Portrait/tactile : Board, Master et Cues empilés dans CET ordre précis
-     (Master AU MILIEU, cf. grid-row 2/3/4 ci-dessous) — Master partage donc
-     la colonne 1 avec .topbar-stack (Board+Cues, styles.css ~720), qui n'a
-     de sens que si Master reste dans une AUTRE colonne. On rend le wrapper
-     transparent ici : Board et Cues redeviennent des grid-items directs de
-     .topbar, avec les règles de ce bloc (déjà correctes, non modifiées) qui
-     reprennent la main — sinon Cues (regroupé avec Board en ligne 2) se
-     retrouvait au-dessus de Master (ligne 3) au lieu d'en dessous. */
-  body.stage-mode .topbar-stack {
-    display: contents;
-  }
-
   body.stage-mode .board-area {
     grid-column: 1 !important;
     grid-row: 2 !important;
   }
 
-  /* width:fit-content + justify-self:start (au lieu de 100%/stretch) : ces
-     deux blocs n'ont pas besoin de toute la largeur de l'écran pour leur
-     contenu (badges FX/Ducking, bouton Crossfade…) — les étirer laissait un
-     grand vide à droite, repéré le 2026-08-20. max-width:100% en garde-fou
-     (contenu jamais plus large que l'écran, ex. nom de sortie audio long). */
+  /* width:fit-content (au lieu de 100%/stretch) : ces deux blocs n'ont pas
+     besoin de toute la largeur de l'écran pour leur contenu (badges
+     FX/Ducking, bouton Crossfade…) — les étirer laissait un grand vide à
+     droite, repéré le 2026-08-20. max-width:100% en garde-fou (contenu
+     jamais plus large que l'écran, ex. nom de sortie audio long). */
   body.stage-mode .master-strip {
     --master-stop-size: 62px !important;
     grid-column: 1 !important;
     grid-row: 3 !important;
     width: fit-content !important;
     max-width: 100% !important;
-    justify-self: start !important;
+    /* end (pas start) : Master doit rester à droite — même alignement qu'en
+       paysage/large (justify-self:end, cf. styles.css ~8171) — pas collé au
+       bord gauche de l'écran. Erreur du 2026-08-20 corrigée le même jour. */
+    justify-self: end !important;
   }
 
   body.stage-mode .live-tools {
@@ -8466,7 +8499,15 @@ body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
   left: 50%;
   transform: translateX(-50%);
   z-index: 70;
-  width: min(var(--board-extent, 1280px), calc(100vw - 28px));
+  /* fit-content (pas une largeur fixe calée sur --board-extent) : le bloc
+     collé doit épouser son contenu, pas s'étirer jusqu'à la largeur des pads
+     — demandé le 2026-08-20. max-width en garde-fou (petits écrans). En
+     pratique, JS (syncFloatingCueFrame) réaligne left/transform sur le bord
+     gauche des pads dès qu'il tourne (couplé au même toggle de classe) ; ce
+     left:50%/transform ci-dessus ne sert que de repli si jamais il ne
+     tournait pas. */
+  width: fit-content;
+  max-width: calc(100vw - 28px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(10px);
 }
@@ -11157,12 +11198,18 @@ body.stage-mode .live-tools {
        (pointer:coarse) (styles.css ~8171) couvre déjà toute cette plage
        (max-width:950px seul suffit, peu importe le pointeur) et y impose
        grid-column:2/justify-self:end — les redéclarer ici serait redondant
-       (même valeur, déjà gagnée ailleurs). Seul width/max-width a vraiment
-       besoin d'un correctif propre à "pointeur fin". grid-row n'a plus besoin
-       d'être étiré (l'ancien correctif "2 / 4" du 2026-08-20 est retiré) :
-       Board+Cues sont maintenant regroupés dans .topbar-stack (styles.css
-       ~720), donc la hauteur de Master ne partage plus de ligne avec Cues —
-       plus besoin de l'atténuer. */
+       (même valeur, déjà gagnée ailleurs). Seuls width/max-width/grid-row
+       ont vraiment besoin d'un correctif propre à "pointeur fin". */
+    /* span 2/4 (pas seulement la ligne 2, cf. styles.css ~8192) : atténue
+       mais ne résout PAS le décalage de Cues sous Board (board et Master
+       partagent la ligne 2, dont la hauteur suit le plus grand des deux —
+       presque toujours Master) : Cues (ligne 3) démarre après la hauteur
+       combinée, laissant un vide sous Board. Contrairement à Studio (cf.
+       .live-tools de base, plus bas — Cues pleine largeur sous Board+Master),
+       ce comportement n'a pas été demandé pour la Scène — seule cette
+       atténuation partielle, déjà en place avant l'essai (retiré puis
+       reposé) du regroupement Board+Cues du 2026-08-20. */
+    grid-row: 2 / 4;
   }
 }
 
