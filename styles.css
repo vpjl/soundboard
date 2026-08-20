@@ -717,6 +717,22 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   display: grid !important;
 }
 
+/* Regroupe Board + Cues (colonne 1 de .topbar) pour qu'ils s'empilent l'un
+   sous l'autre indépendamment de la hauteur de Master (colonne 2) : avant ce
+   wrapper, Board et Master partageaient la même ligne de grille — dont la
+   hauteur suit le plus grand des deux, presque toujours Master — ce qui
+   repoussait Cues (ligne suivante) sous Master au lieu de sous Board. En
+   scène, .topbar reste à 2 colonnes à toute largeur (règle sans condition
+   ~11229, !important) donc ce wrapper s'applique sans condition là aussi. */
+.topbar-stack {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
 .board-area {
   display: grid;
   grid-template-columns: max-content minmax(260px, 360px);
@@ -11117,19 +11133,12 @@ body.stage-mode .live-tools {
        (pointer:coarse) (styles.css ~8171) couvre déjà toute cette plage
        (max-width:950px seul suffit, peu importe le pointeur) et y impose
        grid-column:2/justify-self:end — les redéclarer ici serait redondant
-       (même valeur, déjà gagnée ailleurs). Seuls width/max-width/grid-row
-       ont vraiment besoin d'un correctif propre à "pointeur fin". */
-    /* span 2/4 (pas seulement la ligne 2, cf. styles.css ~8192) : atténue
-       mais ne résout PAS le décalage de Cues sous Board (board et Master
-       partagent la ligne 2, dont la hauteur suit le plus grand des deux —
-       presque toujours Master) : Cues (ligne 3) démarre après la hauteur
-       combinée, laissant un vide sous Board. Vrai fix identifié (position
-       absolue pour sortir Master du flux de lignes, ou conteneur commun
-       Board+Cues en HTML) mais volontairement pas appliqué — décision prise
-       le 2026-08-20 de laisser cette atténuation partielle en l'état plutôt
-       que de risquer une réécriture structurelle sans vérification visuelle
-       possible sur ce projet. */
-    grid-row: 2 / 4;
+       (même valeur, déjà gagnée ailleurs). Seul width/max-width a vraiment
+       besoin d'un correctif propre à "pointeur fin". grid-row n'a plus besoin
+       d'être étiré (l'ancien correctif "2 / 4" du 2026-08-20 est retiré) :
+       Board+Cues sont maintenant regroupés dans .topbar-stack (styles.css
+       ~720), donc la hauteur de Master ne partage plus de ligne avec Cues —
+       plus besoin de l'atténuer. */
   }
 }
 
@@ -11201,7 +11210,13 @@ body.stage-mode .board-strip {
    Studio/Garage (pas de réduction de taille en Scène) — seul l'agencement
    change (largeur du titre libérée, centrage vertical). */
 html body.stage-mode .topbar {
-  grid-template-columns: minmax(0, 1fr) max-content !important;
+  /* minmax(420px, …) et pas minmax(0, …) : sans plancher, la colonne 1
+     (Board+Cues) rétrécit autant qu'il faut pour laisser Master (colonne 2,
+     max-content) prendre toute la place qu'il réclame — Cues n'a alors plus
+     assez de largeur pour tenir sur une ligne (repasse à 2 lignes). Studio
+     (.topbar de base) a déjà un plancher similaire (260px) ; 420px ici car
+     Cues a besoin d'un peu plus large pour Cues+Crossfade sur une ligne. */
+  grid-template-columns: minmax(420px, 1fr) max-content !important;
   /* "start", comme en Studio/Garage (cf. .topbar de base) — même cause que le
      fix précédent sur .brand : "center" ici décalait le logo/texte au
      relâchement de la compensation, même une fois .brand lui-même corrigé,

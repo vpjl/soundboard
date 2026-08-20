@@ -3928,7 +3928,12 @@ function syncFloatingCueFrame(resetAnchor = false) {
   // lieu de ne réagir qu'au changement détecté d'un appel à l'autre.
   if (document.body.classList.contains("stage-mode")) {
     const appEl = document.querySelector(".app");
-    const topbarEl = document.querySelector(".topbar");
+    // .topbar-stack (pas .topbar) : depuis le regroupement Board+Cues dans ce
+    // wrapper (cf. .topbar-stack, styles.css ~720), c'est son parent direct
+    // en fonctionnement normal — le rattacher à .topbar au décollage le
+    // sortirait du wrapper, réintroduisant le partage de ligne avec Master
+    // que ce wrapper évite justement.
+    const stackEl = document.querySelector(".topbar-stack");
     if (shouldStick) {
       if (appEl && els.liveTools.parentElement !== appEl) {
         state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
@@ -3939,11 +3944,11 @@ function syncFloatingCueFrame(resetAnchor = false) {
         els.liveTools.style.removeProperty("position");
         els.liveTools.style.removeProperty("transform");
       }
-    } else if (topbarEl && els.liveTools.parentElement !== topbarEl) {
-      if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbarEl) {
-        topbarEl.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
+    } else if (stackEl && els.liveTools.parentElement !== stackEl) {
+      if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === stackEl) {
+        stackEl.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
       } else {
-        topbarEl.appendChild(els.liveTools);
+        stackEl.appendChild(els.liveTools);
       }
       state.liveToolsOriginalNextSibling = null;
       applyStageStudioLayoutSoon();
@@ -19643,9 +19648,12 @@ function applyStageStudioLayout() {
     // (ex. retour en studio pendant que le bloc était collé), le remettre à
     // sa place : cette relocalisation ne concerne que la scène.
     const liveTools = document.querySelector(".live-tools");
-    const topbar = document.querySelector(".topbar");
-    if (liveTools && topbar && liveTools.parentElement !== topbar) {
-      topbar.appendChild(liveTools);
+    // .topbar-stack (pas .topbar) : Board+Cues sont regroupés dans ce wrapper
+    // en studio comme en scène (cf. .topbar-stack, styles.css ~720) — même
+    // cible que la relocalisation ci-dessous (syncFloatingCueFrame).
+    const stack = document.querySelector(".topbar-stack");
+    if (liveTools && stack && liveTools.parentElement !== stack) {
+      stack.appendChild(liveTools);
     }
     return;
   }
