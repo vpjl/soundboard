@@ -1117,12 +1117,26 @@ body.board-edit-mode .board-info-section-toggle {
   grid-column: 1;
   grid-row: 3;
   align-self: end;
-  /* fit-content (pas 100%) + justify-self:start : Cues n'a pas besoin de
-     toute la largeur de sa cellule de grille (souvent bien plus large que
-     ses quelques boutons, surtout en studio) — l'étirer laissait un grand
-     vide à droite dans le bloc, repéré le 2026-08-20. */
-  width: fit-content;
-  max-width: 100%;
+  /* max-content (pas 100%, ni fit-content) + justify-self:start : Cues n'a
+     pas besoin de toute la largeur de sa cellule de grille (souvent bien
+     plus large que ses quelques boutons, surtout en studio) — l'étirer
+     laissait un grand vide à droite dans le bloc, repéré le 2026-08-20.
+     fit-content avait été essayé d'abord, mais sur cet élément qui span 2
+     colonnes de grille (grid-column:1/-1, ci-dessous ~901px) son résultat
+     dépendait de façon incohérente de la hauteur de la fenêtre (même largeur,
+     largeur calculée différente selon la hauteur) — max-content, qui ignore
+     l'espace disponible et se cale uniquement sur le contenu, n'a pas ce
+     problème... sauf que max-content lui-même s'est avéré incohérent aussi :
+     mesuré à 707px alors que .cue-status (le texte du cue courant) est
+     plafonné à 320px par ailleurs — la contribution de .cue-status au calcul
+     max-content du parent ignore son propre max-width (chromium/firefox
+     semblent calculer cette contribution sur la taille NON contrainte).
+     680px (proche du besoin réel mesuré en état correct, 668px) : garde-fou
+     explicite sur le CONTENEUR lui-même (contourne le calcul intrinsèque peu
+     fiable, quelle qu'en soit la cause exacte — 700px ne suffisait pas,
+     à peine sous la valeur bugguée mesurée à 707px). */
+  width: max-content;
+  max-width: min(100%, 680px);
   justify-self: start;
   box-sizing: border-box;
   margin: 0;
@@ -1468,6 +1482,16 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
 
 .cue-status {
   min-width: 0;
+  /* flex:0 1 auto + max-width : repéré le 2026-08-20, quand cet élément passe
+     seul sur sa propre ligne dans .live-tools (flex-wrap), il pouvait
+     s'étirer jusqu'à ~690px (mécanisme non identifié avec certitude — aucune
+     règle grid-column/flex-grow trouvée qui l'expliquerait directement,
+     .cue-live-row étant display:contents la règle grid-column:5 prévue pour
+     lui à ce breakpoint est sans effet) au lieu de rester à la largeur de son
+     texte (~114px), gonflant tout le calcul de largeur de .live-tools.
+     Plafond explicite en attendant de comprendre la cause exacte. */
+  flex: 0 1 auto;
+  max-width: 320px;
   overflow: hidden;
   color: var(--muted);
   font-size: 0.78rem;
@@ -7982,6 +8006,16 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
      précis du titre "Crossfade" sur le bord gauche du bouton "armer crossfade
      manuel" (que le flex seul ne peut pas garantir entre deux lignes
      différentes) est calculé en JS, cf. alignXfadeTitle(). */
+  /* width:100% (pas max-content, cf. règle de base ~1105) : .cue-status plus
+     bas se pose en flex-basis:100% pour occuper sa propre ligne pleine
+     largeur (design 3 lignes titre/boutons/statut) — ça suppose que .live-tools
+     a une largeur bien définie (100% de sa cellule de grille). Avec
+     width:max-content, la largeur du parent dépend de ses enfants ET un
+     enfant (.cue-status) veut être 100% du parent : boucle que les
+     navigateurs résolvent de façon incohérente (largeur mesurée entre 660 et
+     707px pour un même contenu visuel, uniquement selon des détails de rendu
+     — repéré le 2026-08-20 en cherchant pourquoi Cues "s'étirait" sans cause
+     identifiable). */
   .live-tools {
     display: flex;
     flex-wrap: wrap;
@@ -7989,6 +8023,8 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     row-gap: 7px;
     column-gap: 6px;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
     overflow-x: hidden;
   }
 
@@ -8359,10 +8395,14 @@ body.stage-mode .secondary-live-group {
     justify-self: end !important;
   }
 
+  /* width:100% (pas fit-content) : même raison qu'en studio (cf. .live-tools
+     ~1105 et le bloc portrait de base ~8009) — .cue-status se pose en
+     flex-basis:100% dans ce même contexte portrait, ce qui suppose une
+     largeur de parent bien définie plutôt que calculée sur son contenu. */
   body.stage-mode .live-tools {
     grid-column: 1 !important;
     grid-row: 4 !important;
-    width: fit-content !important;
+    width: 100% !important;
     max-width: 100% !important;
     justify-self: start !important;
     align-self: start !important;
@@ -8584,11 +8624,17 @@ body.stage-mode.cues-enabled:not(.cues-stuck):not(.board-edit-mode) .live-tools 
 }
 
 /* Bloc cues INACTIF (studio ET scène, hors garage) : compact, largeur de la
-   rangée de boutons, calé à gauche — pas de marge à droite. À l'activation, il
-   passe à la largeur des pads (géré en JS). */
+   rangée de boutons, calé à gauche — pas de marge à droite. max-content (pas
+   fit-content, cf. .live-tools de base ~1105) : même raison, résultat
+   incohérent selon la hauteur de la fenêtre sur un élément qui span 2
+   colonnes de grille. max-width:680px (pas 100%) : cette règle étant
+   !important, elle gagnait sur le plafond posé dans la règle de base — sans
+   la répéter ici, le calcul max-content bugué (mesuré jusqu'à 707px alors
+   que le contenu réel ne dépasse pas ~670px) n'était pas contenu du tout
+   dans l'état "cues désactivées" (repéré le 2026-08-20). */
 body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
-  width: fit-content !important;
-  max-width: 100% !important;
+  width: max-content !important;
+  max-width: min(100%, 680px) !important;
   justify-self: start !important;
 }
 
