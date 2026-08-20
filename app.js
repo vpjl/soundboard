@@ -2375,6 +2375,38 @@ const LIVE_FX_APPLY_BY_KEY = {
   delay: applyPadLiveDelay,
 };
 
+// Version "drag" (sans le creux anti-clic de la variante Safely, cf.
+// applyPadLiveDistortionSafely) : c'est celle que le curseur local appelle à
+// chaque "input" pendant qu'on le déplace (buildLiveFxControlsBody). Une
+// commande liveFx reçue en réseau arrive au même rythme (un message par
+// "input" côté régie) : lui appliquer la variante Safely créerait un creux de
+// gain à chaque valeur reçue au lieu d'un seul au moment du dé-bypass.
+const LIVE_FX_LIVE_APPLY_BY_KEY = {
+  distortion: applyPadLiveDistortion,
+  filter: applyPadLiveFilter,
+  flanger: applyPadLiveFlanger,
+  delay: applyPadLiveDelay,
+};
+
+// Diffusion régie → façade des 4 curseurs d'effets live, même schéma "fire and
+// forget" à sens unique que Volume/Pan/Loop/Duck/Mute (cf. pad.volumeEl plus
+// bas) : la façade reste seule autorité audio, la régie ne fait qu'émettre.
+function broadcastLiveFxChange(pad, key, value) {
+  if (state.remoteRole !== "controller") return;
+  sendRemoteCommand("liveFx", remotePadTarget(pad), { key, value });
+}
+
+// Reflète côté façade la valeur reçue sur toutes les instances actuellement
+// montées du curseur (rangée panneau flottant + verso du pad en scène, cf.
+// setLiveFxBypassed) : sans ça, un dé-bypass ultérieur (reapplyLiveFxRow, qui
+// relit la valeur AFFICHÉE du curseur) reviendrait à l'ancienne valeur locale
+// au lieu de celle envoyée par la régie.
+function syncLiveFxSliderDisplay(pad, key, value) {
+  document.querySelectorAll(`[data-live-fx-for="${pad.uid}"] input[data-fx="${key}"]`).forEach((slider) => {
+    slider.value = String(value);
+  });
+}
+
 function reapplyLiveFxRow(pad, row) {
   row.querySelectorAll("input[data-fx]").forEach((slider) => {
     LIVE_FX_APPLY_BY_KEY[slider.dataset.fx]?.(pad, slider.value);
@@ -2445,22 +2477,22 @@ function buildLiveFxControlsBody(pad) {
   body.append(
     createLiveFxControl({
       key: "distortion", label: "Distorsion", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.distortion,
-      applyFn: (v) => { applyPadLiveDistortion(pad, v); saveLiveFxPadSetting(pad, "distortion", v); },
+      applyFn: (v) => { applyPadLiveDistortion(pad, v); saveLiveFxPadSetting(pad, "distortion", v); broadcastLiveFxChange(pad, "distortion", v); },
       ariaLabel: `Distorsion live — ${pad.title}`,
     }),
     createLiveFxControl({
       key: "filter", label: "Filtre", min: -LIVE_FILTER_RANGE, max: LIVE_FILTER_RANGE, centered: true, resetValue: 0, value: remembered.filter,
-      applyFn: (v) => { applyPadLiveFilter(pad, v); saveLiveFxPadSetting(pad, "filter", v); },
+      applyFn: (v) => { applyPadLiveFilter(pad, v); saveLiveFxPadSetting(pad, "filter", v); broadcastLiveFxChange(pad, "filter", v); },
       ariaLabel: `Filtre live — ${pad.title}`,
     }),
     createLiveFxControl({
       key: "flanger", label: "Flanger", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.flanger,
-      applyFn: (v) => { applyPadLiveFlanger(pad, v); saveLiveFxPadSetting(pad, "flanger", v); },
+      applyFn: (v) => { applyPadLiveFlanger(pad, v); saveLiveFxPadSetting(pad, "flanger", v); broadcastLiveFxChange(pad, "flanger", v); },
       ariaLabel: `Flanger live — ${pad.title}`,
     }),
     createLiveFxControl({
       key: "delay", label: "Delay", min: 0, max: 100, centered: false, resetValue: 0, value: remembered.delay,
-      applyFn: (v) => { applyPadLiveDelay(pad, v); saveLiveFxPadSetting(pad, "delay", v); },
+      applyFn: (v) => { applyPadLiveDelay(pad, v); saveLiveFxPadSetting(pad, "delay", v); broadcastLiveFxChange(pad, "delay", v); },
       ariaLabel: `Delay live — ${pad.title}`,
     }),
   );
@@ -16876,6 +16908,16 @@ function handleRemoteMessage(raw) {
     else if (msg.action === "loop") applyPadLoopChange(pad, Boolean(msg.value));
     else if (msg.action === "duck") applyPadDuckChange(pad, msg.mode, Number(msg.percent) || 0);
     else if (msg.action === "mute") applyPadMuteChange(pad, Boolean(msg.value));
+    else if (msg.action === "liveFx") {
+      saveLiveFxPadSetting(pad, msg.key, msg.value);
+      syncLiveFxSliderDisplay(pad, msg.key, msg.value);
+      // Respecte le bypass façade (state.liveFxBypassed) : un curseur local
+      // désactivé par le bypass ne peut pas émettre d'event "input" (cf.
+      // setLiveFxBypassed), donc une commande réseau ne doit pas non plus
+      // toucher l'audio réel tant que le bypass est actif — seule la valeur
+      // mémorisée/affichée doit avancer, pour être reprise au dé-bypass.
+      if (!pad.liveFxBypassed) LIVE_FX_LIVE_APPLY_BY_KEY[msg.key]?.(pad, msg.value);
+    }
     else if (msg.action === "crossfadeChoice") {
       if (state.crossfadeArm.phase === "source") chooseManualCrossfadeSource(pad);
       else executeManualCrossfade(pad).catch(() => {});
