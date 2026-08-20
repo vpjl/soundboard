@@ -8297,20 +8297,26 @@ body.stage-mode .secondary-live-group {
     grid-row: 2 !important;
   }
 
+  /* width:fit-content + justify-self:start (au lieu de 100%/stretch) : ces
+     deux blocs n'ont pas besoin de toute la largeur de l'écran pour leur
+     contenu (badges FX/Ducking, bouton Crossfade…) — les étirer laissait un
+     grand vide à droite, repéré le 2026-08-20. max-width:100% en garde-fou
+     (contenu jamais plus large que l'écran, ex. nom de sortie audio long). */
   body.stage-mode .master-strip {
     --master-stop-size: 62px !important;
     grid-column: 1 !important;
     grid-row: 3 !important;
-    width: 100% !important;
-    justify-self: stretch !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    justify-self: start !important;
   }
 
   body.stage-mode .live-tools {
     grid-column: 1 !important;
     grid-row: 4 !important;
-    width: 100% !important;
+    width: fit-content !important;
     max-width: 100% !important;
-    justify-self: stretch !important;
+    justify-self: start !important;
     align-self: start !important;
   }
 
@@ -8322,8 +8328,14 @@ body.stage-mode .secondary-live-group {
     gap: 5px !important;
   }
 
+  /* grid-column:auto (pas 1/-1) : la pleine largeur chevauchait les 4 boutons
+     de .cue-live-row (repère.template-columns juste au-dessus : 4×36px +
+     1×1fr), donc l'auto-placement CSS Grid rejetait le statut sur une
+     nouvelle ligne pour éviter le chevauchement — au lieu de tenir la 5e
+     colonne (1fr) prévue pour lui, à côté des boutons. Repéré le 2026-08-20 :
+     "Cues désactivées" isolé sur sa propre ligne sous les boutons. */
   body.stage-mode .cue-status {
-    grid-column: 1 / -1 !important;
+    grid-column: auto;
     align-self: stretch;
     display: flex;
     align-items: center;
