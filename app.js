@@ -12482,6 +12482,14 @@ function padTagList(pad) {
     .filter(Boolean);
 }
 
+// Pas de tag choisi = rien à stopper : désactiver plutôt que laisser cliquer
+// pour rien (stopGroup() se contentait jusqu'ici d'un message "Choisir un
+// groupe" après coup). Appelé ici (peuplement des options) et sur le change
+// du select, seuls points où la valeur peut bouger.
+function updateStopGroupButtonState() {
+  if (els.stopGroup) els.stopGroup.disabled = !els.stopGroupSelect?.value;
+}
+
 function refreshStopGroupOptions() {
   if (!els.stopGroupSelect) return;
   const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
@@ -12495,6 +12503,7 @@ function refreshStopGroupOptions() {
     els.stopGroupSelect.append(option);
   });
   els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
+  updateStopGroupButtonState();
   const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
   const maxChars = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches ? 16 : 34;
   const width = `${Math.min(maxChars, longestLength + 3)}ch`;
@@ -18240,6 +18249,7 @@ async function init() {
   });
   els.stopGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
+    updateStopGroupButtonState();
   });
   els.randomGroupSelect?.addEventListener("change", () => {
     localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect.value || "");
