@@ -8280,6 +8280,18 @@ body.stage-mode .secondary-live-group {
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
 
+  /* Portrait/tactile : Board, Master et Cues empilés dans CET ordre précis
+     (Master AU MILIEU, cf. grid-row 2/3/4 ci-dessous) — Master partage donc
+     la colonne 1 avec .topbar-stack (Board+Cues, styles.css ~720), qui n'a
+     de sens que si Master reste dans une AUTRE colonne. On rend le wrapper
+     transparent ici : Board et Cues redeviennent des grid-items directs de
+     .topbar, avec les règles de ce bloc (déjà correctes, non modifiées) qui
+     reprennent la main — sinon Cues (regroupé avec Board en ligne 2) se
+     retrouvait au-dessus de Master (ligne 3) au lieu d'en dessous. */
+  body.stage-mode .topbar-stack {
+    display: contents;
+  }
+
   body.stage-mode .board-area {
     grid-column: 1 !important;
     grid-row: 2 !important;
