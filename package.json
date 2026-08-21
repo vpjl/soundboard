@@ -1,0 +1,11 @@
+{
+  "name": "soundboard-vl-notice-tools",
+  "private": true,
+  "description": "Outillage de génération de la notice (captures d'écran). L'app elle-même reste 100% statique, sans build.",
+  "scripts": {
+    "capture-notice": "node tools/capture-notice.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

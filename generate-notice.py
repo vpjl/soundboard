@@ -15,9 +15,14 @@ Le script gère un sous-ensemble Markdown suffisant pour la notice :
                              (ignorée avec un avertissement si le fichier manque)
 
 Puces avec icône : `- ![#idBouton] **Titre** : …` remplace le tiret par
-l'icône SVG du bouton correspondant d'index.html (`#id` ou `action:data-action`,
-plusieurs séparées par `|`). Un saut de page est inséré avant chaque titre
-`## Mode …` sauf s'il tombe déjà en haut de page (CondPageBreak).
+l'icône SVG du bouton (ou du label de réglage) correspondant d'index.html
+(`#id` ou `action:data-action`, plusieurs séparées par `|`).
+
+Aucun saut de page n'est inséré automatiquement, SAUF quand un titre (`##`
+ou `###`) est immédiatement suivi d'une image : le titre sert alors de
+légende à l'illustration, les deux sont gardés ensemble en haut d'une page
+neuve (CondPageBreak + KeepTogether). Une image peut être réduite avec un
+préfixe `0.5x|` dans son texte alt : `![0.5x|légende](chemin.png)`.
 """
 
 import os
@@ -30,7 +35,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    CondPageBreak, PageBreak, Image as RLImage,
+    CondPageBreak, Image as RLImage, KeepTogether, HRFlowable,
 )
 
 SRC = "notice.md"
@@ -48,6 +53,15 @@ FRAME_H = A4[1] - 36 * mm
 
 ICON_REF = re.compile(r"^!\[([^\]]+)\]\s*")
 IMG_LINE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+SCALE_PREFIX = re.compile(r"^(\d*\.\d+|\d+)x\|")
+
+
+def split_image_caption(raw_caption):
+    """Sépare un éventuel préfixe d'échelle (`0.5x|légende`) de la légende."""
+    m = SCALE_PREFIX.match(raw_caption)
+    if not m:
+        return raw_caption, 1.0
+    return raw_caption[m.end():], float(m.group(1))
 
 
 def inline(text):
@@ -75,12 +89,18 @@ def extract_icon_symbols(html):
 
 
 def extract_button_svgs():
-    """Icônes des boutons d'index.html, indexées par `#id` et `action:x`.
+    """Icônes des boutons/réglages d'index.html, indexées par `#id` et `action:x`.
 
-    Les icônes de boutons sont des <svg><use href="#ic-…"></svg> pointant vers
-    le sprite #iconSprite (voir index.html) : le <use> est résolu ici en
-    réinjectant le contenu du <symbol> correspondant, car un SVG extrait/écrit
-    isolément (svg2rlg) n'a pas accès au sprite du document source.
+    Les icônes sont des <svg><use href="#ic-…"></svg> pointant vers le sprite
+    #iconSprite (voir index.html) : le <use> est résolu ici en réinjectant le
+    contenu du <symbol> correspondant, car un SVG extrait/écrit isolément
+    (svg2rlg) n'a pas accès au sprite du document source.
+
+    Deux familles de balises portent une icône dans ce document : les
+    <button id=… data-action=…> classiques, et les <label> de réglage qui
+    enveloppent une <svg> + un <input id=…>/<select id=…> (ex. Reverse, Fade
+    in/out dans les réglages audio du pad) — l'id à utiliser est alors celui
+    du champ, pas du label (qui n'en a généralement pas).
     """
     try:
         with open(INDEX, encoding="utf-8") as f:
@@ -89,23 +109,30 @@ def extract_button_svgs():
         return {}
     symbols = extract_icon_symbols(html)
     svgs = {}
-    for m in re.finditer(r"<button\b[^>]*>.*?</button>", html, re.S):
-        tag = m.group(0)
-        open_tag = tag[: tag.index(">") + 1]
-        svg = re.search(r"<svg\b[^>]*>(.*?)</svg>", tag, re.S)
-        if not svg:
-            continue
-        markup = svg.group(0)
-        use_m = re.search(r'<use href="#([^"]+)"', svg.group(1))
-        if use_m:
-            symbol_content = symbols.get(use_m.group(1), "")
-            markup = markup.replace(svg.group(1), symbol_content)
-        id_m = re.search(r'id="([^"]+)"', open_tag)
-        action_m = re.search(r'data-action="([^"]+)"', open_tag)
-        if id_m:
-            svgs.setdefault("#" + id_m.group(1), markup)
-        if action_m:
-            svgs.setdefault("action:" + action_m.group(1), markup)
+
+    def harvest(tag_name):
+        for m in re.finditer(rf"<{tag_name}\b[^>]*>.*?</{tag_name}>", html, re.S):
+            block = m.group(0)
+            open_tag = block[: block.index(">") + 1]
+            svg = re.search(r"<svg\b[^>]*>(.*?)</svg>", block, re.S)
+            if not svg:
+                continue
+            markup = svg.group(0)
+            use_m = re.search(r'<use href="#([^"]+)"', svg.group(1))
+            if use_m:
+                symbol_content = symbols.get(use_m.group(1), "")
+                markup = markup.replace(svg.group(1), symbol_content)
+            id_m = re.search(r'id="([^"]+)"', open_tag)
+            if not id_m:
+                id_m = re.search(r'<(?:input|select)\b[^>]*\bid="([^"]+)"', block)
+            action_m = re.search(r'data-action="([^"]+)"', open_tag)
+            if id_m:
+                svgs.setdefault("#" + id_m.group(1), markup)
+            if action_m:
+                svgs.setdefault("action:" + action_m.group(1), markup)
+
+    harvest("button")
+    harvest("label")
     return svgs
 
 
@@ -179,23 +206,33 @@ def bullet_flowable(raw, st, svgs):
 # ---------------------------------------------------------------- captures
 
 
-def screenshot_flowables(path, caption, st):
-    """Capture d'écran en pleine page, légende dessous. [] si fichier absent."""
+def screenshot_flowables(path, caption, st, extra_scale=1.0, reserved_h=0):
+    """Capture d'écran, légende dessous. [] si fichier absent.
+
+    Toujours insérée dans le fil du texte (KeepTogether : image+légende ne se
+    coupent jamais entre deux pages), sans saut de page forcé — sauf quand
+    l'appelant détecte qu'un titre la précède immédiatement, auquel cas le
+    saut est ajouté en amont, autour du couple titre+image (`reserved_h`
+    laisse alors la place au titre dans la même page, sans quoi l'image
+    pleine page + le titre ne tiendraient plus ensemble et KeepTogether les
+    séparerait faute de place). `extra_scale` réduit/agrandit l'image au-delà
+    de l'ajustement automatique à la page (ex. 0.5 pour une capture affichée
+    deux fois plus petite).
+    """
     if not os.path.exists(path):
         print(f"  (capture absente, ignorée : {path})")
         return []
     img = RLImage(path)
     iw, ih = img.imageWidth, img.imageHeight
-    max_h = FRAME_H - 18 * mm  # place pour la légende
-    scale = min(FRAME_W / iw, max_h / ih)
+    max_h = FRAME_H - 18 * mm - reserved_h
+    scale = min(FRAME_W / iw, max_h / ih) * extra_scale
     img.drawWidth = iw * scale
     img.drawHeight = ih * scale
     img.hAlign = "CENTER"
-    out = [PageBreak(), img]
+    block = [img]
     if caption:
-        out += [Spacer(1, 6), Paragraph(inline(caption), st["caption"])]
-    out.append(PageBreak())
-    return out
+        block += [Spacer(1, 6), Paragraph(inline(caption), st["caption"])]
+    return [Spacer(1, 6), KeepTogether(block), Spacer(1, 10)]
 
 
 def build_styles():
@@ -264,10 +301,12 @@ def parse(md, st, svgs):
             i += 1
             continue
 
-        # Capture d'écran pleine page : ![légende](chemin)
+        # Capture d'écran : ![légende](chemin), avec ![0.5x|légende](chemin)
+        # pour une taille d'affichage réduite/agrandie.
         img_m = IMG_LINE.match(stripped)
         if img_m:
-            story += screenshot_flowables(img_m.group(2), img_m.group(1), st)
+            caption, extra_scale = split_image_caption(img_m.group(1))
+            story += screenshot_flowables(img_m.group(2), caption, st, extra_scale)
             i += 1
             continue
 
@@ -296,15 +335,41 @@ def parse(md, st, svgs):
             story.append(Spacer(1, 5))
             continue
 
-        if stripped.startswith("### "):
-            story.append(Paragraph(inline(stripped[4:]), st["h2"]))
-        elif stripped.startswith("## "):
-            # Chaque mode (Garage / Studio / Scène) démarre sur une page neuve,
-            # sauf si le fil tombe déjà en haut de page (CondPageBreak : saute
-            # seulement s'il reste moins d'une quasi-pleine page).
-            if stripped.startswith("## Mode "):
+        if stripped.startswith("### ") or stripped.startswith("## "):
+            is_chapter = stripped.startswith("## ")
+            style = st["h1"] if is_chapter else st["h2"]
+            text = stripped[3:] if is_chapter else stripped[4:]
+            heading_block = [Paragraph(inline(text), style)]
+            if is_chapter:
+                # Trait fin d'un bord à l'autre : rend le titre de chapitre
+                # plus visible, seul repère visuel de rupture maintenant que
+                # les chapitres ne forcent plus systématiquement une page neuve.
+                heading_block.append(
+                    HRFlowable(width="100%", thickness=0.75, color=ACCENT,
+                               spaceBefore=2, spaceAfter=10, lineCap="butt")
+                )
+
+            # Titre immédiatement suivi d'une image (lignes vides ignorées) :
+            # le titre sert de légende à l'illustration — on les garde
+            # ensemble en haut d'une page neuve plutôt que de les laisser
+            # séparer par la pagination naturelle.
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            next_img = IMG_LINE.match(lines[j].strip()) if j < len(lines) else None
+            if next_img:
+                caption, extra_scale = split_image_caption(next_img.group(1))
+                # Place réservée pour le bloc titre (+ trait fin s'il y en a
+                # un) au-dessus de l'image, sinon les deux ne tiennent plus
+                # ensemble sur une page et KeepTogether les sépare.
+                reserved_h = (30 * mm) if is_chapter else (18 * mm)
+                img_block = screenshot_flowables(next_img.group(2), caption, st,
+                                                  extra_scale, reserved_h)
                 story.append(CondPageBreak(FRAME_H - 8 * mm))
-            story.append(Paragraph(inline(stripped[3:]), st["h1"]))
+                story.append(KeepTogether(heading_block + img_block))
+                i = j + 1
+                continue
+            story += heading_block
         elif stripped.startswith("# "):
             story.append(Paragraph(inline(stripped[2:]), st["title"]))
         elif stripped.startswith("> "):
