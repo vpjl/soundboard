@@ -14,9 +14,118 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=809">
+    <link rel="stylesheet" href="styles.css?v=810">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
+<svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="ic-da190c2a" viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="18" r="1.7" fill="#fff"/></symbol>
+    <symbol id="ic-135b75dc" viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/><circle cx="18" cy="18" r="1.7" fill="currentColor" opacity="0.3"/></symbol>
+    <symbol id="ic-3acdc5f3" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6V3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v4h4M9 11h6M9 15h6M9 19h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-55bf70f1" viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 4v6h8V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-36400957" viewBox="0 0 24 24"><path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 10h5M8 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ae8f5244" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-9e7e91b7" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-aee2b53b" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-7e65dd67" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ee4ee409" viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.7" fill="currentColor"/><circle cx="12" cy="6" r="1.7" fill="currentColor"/><circle cx="18" cy="6" r="1.7" fill="currentColor"/><circle cx="6" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="6" cy="18" r="1.7" fill="currentColor"/><path d="M16 13v8M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-b4559364" viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.7" fill="currentColor"/><circle cx="12" cy="6" r="1.7" fill="currentColor"/><circle cx="18" cy="6" r="1.7" fill="currentColor"/><circle cx="6" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="6" cy="18" r="1.7" fill="currentColor"/><rect x="11" y="11" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="14.5" y="14.5" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-c2b7c53f" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="15" cy="14" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="m17.3 16.3 2.7 2.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-5a00c86f" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 11v6l6-3-6-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-9c2d9615" viewBox="0 0 24 24"><path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-8487e55d" viewBox="0 0 24 24"><path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-5f10c4cc" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-eca1e8df" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7" r="1" fill="currentColor"/><circle cx="16" cy="10" r="1" fill="currentColor"/></symbol>
+    <symbol id="ic-778408c7" viewBox="0 0 24 24"><path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-64113013" viewBox="0 0 24 24"><path d="M3 5v14M21 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 12h10M7 12l3-3m-3 3 3 3M17 12l-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-43b9d8d7" viewBox="0 0 24 24"><path d="M5 3v18M19 3v18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 8v8M12 8l-3 3m3-3 3 3M12 16l-3-3m3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-ac29517e" viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-1f2dd5c6" viewBox="0 0 24 24"><path d="M6 3.5 17 12l-4.6 1.3L15 19l-2.4 1-2.6-5.7L6 17.5V3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-241ff5f1" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-f7dd6a71" viewBox="0 0 24 24"><path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-a43e6e48" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-d554dad1" viewBox="0 0 24 24"><path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-4f2985b1" viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-296b4542" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 21h6M12 17v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 11.5a3 3 0 0 1 6 0M12 13.5v.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-4e4061f5" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="ic-c3a70c54" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/><path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-80649e34" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path class="master-mute-cross" d="M17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-7424f535" viewBox="0 0 24 24"><path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-05c167af" viewBox="0 0 24 24"><path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 6 8 12l10 6V6Z" fill="currentColor"/></symbol>
+    <symbol id="ic-417557d6" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z" fill="currentColor"/></symbol>
+    <symbol id="ic-65d63318" viewBox="0 0 24 24"><path d="M4 5v14l8-7-8-7Z" fill="currentColor"/><path d="M13 5v14l8-7-8-7Z" fill="currentColor"/></symbol>
+    <symbol id="ic-36e4c7fc" viewBox="0 0 24 24"><path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-cbfc4d26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="8" r="1.1" fill="currentColor"/><path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-91d38a58" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-1cf0e48f" viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-be1b112f" viewBox="0 0 24 24"><ellipse cx="8.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="15.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 12.5l-2 5.5M14 12.5l2 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-918426a9" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5" fill="currentColor"/><circle cx="15" cy="6" r="1.5" fill="currentColor"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><circle cx="9" cy="18" r="1.5" fill="currentColor"/><circle cx="15" cy="18" r="1.5" fill="currentColor"/></symbol>
+    <symbol id="ic-986fd925" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-b24f259e" viewBox="0 0 24 24"><path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M13 9h8M13 15h8M17 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-30113054" viewBox="0 0 24 24"><path d="M4 7h3c4 0 5 10 10 10h3M4 17h3c4 0 5-10 10-10h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 4l3 3-3 3M17 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-0a66958a" viewBox="0 0 24 24"><path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z" fill="currentColor"/></symbol>
+    <symbol id="ic-ce447c4d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></symbol>
+    <symbol id="ic-77cf59a3" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-5ed5d40e" viewBox="0 0 24 24"><path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-fc7b2b1d" viewBox="0 0 24 24"><path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-d29ad7ed" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-07b08132" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8.5" cy="9.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="ic-122f1246" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-a0a2161e" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 14h8m0 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-e2bd1446" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-78c9a1d8" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 7h5M19 4l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-333527e4" viewBox="0 0 24 24"><path d="M5 13v-2a7 7 0 0 1 14 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 13h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM19 13h-3v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-4776dc86" viewBox="0 0 24 24"><path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-8a4bfbe4" viewBox="0 0 24 24"><path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-53eb395a" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-0500edba" viewBox="0 0 24 24"><path d="M4 15c3-4 5-4 8 0s5 4 8 0M4 9c3 4 5 4 8 0s5-4 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/></symbol>
+    <symbol id="ic-979b2c46" viewBox="0 0 24 24"><path d="M4 20V12M8 20V6M12 20V9M16 20V6M20 20V13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 8h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 3"/></symbol>
+    <symbol id="ic-7fc6618b" viewBox="0 0 24 24"><path d="M6 4v16M12 4v16M18 4v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="15" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-9116fd8b" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-bcaaa5c9" viewBox="0 0 24 24"><path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-94682836" viewBox="0 0 24 24"><path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="ic-47c7b4c5" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-f58ebccb" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-3f76db5c" viewBox="0 0 24 24"><path d="M7 5v14M10 7l8 5-8 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-093913f7" viewBox="0 0 24 24"><path d="M8 5v14l8-7-8-7Z" fill="currentColor"/><path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-f131c7a3" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-adfd964f" viewBox="0 0 24 24"><path d="M10 17V6l9-2v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="7" cy="17" rx="3" ry="2.5" fill="currentColor"/><ellipse cx="16" cy="13" rx="3" ry="2.5" fill="currentColor"/></symbol>
+    <symbol id="ic-8ccdd672" viewBox="0 0 24 24"><rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-b2051554" viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 4v4h4M8 11h8M8 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-b73340f0" viewBox="0 0 24 24"><path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-a8f37935" viewBox="0 0 24 24"><path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-2c9bf31e" viewBox="0 0 24 24"><path d="M6 8h8a4 4 0 0 1 0 8H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 5 5 8l3 3M10 19l-3-3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-eef7654e" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 7h5M19 4l3 3-3 3M16 17h5M19 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-13b98930" viewBox="0 0 24 24"><path d="M4 20V12M8 20V6M12 20V9M16 20V6M20 20V13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-1aaed699" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-058c6edc" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-2bd36a34" viewBox="0 0 24 24"><path d="M3 17l4 4h14M8.5 17.5l9.5-9.5-3-3-9.5 9.5 3 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-b7cff2fa" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-a3aff710" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a5 5 0 0 1 0 10h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-8027c8be" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a5 5 0 0 0 0 10h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-14aa01ed" viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-fe01497f" viewBox="0 0 24 24"><path d="M12 2v8M9 7l3 3 3-3M4 14l8 4 8-4M4 18l8 4 8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-dacff5f2" viewBox="0 0 24 24"><path d="M12 14V4M8 8l4-4 4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-4a39cedc" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6m4-6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-06e3a0ce" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-3d0e1aba" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-75220d21" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></symbol>
+    <symbol id="ic-8901d0d3" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></symbol>
+    <symbol id="ic-b01ef826" viewBox="0 0 24 24"><path d="M7 5h2v14H7zM20 5 9 12l11 7z"/></symbol>
+    <symbol id="ic-e6f90ad3" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M8 11h6"/></symbol>
+    <symbol id="ic-ca830299" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M11 8v6M8 11h6"/></symbol>
+    <symbol id="ic-236f6654" viewBox="0 0 24 24"><path d="M7 5H4v14h3M17 5h3v14h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 9v6M14 9v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-34ad04f3" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="ic-6999667b" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m17 9 4 6M21 9l-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-b730ba1c" viewBox="0 0 24 24"><path d="M3 18C8 6 16 6 21 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="10" r="1.6" fill="currentColor"/><circle cx="16" cy="10" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="ic-018cb5ea" viewBox="0 0 24 24"><path d="M7 5h2v14H7zM20 5 9 12l11 7z" fill="currentColor"/></symbol>
+    <symbol id="ic-22fc2f33" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></symbol>
+    <symbol id="ic-8e74e6e1" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m21 21-4-4M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-e1580580" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m21 21-4-4M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-9e12ff76" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
     <div class="app">
       <header class="topbar">
         <div class="brand">
@@ -55,30 +164,10 @@
                           <button type="button" class="board-mode-button" data-board-mode-target="studio" aria-label="Passer en mode studio">Studio</button>
                           <button type="button" class="board-mode-button" data-board-mode-target="garage" aria-label="Passer en mode garage">Garage</button>
                           <button id="undoBoardEdit" class="icon-button board-undo-edit-button board-mode-selector-extra" type="button" aria-label="Annuler la dernière modification" title="Annuler la dernière modification (réglage ou suppression de pad)" disabled>
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="18" r="1.7" fill="#fff"/>
-                            </svg>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-da190c2a" xlink:href="#ic-da190c2a"></use></svg>
                           </button>
                           <button id="cancelBoardEdit" class="icon-button board-cancel-edit-button board-mode-selector-extra" type="button" aria-label="Annuler les modifications du board" title="Annuler toutes les modifications du board faites depuis l’entrée en garage (retour à l’état de départ)">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                              <circle cx="18" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                            </svg>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-135b75dc" xlink:href="#ic-135b75dc"></use></svg>
                           </button>
                         </div>
             <button class="board-section-toggle board-info-section-toggle" type="button" id="boardInfoSectionToggle" aria-expanded="false">
@@ -95,10 +184,7 @@
               </dl>
               <div class="board-info-actions">
                 <button id="boardInfoNotice" class="icon-button" type="button" aria-label="Notice du board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 3h9l3 3v15H6V3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M14 3v4h4M9 11h6M9 15h6M9 19h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-3acdc5f3" xlink:href="#ic-3acdc5f3"></use></svg>
                 </button>
               </div>
             </div>
@@ -108,37 +194,22 @@
             </button>
             <div class="board-version-row" hidden>
               <button id="saveVersion" class="icon-button board-history-button" type="button" aria-label="Sauvegarder une version locale du board courant">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 4h12l2 2v14H5V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M8 4v6h8V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-55bf70f1" xlink:href="#ic-55bf70f1"></use></svg>
               </button>
               <button id="renameVersion" class="icon-button board-history-button" type="button" aria-label="Renommer la version sélectionnée">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M8 10h5M8 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36400957" xlink:href="#ic-36400957"></use></svg>
               </button>
               <button id="archiveVersion" class="icon-button board-history-button" type="button" aria-label="Archiver ou désarchiver la version sélectionnée">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ae8f5244" xlink:href="#ic-ae8f5244"></use></svg>
               </button>
               <button id="versionNotes" class="icon-button board-history-button version-notes-button" type="button" aria-label="Notes de la version sélectionnée" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 5h16v11H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M8 9h8M8 13h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9e7e91b7" xlink:href="#ic-9e7e91b7"></use></svg>
               </button>
               <select id="versionSelect" class="version-select board-history-button" aria-label="Version à restaurer">
                 <option value="">Versions</option>
               </select>
               <button id="deleteVersion" class="icon-button board-history-button danger-button" type="button" aria-label="Supprimer la version sélectionnée">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
               </button>
             </div>
             <button class="board-section-toggle board-manage-section-toggle" type="button" id="boardManageSectionToggle" aria-expanded="false">
@@ -152,68 +223,32 @@
               </label>
               <div class="board-center-actions">
                 <button id="addPad" class="icon-button" type="button" aria-label="Ajouter un pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7e65dd67" xlink:href="#ic-7e65dd67"></use></svg>
                 </button>
                 <button id="addBoard" class="icon-button" type="button" aria-label="Ajouter un board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor"/>
-                    <path d="M16 13v8M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ee4ee409" xlink:href="#ic-ee4ee409"></use></svg>
                 </button>
                 <button id="duplicateBoard" class="icon-button duplicate-board-button" type="button" aria-label="Dupliquer le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor"/>
-                    <rect x="11" y="11" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                    <rect x="14.5" y="14.5" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b4559364" xlink:href="#ic-b4559364"></use></svg>
                 </button>
                 <button id="relinkAudioFolder" class="icon-button board-transfer-button" type="button" aria-label="Sélectionner un dossier de sons">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="15" cy="14" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="m17.3 16.3 2.7 2.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c2b7c53f" xlink:href="#ic-c2b7c53f"></use></svg>
                 </button>
                 <button id="relinkVideoFolder" class="icon-button board-transfer-button" type="button" aria-label="Sélectionner un dossier de vidéos">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M10 11v6l6-3-6-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5a00c86f" xlink:href="#ic-5a00c86f"></use></svg>
                 </button>
                 <button id="exportBoard" class="icon-button board-transfer-button" type="button" aria-label="Exporter le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9c2d9615" xlink:href="#ic-9c2d9615"></use></svg>
                 </button>
                 <button id="importBoard" class="icon-button board-transfer-button" type="button" aria-label="Importer un board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8487e55d" xlink:href="#ic-8487e55d"></use></svg>
                 </button>
                 <button id="boardInfoAudioLibrary" class="icon-button audio-library-button" type="button" aria-label="Sons stockés">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5f10c4cc" xlink:href="#ic-5f10c4cc"></use></svg>
                   <span id="boardInfoAudioLibraryBadge" class="audio-library-badge" hidden>0</span>
                 </button>
                 <button id="boardInfoDelete" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </button>
               </div>
             </div>
@@ -225,12 +260,7 @@
             <div class="board-filter-row">
               <div class="skin-select board-skin-select">
                 <button id="openSkinEditorButton" class="icon-button" type="button" aria-label="Éditeur de skin">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
-                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
-                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eca1e8df" xlink:href="#ic-eca1e8df"></use></svg>
                 </button>
                 <select id="skinSelect" aria-label="Skin">
                   <option value="basic">Basic/Custom</option>
@@ -268,10 +298,7 @@
               </div>
               <div class="board-action-grid">
                 <button id="stageMode" class="icon-button stage-button board-mode-legacy" type="button" aria-label="Mode plein écran scène" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-778408c7" xlink:href="#ic-778408c7"></use></svg>
                 </button>
                 <button id="stageLock" class="icon-button stage-lock-button" type="button" aria-label="Verrouiller le mode scène" aria-pressed="false">
                   <svg class="lock-open-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -294,17 +321,11 @@
               </div>
             </div>
             <div class="board-extent-row" title="Étendue du board : réduit ou agrandit les marges latérales">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 5v14M21 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M7 12h10M7 12l3-3m-3 3 3 3M17 12l-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-64113013" xlink:href="#ic-64113013"></use></svg>
               <input id="boardExtent" type="range" min="960" max="2560" step="20" value="1280" aria-label="Étendue du board (largeur des marges latérales)">
             </div>
             <div class="pad-compactness-row" title="Compacité des pads : réduit la hauteur des pads jusqu'à une forme carrée">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 3v18M19 3v18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M12 8v8M12 8l-3 3m3-3 3 3M12 16l-3-3m3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-43b9d8d7" xlink:href="#ic-43b9d8d7"></use></svg>
               <input id="padCompactness" type="range" min="90" max="260" step="4" value="260" aria-label="Compacité des pads (hauteur)">
             </div>
             </div>
@@ -323,18 +344,14 @@
                   <button class="tag-filter-logic-btn" data-logic="and" type="button">ET</button>
                 </div>
                 <button id="filterInvertBtn" class="tag-filter-logic-btn filter-invert-btn" type="button" aria-label="Inverser la sélection" title="Inverser la sélection : sélectionne les pads non sélectionnés">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ac29517e" xlink:href="#ic-ac29517e"></use></svg>
                 </button>
                 <button id="filterManualSelectBtn" class="tag-filter-logic-btn filter-manual-select-btn" type="button" aria-label="Sélection manuelle : cliquer les pads pour les ajouter ou les retirer" title="Sélection manuelle : cliquer les pads pour les ajouter ou les retirer de la sélection" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 3.5 17 12l-4.6 1.3L15 19l-2.4 1-2.6-5.7L6 17.5V3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-1f2dd5c6" xlink:href="#ic-1f2dd5c6"></use></svg>
                 </button>
                 <span id="filterCompactCount" class="filter-compact-count"></span>
                 <button id="filterTousBtn" class="icon-button filter-tous-btn" type="button" aria-label="Effacer la sélection">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-241ff5f1" xlink:href="#ic-241ff5f1"></use></svg>
                 </button>
                 <button id="filterCompactToggle" class="icon-button filter-compact-toggle" type="button" aria-label="Masquer les pads non sélectionnés">
                   <svg class="compact-icon-hide" viewBox="0 0 24 24" aria-hidden="true">
@@ -409,11 +426,7 @@
                 <span class="random-group-inline-label">max.</span>
                 <input id="randomGroupCount" type="number" min="1" max="12" value="2" aria-label="Nombre maximum de pads simultanés">
                 <button id="randomGroupToggle" class="icon-button" type="button" aria-label="Lancer la random playlist" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f7dd6a71" xlink:href="#ic-f7dd6a71"></use></svg>
                 </button>
               </span>
               <label class="random-group-row random-group-row-avoid-repeat">
@@ -426,33 +439,17 @@
           <div class="master-corner-row">
             <div class="master-corner-buttons">
               <button id="openCueDialog" class="icon-button cue-window-button" type="button" aria-label="Réglage des cues">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a43e6e48" xlink:href="#ic-a43e6e48"></use></svg>
               </button>
               <button id="patchBay" class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-d554dad1" xlink:href="#ic-d554dad1"></use></svg>
               </button>
               <button id="masterAudio" class="icon-button master-audio-button" type="button" aria-label="Audio master">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
               </button>
               <button id="remoteControlButton" class="icon-button remote-control-button" type="button" aria-label="Contrôle à distance" aria-pressed="false">
                 <span id="remoteControlIndicator" class="remote-control-indicator" aria-hidden="true"></span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="5" y="7" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M9 21h6M12 17v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M9 11.5a3 3 0 0 1 6 0M12 13.5v.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-296b4542" xlink:href="#ic-296b4542"></use></svg>
               </button>
               <button id="masterHelp" class="icon-button help-button master-help-button" type="button" aria-label="Aide Master">
                 <svg viewBox="6 5 12 15" aria-hidden="true">
@@ -465,9 +462,7 @@
             <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
               <span>Stop global</span>
               <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
               </button>
             </div>
             <label class="master-control group-stop-control">
@@ -477,10 +472,7 @@
                   <option value="">Tags</option>
                 </select>
                 <button id="stopGroup" class="danger-button icon-button" type="button" aria-label="Arrêter le groupe">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c3a70c54" xlink:href="#ic-c3a70c54"></use></svg>
                 </button>
               </span>
             </label>
@@ -488,10 +480,7 @@
               <span>Mute global</span>
               <span class="group-stop-row">
                 <button id="masterMute" class="danger-button icon-button" type="button" aria-label="Couper le son master" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path class="master-mute-cross" d="M17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-80649e34" xlink:href="#ic-80649e34"></use></svg>
                 </button>
               </span>
             </label>
@@ -502,37 +491,23 @@
           <h2 class="live-tools-title">Cues</h2>
           <div class="cue-live-row" aria-label="Cues">
             <button id="cueEditor" class="icon-button cue-editor-button" type="button" aria-label="Activer les cues" aria-pressed="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
             </button>
             <button id="resetCuePosition" class="icon-button cue-reset-button" type="button" aria-label="Revenir au début des cues">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-05c167af" xlink:href="#ic-05c167af"></use></svg>
             </button>
             <button id="cueRun" class="icon-button cue-run-button" type="button" aria-label="Lancer le cue courant">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
             </button>
             <button id="cueNext" class="icon-button cue-next-button" type="button" aria-label="Cue suivante">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 5v14l8-7-8-7Z" fill="currentColor"/>
-                <path d="M13 5v14l8-7-8-7Z" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-65d63318" xlink:href="#ic-65d63318"></use></svg>
             </button>
             <span id="cueStatus" class="cue-status">Pas de cues</span>
           </div>
           <div class="xfade-live-row" aria-label="Crossfade live">
             <span class="xfade-live-title">Crossfade</span>
             <button id="showCables" class="icon-button show-cables-button" type="button" aria-label="Xfade armé">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
             </button>
             <button id="cuesHelp" class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade">
               <svg viewBox="6 5 12 15" aria-hidden="true">
@@ -540,9 +515,7 @@
               </svg>
             </button>
             <button id="cueStopAll" class="danger-button icon-button cue-stop-all-button" type="button" aria-label="Stop global">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
             </button>
           </div>
         </section>
@@ -555,11 +528,7 @@
            tant que le transform est actif — d'où le bouton qui se déplaçait
            puis revenait à sa position au relâchement de la compensation. -->
       <button id="openAppNotice" class="icon-button app-notice-button" type="button" aria-label="Notice de l’application">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="8" r="1.1" fill="currentColor"/>
-          <path d="M12 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cbfc4d26" xlink:href="#ic-cbfc4d26"></use></svg>
       </button>
 
       <!-- Écho du statut (#audioStatus) visible même en scrollant : #audioStatus
@@ -587,10 +556,7 @@
           <div class="pad-play-row">
             <span class="pad-shortcut" data-shortcut></span>
             <span class="pad-type" data-pad-type aria-label="Audio" title="Audio">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-91d38a58" xlink:href="#ic-91d38a58"></use></svg>
             </span>
             <button class="pad-trigger" type="button" data-action="play">
               <span class="visual-preview" data-visual-preview aria-hidden="true"></span>
@@ -600,17 +566,10 @@
               </span>
             </button>
               <span class="visual-toggle-button" role="button" tabindex="0" data-action="visual-toggle" aria-label="Masquer l’image du pad" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-1cf0e48f" xlink:href="#ic-1cf0e48f"></use></svg>
               </span>
               <button class="pad-note-button" type="button" data-action="note" aria-label="Pense-bête">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <ellipse cx="8.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <ellipse cx="15.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M10 12.5l-2 5.5M14 12.5l2 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-be1b112f" xlink:href="#ic-be1b112f"></use></svg>
               </button>
               <span class="pad-time" data-time>--:--</span>
               <span class="pad-crossfade-flash" data-crossfade-flash aria-hidden="true"></span>
@@ -641,20 +600,13 @@
             <span>Nom</span>
             <input type="text" maxlength="48" data-name>
             <button class="drag-handle" type="button" data-action="drag" aria-label="Déplacer le pad">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
-                <circle cx="15" cy="6" r="1.5" fill="currentColor"/>
-                <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
-                <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
-                <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
-                <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-918426a9" xlink:href="#ic-918426a9"></use></svg>
             </button>
             <div class="tag-field">
               <span>Tags</span>
               <div class="pad-tags-chips" data-tags-chips></div>
               <button class="tags-add-btn" type="button" aria-label="Ajouter des tags" aria-expanded="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><use href="#ic-986fd925" xlink:href="#ic-986fd925"></use></svg>
               </button>
               <input type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
             </div>
@@ -695,10 +647,7 @@
             </div>
             <label class="normalize-field">
               <span class="field-title">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M13 9h8M13 15h8M17 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b24f259e" xlink:href="#ic-b24f259e"></use></svg>
                 Normalisation
               </span>
               <input type="checkbox" data-normalize>
@@ -706,10 +655,7 @@
             </label>
             <div class="crossfade-field" aria-label="Crossfade du pad">
               <span class="field-title">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h3c4 0 5 10 10 10h3M4 17h3c4 0 5-10 10-10h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M17 4l3 3-3 3M17 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-30113054" xlink:href="#ic-30113054"></use></svg>
                 Crossfade
               </span>
               <label>
@@ -757,39 +703,24 @@
           <div class="pad-live-row">
             <div class="control-group live-button-group" aria-label="Contrôles live">
               <button type="button" data-mode="oneshot" aria-label="Relance le son depuis le début">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
               </button>
               <button type="button" data-mode="toggle" aria-label="Stoppe puis reprend au même endroit">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-0a66958a" xlink:href="#ic-0a66958a"></use></svg>
               </button>
               <button class="danger-button pad-stop-button" type="button" data-action="stop" aria-label="Stop">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
               </button>
             </div>
             <div class="control-group secondary-live-group" aria-label="Contrôles live secondaires">
               <button class="pad-cue-button" type="button" data-action="cue-preview" aria-label="Pré-écoute Cue">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-91d38a58" xlink:href="#ic-91d38a58"></use></svg>
               </button>
               <button class="pad-audio-button" type="button" data-action="audio" aria-label="Réglages audio">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
               </button>
               <button class="pad-mute-button" type="button" data-action="mute" aria-label="Mute/demute">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="6" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ce447c4d" xlink:href="#ic-ce447c4d"></use></svg>
               </button>
             </div>
           </div>
@@ -797,50 +728,28 @@
           <div class="pad-action-line">
             <div class="control-group manage-group" aria-label="Gestion">
               <button class="record-button" type="button" data-action="record" aria-label="Enregistrer au micro">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-77cf59a3" xlink:href="#ic-77cf59a3"></use></svg>
               </button>
               <button type="button" data-action="load" aria-label="Importer depuis Fichiers">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3v11m0-11 4 4m-4-4-4 4M5 14v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5ed5d40e" xlink:href="#ic-5ed5d40e"></use></svg>
               </button>
               <button class="duck-button" type="button" data-action="duck" aria-label="Duck trigger" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-fc7b2b1d" xlink:href="#ic-fc7b2b1d"></use></svg>
               </button>
               <button class="loop-button" type="button" data-action="loop" aria-label="Loop" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-d29ad7ed" xlink:href="#ic-d29ad7ed"></use></svg>
               </button>
               <button class="pad-delete-button" type="button" data-action="delete-pad" aria-label="Supprimer le pad">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
               </button>
               <button type="button" data-action="visual-image" aria-label="Changer l’aspect du pad">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="8.5" cy="9.5" r="1" fill="currentColor"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-07b08132" xlink:href="#ic-07b08132"></use></svg>
               </button>
               <button type="button" data-action="duplicate-pad" aria-label="Dupliquer le pad">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-122f1246" xlink:href="#ic-122f1246"></use></svg>
               </button>
               <button type="button" data-action="transfer-pad" aria-label="Copier ou déplacer vers un autre board">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 7h6l2 2h10v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M8 14h8m0 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a0a2161e" xlink:href="#ic-a0a2161e"></use></svg>
               </button>
             </div>
           </div>
@@ -866,9 +775,7 @@
         <div class="help-head">
           <h2 id="helpTitle">Aide</h2>
           <button id="closeHelp" class="icon-button" type="button" aria-label="Fermer l’aide">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-e2bd1446" xlink:href="#ic-e2bd1446"></use></svg>
           </button>
         </div>
         <div class="help-sections">
@@ -877,43 +784,22 @@
               <h3>Master</h3>
               <dl class="help-grid">
                 <dt aria-label="Tout arrêter">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
                 </dt><dd>Arrête tous les pads en cours.</dd>
                 <dt aria-label="Arrêter un groupe">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                    <path d="M4 4h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c3a70c54" xlink:href="#ic-c3a70c54"></use></svg>
                 </dt><dd>Stop groupé : arrête seulement les pads sélectionnés.</dd>
                 <dt aria-label="Réglage des cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a43e6e48" xlink:href="#ic-a43e6e48"></use></svg>
                 </dt><dd>Réglage des cues.</dd>
                 <dt aria-label="Patch bay crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-d554dad1" xlink:href="#ic-d554dad1"></use></svg>
                 </dt><dd>Ouvre une vue séparée du patch bay crossfade.</dd>
                 <dt aria-label="Audio master">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
                 </dt><dd>Ouvre les réglages audio master.</dd>
                 <dt aria-label="Lancer la random playlist">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f7dd6a71" xlink:href="#ic-f7dd6a71"></use></svg>
                 </dt><dd>Random playlist : choisir un tag (ou « Tous » pour tous les pads audio du board), régler le nombre de pads simultanés (min et max — un nombre est tiré au hasard entre les deux à chaque lancement), puis lancer. Pioche sans répétition parmi les pads audio du groupe choisi, en remplaçant chaque pad dès qu'il se termine. Reclic pour arrêter. Le crossfade automatique et le crossfade manuel (armé) sont désactivés tant que la playlist tourne.</dd>
               </dl>
             </section>
@@ -922,78 +808,40 @@
               <h3>Audio (master)</h3>
               <dl class="help-grid">
                 <dt aria-label="Sortie master">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 7h5M19 4l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-78c9a1d8" xlink:href="#ic-78c9a1d8"></use></svg>
                 </dt><dd>Choisit le périphérique de sortie audio principal.</dd>
                 <dt aria-label="Pré-écoute cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 13v-2a7 7 0 0 1 14 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M5 13h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM19 13h-3v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-333527e4" xlink:href="#ic-333527e4"></use></svg>
                 </dt><dd>Choisit une sortie audio séparée pour pré-écouter les cues.</dd>
                 <dt aria-label="Entrée micro">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-77cf59a3" xlink:href="#ic-77cf59a3"></use></svg>
                 </dt><dd>Sélectionne le micro utilisé pour le ducking vocal.</dd>
                 <dt aria-label="Fade in global">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4776dc86" xlink:href="#ic-4776dc86"></use></svg>
                 </dt><dd>Règle la durée de fade in globale.</dd>
                 <dt aria-label="Fade out global">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8a4bfbe4" xlink:href="#ic-8a4bfbe4"></use></svg>
                 </dt><dd>Règle la durée de fade out globale.</dd>
                 <dt aria-label="Crossfade armé">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
                 </dt><dd>Règle la durée du fondu enchaîné entre pads armés.</dd>
                 <dt aria-label="Alerte fin de lecture">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-53eb395a" xlink:href="#ic-53eb395a"></use></svg>
                 </dt><dd>Règle la durée du clignotement de fin de lecture.</dd>
                 <dt aria-label="Ducking global">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-fc7b2b1d" xlink:href="#ic-fc7b2b1d"></use></svg>
                 </dt><dd>Règle la valeur de ducking globale.</dd>
                 <dt aria-label="Reverb globale">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 15c3-4 5-4 8 0s5 4 8 0M4 9c3 4 5 4 8 0s5-4 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M12 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-0500edba" xlink:href="#ic-0500edba"></use></svg>
                 </dt><dd>Règle la reverb globale.</dd>
                 <dt aria-label="Compresseur / limiteur">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20V12M8 20V6M12 20V9M16 20V6M20 20V13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M3 8h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 3"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-979b2c46" xlink:href="#ic-979b2c46"></use></svg>
                 </dt><dd>Preset de compression master (Broadcast = limiteur), avec compensation de gain automatique.</dd>
                 <dt aria-label="Égalisation globale">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 4v16M12 4v16M18 4v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="6" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="12" cy="15" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="18" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7fc6618b" xlink:href="#ic-7fc6618b"></use></svg>
                 </dt><dd>Règle l’égalisation globale.</dd>
                 <dt aria-label="Raccourcis clavier">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9116fd8b" xlink:href="#ic-9116fd8b"></use></svg>
                 </dt><dd>Gère les raccourcis clavier pour déclencher les pads.</dd>
               </dl>
             </section>
@@ -1002,81 +850,47 @@
               <h3>Board (studio)</h3>
               <dl class="help-grid">
                 <dt aria-label="Sauvegarder une version">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 4h12l2 2v14H5V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M8 4v6h8V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-55bf70f1" xlink:href="#ic-55bf70f1"></use></svg>
                 </dt><dd>Sauvegarde une version locale du board courant.</dd>
                 <dt aria-label="Restaurer une version">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12 8v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bcaaa5c9" xlink:href="#ic-bcaaa5c9"></use></svg>
                 </dt><dd>Restaure la version sélectionnée (max 8 versions, hors archives).</dd>
                 <dt aria-label="Renommer une version">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h10l6 5-6 5H4V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M8 10h5M8 14h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36400957" xlink:href="#ic-36400957"></use></svg>
                 </dt><dd>Renomme la version sélectionnée.</dd>
                 <dt aria-label="Archiver une version">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="7" width="16" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M7 7V5h10v2M8 12h8M12 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="12" cy="15.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ae8f5244" xlink:href="#ic-ae8f5244"></use></svg>
                 </dt><dd>Archive une version pour éviter son écrasement.</dd>
                 <dt aria-label="Supprimer une version">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </dt><dd>Supprime la version sélectionnée.</dd>
                 <dt aria-label="Skin">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
-                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
-                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eca1e8df" xlink:href="#ic-eca1e8df"></use></svg>
                 </dt><dd>Change l’apparence du board (skin). <strong>Basic/Custom</strong> affiche une illustration (image, dessin ou couleur), masque les badges d’options audio et les contrôles pour un rendu épuré ; le bouton œil masque l’illustration et revient à l’affichage standard.</dd>
               </dl>
 
               <h3 style="margin-top: 16px;">Sélection</h3>
               <dl class="help-grid">
                 <dt aria-label="Filtre par tag">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6v5.2a2 2 0 0 0 .6 1.4l7.8 7.8a2 2 0 0 0 2.8 0l4.2-4.2a2 2 0 0 0 0-2.8L11.6 5.6A2 2 0 0 0 10.2 5H5a1 1 0 0 0-1 1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="8" cy="9" r="1.2" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-94682836" xlink:href="#ic-94682836"></use></svg>
                 </dt><dd>Sélectionne visuellement les pads par type, option ou tag.</dd>
                 <dt aria-label="OU">OU</dt><dd>Sélectionne les pads ayant <strong>au moins un</strong> des tags choisis.</dd>
                 <dt aria-label="ET">ET</dt><dd>Sélectionne les pads ayant <strong>tous</strong> les tags choisis.</dd>
                 <dt aria-label="Inverser la sélection">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ac29517e" xlink:href="#ic-ac29517e"></use></svg>
                 </dt><dd>Inverse la sélection (sélectionne les pads non sélectionnés).</dd>
                 <dt aria-label="Effacer la sélection">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-241ff5f1" xlink:href="#ic-241ff5f1"></use></svg>
                 </dt><dd>Efface la sélection.</dd>
                 <dt aria-label="Masquer les pads non sélectionnés">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-47c7b4c5" xlink:href="#ic-47c7b4c5"></use></svg>
                 </dt><dd>Masque les pads non sélectionnés (n’affiche que la sélection).</dd>
               </dl>
 
               <h3 style="margin-top: 16px;">Board (scène)</h3>
               <dl class="help-grid">
                 <dt aria-label="Verrouiller le mode scène">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f58ebccb" xlink:href="#ic-f58ebccb"></use></svg>
                 </dt><dd>Dé/verrouille la sortie du mode scène avec un mot de passe.</dd>
                 <dt aria-label="Effets live d'un pad">ƒ</dt><dd>Double-clic sur une zone vide en haut d’un pad : bascule vers ses effets live (distortion, filtre, flanger, delay), même quand il ne joue pas.</dd>
               </dl>
@@ -1086,107 +900,43 @@
               <h3>Board (garage)</h3>
               <dl class="help-grid">
                 <dt aria-label="Ajouter un pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7e65dd67" xlink:href="#ic-7e65dd67"></use></svg>
                 </dt><dd>Ajoute un pad au board courant.</dd>
                 <dt aria-label="Ajouter un board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor"/>
-                    <path d="M16 13v8M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ee4ee409" xlink:href="#ic-ee4ee409"></use></svg>
                 </dt><dd>Crée un nouveau board : nombre de pads, nom et créateur sont demandés ensemble. Le créateur n'est saisi qu'à cet instant et ne peut plus être changé ensuite.</dd>
                 <dt aria-label="Dupliquer le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor"/>
-                    <rect x="11" y="11" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                    <rect x="14.5" y="14.5" width="8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b4559364" xlink:href="#ic-b4559364"></use></svg>
                 </dt><dd>Duplique le board courant.</dd>
                 <dt aria-label="Sélectionner un dossier de sons">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="15" cy="14" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="m17.3 16.3 2.7 2.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c2b7c53f" xlink:href="#ic-c2b7c53f"></use></svg>
                 </dt><dd>Relie le board à un dossier local pour retrouver les fichiers audio.</dd>
                 <dt aria-label="Sélectionner un dossier de vidéos">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 6h6l2 2h10v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M10 11v6l6-3-6-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5a00c86f" xlink:href="#ic-5a00c86f"></use></svg>
                 </dt><dd>Relie le board à un dossier local pour retrouver les fichiers vidéo.</dd>
                 <dt aria-label="Annuler la dernière modification">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="18" r="1.7" fill="#fff"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-da190c2a" xlink:href="#ic-da190c2a"></use></svg>
                 </dt><dd>Annule le dernier réglage modifié ou le dernier pad supprimé.</dd>
                 <dt aria-label="Annuler les modifications du board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="6" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="6" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="12" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="6" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="12" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                    <circle cx="18" cy="18" r="1.7" fill="currentColor" opacity="0.3"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-135b75dc" xlink:href="#ic-135b75dc"></use></svg>
                 </dt><dd>Annule toutes les modifications et restaure le board tel qu’il était en entrant.</dd>
                 <dt aria-label="Notice du board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 3h9l3 3v15H6V3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M14 3v4h4M9 11h6M9 15h6M9 19h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-3acdc5f3" xlink:href="#ic-3acdc5f3"></use></svg>
                 </dt><dd>Écrit une notice du board courant aux formats DOC et PDF.</dd>
                 <dt aria-label="Exporter le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 21V10m0 11-4-4m4 4 4-4M5 12V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9c2d9615" xlink:href="#ic-9c2d9615"></use></svg>
                 </dt><dd>Exporte le board : choisir Réglages (sans les sons) ou Réglages + sons. Les vidéos ne sont jamais incluses : les conserver à part puis les relier après import via « Sélectionner un dossier de vidéos ».</dd>
                 <dt aria-label="Importer un board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3v11m0-11-4 4m4-4 4 4M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8487e55d" xlink:href="#ic-8487e55d"></use></svg>
                 </dt><dd>Importe un board au format json, avec ou sans audio.</dd>
                 <dt aria-label="Éditeur de skin">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <circle cx="8" cy="10" r="1" fill="currentColor"/>
-                    <circle cx="12" cy="7" r="1" fill="currentColor"/>
-                    <circle cx="16" cy="10" r="1" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eca1e8df" xlink:href="#ic-eca1e8df"></use></svg>
                 </dt><dd>Ouvre l’éditeur de skin (couleurs, harmonie, polices).</dd>
                 <dt aria-label="Sons stockés">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5f10c4cc" xlink:href="#ic-5f10c4cc"></use></svg>
                 </dt><dd>Liste des sons (utilisés ou non).  Ils sont stockés dans le navigateur, pas sur le Finder : pour une sauvegarde durable, utiliser « Exporter le board » (option Réglages + sons)</dd>
                 <dt aria-label="Supprimer le board">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </dt><dd>Supprime le board courant après confirmation.</dd>
               </dl>
             </section>
@@ -1197,44 +947,25 @@
               <h3>Pad (studio)</h3>
               <dl class="help-grid">
                 <dt aria-label="Pense-bête du pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <ellipse cx="8.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <ellipse cx="15.5" cy="8" rx="3.5" ry="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M10 12.5l-2 5.5M14 12.5l2 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-be1b112f" xlink:href="#ic-be1b112f"></use></svg>
                 </dt><dd>Ouvre le pense-bête du pad.</dd>
                 <dt aria-label="One shot">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 5v14M10 7l8 5-8 5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-3f76db5c" xlink:href="#ic-3f76db5c"></use></svg>
                 </dt><dd>Relance le son depuis le début.</dd>
                 <dt aria-label="Toggle">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-0a66958a" xlink:href="#ic-0a66958a"></use></svg>
                 </dt><dd>Stoppe puis reprend au même endroit.</dd>
                 <dt aria-label="Stop">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
                 </dt><dd>Arrête le pad selon les règles audio.</dd>
                 <dt aria-label="Pré-écoute Cue">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-91d38a58" xlink:href="#ic-91d38a58"></use></svg>
                 </dt><dd>Pré-écoute sur une sortie séparée (selon navigateur).</dd>
                 <dt aria-label="Réglages audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
                 </dt><dd>Ouvre les réglages audio du pad.</dd>
                 <dt aria-label="Mute demute">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="6" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ce447c4d" xlink:href="#ic-ce447c4d"></use></svg>
                 </dt><dd>Mute/demute le pad.</dd>
               </dl>
 
@@ -1251,27 +982,16 @@
               <h4>Cues</h4>
               <dl class="help-grid">
                 <dt aria-label="Activer les cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
                 </dt><dd>Active ou désactive les cues.</dd>
                 <dt aria-label="Cue suivante">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
-                <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-093913f7" xlink:href="#ic-093913f7"></use></svg>
                 </dt><dd>Affiche le cue suivant sans le lancer.</dd>
                 <dt aria-label="Lancer le cue courant">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
                 </dt><dd>Lance le cue courant.</dd>
                 <dt aria-label="Revenir au début des cues">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 6 8 12l10 6V6Z" fill="currentColor"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-05c167af" xlink:href="#ic-05c167af"></use></svg>
                 </dt><dd>Replace la séquence cue au début.</dd>
                 <dt aria-label="Ajouter une étape cue">＋</dt><dd>Ajoute une étape à la ligne de temps.</dd>
               </dl>
@@ -1284,10 +1004,7 @@
               <h4>Crossfade</h4>
               <dl class="help-grid">
                 <dt aria-label="Afficher le câblage crossfade">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
                 </dt><dd>Xfade armé : prépare un fondu enchaîné manuel. Si un seul pad audio joue, il devient la source. S'il y en a plusieurs, choisissez d'abord la source à fondre, puis le pad cible. Le pad cible démarre en fondu entrant pendant que la source baisse puis s'arrête. Appuyez sur Échap ou cliquez de nouveau sur Xfade pour annuler. Aucun pad vide ou non audio ne peut être cible. La durée utilisée est celle réglée dans Audio Master.</dd>
               </dl>
             </section>
@@ -1296,38 +1013,19 @@
               <h3>Pad (garage)</h3>
               <dl class="help-grid">
                 <dt aria-label="Image du pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="8.5" cy="9.5" r="1" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-07b08132" xlink:href="#ic-07b08132"></use></svg>
                 </dt><dd>Affecte image, dessin ou couleur au pad (skin Basic/Custom).</dd>
                 <dt aria-label="Dupliquer le pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-122f1246" xlink:href="#ic-122f1246"></use></svg>
                 </dt><dd>Duplique le pad courant.</dd>
                 <dt aria-label="Transférer le pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 7h6l2 2h10v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M8 14h8m0 0-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a0a2161e" xlink:href="#ic-a0a2161e"></use></svg>
                 </dt><dd>Copie ou déplace ce pad vers un autre board.</dd>
                 <dt aria-label="Déplacer le pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
-                    <circle cx="15" cy="6" r="1.5" fill="currentColor"/>
-                    <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
-                    <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
-                    <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
-                    <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-918426a9" xlink:href="#ic-918426a9"></use></svg>
                 </dt><dd>Réordonne les pads (glisser la poignée).</dd>
                 <dt aria-label="Supprimer le pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </dt><dd>Supprime ce pad après confirmation.</dd>
               </dl>
 
@@ -1336,29 +1034,16 @@
                 <dt aria-label="OU">OU</dt><dd>Sélectionne les pads ayant <strong>au moins un</strong> des tags choisis.</dd>
                 <dt aria-label="ET">ET</dt><dd>Sélectionne les pads ayant <strong>tous</strong> les tags choisis.</dd>
                 <dt aria-label="Inverser la sélection">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ac29517e" xlink:href="#ic-ac29517e"></use></svg>
                 </dt><dd>Inverse la sélection (sélectionne les pads non sélectionnés).</dd>
                 <dt aria-label="Effacer la sélection">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-241ff5f1" xlink:href="#ic-241ff5f1"></use></svg>
                 </dt><dd>Efface la sélection.</dd>
                 <dt aria-label="Masquer les pads non sélectionnés">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-47c7b4c5" xlink:href="#ic-47c7b4c5"></use></svg>
                 </dt><dd>Masque les pads non sélectionnés (n’affiche que la sélection).</dd>
                 <dt aria-label="Modifier">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M14 18h6M17 15v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f131c7a3" xlink:href="#ic-f131c7a3"></use></svg>
                 </dt><dd>Modification groupée des pads sélectionnés.</dd>
               </dl>
 
@@ -1370,30 +1055,16 @@
               <h3>Import</h3>
               <dl class="help-grid">
                 <dt aria-label="Micro">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-77cf59a3" xlink:href="#ic-77cf59a3"></use></svg>
                 </dt><dd>Enregistre au micro, et assigne l'enregistrement au pad (il remplace le son en place). Le contour de l'icône indique l'état : <strong>pointillé</strong> = aucun micro sélectionné, le clic ouvre la fenêtre de choix du micro — il faut ensuite recliquer sur l'icône pour lancer l'enregistrement ; <strong>vert</strong> = micro sélectionné, prêt à enregistrer ; <strong>rouge</strong> = enregistrement en cours, recliquer pour l'arrêter. Le micro choisi est mémorisé d'une session à l'autre et se change dans Audio master (Entrée micro).</dd>
                 <dt aria-label="Importer un fichier audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M10 17V6l9-2v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <ellipse cx="7" cy="17" rx="3" ry="2.5" fill="currentColor"/>
-                    <ellipse cx="16" cy="13" rx="3" ry="2.5" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-adfd964f" xlink:href="#ic-adfd964f"></use></svg>
                 </dt><dd>Importe un fichier audio.</dd>
                 <dt aria-label="Importer un fichier vidéo">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8ccdd672" xlink:href="#ic-8ccdd672"></use></svg>
                 </dt><dd>Importe un fichier vidéo.</dd>
                 <dt aria-label="Lecture de texte">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M14 4v4h4M8 11h8M8 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b2051554" xlink:href="#ic-b2051554"></use></svg>
                 </dt><dd>Importe ou saisit un texte à lire.</dd>
               </dl>
 
@@ -1401,67 +1072,37 @@
               <dl class="help-grid">
                 <dt aria-label="Trim auto">Trim</dt><dd>Détecte et coupe automatiquement les silences en début et fin de son. Le curseur <strong>Sensib.</strong> règle le seuil de détection : plus haut, les sons faibles sont considérés comme du son et sont conservés (on coupe moins) ; plus bas, seuls les passages francs sont gardés (on coupe plus). Ce réglage est commun à l'éditeur audio et mémorisé.</dd>
                 <dt aria-label="Lire / Pause (test)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
                 </dt><dd>Teste les réglages audio (lecture / pause).</dd>
                 <dt aria-label="Éditeur audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b73340f0" xlink:href="#ic-b73340f0"></use></svg>
                 </dt><dd>Ouvre l’éditeur audio (trim, cut, mute, enveloppe).</dd>
                 <dt aria-label="Reset audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a8f37935" xlink:href="#ic-a8f37935"></use></svg>
                 </dt><dd>Réinitialise les paramètres audio du pad.</dd>
                 <dt aria-label="Effacer le média du pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </dt><dd>Efface le média du pad (son, vidéo ou texte).</dd>
                 <dt aria-label="Loop">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-d29ad7ed" xlink:href="#ic-d29ad7ed"></use></svg>
                 </dt><dd>Répète le son en boucle (loop).</dd>
                 <dt aria-label="Reverse">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 8h8a4 4 0 0 1 0 8H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M8 5 5 8l3 3M10 19l-3-3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-2c9bf31e" xlink:href="#ic-2c9bf31e"></use></svg>
                 </dt><dd>Lit le son à l’envers.</dd>
                 <dt aria-label="Fade individuel">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4776dc86" xlink:href="#ic-4776dc86"></use></svg>
                 </dt><dd>Règle la durée de fade in du pad.</dd>
                 <dt aria-label="Fade out individuel">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8a4bfbe4" xlink:href="#ic-8a4bfbe4"></use></svg>
                 </dt><dd>Règle la durée de fade out du pad.</dd>
                 <dt aria-label="Égalisation du pad">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 4v16M12 4v16M18 4v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="6" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="12" cy="15" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="18" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7fc6618b" xlink:href="#ic-7fc6618b"></use></svg>
                 </dt><dd>Règle l’égalisation du pad.</dd>
                 <dt aria-label="Duck trigger">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-fc7b2b1d" xlink:href="#ic-fc7b2b1d"></use></svg>
                 </dt><dd>Règle la valeur de ducking du pad.</dd>
                 <dt aria-label="Crossfade audio">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7h3c4 0 5 10 10 10h3M4 17h3c4 0 5-10 10-10h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 4l3 3-3 3M17 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-30113054" xlink:href="#ic-30113054"></use></svg>
                 </dt><dd>Règle les déclenchements entre pads ou tags (crossfade).</dd>
               </dl>
             </section>
@@ -1480,30 +1121,16 @@
           </div>
           <div class="audio-head-actions">
             <button id="audioRecord" class="icon-button" type="button" aria-label="Enregistrer au micro">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-77cf59a3" xlink:href="#ic-77cf59a3"></use></svg>
             </button>
             <button id="audioImport" class="icon-button" type="button" aria-label="Importer un fichier audio">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M10 17V6l9-2v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <ellipse cx="7" cy="17" rx="3" ry="2.5" fill="currentColor"/>
-                <ellipse cx="16" cy="13" rx="3" ry="2.5" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-adfd964f" xlink:href="#ic-adfd964f"></use></svg>
             </button>
             <button id="audioVideoImport" class="icon-button" type="button" aria-label="Importer un fichier vidéo">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="4" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M16 10l5-3v10l-5-3V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8ccdd672" xlink:href="#ic-8ccdd672"></use></svg>
             </button>
             <button id="audioTextImport" class="icon-button" type="button" aria-label="Importer un fichier texte">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 4h9l3 3v13H6V4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M14 4v4h4M8 11h8M8 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 15a3 3 0 0 1 0 4M20.5 13a6 6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b2051554" xlink:href="#ic-b2051554"></use></svg>
             </button>
             <span class="audio-head-transport" style="display:inline-flex; align-items:center; gap:6px; margin:0 14px;">
               <button id="audioTestPlay" class="icon-button audio-test-play" type="button" aria-label="Lire / Pause (test, sortie cue si sélectionnée)">
@@ -1516,14 +1143,10 @@
               </button>
             </span>
             <button id="audioReset" class="icon-button audio-head-reset" type="button" aria-label="Reset audio">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a8f37935" xlink:href="#ic-a8f37935"></use></svg>
             </button>
             <button id="audioErase" class="icon-button danger-button" type="button" aria-label="Effacer le média du pad">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
             </button>
             <button id="audioHelp" class="icon-button help-button audio-help-button" type="button" aria-label="Aide Réglages audio du pad">
               <svg viewBox="6 5 12 15" aria-hidden="true">
@@ -1559,19 +1182,14 @@
                 <output id="audioAutoTrimSensitivityValue">50</output>
               </label>
               <button id="audioRegionsEdit" class="icon-button audio-head-regions" type="button" aria-label="Éditeur audio (trim, cut, mute, enveloppe)">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 12h2M8 8v8M11 5v14M14 9v6M17 7v10M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b73340f0" xlink:href="#ic-b73340f0"></use></svg>
               </button>
             </div>
           </section>
           <section class="audio-section" aria-label="Normalisation">
             <div class="audio-toggle-row">
               <label class="audio-toggle-block audio-normalize-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M13 9h8M13 15h8M17 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b24f259e" xlink:href="#ic-b24f259e"></use></svg>
                 <span>Normalisation</span>
                 <input id="audioNormalize" type="checkbox">
                 <output id="audioNormalizeValue">1.00x</output>
@@ -1581,17 +1199,12 @@
                 <span>Mono</span>
               </label>
               <label class="audio-toggle-block audio-check-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-d29ad7ed" xlink:href="#ic-d29ad7ed"></use></svg>
                 <span>Loop</span>
                 <input id="audioLoop" type="checkbox">
               </label>
               <label class="audio-toggle-block audio-check-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 8h8a4 4 0 0 1 0 8H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M8 5 5 8l3 3M10 19l-3-3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-2c9bf31e" xlink:href="#ic-2c9bf31e"></use></svg>
                 <span>Reverse</span>
                 <input id="audioReverse" type="checkbox">
               </label>
@@ -1609,20 +1222,14 @@
             <div class="audio-pad-fade-fields" id="audioPadFadeFields">
               <label>
                 <span class="field-title">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4776dc86" xlink:href="#ic-4776dc86"></use></svg>
                   <span id="audioFadeInLabel">Fade in</span>
                 </span>
                 <input id="audioFadeIn" type="number" min="0" max="30" step="1" value="2">
               </label>
               <label>
                 <span class="field-title">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8a4bfbe4" xlink:href="#ic-8a4bfbe4"></use></svg>
                   <span id="audioFadeOutLabel">Fade out</span>
                 </span>
                 <input id="audioFadeOut" type="number" min="0" max="30" step="1" value="2">
@@ -1769,10 +1376,7 @@
           </div>
           <div class="audio-head-actions">
             <button id="keyboardShortcuts" class="icon-button keyboard-shortcuts-button" type="button" aria-label="Raccourcis clavier">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="6" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M7 10h.01M11 10h.01M15 10h.01M18 10h.01M7 14h6M16 14h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9116fd8b" xlink:href="#ic-9116fd8b"></use></svg>
             </button>
             <button id="masterAudioHelp" class="icon-button help-button master-audio-help-button" type="button" aria-label="Aide Audio Master">
               <svg viewBox="6 5 12 15" aria-hidden="true">
@@ -1780,9 +1384,7 @@
               </svg>
             </button>
             <button id="masterAudioReset" class="icon-button" type="button" aria-label="Reset audio master">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7v5h5M5.5 12A7 7 0 1 0 8 6.7L4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-a8f37935" xlink:href="#ic-a8f37935"></use></svg>
             </button>
           </div>
         </div>
@@ -1791,30 +1393,21 @@
             <h3>Périphériques</h3>
             <div class="master-output-selects">
               <label class="master-output-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                  <path d="M16 7h5M19 4l3 3-3 3M16 17h5M19 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eef7654e" xlink:href="#ic-eef7654e"></use></svg>
                 <span>Sortie master :</span>
                 <select id="masterOutputSelect" aria-label="Choisir la sortie audio globale">
                   <option value="">Par défaut</option>
                 </select>
               </label>
               <label class="master-output-field cue-output-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 13v-2a7 7 0 0 1 14 0v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M5 13h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2ZM19 13h-3v6h3a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-333527e4" xlink:href="#ic-333527e4"></use></svg>
                 <span>Pré-écoute cue :</span>
                 <select id="masterCueOutputSelect" aria-label="Choisir la sortie Cue globale">
                   <option value="">Par défaut</option>
                 </select>
               </label>
               <label class="master-output-field">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-77cf59a3" xlink:href="#ic-77cf59a3"></use></svg>
                 <span>Entrée micro :</span>
                 <select id="masterMicrophoneSelect" aria-label="Choisir l’entrée micro">
                   <option value="">Aucun micro sélectionné</option>
@@ -1825,30 +1418,21 @@
           <section class="audio-section master-fade-section" aria-label="Fade master">
             <h3>Fade</h3>
             <label class="master-audio-control" aria-label="Fade in global">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 18c5.5 0 9.5-3.5 16-12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M15 6h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4776dc86" xlink:href="#ic-4776dc86"></use></svg>
               <span>Fade in</span>
               <input id="masterFadeInEnabled" type="checkbox">
               <input id="fadeInSeconds" type="number" min="0" max="30" step="1" value="2">
               <span class="field-unit">secondes</span>
             </label>
             <label class="master-audio-control" aria-label="Fade out global">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6c5.5 0 9.5 3.5 16 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M15 18h5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8a4bfbe4" xlink:href="#ic-8a4bfbe4"></use></svg>
               <span>Fade out</span>
               <input id="masterFadeOutEnabled" type="checkbox">
               <input id="fadeSeconds" type="number" min="0" max="30" step="1" value="2">
               <span class="field-unit">secondes</span>
             </label>
             <label class="master-audio-control" aria-label="Crossfade armé">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 6h3c4 0 4 6 8 6h3M5 18h3c4 0 4-6 8-6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <path d="M18 9l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
               <span>Crossfade armé</span>
               <input id="armedCrossfadeEnabled" type="checkbox" checked>
               <input id="armedCrossfadeSeconds" type="number" min="0" max="30" step="0.5" value="2">
@@ -1858,10 +1442,7 @@
           <section class="audio-section" aria-label="Alerte fin de lecture">
             <h3>Alerte fin</h3>
             <label class="master-audio-control no-check" aria-label="Durée du clignotement rouge de fin de lecture">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-53eb395a" xlink:href="#ic-53eb395a"></use></svg>
               <span>Clignotement de fin</span>
               <input id="endingAlertSeconds" type="number" min="1" max="60" step="1" value="10">
               <span class="field-unit">secondes</span>
@@ -1871,10 +1452,7 @@
           <section class="audio-section" aria-label="Ducking master">
             <h3>Ducking</h3>
             <label class="master-audio-control" aria-label="Ducking global">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 15H2v-6h2l5-4v14l-5-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M16 6v9m0 0-3-3m3 3 3-3M21 18h-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-fc7b2b1d" xlink:href="#ic-fc7b2b1d"></use></svg>
               <span>Ducking</span>
               <input id="masterDuckEnabled" type="checkbox">
               <input id="duckPercent" type="number" min="0" max="100" step="5" value="60">
@@ -1884,9 +1462,7 @@
           <section class="audio-section" aria-label="Panneau d'effets live">
             <h3>Effets live</h3>
             <label class="master-audio-control live-fx-panel-toggle" aria-label="Autoriser le panneau d'effets live des pads">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 20V12M8 20V6M12 20V9M16 20V6M20 20V13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-13b98930" xlink:href="#ic-13b98930"></use></svg>
               <span>Afficher le panneau</span>
               <input id="masterLiveFxPanelEnabled" type="checkbox" checked>
             </label>
@@ -1932,28 +1508,16 @@
         </div>
         <div class="image-tools">
           <button id="imageColorToggle" class="icon-button" type="button" aria-label="Couleur du pad">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3a9 9 0 0 0 0 18h1.2a1.8 1.8 0 0 0 1.2-3.1 1.6 1.6 0 0 1 1.1-2.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <circle cx="8" cy="10" r="1" fill="currentColor"/>
-              <circle cx="12" cy="7" r="1" fill="currentColor"/>
-              <circle cx="16" cy="10" r="1" fill="currentColor"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eca1e8df" xlink:href="#ic-eca1e8df"></use></svg>
           </button>
           <button id="imageLibrary" class="icon-button" type="button" aria-label="Photothèque">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-              <path d="M7 16l3.2-3.2 2.4 2.4 2-2L19 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-1aaed699" xlink:href="#ic-1aaed699"></use></svg>
           </button>
           <button id="imageSketch" class="icon-button" type="button" aria-label="Faire un croquis">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-058c6edc" xlink:href="#ic-058c6edc"></use></svg>
           </button>
           <button id="imageRemove" class="icon-button danger-button" type="button" aria-label="Supprimer l’image">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
           </button>
         </div>
         <div id="imageColorFrame" class="image-color-frame" hidden>
@@ -1985,9 +1549,7 @@
             <button class="sketch-size-btn" data-sketch-size="18" aria-label="Trait épais"><span></span></button>
           </div>
           <button id="sketchEraser" class="icon-button" type="button" aria-label="Gomme" aria-pressed="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 17l4 4h14M8.5 17.5l9.5-9.5-3-3-9.5 9.5 3 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-2bd36a34" xlink:href="#ic-2bd36a34"></use></svg>
           </button>
         </div>
         <div id="imagePreview" class="image-preview" aria-label="Aperçu image"></div>
@@ -2037,7 +1599,7 @@
           <div class="tag-field bulk-tag-field">
             <div id="bulkTagsChips" class="pad-tags-chips"></div>
             <button id="bulkTagsAdd" class="tags-add-btn" type="button" aria-label="Ajouter un tag" aria-expanded="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><use href="#ic-986fd925" xlink:href="#ic-986fd925"></use></svg>
             </button>
             <input id="bulkTags" type="text" maxlength="64" placeholder="ex: intro, voix">
           </div>
@@ -2084,9 +1646,7 @@
                   <button class="sketch-size-btn" data-bulk-sketch-size="18" aria-label="Trait épais"><span></span></button>
                 </div>
                 <button id="bulkSketchEraser" class="icon-button" type="button" aria-label="Gomme" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 17l4 4h14M8.5 17.5l9.5-9.5-3-3-9.5 9.5 3 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-2bd36a34" xlink:href="#ic-2bd36a34"></use></svg>
                 </button>
               </div>
               <canvas id="bulkSketchCanvas" class="bulk-sketch-canvas" width="640" height="640" aria-label="Dessin groupé"></canvas>
@@ -2169,9 +1729,7 @@
             <span><i class="cue-swatch cue-condition"></i>Condition</span>
           </div>
           <button id="closeCueDialog" class="icon-button dialog-close-button" type="button" aria-label="Fermer">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-e2bd1446" xlink:href="#ic-e2bd1446"></use></svg>
           </button>
         </div>
         <div class="cue-timeline-wrap" aria-label="Ligne de temps cues">
@@ -2181,9 +1739,7 @@
         <div class="cue-toolbar">
           <button id="addAllCuePads" class="small-button" type="button">Ajouter tous les pads</button>
           <button id="addCueStep" class="icon-button" type="button" aria-label="Ajouter une étape">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b7cff2fa" xlink:href="#ic-b7cff2fa"></use></svg>
           </button>
           <button id="applyCues" class="small-button" type="button">Enregistrer</button>
           <button id="cancelCues" class="small-button" type="button">Annuler</button>
@@ -2196,9 +1752,7 @@
         <div class="help-head">
           <h2 id="patchBayTitle">Patch bay crossfade</h2>
           <button id="closePatchBay" class="icon-button dialog-close-button" type="button" aria-label="Fermer">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-e2bd1446" xlink:href="#ic-e2bd1446"></use></svg>
           </button>
         </div>
         <p class="patch-bay-subtitle">Câblage crossfade</p>
@@ -2407,38 +1961,26 @@
           <h2 id="skinEditorTitle">Éditeur de skins</h2>
           <div class="skin-editor-header-actions">
             <button id="skinUndo" type="button" title="Annuler (pas à pas)" aria-label="Annuler la dernière modification" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M9 14 4 9l5-5M4 9h10a5 5 0 0 1 0 10h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-a3aff710" xlink:href="#ic-a3aff710"></use></svg>
             </button>
             <button id="skinRedo" type="button" title="Rétablir (pas à pas)" aria-label="Rétablir la modification annulée" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M15 14l5-5-5-5M20 9H10a5 5 0 0 0 0 10h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-8027c8be" xlink:href="#ic-8027c8be"></use></svg>
             </button>
             <button id="saveSkinEditor" type="button">Enregistrer</button>
             <button id="saveSkinEditorAs" type="button">Enregistrer sous…</button>
             <button id="exportSkinEditor" type="button" title="Exporter ce skin dans un fichier" aria-label="Exporter ce skin dans un fichier">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M12 4v10M8 10l4 4 4-4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-14aa01ed" xlink:href="#ic-14aa01ed"></use></svg>
             </button>
             <button id="exportAllSkins" type="button" title="Exporter tous les skins perso dans un fichier" aria-label="Exporter tous les skins perso dans un fichier">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M12 2v8M9 7l3 3 3-3M4 14l8 4 8-4M4 18l8 4 8-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-fe01497f" xlink:href="#ic-fe01497f"></use></svg>
             </button>
             <button id="importSkinEditor" type="button" title="Importer un skin depuis un fichier" aria-label="Importer un skin depuis un fichier">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M12 14V4M8 8l4-4 4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-dacff5f2" xlink:href="#ic-dacff5f2"></use></svg>
             </button>
             <input id="importSkinFile" type="file" accept="application/json,.json" hidden>
             <button id="cancelSkinEditor" type="button">Annuler</button>
             <button id="deleteSkinEditor" type="button" title="Supprimer ce skin" aria-label="Supprimer ce skin">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6m4-6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><use href="#ic-4a39cedc" xlink:href="#ic-4a39cedc"></use></svg>
             </button>
           </div>
         </header>
@@ -2483,10 +2025,7 @@
                   <output id="skinHarmonyLightOutput">0</output>
                 </label>
                 <button id="resetHarmonyAdjust" class="icon-button" type="button" aria-label="Réinitialiser les ajustements" title="Réinitialiser">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-06e3a0ce" xlink:href="#ic-06e3a0ce"></use></svg>
                 </button>
               </div>
               <div class="skin-harmony-types" role="group" aria-label="Harmonie">
@@ -2576,10 +2115,7 @@
                     </label>
                     <div class="board-action-grid">
                       <button class="icon-button stage-button" type="button" aria-label="Mode plein écran scène" data-skin-variable="--color_ui_panel_secondary">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                          <path d="M8 3H4a1 1 0 0 0-1 1v4M16 3h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4M16 21h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          <path d="M9 9h6v6H9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-778408c7" xlink:href="#ic-778408c7"></use></svg>
                       </button>
                       <button class="icon-button help-button board-help-button" type="button" aria-label="Aide" data-skin-variable="--color_ui_help_background">
                         <svg viewBox="6 5 12 15" aria-hidden="true" data-skin-variable="--color_ui_help">
@@ -2587,9 +2123,7 @@
                         </svg>
                       </button>
                       <button class="icon-button pads-edit-button" type="button" aria-label="Mode edit des pads" data-skin-variable="--color_ui_panel_secondary">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-3d0e1aba" xlink:href="#ic-3d0e1aba"></use></svg>
                       </button>
                       <div class="board-layout-controls" aria-label="Disposition des pads" data-skin-variable="--color_ui_panel_secondary">
                         <select aria-label="Colonnes aperçu">
@@ -2622,19 +2156,10 @@
                     </div>
                   </div>
                   <button class="icon-button patch-bay-button" type="button" aria-label="Patch bay crossfade" data-skin-variable="--color_ui_panel_secondary">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                      <path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      <circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                      <path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-d554dad1" xlink:href="#ic-d554dad1"></use></svg>
                   </button>
                   <button class="icon-button master-audio-button" type="button" aria-label="Audio master" data-skin-variable="--color_ui_panel_secondary">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                      <path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      <circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
                   </button>
                   <button class="icon-button help-button master-help-button" type="button" aria-label="Aide Master" data-skin-variable="--color_ui_help_background">
                     <svg viewBox="6 5 12 15" aria-hidden="true" data-skin-variable="--color_ui_help">
@@ -2644,9 +2169,7 @@
                   <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
                     <span data-skin-variable="--color_ui_text_muted">Stop global</span>
                     <button class="danger-button icon-button" type="button" aria-label="Tout arrêter" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
                     </button>
                   </div>
                 </div>
@@ -2655,30 +2178,19 @@
                   <h2 class="live-tools-title" data-skin-variable="--color_ui_text">Cues</h2>
                   <div class="cue-live-row" aria-label="Cues" data-skin-variable="--color_ui_panel">
                     <button class="icon-button cue-editor-button" type="button" aria-label="Activer les cues" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <path d="M5 6h9M5 12h7M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M17 8l4 4-4 4M14 12h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
                     </button>
                     <button class="icon-button cue-run-button" type="button" aria-label="Lancer le cue courant" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <path d="M8 5v14l11-7L8 5Z" fill="currentColor"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
                     </button>
                     <button class="icon-button cue-next-button" type="button" aria-label="Cue suivante" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <path d="M8 5v14l8-7-8-7Z" fill="currentColor"/>
-                        <path d="M18 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-093913f7" xlink:href="#ic-093913f7"></use></svg>
                     </button>
                     <span class="cue-status" data-skin-variable="--color_ui_text_muted">Pas de cues</span>
                   </div>
                   <div class="xfade-live-row" aria-label="Crossfade live" data-skin-variable="--color_ui_panel">
                     <button class="icon-button cue-window-button" type="button" aria-label="Réglage des cues" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon">
-                        <path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-a43e6e48" xlink:href="#ic-a43e6e48"></use></svg>
                     </button>
                     <button class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade" data-skin-variable="--color_ui_help_background">
                       <svg viewBox="6 5 12 15" aria-hidden="true" data-skin-variable="--color_ui_help">
@@ -2731,8 +2243,8 @@
           </div>
           <div class="ae-grp ae-frame" id="aeRegionGroup">
             <button class="ae-mode is-active" id="aeModeRegions" type="button">Régions</button>
-            <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.5 15.5M20 20 8.5 8.5"/></svg>Cut</button>
-            <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="m17 9 4 6M21 9l-4 6"/></svg>Mute</button>
+            <button class="ae-tbtn cut" id="aeAddCut" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-75220d21" xlink:href="#ic-75220d21"></use></svg>Cut</button>
+            <button class="ae-tbtn silence" id="aeAddSilence" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#ic-8901d0d3" xlink:href="#ic-8901d0d3"></use></svg>Mute</button>
           </div>
           <div class="ae-grp ae-frame" id="aeEnvGroup">
             <button class="ae-mode" id="aeModeEnvelope" type="button">Enveloppe</button>
@@ -2742,10 +2254,10 @@
         </div>
         <div id="aeWave"></div>
         <div class="ae-transport">
-          <button class="ae-tp" id="aeToStart" type="button" aria-label="Début"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h2v14H7zM20 5 9 12l11 7z"/></svg></button>
+          <button class="ae-tp" id="aeToStart" type="button" aria-label="Début"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#ic-b01ef826" xlink:href="#ic-b01ef826"></use></svg></button>
           <button class="ae-tp play" id="aePlay" type="button" aria-label="Lire / Pause"><svg class="ae-icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><svg class="ae-icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg></button>
-          <button class="ae-tp" id="aeZoomOut" type="button" aria-label="Dézoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M8 11h6"/></svg></button>
-          <button class="ae-tp" id="aeZoomIn" type="button" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4M11 8v6M8 11h6"/></svg></button>
+          <button class="ae-tp" id="aeZoomOut" type="button" aria-label="Dézoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#ic-e6f90ad3" xlink:href="#ic-e6f90ad3"></use></svg></button>
+          <button class="ae-tp" id="aeZoomIn" type="button" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#ic-ca830299" xlink:href="#ic-ca830299"></use></svg></button>
         </div>
         <p class="ae-hint">Rouge = couper (retiré du son) · Orange = silence (mis à zéro) · Zone grisée = trim in/out (réglé dans Réglages). Cliquer/glisser sur la waveform pour créer une région ; poignées pour ajuster ; ✕ pour supprimer.</p>
       </div>
@@ -2756,7 +2268,7 @@
       <div class="ae-help-panel" id="aeHelpPanel" hidden>
         <div class="ae-help-card">
           <button id="aeHelpClose" class="ae-help-close" type="button" aria-label="Fermer l'aide">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-e2bd1446" xlink:href="#ic-e2bd1446"></use></svg>
           </button>
           <h2>Aide Éditeur audio</h2>
           <p class="ae-help-lead">L'audio d'origine n'est jamais modifié : les régions cut ou mute peuvent être rétablies.</p>
@@ -2764,34 +2276,20 @@
           <h3>Régions</h3>
           <dl class="help-grid">
             <dt aria-label="Mode Régions">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 5H4v14h3M17 5h3v14h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 9v6M14 9v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-236f6654" xlink:href="#ic-236f6654"></use></svg>
             </dt><dd>Mode Régions : dessine des zones à couper ou à muter sur la waveform.</dd>
             <dt aria-label="Cut">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="6" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M20 4 8.5 15.5M20 20 8.5 8.5" fill="none" stroke="currentColor" stroke-width="2"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-34ad04f3" xlink:href="#ic-34ad04f3"></use></svg>
             </dt><dd><strong>Cut</strong> : l'intervalle est retiré, le son est raccourci (durée, trim, cues et crossfade suivent la nouvelle durée).</dd>
             <dt aria-label="Mute">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="m17 9 4 6M21 9l-4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-6999667b" xlink:href="#ic-6999667b"></use></svg>
             </dt><dd><strong>Mute</strong> : l'intervalle est mis à zéro, la durée ne change pas.</dd>
           </dl>
 
           <h3>Enveloppe</h3>
           <dl class="help-grid">
             <dt aria-label="Mode Enveloppe">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 18C8 6 16 6 21 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="8" cy="10" r="1.6" fill="currentColor"/>
-                <circle cx="16" cy="10" r="1.6" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b730ba1c" xlink:href="#ic-b730ba1c"></use></svg>
             </dt><dd>Mode Enveloppe : dessine la courbe de volume au fil du son.</dd>
             <dt aria-label="Appliquer les fades">↧</dt>
             <dd>Régénère le début et la fin de la courbe à partir des fades in/out du pad.</dd>
@@ -2810,26 +2308,16 @@
           <h3>Lecture</h3>
           <dl class="help-grid">
             <dt aria-label="Début">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 5h2v14H7zM20 5 9 12l11 7z" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-018cb5ea" xlink:href="#ic-018cb5ea"></use></svg>
             </dt><dd>Revient au début du son.</dd>
             <dt aria-label="Lire / Pause">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 5v14l11-7z" fill="currentColor"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-22fc2f33" xlink:href="#ic-22fc2f33"></use></svg>
             </dt><dd>Lit ou met en pause (bascule play / pause).</dd>
             <dt aria-label="Dézoomer">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="m21 21-4-4M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8e74e6e1" xlink:href="#ic-8e74e6e1"></use></svg>
             </dt><dd>Dézoome la waveform.</dd>
             <dt aria-label="Zoomer">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="m21 21-4-4M11 8v6M8 11h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-e1580580" xlink:href="#ic-e1580580"></use></svg>
             </dt><dd>Zoome la waveform.</dd>
           </dl>
 
@@ -2851,7 +2339,7 @@
         <span class="live-fx-panel-grip" aria-hidden="true">⠿</span>
         <span class="live-fx-panel-title">Effets live</span>
         <button type="button" id="liveFxPanelDock" class="icon-button" aria-label="Rabattre le panneau">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9e12ff76" xlink:href="#ic-9e12ff76"></use></svg>
         </button>
       </div>
       <div class="live-fx-panel-body" id="liveFxPanelBody"></div>
@@ -2866,7 +2354,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=809"></script>
+    <script src="app.js?v=810"></script>
 
 
   </body>

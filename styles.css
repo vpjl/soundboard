@@ -1461,7 +1461,7 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
    au centre du viewBox par rapport aux icônes cues (traits pleins) — même
    boîte et même taille de svg (confirmé aux devtools), mais l'icône parait
    plus fine/petite à l'œil. Trait plus épais pour compenser visuellement. */
-.show-cables-button svg path {
+.show-cables-button svg {
   stroke-width: 2.6;
 }
 

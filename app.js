@@ -7396,6 +7396,11 @@ function buildSkinPreviewFrame() {
     + '</head><body></body></html>'
   );
   doc.close();
+  // Le sprite d'icones (#iconSprite) vit dans le document parent : les <use>
+  // clones dans ce document (skinPreviewTemplate + #padTemplate) ne peuvent
+  // pas resoudre "#ic-xxx" sans une copie du sprite ici.
+  const sprite = document.getElementById("iconSprite");
+  if (sprite) doc.body.appendChild(doc.importNode(sprite, true));
   const shell = tpl.content.firstElementChild.cloneNode(true);
   // Swap the hand-crafted preview pad for a clone of the REAL #padTemplate so
   // the real pad CSS (per mode) applies verbatim.

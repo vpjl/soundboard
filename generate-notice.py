@@ -61,26 +61,51 @@ def inline(text):
 # ---------------------------------------------------------------- icônes
 
 
+def extract_icon_symbols(html):
+    """Symboles du sprite #iconSprite d'index.html, indexés par id (sans `#`)."""
+    m = re.search(r'<svg id="iconSprite".*?</svg>', html, re.S)
+    if not m:
+        return {}
+    return {
+        sym_id: content
+        for sym_id, content in re.findall(
+            r'<symbol id="([^"]+)"[^>]*>(.*?)</symbol>', m.group(0), re.S
+        )
+    }
+
+
 def extract_button_svgs():
-    """Icônes des boutons d'index.html, indexées par `#id` et `action:x`."""
+    """Icônes des boutons d'index.html, indexées par `#id` et `action:x`.
+
+    Les icônes de boutons sont des <svg><use href="#ic-…"></svg> pointant vers
+    le sprite #iconSprite (voir index.html) : le <use> est résolu ici en
+    réinjectant le contenu du <symbol> correspondant, car un SVG extrait/écrit
+    isolément (svg2rlg) n'a pas accès au sprite du document source.
+    """
     try:
         with open(INDEX, encoding="utf-8") as f:
             html = f.read()
     except FileNotFoundError:
         return {}
+    symbols = extract_icon_symbols(html)
     svgs = {}
     for m in re.finditer(r"<button\b[^>]*>.*?</button>", html, re.S):
         tag = m.group(0)
         open_tag = tag[: tag.index(">") + 1]
-        svg = re.search(r"<svg\b.*?</svg>", tag, re.S)
+        svg = re.search(r"<svg\b[^>]*>(.*?)</svg>", tag, re.S)
         if not svg:
             continue
+        markup = svg.group(0)
+        use_m = re.search(r'<use href="#([^"]+)"', svg.group(1))
+        if use_m:
+            symbol_content = symbols.get(use_m.group(1), "")
+            markup = markup.replace(svg.group(1), symbol_content)
         id_m = re.search(r'id="([^"]+)"', open_tag)
         action_m = re.search(r'data-action="([^"]+)"', open_tag)
         if id_m:
-            svgs.setdefault("#" + id_m.group(1), svg.group(0))
+            svgs.setdefault("#" + id_m.group(1), markup)
         if action_m:
-            svgs.setdefault("action:" + action_m.group(1), svg.group(0))
+            svgs.setdefault("action:" + action_m.group(1), markup)
     return svgs
 
 
