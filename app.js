@@ -15750,6 +15750,8 @@ function positionCableLegend() {
 
 function setCableOverlayVisible(visible) {
   document.body.classList.toggle("show-cables", Boolean(visible));
+  els.patchBay?.classList.toggle("is-active", Boolean(visible));
+  els.patchBay?.setAttribute("aria-pressed", String(Boolean(visible)));
   if (visible) drawCableOverlay();
   if (!visible) {
     els.pads?.closest(".deck")?.style.removeProperty("--cable-extra-bottom");
@@ -18317,10 +18319,19 @@ async function init() {
   els.cancelEditDialog?.addEventListener("click", (event) => {
     if (event.target === els.cancelEditDialog) els.cancelEditDialog.close();
   });
-  bindSafeActionButton(els.patchBay, () => openPatchBayDialog());
+  bindSafeActionButton(els.patchBay, () => {
+    if (document.body.classList.contains("show-cables")) {
+      setCableOverlayVisible(false);
+    } else {
+      openPatchBayDialog();
+    }
+  });
   els.closePatchBay?.addEventListener("click", () => els.patchBayDialog?.close());
   els.patchBayDialog?.addEventListener("click", (event) => {
     if (event.target === els.patchBayDialog) els.patchBayDialog.close();
+  });
+  els.patchBayDialog?.addEventListener("close", () => {
+    if (patchBayRows().length > 0) setCableOverlayVisible(true);
   });
   bindSafeActionButton(els.cueEditor, () => {
     const board = currentBoard();

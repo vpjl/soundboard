@@ -13,6 +13,29 @@
      rgba(17,19,25,0.42) composé sur le panel → color-mix sur le panel : rendu IDENTIQUE
      sur tous les skins, mais désormais réglable/skinnable. */
   --color_ui_frame_background: color-mix(in srgb, #111319 42%, var(--color_ui_panel));
+  /* Fond des champs/menus (select, input, textarea, canvas) — était #111319 en dur
+     à 23 endroits, skinnable depuis l'ajout du skin "print" (voir plus bas). */
+  --color_ui_field_background: #111319;
+  /* Triplet RGB du même noir, pour les variantes translucides rgba(17,19,25,X)
+     qui ne peuvent pas réutiliser --color_ui_field_background (opaque) tel quel. */
+  --color_ui_field_background_rgb: 17, 19, 25;
+  /* Fond/texte de l'éditeur audio (régions) — était #04060a / #e9ecf2 en dur,
+     indépendant de tout skin (voir .audio-editor-dialog). */
+  --color_ui_editor_background: #04060a;
+  --color_ui_editor_text: #e9ecf2;
+  /* Boutons/bandeau d'outils de l'éditeur (.ae-mode, .ae-tbtn, .ae-tp, .ae-fbtn…) —
+     même logique, sous-thème fixe indépendant du skin actif. */
+  --color_ui_editor_chip_background: #14171e;
+  --color_ui_editor_chip_border: #2c313c;
+  --color_ui_editor_chip_text: #c7ccd6;
+  --color_ui_editor_muted: #9aa1ad;
+  --color_ui_editor_accent: #3a9bff;
+  --color_ui_editor_accent_bg: #21407e;
+  --color_ui_editor_accent_border: #2f57a8;
+  --color_ui_editor_accent_text: #eaf1ff;
+  --color_ui_editor_danger: #ff5b5b;
+  --color_ui_editor_warn: #ffa83a;
+  --color_ui_editor_wave_background: #04060a;
 
   --panel: var(--color_ui_panel);
   --panel-2: var(--color_ui_panel_secondary);
@@ -55,12 +78,12 @@
   --color_pad_trigger_playing_background: linear-gradient(145deg, color-mix(in srgb, var(--color_status_success) 30%, transparent), #20272a);
   --color_pad_progress_background: rgba(5, 7, 11, 0.58);
   --color_pad_progress_fill: rgba(255, 255, 255, 0.62);
-  --color_pad_alert_background: rgba(17, 19, 25, 0.84);
+  --color_pad_alert_background: rgba(var(--color_ui_field_background_rgb), 0.84);
   --color_pad_note_background: rgba(0, 0, 0, 0.48);
-  --color_pad_note_overlay_background: rgba(17, 19, 25, 0.94);
+  --color_pad_note_overlay_background: rgba(var(--color_ui_field_background_rgb), 0.94);
   --color_pad_note_overlay_border: rgba(255, 206, 92, 0.7);
   --color_pad_note_overlay_text: #fff7d8;
-  --color_pad_tag_background: rgba(17, 19, 25, 0.68);
+  --color_pad_tag_background: rgba(var(--color_ui_field_background_rgb), 0.68);
   --color_pad_missing_background: rgba(18, 18, 15, 0.88);
 
   --accent: var(--color_status_success);
@@ -337,6 +360,117 @@ body[data-skin="basic"] {
   --danger: var(--color_status_danger);
 }
 
+/* Skin "print" : négatif clair réservé à la capture de la notice PDF, jamais
+   proposé dans le sélecteur de skin de l'UI (voir normalizeSkinName). Les 6
+   skins existants sont tous sombres, donc plusieurs variables normalement
+   fixes en rgba(noir) (--color_pad_* , --color_ui_help_*) doivent aussi être
+   réécrites ici — pas seulement les ~11 variables habituelles d'un skin. */
+body[data-skin="print"] {
+  color-scheme: light;
+
+  /* Fond plat, sans dégradé (le dégradé body{} a un point médian #15161b en dur,
+     insensible aux variables : on écrase toute la propriété ici). */
+  background: #ffffff;
+
+  --color_ui_background: #ffffff;
+  --color_ui_background_glow: transparent;
+  --color_ui_background_secondary: #ffffff;
+  --color_ui_panel: #ffffff;
+  --color_ui_panel_secondary: #ffffff;
+  /* Fond des select/input/textarea/canvas (était #111319 en dur partout, voir
+     --color_ui_field_background dans :root) + variante translucide associée. */
+  --color_ui_field_background: #ffffff;
+  --color_ui_field_background_rgb: 255, 255, 255;
+  /* Éditeur audio (régions) : fond/texte propres, indépendants des champs ci-dessus. */
+  --color_ui_editor_background: #ffffff;
+  --color_ui_editor_text: #1a1a1a;
+  --color_ui_editor_chip_background: #f2f2f2;
+  --color_ui_editor_chip_border: #b0b0b0;
+  --color_ui_editor_chip_text: #1a1a1a;
+  --color_ui_editor_muted: #555555;
+  --color_ui_editor_accent: #333333;
+  --color_ui_editor_accent_bg: #d8d8d8;
+  --color_ui_editor_accent_border: #333333;
+  --color_ui_editor_accent_text: #000000;
+  --color_ui_editor_danger: #000000;
+  --color_ui_editor_warn: #555555;
+  --color_ui_editor_wave_background: #ffffff;
+  --color_ui_text: #000000;
+  --color_ui_text_muted: #4a4a4a;
+  --color_ui_button_icon: #000000;
+  --color_ui_border: #9aa0a8;
+  /* Statuts en niveaux de gris (plus de vert/ambre/rouge/orange). */
+  --color_status_success: #333333;
+  --color_status_progress: #777777;
+  --color_status_stop: #000000;
+  --color_status_danger: #555555;
+  /* Bouton Scène le plus prioritaire (règle "CORRECTIF FINAL" très spécifique
+     plus bas) : vert "logo" volontairement non skinnable pour les 6 autres
+     skins — neutralisé ici pour print. */
+  --soundboard-logo-green: #333333;
+
+  --bg: var(--color_ui_background);
+  --bg-glow: var(--color_ui_background_glow);
+  --bg-end: var(--color_ui_background_secondary);
+  --panel: var(--color_ui_panel);
+  --panel-2: var(--color_ui_panel_secondary);
+  --text: var(--color_ui_text);
+  --muted: var(--color_ui_text_muted);
+  --line: var(--color_ui_border);
+  --accent: var(--color_status_success);
+  --accent-2: var(--color_status_progress);
+  --stop: var(--color_status_stop);
+  --danger: var(--color_status_danger);
+
+  /* Piège d'alias (voir commentaire readCustomSkins() dans app.js) : ces 4
+     variables valent var(--autre-chose) dans :root, une seule fois — leur
+     valeur y est figée et n'est PAS recalculée pour un skin qui ne redéclare
+     que la variable de base. Il faut les re-déclarer ici explicitement,
+     comme le fait déjà chaque skin pour --bg/--panel/--text/etc. ci-dessus.
+     (Diagnostic confirmé : --color_pad_button_background restait #20232b
+     malgré --color_ui_panel_secondary correctement passé à blanc.) */
+  --color_pad_border: var(--line);
+  --color_pad_button_background: var(--color_ui_panel_secondary);
+  --color_pad_button_border: var(--color_ui_border);
+  --shadow: var(--color_ui_shadow);
+
+  --color_ui_frame_background: #ffffff;
+  --color_ui_shadow: rgba(0, 0, 0, 0.12);
+
+  --color_ui_help: #000000;
+  --color_ui_help_border: rgba(0, 0, 0, 0.35);
+  --color_ui_help_background: #ffffff;
+
+  --color_pad_background: #ffffff;
+  --color_pad_actions_background: #ffffff;
+  --color_pad_secondary_text: #000000;
+  --color_pad_title_text: #000000;
+  --color_pad_tag_text: #000000;
+  /* Icônes/texte des boutons groupés du pad (loop, duck, cue…) — chemin de
+     couleur distinct de --color_ui_button_icon, restait gris (text_muted). */
+  --color_pad_button_text: #000000;
+  --color_pad_trigger_background: #ffffff;
+  --color_pad_trigger_playing_background: color-mix(in srgb, var(--color_status_success) 14%, white);
+  --color_pad_progress_background: rgba(0, 0, 0, 0.08);
+  --color_pad_progress_fill: rgba(0, 0, 0, 0.55);
+  --color_pad_alert_background: rgba(255, 255, 255, 0.92);
+  --color_pad_note_background: rgba(255, 255, 255, 0.6);
+  --color_pad_note_overlay_background: #ffffff;
+  --color_pad_note_overlay_border: #777777;
+  --color_pad_note_overlay_text: #000000;
+  --color_pad_tag_background: rgba(0, 0, 0, 0.05);
+  --color_pad_missing_background: rgba(0, 0, 0, 0.05);
+}
+
+/* Numéro/type du pad : utilisent --color_status_progress (gris volontaire pour
+   rester distinct des autres statuts) plutôt que --color_ui_text — noircis
+   spécifiquement ici sans toucher à la variable de statut partagée. */
+body[data-skin="print"] .pad-shortcut,
+body[data-skin="print"] .pad-type {
+  color: #000000;
+  border-color: #000000;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -466,6 +600,7 @@ textarea *,
 .cue-editor-button.is-active,
 .cue-run-button.is-active,
 .show-cables-button.is-active,
+.patch-bay-button.is-active,
 #masterMute.is-active {
   border-color: var(--color_ui_text_muted);
   background: color-mix(in srgb, var(--color_ui_text) 16%, var(--color_ui_panel_secondary));
@@ -484,6 +619,14 @@ textarea *,
   color: #49d3a0; /* logo non skinné (vert fixe) */
   box-shadow: 0 12px 34px var(--shadow);
   flex: 0 0 auto;
+}
+
+/* Skin "print" : logo volontairement non skinnable (vert fixe) ci-dessus —
+   neutralisé en gris ici spécifiquement. */
+body[data-skin="print"] .mark {
+  border-color: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.05);
+  color: #333333;
 }
 
 .mark svg {
@@ -601,7 +744,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 4px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -635,7 +778,7 @@ body.board-edit-mode .board-edit-actions {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -772,7 +915,7 @@ body.no-cue-output.no-output-choice .master-volume-stack {
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.92);
+  background: rgba(var(--color_ui_field_background_rgb), 0.92);
   color: #f3f4f0;
   font-size: 0.78rem;
   font-weight: 400;
@@ -981,7 +1124,7 @@ body.board-edit-mode .board-info-section-toggle {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -1533,7 +1676,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -1597,7 +1740,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -1620,7 +1763,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
   resize: vertical;
 }
@@ -1930,7 +2073,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 9px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -1963,7 +2106,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 6px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
   text-align: center;
   flex: 0 0 auto;
@@ -2129,7 +2272,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0 9px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
   justify-self: center;
   text-align: center;
@@ -3256,7 +3399,7 @@ body.stage-mode .tag-filter-section-header {
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 2px 5px;
-  background: rgba(17, 19, 25, 0.84);
+  background: rgba(var(--color_ui_field_background_rgb), 0.84);
   font-size: 0.56rem;
   font-weight: 900;
   line-height: 1;
@@ -3316,6 +3459,13 @@ body.stage-mode .tag-filter-section-header {
 .pad-alert-missing {
   color: #ffce5c;
   font-size: 0.72rem;
+}
+
+/* Skin "print" : même nuancier de catégorie que .option-badge (bleu/rose/gris
+   codés en dur ci-dessus) — neutralisé en un gris unique pour tous les
+   .pad-alert-*, le texte du badge porte déjà l'information. */
+body[data-skin="print"] .pad-alert {
+  color: #333333;
 }
 
 body.crossfade-armed,
@@ -3443,7 +3593,7 @@ body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
   border: 1px solid currentColor;
   border-radius: 999px;
   padding: 2px 7px;
-  background: rgba(17, 19, 25, 0.82);
+  background: rgba(var(--color_ui_field_background_rgb), 0.82);
   color: var(--color_status_progress);
   font-size: 0.62rem;
   font-weight: 900;
@@ -3479,6 +3629,24 @@ body:not(.board-edit-mode) #showCables.show-cables-button:disabled {
 
 .option-badge.is-crossfade {
   color: #fbbf24; /* or (inutilisé) */
+}
+
+/* Skin "print" : nuancier de catégorie (6 couleurs en dur ci-dessus, hors
+   variables) neutralisé en un gris unique — le texte du badge (« Rev »,
+   « Duck »…) porte déjà l'information, la couleur n'était qu'un repérage
+   visuel rapide. */
+body[data-skin="print"] .option-badge {
+  color: #333333;
+}
+
+/* Skin "print" : .note-panel (Pense-bête, Notes de version) et
+   .patch-bay-node (étiquettes source/cible du patch bay) ont un fond sombre
+   en dur (rgba(...) hors variables, pensé pour le thème sombre de l'appli),
+   jamais adapté au skin clair réservé aux captures de la notice — texte déjà
+   noir via var(--text) dans ce skin, seul le fond doit passer au blanc. */
+body[data-skin="print"] .note-panel,
+body[data-skin="print"] .patch-bay-node {
+  background: #ffffff;
 }
 
 .pad-trigger:active {
@@ -3640,6 +3808,21 @@ select:disabled,
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
+}
+
+/* Skin "print" : le survol blanc translucide (pensé pour un fond sombre) et
+   l'opacité 0.38 rendent les boutons désactivés quasi invisibles sur blanc. */
+body[data-skin="print"] button:disabled,
+body[data-skin="print"] select:disabled,
+body[data-skin="print"] .icon-button:disabled {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
+body[data-skin="print"] .icon-button:disabled {
+  border-color: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.05);
+  color: #6a6a6a;
 }
 
 /* Bloc cues/crossfade : conserver la bordure normale des boutons désactivés
@@ -4221,7 +4404,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: rgba(17, 19, 25, 0.78);
+  background: rgba(var(--color_ui_field_background_rgb), 0.78);
   color: var(--text);
 }
 
@@ -4262,7 +4445,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: rgba(var(--color_ui_field_background_rgb), 0.42);
 }
 
 .crossfade-field > span {
@@ -4292,7 +4475,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: rgba(17, 19, 25, 0.78);
+  background: rgba(var(--color_ui_field_background_rgb), 0.78);
   touch-action: none;
 }
 
@@ -4348,7 +4531,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   height: 11px;
   border: 2px solid currentColor;
   border-radius: 999px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   transform: translateX(-50%);
 }
 
@@ -4603,7 +4786,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: rgba(17, 19, 25, 0.86);
+  background: rgba(var(--color_ui_field_background_rgb), 0.86);
   color: var(--text);
 }
 
@@ -4630,7 +4813,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -4704,12 +4887,12 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
 
 .remote-control-role-group [data-role] {
   border: 1px solid var(--line);
-  background: #111319;
+  background: var(--color_ui_field_background);
 }
 
 .remote-control-role-group [data-role].is-selected {
   border-color: var(--color_status_success, #49d3a0);
-  background: color-mix(in srgb, var(--color_status_success, #49d3a0) 16%, #111319);
+  background: color-mix(in srgb, var(--color_status_success, #49d3a0) 16%, var(--color_ui_field_background));
 }
 
 .remote-control-role-panel {
@@ -4735,7 +4918,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -5102,11 +5285,24 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   height: 24px;
   border: 1px solid rgba(255, 197, 81, 0.9);
   border-radius: 999px;
-  background: rgba(18, 18, 15, 0.88);
+  background: var(--color_pad_missing_background);
   color: #ffce5c;
   font-size: 0.95rem;
   font-weight: 900;
   pointer-events: none;
+}
+
+/* Skin "print" : badge « audio manquant » — bordure/fond/texte ambre sur noir
+   codés en dur ci-dessus (indépendants de --color_pad_missing_background déjà
+   skinnable, sauf le fond qui la réutilise désormais). */
+body[data-skin="print"] .pad.is-missing-audio {
+  border-color: rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+body[data-skin="print"] .pad.is-missing-audio::after {
+  border-color: rgba(0, 0, 0, 0.6);
+  color: #000000;
 }
 
 /* Empty pad: show a neutral [?] marker */
@@ -5127,6 +5323,11 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   font-size: 0.95rem;
   font-weight: 900;
   pointer-events: none;
+}
+
+/* Skin "print" : même fond noir en dur que le badge « manquant » ci-dessus. */
+body[data-skin="print"] .pad.is-empty:not(.is-missing-audio)::after {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .pad-live-check:has(input:checked) {
@@ -5623,7 +5824,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -5754,7 +5955,7 @@ body[data-skin="contrast"] .color-field {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: rgba(var(--color_ui_field_background_rgb), 0.42);
 }
 
 .bulk-fieldset label,
@@ -5839,7 +6040,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 9px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -5849,7 +6050,7 @@ body[data-skin="contrast"] .color-field {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: rgba(var(--color_ui_field_background_rgb), 0.42);
 }
 
 .bulk-color-swatches,
@@ -5869,7 +6070,7 @@ body[data-skin="contrast"] .color-field {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.42);
+  background: rgba(var(--color_ui_field_background_rgb), 0.42);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -5889,14 +6090,14 @@ body[data-skin="contrast"] .color-field {
   max-width: 100%;
   max-height: 160px;
   border-radius: 6px;
-  background: #111319;
+  background: var(--color_ui_field_background);
 }
 .bulk-sketch-canvas {
   display: block;
   width: 100%;
   aspect-ratio: 1;
   border-radius: 6px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   touch-action: none;
   cursor: crosshair;
   margin-bottom: 6px;
@@ -6014,7 +6215,7 @@ body[data-skin="contrast"] .color-field {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.45);
+  background: rgba(var(--color_ui_field_background_rgb), 0.45);
 }
 
 .audio-section h3 {
@@ -6025,6 +6226,12 @@ body[data-skin="contrast"] .color-field {
   color: var(--color_status_progress);
   font-size: 0.78rem;
   text-transform: uppercase;
+}
+
+/* Skin "print" : gris plus foncé et cohérent avec les autres labels du
+   dialogue audio (--muted), au lieu du gris clair de --color_status_progress. */
+body[data-skin="print"] .audio-section h3 {
+  color: var(--color_ui_text_muted);
 }
 
 .audio-section label {
@@ -6046,7 +6253,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 9px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -6332,7 +6539,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
   resize: vertical;
 }
@@ -6493,7 +6700,7 @@ body[data-skin="contrast"] .color-field {
   aspect-ratio: var(--image-pad-aspect, 16 / 9);
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   touch-action: none;
 }
 
@@ -6646,7 +6853,7 @@ body[data-skin="contrast"] .color-field {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(17, 19, 25, 0.45);
+  background: rgba(var(--color_ui_field_background_rgb), 0.45);
 }
 
 .help-section[aria-label="Master"],
@@ -6691,7 +6898,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--color_status_progress);
-  background: #111319;
+  background: var(--color_ui_field_background);
   font-weight: 800;
 }
 
@@ -6728,7 +6935,7 @@ body[data-skin="contrast"] .color-field {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 0 10px;
-  background: #111319;
+  background: var(--color_ui_field_background);
   color: var(--text);
 }
 
@@ -10950,7 +11157,7 @@ body.stage-mode #boardName:focus {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #111319;
+  background: var(--color_ui_field_background);
 }
 
 .board-mode-frame p {
@@ -11183,6 +11390,18 @@ body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"]
   border-color: var(--color_status_success) !important;
   background: color-mix(in srgb, var(--color_status_success) 34%, var(--color_ui_panel_secondary)) !important;
   animation: stage-mode-pending-pulse 0.72s ease-in-out infinite alternate;
+}
+
+/* Skin "print" : vert scène (#36c66a), bleu studio (#62b7ff) et ambre garage
+   (#ffd36e) ci-dessus sont codés en dur, hors système de variables — un seul
+   traitement gris neutre pour les 3, le libellé du bouton suffit à distinguer
+   le mode actif. */
+body[data-skin="print"][data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
+body[data-skin="print"][data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current,
+body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
+  border-color: #000000 !important;
+  background: color-mix(in srgb, #000000 22%, var(--color_ui_panel_secondary)) !important;
+  color: #000000 !important;
 }
 
 @keyframes stage-mode-pending-pulse {
@@ -11437,8 +11656,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0;
-  background: #04060a;
-  color: #e9ecf2;
+  background: var(--color_ui_editor_background);
+  color: var(--color_ui_editor_text);
 }
 /* Centrage explicite (fixed + inset:0 + margin:auto) : ne PAS utiliser position:relative,
    qui casse le centrage d'un <dialog> modal sur iOS Safari (dialog hors écran alors que
@@ -11468,36 +11687,36 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 /* Cellules d'icône contenant du texte (Trim, ↶, ↻, ✕, ✓) : réduire pour tenir dans 38px. */
 .ae-help-card .help-grid dt { font-size: .72rem; line-height: 1.1; padding: 0 2px; text-align: center; }
 .ae-help-tag { display: inline-block; padding: 1px 8px; border-radius: 5px; font-size: .72rem; font-weight: 800; letter-spacing: .05em; color: #fff; }
-.ae-help-tag.cut { background: #ff5b5b; }
-.ae-help-tag.silence { background: #ffa83a; color: #2a1700; }
+.ae-help-tag.cut { background: var(--color_ui_editor_danger); }
+.ae-help-tag.silence { background: var(--color_ui_editor_warn); color: #2a1700; }
 .ae-help-card > button { margin-top: 4px; }
 .ae-body { padding: 0 22px 8px; }
 .ae-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; row-gap: 6px; margin: 4px 0; font-variant-numeric: tabular-nums; }
 .ae-clip-title { grid-column: 1; font-weight: 700; }
-.ae-total { grid-column: 3; text-align: right; color: #9aa1ad; }
-.ae-in  { grid-column: 1; color: #3a9bff; }
+.ae-total { grid-column: 3; text-align: right; color: var(--color_ui_editor_muted); }
+.ae-in  { grid-column: 1; color: var(--color_ui_editor_accent); }
 .ae-sel { grid-column: 2; text-align: center; font-weight: 600; }
-.ae-out { grid-column: 3; text-align: right; color: #ff5b5b; }
+.ae-out { grid-column: 3; text-align: right; color: var(--color_ui_editor_danger); }
 .ae-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0; }
 .ae-grp { display: flex; align-items: center; gap: 8px; }
 .ae-grp-end { margin-left: auto; }
 .ae-grp.is-dim > .ae-tbtn { opacity: .4; pointer-events: none; }
-.ae-frame { border: 1px solid #2c313c; border-radius: 10px; padding: 5px 8px; }
-.ae-frame:has(.ae-mode.is-active) { border-color: #2f57a8; background: rgba(33, 64, 126, 0.12); }
-.ae-mode { padding: 7px 14px; border: 1px solid #2c313c; border-radius: 8px; background: #14171e; color: #9aa1ad; font-size: .82rem; cursor: pointer; }
-.ae-mode.is-active { background: #21407e; border-color: #2f57a8; color: #eaf1ff; }
+.ae-frame { border: 1px solid var(--color_ui_editor_chip_border); border-radius: 10px; padding: 5px 8px; }
+.ae-frame:has(.ae-mode.is-active) { border-color: var(--color_ui_editor_accent_border); background: color-mix(in srgb, var(--color_ui_editor_accent_bg) 12%, transparent); }
+.ae-mode { padding: 7px 14px; border: 1px solid var(--color_ui_editor_chip_border); border-radius: 8px; background: var(--color_ui_editor_chip_background); color: var(--color_ui_editor_muted); font-size: .82rem; cursor: pointer; }
+.ae-mode.is-active { background: var(--color_ui_editor_accent_bg); border-color: var(--color_ui_editor_accent_border); color: var(--color_ui_editor_accent_text); }
 #aeWave.ae-mode-reg ::part(envelope) { opacity: .3; }
 #aeWave.ae-mode-reg ::part(envelope),
 #aeWave.ae-mode-reg ::part(polyline),
 #aeWave.ae-mode-reg ::part(envelope-circle) { pointer-events: none !important; }
-.ae-tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #c7ccd6; font-size: .82rem; cursor: pointer; }
+.ae-tbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--color_ui_editor_chip_border); background: var(--color_ui_editor_chip_background); color: var(--color_ui_editor_chip_text); font-size: .82rem; cursor: pointer; }
 .ae-tbtn:disabled { opacity: .4; cursor: default; }
-.ae-tbtn.cut { color: #ff5b5b; }
-.ae-tbtn.silence { color: #ffa83a; }
+.ae-tbtn.cut { color: var(--color_ui_editor_danger); }
+.ae-tbtn.silence { color: var(--color_ui_editor_warn); }
 .ae-tbtn svg { width: 15px; height: 15px; }
-.ae-toolbar .auto-trim-sensitivity { color: #9aa1ad; font-size: .78rem; }
-.ae-toolbar .auto-trim-sensitivity output { color: #c7ccd6; }
-#aeWave { position: relative; border: 2px solid #3a9bff; border-radius: 6px; background: #04060a; padding: 2px 0; min-height: 200px; }
+.ae-toolbar .auto-trim-sensitivity { color: var(--color_ui_editor_muted); font-size: .78rem; }
+.ae-toolbar .auto-trim-sensitivity output { color: var(--color_ui_editor_chip_text); }
+#aeWave { position: relative; border: 2px solid var(--color_ui_editor_accent); border-radius: 6px; background: var(--color_ui_editor_wave_background); padding: 2px 0; min-height: 200px; }
 .ae-trim-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .ae-trim-dim { position: absolute; top: 0; bottom: 0; background: rgba(4, 6, 10, 0.66); }
 .ae-trim-line { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: repeating-linear-gradient(to bottom, #cfe2ff 0 5px, transparent 5px 9px); }
@@ -11511,21 +11730,21 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-rg-dots i { width: 14px; height: 14px; border-radius: 50%; display: grid; place-items: center; font-size: 9px; font-weight: 900; cursor: pointer; }
 .ae-rg-dots .no { background: var(--rg, #ff5b5b); color: #1a0707; }
 .ae-transport { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 16px 0 6px; }
-.ae-tp { width: 52px; height: 44px; border-radius: 12px; border: 1px solid #2c313c; background: #14171e; color: #d6dae2; display: grid; place-items: center; cursor: pointer; }
+.ae-tp { width: 52px; height: 44px; border-radius: 12px; border: 1px solid var(--color_ui_editor_chip_border); background: var(--color_ui_editor_chip_background); color: var(--color_ui_editor_chip_text); display: grid; place-items: center; cursor: pointer; }
 .ae-tp svg { display: block; width: 22px; height: 22px; }
 /* Bouton lire/pause : même taille/forme que « Début » (.ae-tp), fond légèrement distinct. */
-.ae-tp.play { background: #1b1f29; }
-.ae-tp.play.is-playing { background: #2a3550; }
+.ae-tp.play { background: color-mix(in srgb, var(--color_ui_editor_chip_background) 85%, white); }
+.ae-tp.play.is-playing { background: var(--color_ui_editor_accent_bg); }
 /* Icône : triangle à l'arrêt, [ïï] pendant la lecture (classe is-playing posée par wavesurfer). */
 .ae-tp.play .ae-icon-pause { display: none; }
 .ae-tp.play.is-playing .ae-icon-play { display: none; }
 .ae-tp.play.is-playing .ae-icon-pause { display: block; }
 .ae-tp svg { display: block; width: 22px; height: 22px; }
 .ae-tp.play svg { width: 26px; height: 26px; }
-.ae-hint { color: #6e7682; font-size: .78rem; margin: 6px 2px 0; }
-.ae-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #1b1f27; }
-.ae-fbtn { padding: 9px 16px; border-radius: 8px; border: 1px solid #2c313c; background: #14171e; color: #d6dae2; cursor: pointer; }
-.ae-fbtn.apply { background: #20242e; }
+.ae-hint { color: var(--color_ui_editor_muted); font-size: .78rem; margin: 6px 2px 0; }
+.ae-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--color_ui_editor_chip_border); }
+.ae-fbtn { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--color_ui_editor_chip_border); background: var(--color_ui_editor_chip_background); color: var(--color_ui_editor_chip_text); cursor: pointer; }
+.ae-fbtn.apply { background: color-mix(in srgb, var(--color_ui_editor_chip_background) 85%, white); }
 
 /* Survol consolidé, net et uniforme sur tous les boutons de l'éditeur audio
    (bordure claire + léger éclaircissement), comme dans le reste de l'app. */
