@@ -11746,6 +11746,53 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 .ae-fbtn { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--color_ui_editor_chip_border); background: var(--color_ui_editor_chip_background); color: var(--color_ui_editor_chip_text); cursor: pointer; }
 .ae-fbtn.apply { background: color-mix(in srgb, var(--color_ui_editor_chip_background) 85%, white); }
 
+/* Master décalé/tronqué à droite en portrait mobile (Board+Master restaient
+   côte à côte au lieu d'empiler) : la règle tablette 561-950px (~7525) et le
+   justify-self:end de base (~809) l'emportaient sur mobile via la cascade.
+   `body` ajouté aux sélecteurs pour battre ces deux règles quelle que soit la
+   largeur exacte, et ciblage par (pointer: coarse) plutôt que la seule
+   largeur pour rester fiable sur tout téléphone tactile. */
+@media (max-width: 900px), (pointer: coarse) {
+  /* minmax(0, 1fr) et pas 1fr seul : une piste "fr" a un minimum automatique
+     basé sur le contenu (auto), pas 0 — sans le plancher explicite, la piste
+     grandissait pour absorber le max-content sur-mesuré de .live-tools
+     ci-dessous (cf. commentaire suivant), entraînant Board ET Master avec
+     elle (même colonne). */
+  body .topbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body .master-strip {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: center;
+    width: 100%;
+    max-width: 460px;
+  }
+
+  /* Cues désactivées : la règle dédiée (~8842, body:not(.cues-enabled)
+     .live-tools, !important) impose width:max-content — sujette au calcul
+     max-content peu fiable déjà documenté dans ce fichier (mesuré jusqu'à
+     707px pour un besoin réel de ~670px) — d'où le bloc élargi débordant à
+     droite en portrait, et Board/Master entraînés avec lui (cf. commentaire
+     ci-dessus). Même sélecteur exact (même spécificité) + !important, plus
+     tardif dans la cascade, pour la battre proprement sur mobile plutôt que
+     dupliquer un !important générique moins ciblé. */
+  body .live-tools {
+    grid-column: 1;
+    grid-row: 4;
+    justify-self: center;
+    width: 100%;
+    max-width: 460px;
+  }
+
+  body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
+    width: 100% !important;
+    max-width: 460px !important;
+    justify-self: center !important;
+  }
+}
+
 /* Survol consolidé, net et uniforme sur tous les boutons de l'éditeur audio
    (bordure claire + léger éclaircissement), comme dans le reste de l'app. */
 .ae-help-btn:hover:not(:disabled),
