@@ -687,6 +687,9 @@ const els = {
   closeAudioLibrary: document.querySelector("#closeAudioLibrary"),
   closeAudioLibraryBtn: document.querySelector("#closeAudioLibraryBtn"),
   deleteSelectedUnusedSounds: document.querySelector("#deleteSelectedUnusedSounds"),
+  saveBeforeDeleteSoundsDialog: document.querySelector("#saveBeforeDeleteSoundsDialog"),
+  saveBeforeDeleteSoundsSave: document.querySelector("#saveBeforeDeleteSoundsSave"),
+  saveBeforeDeleteSoundsSkip: document.querySelector("#saveBeforeDeleteSoundsSkip"),
   boardInfoSectionToggle: document.querySelector("#boardInfoSectionToggle"),
   boardInfoSectionBody: document.querySelector("#boardInfoSectionBody"),
   boardInfoName: document.querySelector("#boardInfoName"),
@@ -9974,6 +9977,33 @@ async function saveCandidatesToDisk(allCandidates) {
   setStatus(`${withAudio.length} son${withAudio.length > 1 ? "s" : ""} enregistré${withAudio.length > 1 ? "s" : ""} dans "${zipName}" (dossier Téléchargements), un seul fichier zip contenant tous les sons`);
 }
 
+// window.confirm() n'admet pas de libellés de boutons personnalisés : son
+// "Annuler" natif ici ne annule rien (la suppression a lieu quoi qu'on
+// choisisse, avec ou sans sauvegarde préalable) — un dialogue maison avec un
+// vrai bouton "Supprimer" évite l'incohérence.
+function confirmSaveBeforeDeleteSounds() {
+  return new Promise((resolve) => {
+    const dialog = els.saveBeforeDeleteSoundsDialog;
+    if (!dialog) {
+      resolve(false);
+      return;
+    }
+    const finish = (shouldSave) => {
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.close();
+      resolve(shouldSave);
+    };
+    const onCancel = (event) => {
+      event.preventDefault();
+      finish(false);
+    };
+    els.saveBeforeDeleteSoundsSave.onclick = () => finish(true);
+    els.saveBeforeDeleteSoundsSkip.onclick = () => finish(false);
+    dialog.addEventListener("cancel", onCancel);
+    dialog.showModal();
+  });
+}
+
 async function deleteSelectedUnusedSounds() {
   const candidates = selectedUnusedSoundCandidates();
   if (!candidates.length) {
@@ -9989,7 +10019,7 @@ async function deleteSelectedUnusedSounds() {
     .map((group) => `- ${group.label}${group.candidates.length > 1 ? ` (×${group.candidates.length})` : ""}`)
     .join("\n");
   if (!window.confirm(`Supprimer définitivement les sons sélectionnés ?\n\n${names}`)) return;
-  if (window.confirm("Enregistrer d'abord ces sons sur le disque avant de les supprimer ?")) {
+  if (await confirmSaveBeforeDeleteSounds()) {
     await saveCandidatesToDisk(candidates);
   }
   for (const candidate of candidates) {

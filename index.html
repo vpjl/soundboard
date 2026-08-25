@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=829">
+    <link rel="stylesheet" href="styles.css?v=830">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -1784,6 +1784,19 @@
       </div>
     </dialog>
 
+    <dialog id="saveBeforeDeleteSoundsDialog" class="confirm-dialog" aria-labelledby="saveBeforeDeleteSoundsTitle">
+      <div class="confirm-panel">
+        <div class="help-head">
+          <h2 id="saveBeforeDeleteSoundsTitle">Enregistrer avant suppression</h2>
+        </div>
+        <p>Enregistrer d’abord ces sons sur le disque avant de les supprimer ?</p>
+        <div class="dialog-actions">
+          <button id="saveBeforeDeleteSoundsSave" class="small-button" type="button">Enregistrer</button>
+          <button id="saveBeforeDeleteSoundsSkip" class="danger-button" type="button">Supprimer</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="exportBoardDialog" class="confirm-dialog" aria-labelledby="exportBoardDialogTitle">
       <div class="confirm-panel">
         <div class="help-head">
@@ -2354,7 +2367,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=829"></script>
+    <script src="app.js?v=830"></script>
 
 
   </body>
