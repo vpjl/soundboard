@@ -19202,6 +19202,28 @@ async function init() {
     setImageDialogMode("image");
     state.imagePad?.cameraInput?.click();
   });
+  // Dépose d'un fichier board .json sur n'importe quelle zone vide de la page
+  // (hors d'un pad, pour ne pas entrer en conflit avec le chargement d'un son
+  // sur un pad précis) → import direct. Écoute sur body plutôt que sur
+  // .deck/<main> pour couvrir aussi les zones vides de grille du layout
+  // (topbar, marges à côté du board…). Garage uniquement.
+  document.body.addEventListener("dragover", (event) => {
+    if (document.body.dataset.boardMode !== "garage") return;
+    if (event.target.closest("[data-pad]")) return;
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  document.body.addEventListener("drop", async (event) => {
+    if (document.body.dataset.boardMode !== "garage") return;
+    if (event.target.closest("[data-pad]")) return;
+    const files = [...(event.dataTransfer?.files || [])];
+    const boardJsonFile = files.find((file) => /\.json$/i.test(file.name));
+    if (boardJsonFile) {
+      event.preventDefault();
+      await importBoardFile(boardJsonFile);
+    }
+  });
   // Garage : dépose de fichiers sur une zone vide du board (hors d'un pad) →
   // répartition sur les pads vides / création de nouveaux pads. Les drops sur
   // un pad lui-même sont déjà gérés par son propre listener (makePad).
@@ -19217,6 +19239,8 @@ async function init() {
     if (event.target.closest("[data-pad]")) return;
     event.preventDefault();
     const files = [...(event.dataTransfer?.files || [])];
+    const boardJsonFile = files.find((file) => /\.json$/i.test(file.name));
+    if (boardJsonFile) return;
     if (files.length) await distributeFilesAcrossEmptyPads(files);
   });
 
