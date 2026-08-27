@@ -1,0 +1,9 @@
+# Free Pages Perso : aucun accès web à ce dossier.
+# Le PHP de ../api/share.php y accède par le disque, pas par HTTP.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>
