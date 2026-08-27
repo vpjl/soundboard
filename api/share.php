@@ -65,10 +65,17 @@ $entry = (is_array($partages) && isset($partages[$id]) && is_array($partages[$id
   : null;
 
 $ok = false;
+$reason = 'inconnu';        // lien absent / supprimé / révoqué
+$expireDate = null;
 if ($entry) {
   $expire  = $entry['expire'] ?? null;
   $expired = $expire && strtotime((string) $expire) !== false && strtotime((string) $expire) < $now;
-  if (!$expired && pbkdf2_verify($password, (string) ($entry['hash'] ?? ''))) {
+  if ($expired) {
+    $reason = 'expire';
+    $expireDate = (string) $expire;
+  } elseif (!pbkdf2_verify($password, (string) ($entry['hash'] ?? ''))) {
+    $reason = 'mot_de_passe';
+  } else {
     $ok = true;
   }
 }
@@ -80,7 +87,11 @@ if ($fh) {
   flock($fh, LOCK_UN); fclose($fh);
 }
 
-if (!$ok) fail(403, 'refuse');
+if (!$ok) {
+  http_response_code(403);
+  echo json_encode(['error' => $reason, 'date' => $expireDate], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 
 $boardPath = PRIVE_DIR . '/boards/' . basename((string) ($entry['file'] ?? ''));
 if (!is_file($boardPath)) fail(500, 'board_absent');

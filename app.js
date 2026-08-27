@@ -19560,7 +19560,7 @@ function askGuestPassword(shareId) {
         || location.hostname === "localhost"
         || location.hostname === "127.0.0.1";
       if (!secure) {
-        showError("Connexion non sécurisée : ouvrez le lien en https://");
+        showError("Ce lien doit être ouvert en https:// (adresse sécurisée). Redemande le bon lien à la personne qui te l'a envoyé.");
         return;
       }
 
@@ -19575,37 +19575,46 @@ function askGuestPassword(shareId) {
         });
       } catch {
         submit.disabled = false;
-        showError("Connexion impossible. Vérifiez votre réseau.");
+        showError("Impossible de joindre le serveur. Vérifie ta connexion internet, puis réessaie.");
         return;
       }
 
       const bodyText = await response.text().catch(() => "");
+      let data = null;
+      try { data = JSON.parse(bodyText); } catch { /* pas du JSON */ }
+
       if (response.ok) {
-        try {
-          const parsed = JSON.parse(bodyText);
-          if (parsed && parsed.format === "soundboard-live-board") {
-            resolve(bodyText);
-            return;
-          }
-        } catch { /* traité ci-dessous */ }
+        if (data && data.format === "soundboard-live-board") {
+          resolve(bodyText);
+          return;
+        }
         submit.disabled = false;
-        showError("Réponse inattendue du serveur.");
+        showError("Le serveur a renvoyé une réponse inattendue. Réessaie dans un instant.");
         return;
       }
 
       submit.disabled = false;
       input.value = "";
       input.focus();
-      let code = "";
-      try { code = String(JSON.parse(bodyText).error || ""); } catch { /* pas de code */ }
+      const code = data && typeof data.error === "string" ? data.error : "";
       if (response.status === 429 || code === "trop_d_essais") {
-        showError("Trop d'essais. Réessayez dans quelques minutes.");
+        showError("Trop de tentatives. Attends quelques minutes avant de réessayer.");
       } else if (code === "https_requis") {
-        showError("Le partage nécessite une connexion sécurisée (https).");
-      } else if (response.status === 403) {
-        showError("Mot de passe incorrect, ou lien expiré / révoqué.");
+        showError("Ce lien doit être ouvert en https:// (adresse sécurisée).");
+      } else if (code === "expire") {
+        showError(data.date
+          ? `Ce partage a expiré le ${data.date}. Demande un nouveau lien.`
+          : "Ce partage a expiré. Demande un nouveau lien.");
+      } else if (code === "inconnu") {
+        showError("Ce lien de partage n'existe pas, ou il a été supprimé.");
+      } else if (code === "mot_de_passe") {
+        showError("Mot de passe incorrect.");
+      } else if (code === "board_absent") {
+        showError("Le board partagé est introuvable sur le serveur. Préviens la personne qui t'a envoyé le lien.");
+      } else if (response.status === 404) {
+        showError("Le service de partage est introuvable sur ce serveur (api/share.php manquant).");
       } else {
-        showError("Impossible d'ouvrir ce board pour le moment.");
+        showError("Impossible d'ouvrir ce board pour le moment. Réessaie plus tard.");
       }
     });
   });
