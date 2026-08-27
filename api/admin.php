@@ -22,8 +22,11 @@ const ITER           = 210000;
 // prive/ (interdit d'accès web par prive/.htaccess).
 $sessionDir = PRIVE_DIR . '/sessions';
 if (!is_dir($sessionDir)) @mkdir($sessionDir, 0700, true);
-if (is_dir($sessionDir) && is_writable($sessionDir)) session_save_path($sessionDir);
-session_start();
+if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
+  $sessionDir = sys_get_temp_dir(); // repli si prive/ non inscriptible
+}
+@session_save_path($sessionDir);
+@session_start();
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex, nofollow');
