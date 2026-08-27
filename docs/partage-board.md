@@ -9,43 +9,48 @@ puisse voir, charger ou éditer les autres boards.
 tondomaine.fr  ──redirection 301 HTTPS (LWS)──►  https://<login>.pages-perso.free.fr/soundboard/#g=<id>
 ```
 
-- App + `api/share.php` : hébergés sur **Free Pages Perso** (PHP 8.5), dans un dossier `soundboard/`.
-- `prive/` : secrets et contenu, **jamais commités**, envoyés par FTP à la main.
-- Création des liens : **script local** `tools/make-share.mjs`. Aucune page d'admin en ligne.
+- App + `api/share.php` + `api/admin.php` : hébergés sur **Free Pages Perso** (PHP 8.5), dans un dossier `soundboard/`.
+- `prive/` : secrets et contenu, **jamais commités**. Écrits par `admin.php` (ou `make-share.mjs`).
+- Création des liens : **console web** `api/admin.php` (rien à installer côté poste). `tools/make-share.mjs` reste dispo en secours (gros boards qui dépassent la limite d'upload PHP de Free).
 
-## Installation (une fois)
+## Installation (une fois, par FTP)
 
 1. **HTTPS.** Vérifier que `https://<login>.pages-perso.free.fr/` répond (Free l'a activé en 2026).
 2. **Redirection LWS.** Dans l'espace LWS du domaine : redirection **301, en HTTPS**, de
    `tondomaine.fr` vers `https://<login>.pages-perso.free.fr/soundboard/`.
    (Pas de redirection « avec masquage » / iframe : ça casse le `#g=` et le service worker.)
-3. **Envoi FTP** vers `.../soundboard/` :
+3. **Envoi FTP** vers `.../soundboard/` — `api/` et `prive/` restent frères de `index.html` :
    - tout le contenu de l'app (comme d'habitude)
-   - `api/share.php`
+   - `api/share.php` et `api/admin.php`
    - `prive/.htaccess`
-4. **Vérifier le verrou.** `https://<login>.pages-perso.free.fr/soundboard/prive/partages.php`
-   doit renvoyer **403** (et pas le contenu du fichier).
+   (`prive/partages.php`, `prive/boards/`, `prive/admin-config.php` n'existent pas encore —
+   ils seront créés par `admin.php` lui-même.)
+4. **Premier accès à la console.** Ouvrir `https://<login>.pages-perso.free.fr/soundboard/api/admin.php`
+   → l'écran demande de **définir le mot de passe maître** (celui qui protège la console ;
+   rien à voir avec les mots de passe des invités). Le choisir long et unique.
+5. **Vérifier le verrou.** `https://<login>.pages-perso.free.fr/soundboard/prive/partages.php`
+   doit renvoyer **403** (et pas le contenu du fichier). Idem `.../prive/admin-config.php`.
 
-## Créer un partage
+## Créer un partage — console web (recommandé)
 
-1. Dans l'app : **Réglages → Exporter le board → avec audio**. On obtient un `.json`.
-2. En local :
-   ```bash
-   node tools/make-share.mjs ~/Downloads/mon-board.….json
-   ```
-   Répondre aux questions : URL de base (mémorisée), identifiant du partage (**un par
-   invité**), mot de passe, libellé, expiration facultative.
-3. Le script écrit `prive/partages.php` et copie le board dans `prive/boards/`.
-   **Envoyer par FTP le dossier `prive/`** vers Free.
-4. Communiquer à l'invité : le **lien** (`…/#g=<id>`) et le **mot de passe** (séparément).
+1. Dans l'app : **Réglages → Exporter le board → avec audio** → un `.json` dans les Téléchargements.
+2. Ouvrir `.../soundboard/api/admin.php`, se connecter avec le mot de passe maître.
+3. Formulaire **« Créer un lien »** : choisir le fichier du board, saisir le mot de passe
+   de l'invité, une expiration facultative, un libellé. **Créer le lien.**
+4. La page affiche le **lien** (`…/#g=<id>`) — le communiquer à l'invité, le **mot de passe** à part.
 
-## Révoquer / modifier
+**Révoquer** : dans la même page, bouton **Révoquer** en face du partage. Effet immédiat (403).
+
+## Créer un partage — script local (secours)
+
+Pour un board trop lourd pour l'upload PHP de Free :
 
 ```bash
 node tools/make-share.mjs ~/Downloads/mon-board.….json
 ```
-Reprendre le même identifiant → `r` (révoquer) ou `m` (modifier le mot de passe /
-l'expiration). Puis ré-envoyer `prive/partages.php` par FTP. Un lien révoqué renvoie 403.
+Répondre aux questions, puis **envoyer par FTP** `prive/partages.php` + `prive/boards/` vers Free.
+Reprendre le même identifiant → `r` (révoquer) / `m` (modifier). Format de fichier commun
+avec `admin.php` : les deux méthodes sont interchangeables.
 
 ## Ce que voit l'invité
 
@@ -55,8 +60,13 @@ réglages.
 
 ## Sécurité — limites connues
 
-- Mot de passe haché **PBKDF2-SHA256** (210 000 itérations), jamais stocké en clair.
+- Mots de passe hachés **PBKDF2-SHA256** (210 000 itérations), jamais stockés en clair
+  (invités *et* mot de passe maître de la console).
 - `share.php` : refuse le HTTP, temporise 350 ms, bloque après 8 échecs / IP / 10 min.
+- `admin.php` : `noindex`, temporise, bloque après 6 échecs / IP / 15 min, jeton CSRF sur
+  les actions, session régénérée à la connexion. Surface d'attaque d'une page en ligne :
+  la protéger par un mot de passe maître fort est essentiel. Pour réinitialiser ce mot de
+  passe : supprimer `prive/admin-config.php` (le prochain accès le redemande).
 - Les boards privés sont hors d'atteinte du web (`.htaccess` + extension `.php` pour
   `partages`).
 - Qui possède **lien + mot de passe** garde l'accès jusqu'à expiration ou révocation.

@@ -6,4 +6,6 @@ prive/partages.php
 prive/boards/*
 !prive/boards/.gitkeep
 prive/rate.json
+prive/admin-config.php
+prive/admin-rate.json
 tools/.make-share.json
