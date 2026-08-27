@@ -21,6 +21,8 @@ tondomaine.fr  ──redirection 301 HTTPS (LWS)──►  https://<login>.pages
    (Pas de redirection « avec masquage » / iframe : ça casse le `#g=` et le service worker.)
 3. **Envoi FTP** vers `.../soundboard/` — `api/` et `prive/` restent frères de `index.html` :
    - tout le contenu de l'app (comme d'habitude)
+   - **`.htaccess`** à la racine `soundboard/` (active PHP 8.5 sur Free — sans lui,
+     `api/*.php` renvoie « Parse error: unexpected T_CONST »)
    - `api/share.php` et `api/admin.php`
    - `prive/.htaccess`
    (`prive/partages.php`, `prive/boards/`, `prive/admin-config.php` n'existent pas encore —
