@@ -303,7 +303,10 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   if ($createdLink): ?>
     <div class="link-out">
       <strong>Lien à envoyer à l'invité :</strong>
-      <input type="text" readonly value="<?= h($createdLink) ?>" onclick="this.select()">
+      <div class="link-row">
+        <input id="shareLink" type="text" readonly value="<?= h($createdLink) ?>" onclick="this.select()">
+        <button type="button" class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('shareLink').value).then(()=>{var b=this;b.textContent='Copié !';setTimeout(function(){b.textContent='Copier';},1500);})">Copier</button>
+      </div>
       <p class="hint">Le mot de passe, lui, se communique à part (SMS d'un côté, lien de l'autre).</p>
     </div>
   <?php endif; ?>
@@ -397,7 +400,9 @@ function render_page(string $title, callable $body): void {
   .ok { color: #7ee7bf; background: rgba(73,211,160,0.1); padding: 8px 10px; border-radius: 6px; }
   .warn { color: #f4c04e; }
   .link-out { background: #1b1f28; border: 1px solid #333a47; border-radius: 8px; padding: 14px; margin: 12px 0; }
-  .link-out input { width: 100%; margin-top: 8px; }
+  .link-out .link-row { display: flex; gap: 8px; margin-top: 8px; }
+  .link-out .link-row input { flex: 1; min-width: 0; }
+  .copy-btn { padding: 8px 14px; white-space: nowrap; }
   .logout { margin-top: 30px; }
   .logout button { border-color: #444c5a; background: #222732; }
 </style>
