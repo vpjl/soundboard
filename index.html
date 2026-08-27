@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=833">
+    <link rel="stylesheet" href="styles.css?v=834">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -250,10 +250,15 @@
                 <button id="boardInfoDelete" class="icon-button board-delete-button" type="button" aria-label="Supprimer le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </button>
+                <button id="openShareAdmin" class="icon-button board-transfer-button" type="button" aria-label="Console de partage par lien" title="Console de partage par lien">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="8" width="18" height="4" rx="1"/>
+                    <path d="M12 8v13"/>
+                    <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/>
+                    <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>
+                  </svg>
+                </button>
               </div>
-              <p class="board-share-admin-row">
-                <a id="openShareAdmin" href="api/admin.php" target="_blank" rel="noopener">Console de partage par lien…</a>
-              </p>
             </div>
             <button class="board-section-toggle board-aspect-section-toggle" type="button" id="aspectSectionToggle" aria-expanded="false">
               <span>ASPECT</span>
@@ -2384,7 +2389,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=833"></script>
+    <script src="app.js?v=834"></script>
 
 
   </body>

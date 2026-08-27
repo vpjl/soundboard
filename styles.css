@@ -11876,12 +11876,3 @@ body.guest-mode .board-strip,
 body.guest-mode .remote-control-button {
   display: none;
 }
-
-/* Lien vers la console de partage (api/admin.php), dans la gestion du board. */
-.board-share-admin-row {
-  margin: 10px 0 0;
-  font-size: 0.82rem;
-}
-.board-share-admin-row a {
-  color: var(--muted, #9aa4b2);
-}

@@ -675,6 +675,7 @@ const els = {
   cancelExportBoard: document.querySelector("#cancelExportBoard"),
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
+  openShareAdmin: document.querySelector("#openShareAdmin"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
   relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
   relinkVideoFolder: document.querySelector("#relinkVideoFolder"),
@@ -18594,6 +18595,9 @@ async function init() {
     if (event.target === els.exportBoardDialog) els.exportBoardDialog.close();
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
+  els.openShareAdmin?.addEventListener("click", () => {
+    window.open("api/admin.php", "_blank", "noopener");
+  });
   els.importBoardFile?.addEventListener("change", () => {
     const file = els.importBoardFile.files?.[0];
     if (file) {
