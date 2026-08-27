@@ -1,0 +1,3 @@
+machine ftpperso.free.fr
+  login vincent.laine
+  password xh8@|M4jH:1Uc36U

@@ -1,0 +1,9 @@
+# Filet de sécurité : si ce dossier d'outils se retrouvait un jour uploadé sur
+# un hébergement web (il ne devrait pas), n'en servir aucun fichier.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

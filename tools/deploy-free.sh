@@ -4,12 +4,15 @@
 #
 #   bash tools/deploy-free.sh
 #
-# Identifiants : dans tools/.deploy-netrc (jamais commité), au format :
+# Identifiants : dans ~/.netrc (HORS du dépôt, donc jamais uploadable par erreur),
+# chmod 600, au format :
 #
 #   machine ftpperso.free.fr
 #     login   TON_IDENTIFIANT_FREE
 #     password TON_MOT_DE_PASSE_PAGES_PERSO   # défini dans la console d'abonné Free,
 #                                             # ≠ mot de passe du compte Free
+#
+# (ou un autre chemin via  DEPLOY_NETRC=/chemin/vers/netrc bash tools/deploy-free.sh)
 #
 # Ce que le script pousse :
 #   - .htaccess d'activation PHP à la RACINE du compte (créé s'il manque)
@@ -27,15 +30,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 HOST="ftpperso.free.fr"
-NETRC="$ROOT/tools/.deploy-netrc"
+NETRC="${DEPLOY_NETRC:-$HOME/.netrc}"
 REMOTE="soundboard"
 
 if [ ! -f "$NETRC" ]; then
   echo "✖ Fichier d'identifiants manquant : $NETRC"
-  echo "  Créer ce fichier (voir l'en-tête de ce script pour le format), puis relancer."
+  echo "  Le créer (voir l'en-tête de ce script pour le format), chmod 600, puis relancer."
   exit 1
 fi
-chmod 600 "$NETRC"
+case "$(cd "$(dirname "$NETRC")" && pwd)/" in
+  "$ROOT"/*) echo "✖ $NETRC est dans le dépôt — le placer hors du dépôt (~/.netrc)."; exit 1;;
+esac
 
 CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs)
 
