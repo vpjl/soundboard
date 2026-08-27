@@ -1,2 +1,9 @@
 .DS_Store
 node_modules/
+
+# Partage de boards : contenu et secrets, uniquement sur Free (jamais commités)
+prive/partages.php
+prive/boards/*
+!prive/boards/.gitkeep
+prive/rate.json
+tools/.make-share.json
