@@ -8,4 +8,5 @@ prive/boards/*
 prive/rate.json
 prive/admin-config.php
 prive/admin-rate.json
+prive/sessions/
 tools/.make-share.json
