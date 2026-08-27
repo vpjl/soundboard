@@ -181,6 +181,9 @@ const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
 const VIDEO_FILE_RE = /\.(mp4|mov|m4v|webm)$/i;
 
 const state = {
+  // Mode invité : identifiant du partage (#g=…) quand la page est ouverte via un
+  // lien de partage. Verrouille l'app sur le seul board partagé (voir setupGuestBoard).
+  guest: "",
   audioContext: null,
   cueAudioContext: null,
   masterGain: null,
@@ -408,6 +411,7 @@ const els = {
   randomGroupAvoidRepeat: document.querySelector("#randomGroupAvoidRepeat"),
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
+  guestGate: document.querySelector("#guestGate"),
   remoteControlButton: document.querySelector("#remoteControlButton"),
   remoteControlIndicator: document.querySelector("#remoteControlIndicator"),
   remoteControlDialog: document.querySelector("#remoteControlDialog"),
@@ -17895,6 +17899,13 @@ function applyAppVersionDisplay() {
 }
 
 async function init() {
+  state.guest = readGuestShareId();
+  if (state.guest) {
+    // Verrou visuel immédiat : la fenêtre de mot de passe couvre l'app avant même
+    // que les boards ne soient chargés (évite un flash de l'interface complète).
+    document.body.classList.add("guest-mode", "guest-locked");
+    if (els.guestGate) els.guestGate.hidden = false;
+  }
   applyAppVersionDisplay();
   state.db = await openDb();
   loadOutputSettings();
@@ -17958,6 +17969,11 @@ async function init() {
   if (!state.boards.some((board) => board.id === state.currentBoardId)) {
     state.currentBoardId = state.boards[0].id;
   }
+  if (state.guest) {
+    await setupGuestBoard();
+  } else {
+    await purgeGuestBoards();
+  }
   // Apply board's saved skin, or fall back to global SKIN_STORAGE
   const initBoard = currentBoard();
   const initSkin = initBoard?.skin || localStorage.getItem(SKIN_STORAGE) || "classic";
@@ -17966,8 +17982,11 @@ async function init() {
   renderBoardOptions();
   const isReload = sessionStorage.getItem("soundboard-session-started") === "yes";
   sessionStorage.setItem("soundboard-session-started", "yes");
-  const savedStageMode = isReload && localStorage.getItem(STAGE_MODE_STORAGE) === "on";
-  const savedGarageMode = isReload && !savedStageMode && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on";
+  const savedStageMode = state.guest
+    ? true
+    : (isReload && localStorage.getItem(STAGE_MODE_STORAGE) === "on");
+  const savedGarageMode = !state.guest && isReload && !savedStageMode
+    && localStorage.getItem(BOARD_EDIT_MODE_STORAGE) === "on";
   if (savedGarageMode) state.boardEditMode = true;
   await renderPads({ preserveEditMode: savedGarageMode });
   await repairAccidentalPadTitles();
@@ -17978,7 +17997,7 @@ async function init() {
   updateStageLockUi();
   loadRemoteControlSettings();
   updateRemoteControlUi();
-  connectRemoteControl();
+  if (!state.guest) connectRemoteControl();
   updateMasterOptionBadges();
   syncHoverLabels();
 
@@ -19424,6 +19443,174 @@ async function init() {
   bindPerformanceTouchGuards();
 }
 
+// ---------------------------------------------------------------------------
+// Mode invité — partage d'un board par lien (#g=<id>) + mot de passe.
+// Le board partagé est servi par api/share.php (voir docs/partage-board.md).
+// L'invité reste en mode scène, sans contrôle à distance, sans accès aux autres
+// boards ni aux modes studio/garage (cf. setBoardModeFromSelector + CSS .guest-mode).
+// ---------------------------------------------------------------------------
+const GUEST_BOARD_IDS_KEY = "soundboard-guest-board-ids";
+const GUEST_SESSION_KEY = "soundboard-guest-session";
+
+function readGuestShareId() {
+  const fromHash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+  const fromQuery = new URLSearchParams(location.search);
+  const id = (fromHash.get("g") || fromQuery.get("g") || "").trim();
+  return /^[A-Za-z0-9_-]{4,40}$/.test(id) ? id : "";
+}
+
+function guestBoardIds() {
+  try {
+    const list = JSON.parse(localStorage.getItem(GUEST_BOARD_IDS_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+// Retire de l'appareil les boards importés lors d'une précédente session invitée
+// (contenu + audio IndexedDB + réglages), pour ne rien laisser traîner.
+async function purgeGuestBoards() {
+  const ids = guestBoardIds();
+  if (!ids.length) return;
+  let stored = [];
+  try {
+    stored = JSON.parse(localStorage.getItem(BOARDS_STORAGE) || "[]");
+    if (!Array.isArray(stored)) stored = [];
+  } catch {
+    stored = [];
+  }
+  for (const id of ids) {
+    const board = stored.find((b) => b && b.id === id);
+    const padCount = Math.max(1, Number(board?.padCount) || 128);
+    for (let index = 0; index < padCount + 8; index += 1) {
+      try { await dbDelete(padMetaKeyFor(id, index)); } catch { /* absent */ }
+      try { await dbDelete(padAudioKeyFor(id, index)); } catch { /* absent */ }
+    }
+    try { await dbDelete(boardHistoryKey(id)); } catch { /* absent */ }
+    localStorage.removeItem(boardShortcutsKey(id));
+    localStorage.removeItem(boardShortcutsEnabledKey(id));
+  }
+  const kept = stored.filter((b) => b && !ids.includes(b.id));
+  if (kept.length) {
+    localStorage.setItem(BOARDS_STORAGE, JSON.stringify(kept));
+    state.boards = kept.map((b) => normalizeBoard(b));
+  } else {
+    localStorage.removeItem(BOARDS_STORAGE);
+    state.boards = loadBoards();
+  }
+  if (!state.boards.some((b) => b.id === state.currentBoardId)) {
+    state.currentBoardId = state.boards[0].id;
+  }
+  localStorage.removeItem(GUEST_BOARD_IDS_KEY);
+}
+
+// Charge le board partagé : jeton d'onglet valide → rechargement local direct ;
+// sinon fenêtre de mot de passe → api/share.php → import du board.
+async function setupGuestBoard() {
+  const shareId = state.guest;
+  document.body.classList.add("guest-mode", "guest-locked");
+
+  const sessionOk = sessionStorage.getItem(GUEST_SESSION_KEY) === shareId;
+  const existingId = guestBoardIds()[0];
+  if (sessionOk && existingId && state.boards.some((b) => b.id === existingId)) {
+    state.currentBoardId = existingId;
+    saveBoards();
+    finishGuestUnlock();
+    return;
+  }
+
+  const payloadText = await askGuestPassword(shareId);
+  await purgeGuestBoards();
+  await importBoardFile({ name: `${shareId}.json`, text: async () => payloadText });
+  const board = currentBoard();
+  localStorage.setItem(GUEST_BOARD_IDS_KEY, JSON.stringify([board.id]));
+  sessionStorage.setItem(GUEST_SESSION_KEY, shareId);
+  finishGuestUnlock();
+}
+
+function finishGuestUnlock() {
+  document.body.classList.remove("guest-locked");
+  if (els.guestGate) els.guestGate.hidden = true;
+}
+
+function askGuestPassword(shareId) {
+  return new Promise((resolve) => {
+    const gate = els.guestGate;
+    const form = gate.querySelector("#guestGateForm");
+    const input = gate.querySelector("#guestGatePassword");
+    const errorBox = gate.querySelector("#guestGateError");
+    const submit = gate.querySelector("#guestGateSubmit");
+    gate.hidden = false;
+    document.body.classList.add("guest-mode", "guest-locked");
+    setTimeout(() => input.focus(), 50);
+
+    const showError = (message) => {
+      errorBox.textContent = message;
+      errorBox.hidden = false;
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (submit.disabled) return;
+      const password = input.value;
+      if (!password) return;
+
+      const secure = location.protocol === "https:"
+        || location.hostname === "localhost"
+        || location.hostname === "127.0.0.1";
+      if (!secure) {
+        showError("Connexion non sécurisée : ouvrez le lien en https://");
+        return;
+      }
+
+      submit.disabled = true;
+      errorBox.hidden = true;
+      let response;
+      try {
+        response = await fetch("api/share.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: shareId, password }),
+        });
+      } catch {
+        submit.disabled = false;
+        showError("Connexion impossible. Vérifiez votre réseau.");
+        return;
+      }
+
+      const bodyText = await response.text().catch(() => "");
+      if (response.ok) {
+        try {
+          const parsed = JSON.parse(bodyText);
+          if (parsed && parsed.format === "soundboard-live-board") {
+            resolve(bodyText);
+            return;
+          }
+        } catch { /* traité ci-dessous */ }
+        submit.disabled = false;
+        showError("Réponse inattendue du serveur.");
+        return;
+      }
+
+      submit.disabled = false;
+      input.value = "";
+      input.focus();
+      let code = "";
+      try { code = String(JSON.parse(bodyText).error || ""); } catch { /* pas de code */ }
+      if (response.status === 429 || code === "trop_d_essais") {
+        showError("Trop d'essais. Réessayez dans quelques minutes.");
+      } else if (code === "https_requis") {
+        showError("Le partage nécessite une connexion sécurisée (https).");
+      } else if (response.status === 403) {
+        showError("Mot de passe incorrect, ou lien expiré / révoqué.");
+      } else {
+        showError("Impossible d'ouvrir ce board pour le moment.");
+      }
+    });
+  });
+}
+
 init();
 
 function shouldUseServiceWorker() {
@@ -19517,6 +19704,11 @@ function setBoardModePending(targetMode = "") {
 }
 
 function setBoardModeFromSelector(targetMode) {
+  // Mode invité : figé en scène, aucun changement de mode possible.
+  if (state.guest) {
+    syncBoardModeSelectorSoon();
+    return;
+  }
   const current = boardModeSelectorCurrentMode();
   const allowed = boardModeSelectorAllowedModes(current);
 

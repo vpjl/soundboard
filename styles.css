@@ -11804,3 +11804,75 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   border-color: #5b6474;
   box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.09);
 }
+
+/* ==== Mode invité (board partagé par lien #g=…) ============================
+   L'invité reste figé en mode scène : pas de sélecteur de boards, pas de
+   changement de mode, pas de contrôle à distance.
+   Voir setupGuestBoard() / setBoardModeFromSelector() dans app.js. */
+.guest-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--bg, #10131a) 92%, #000);
+}
+.guest-gate[hidden] { display: none; }
+
+.guest-gate-card {
+  width: min(380px, 100%);
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.guest-gate-title { margin: 0; font-size: 1.15rem; }
+.guest-gate-intro {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--muted, #9aa4b2);
+}
+.guest-gate-field {
+  display: grid;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--muted, #9aa4b2);
+}
+.guest-gate-field input {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg, #10131a);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.guest-gate-error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color_status_danger, #e5484d);
+}
+.guest-gate-error[hidden] { display: none; }
+.guest-gate-submit {
+  padding: 10px 12px;
+  border: 1px solid var(--accent, #49d3a0);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent, #49d3a0) 18%, transparent);
+  color: var(--text);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.guest-gate-submit:disabled { opacity: 0.5; cursor: progress; }
+
+body.guest-locked { overflow: hidden; }
+
+body.guest-mode .board-strip,
+body.guest-mode .remote-control-button {
+  display: none;
+}
