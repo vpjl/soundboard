@@ -1,0 +1,6 @@
+# Free Pages Perso : activer PHP 8.5 pour tout le dossier (api/ inclus).
+# Sans cette directive, Free sert une version de PHP très ancienne et api/*.php
+# échoue avec « Parse error: unexpected T_CONST ». Ignoré par les autres hébergeurs.
+<IfDefine Free>
+php85 1
+</IfDefine>
