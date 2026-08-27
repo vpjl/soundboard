@@ -10,3 +10,4 @@ prive/admin-config.php
 prive/admin-rate.json
 prive/sessions/
 tools/.make-share.json
+tools/.deploy-netrc
