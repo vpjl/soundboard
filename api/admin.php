@@ -57,6 +57,47 @@ function pbkdf2_verify(string $password, string $stored): bool {
   return hash_equals($want, hash_pbkdf2('sha256', $password, $salt, $iter, strlen($want), true));
 }
 
+// --- Chiffrement réversible des mots de passe invités -----------------------
+// Clé dérivée du mot de passe maître (jamais stockée en clair) + sel `kdf`
+// gardé dans admin-config.php. Permet de RE-AFFICHER un mot de passe invité
+// oublié, tout en le gardant chiffré au repos. AES-256-GCM (openssl, partout).
+function derive_key(string $masterPassword, string $kdfSaltB64): string {
+  $salt = base64_decode($kdfSaltB64, true) ?: $kdfSaltB64;
+  return hash_pbkdf2('sha256', $masterPassword, $salt, ITER, 32, true);
+}
+
+function enc_password(string $plain, string $key): string {
+  $iv = random_bytes(12);
+  $tag = '';
+  $ct = openssl_encrypt($plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, '', 16);
+  return $ct === false ? '' : base64_encode($iv . $tag . $ct);
+}
+
+function dec_password(string $stored, string $key): ?string {
+  $raw = base64_decode($stored, true);
+  if ($raw === false || strlen($raw) < 29) return null;
+  $iv  = substr($raw, 0, 12);
+  $tag = substr($raw, 12, 16);
+  $ct  = substr($raw, 28);
+  $pt = openssl_decrypt($ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+  return $pt === false ? null : $pt;
+}
+
+function write_config(string $hash, string $kdfSaltB64): bool {
+  return file_put_contents(
+    CONFIG_FILE,
+    "<?php\n// Mot de passe maître de la console de partage. NE PAS commiter.\nreturn " .
+    var_export(['hash' => $hash, 'kdf' => $kdfSaltB64], true) . ";\n",
+    LOCK_EX
+  ) !== false;
+}
+
+function session_key(): ?string {
+  $b64 = $_SESSION['mk'] ?? '';
+  $k = is_string($b64) && $b64 !== '' ? base64_decode($b64, true) : false;
+  return ($k !== false && strlen($k) === 32) ? $k : null;
+}
+
 function slugify(string $s): string {
   $s = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s) ?: $s;
   $s = strtolower(preg_replace('/[^A-Za-z0-9_-]+/', '-', $s));
@@ -153,14 +194,15 @@ if (!$hasMaster) {
     elseif ($p1 !== $p2) $errors[] = "Les deux saisies ne correspondent pas.";
     else {
       if (!is_dir(PRIVE_DIR)) @mkdir(PRIVE_DIR, 0755, true);
-      $ok = file_put_contents(
-        CONFIG_FILE,
-        "<?php\n// Mot de passe maître de la console de partage. NE PAS commiter.\nreturn " .
-        var_export(['hash' => pbkdf2_hash($p1)], true) . ";\n",
-        LOCK_EX
-      );
-      if ($ok === false) $errors[] = "Impossible d'écrire " . h(CONFIG_FILE) . " (droits ?).";
-      else { $_SESSION['admin'] = true; header('Location: ' . $_SERVER['REQUEST_URI']); exit; }
+      $kdf = base64_encode(random_bytes(16));
+      if (!write_config(pbkdf2_hash($p1), $kdf)) {
+        $errors[] = "Impossible d'écrire " . h(CONFIG_FILE) . " (droits ?).";
+      } else {
+        $_SESSION['admin'] = true;
+        $_SESSION['mk'] = base64_encode(derive_key($p1, $kdf));
+        header('Location: ' . $_SERVER['REQUEST_URI']);
+        exit;
+      }
     }
   }
   render_page('Définir le mot de passe maître', function () use ($errors) {
@@ -186,9 +228,18 @@ if (!$loggedIn) {
       $errors[] = "Trop d'essais. Réessayez dans quelques minutes.";
     } else {
       usleep(MIN_DELAY_MS * 1000);
-      if (pbkdf2_verify((string) ($_POST['master'] ?? ''), (string) $config['hash'])) {
+      $master = (string) ($_POST['master'] ?? '');
+      if (pbkdf2_verify($master, (string) $config['hash'])) {
         session_regenerate_id(true);
         $_SESSION['admin'] = true;
+        // Sel de dérivation : présent depuis cette version ; migré ici pour les
+        // installs plus anciennes (on a le mot de passe sous la main).
+        $kdf = $config['kdf'] ?? '';
+        if ($kdf === '') {
+          $kdf = base64_encode(random_bytes(16));
+          @write_config((string) $config['hash'], $kdf);
+        }
+        $_SESSION['mk'] = base64_encode(derive_key($master, $kdf));
         header('Location: ' . $_SERVER['REQUEST_URI']);
         exit;
       }
@@ -222,6 +273,35 @@ if ($method === 'POST') {
     session_destroy();
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
+  } elseif (($_POST['action'] ?? '') === 'chgmaster') {
+    $cur = (string) ($_POST['current'] ?? '');
+    $n1  = (string) ($_POST['new'] ?? '');
+    $n2  = (string) ($_POST['new2'] ?? '');
+    if (!pbkdf2_verify($cur, (string) $config['hash'])) {
+      $errors[] = "Mot de passe maître actuel incorrect.";
+    } elseif (strlen($n1) < 10) {
+      $errors[] = "Nouveau mot de passe trop court (10 caractères minimum).";
+    } elseif ($n1 !== $n2) {
+      $errors[] = "Les deux saisies du nouveau mot de passe ne correspondent pas.";
+    } else {
+      $oldKey = derive_key($cur, $config['kdf'] ?? '');
+      $newKdf = base64_encode(random_bytes(16));
+      $newKey = derive_key($n1, $newKdf);
+      foreach ($partages as $k => $e) {           // re-chiffrer les mots de passe invités
+        if (!empty($e['enc'])) {
+          $plain = dec_password($e['enc'], $oldKey);
+          $partages[$k]['enc'] = $plain !== null ? enc_password($plain, $newKey) : '';
+        }
+      }
+      $newHash = pbkdf2_hash($n1);
+      if (write_config($newHash, $newKdf) && save_partages($partages)) {
+        $_SESSION['mk'] = base64_encode($newKey);
+        $config = ['hash' => $newHash, 'kdf' => $newKdf]; // valeurs à jour pour ce rendu
+        $notice = "Mot de passe maître modifié.";
+      } else {
+        $errors[] = "Écriture impossible (droits sur prive/ ?).";
+      }
+    }
   } elseif (($_POST['action'] ?? '') === 'revoke') {
     $id = (string) ($_POST['id'] ?? '');
     if (isset($partages[$id])) {
@@ -275,11 +355,14 @@ if ($method === 'POST') {
         if (file_put_contents(BOARDS_DIR . '/' . $fileName, $raw, LOCK_EX) === false) {
           $errors[] = "Impossible d'écrire le board dans prive/boards/ (droits ?).";
         } else {
+          $sk = session_key();
           $partages[$id] = [
             'file'   => $fileName,
             'hash'   => pbkdf2_hash($pass),
             'label'  => $label !== '' ? $label : $boardName,
             'expire' => $expire !== '' ? $expire : null,
+            // copie chiffrée, pour pouvoir ré-afficher le mot de passe plus tard
+            'enc'    => $sk ? enc_password($pass, $sk) : '',
           ];
           if (save_partages($partages)) {
             $createdLink = base_link($id);
@@ -326,16 +409,30 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   </form>
 
   <h2>Partages actifs (<?= count($partages) ?>)</h2>
-  <?php if (!$partages): ?>
+  <?php
+  $sk = session_key();
+  if (!$partages): ?>
     <p class="hint">Aucun pour l'instant.</p>
   <?php else: ?>
     <table>
-      <thead><tr><th>Identifiant</th><th>Libellé</th><th>Expire</th><th></th></tr></thead>
+      <thead><tr><th>Identifiant</th><th>Libellé</th><th>Mot de passe</th><th>Expire</th><th></th></tr></thead>
       <tbody>
-      <?php foreach ($partages as $id => $e): ?>
+      <?php foreach ($partages as $id => $e):
+        $plain = ($sk && !empty($e['enc'])) ? dec_password($e['enc'], $sk) : null;
+      ?>
         <tr>
           <td><code><?= h((string) $id) ?></code></td>
           <td><?= h((string) ($e['label'] ?? '')) ?></td>
+          <td>
+            <?php if ($plain !== null): ?>
+              <span class="pw" data-pw="<?= h($plain) ?>">••••••</span>
+              <button type="button" class="reveal-btn" onclick="var s=this.previousElementSibling;var on=s.textContent!=='••••••';s.textContent=on?'••••••':s.dataset.pw;this.textContent=on?'Afficher':'Masquer';">Afficher</button>
+            <?php elseif (!empty($e['enc']) && !$sk): ?>
+              <span class="hint">reconnecte-toi pour l'afficher</span>
+            <?php else: ?>
+              <span class="hint">— non récupérable</span>
+            <?php endif; ?>
+          </td>
           <td><?= h((string) ($e['expire'] ?? '—') ?: '—') ?></td>
           <td>
             <form method="post" onsubmit="return confirm('Révoquer ce partage ?');">
@@ -349,7 +446,18 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
       <?php endforeach; ?>
       </tbody>
     </table>
+    <p class="hint">Les mots de passe sont chiffrés au repos ; seul le mot de passe maître permet de les réafficher.</p>
   <?php endif; ?>
+
+  <h2>Mot de passe maître</h2>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
+    <input type="hidden" name="action" value="chgmaster">
+    <label>Mot de passe actuel<input type="password" name="current" required></label>
+    <label>Nouveau mot de passe<input type="password" name="new" required minlength="10"></label>
+    <label>Confirmer<input type="password" name="new2" required minlength="10"></label>
+    <button type="submit">Changer le mot de passe maître</button>
+  </form>
 
   <form method="post" class="logout">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
@@ -400,6 +508,8 @@ function render_page(string $title, callable $body): void {
   .ok { color: #7ee7bf; background: rgba(73,211,160,0.1); padding: 8px 10px; border-radius: 6px; }
   .warn { color: #f4c04e; }
   .link-out { background: #1b1f28; border: 1px solid #333a47; border-radius: 8px; padding: 14px; margin: 12px 0; }
+  .pw { font-family: ui-monospace, monospace; }
+  .reveal-btn { padding: 3px 8px; font-size: 0.75rem; border-color: #444c5a; background: #222732; margin-left: 6px; }
   .link-out .link-row { display: flex; gap: 8px; margin-top: 8px; }
   .link-out .link-row input { flex: 1; min-width: 0; }
   .copy-btn { padding: 8px 14px; white-space: nowrap; }
