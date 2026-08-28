@@ -19544,6 +19544,10 @@ async function setupGuestBoard() {
 function finishGuestUnlock() {
   document.body.classList.remove("guest-locked");
   if (els.guestGate) els.guestGate.hidden = true;
+  // « Version light » : la section Aspect est dépliée d'office pour l'invité.
+  state.aspectSectionOpen = true;
+  els.aspectSectionToggle?.setAttribute("aria-expanded", "true");
+  if (els.aspectSectionBody) els.aspectSectionBody.hidden = false;
 }
 
 async function refreshGuestLabel(shareId) {
@@ -20016,7 +20020,7 @@ function applyStageStudioLayout() {
   const selector = document.querySelector(".board-mode-selector");
   const studioRect = stageStudioLayoutSnapshot.selectorRect;
 
-  if (boardStrip && selector && studioRect) {
+  if (boardStrip && selector && studioRect && !state.guest) {
     boardStrip.style.setProperty("position", "relative", "important");
     boardStrip.style.setProperty("transform", "none", "important");
 

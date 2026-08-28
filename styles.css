@@ -11879,7 +11879,84 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 
 body.guest-locked { overflow: hidden; }
 
-body.guest-mode .board-strip,
-body.guest-mode .remote-control-button {
+/* --- Mode invité : « version light » du soundboard (toujours en scène) --------
+   On NE réutilise PAS la grille nommée du mode scène pour master/board : on
+   repasse en flex vertical et on masque tout ce qui n'est pas autorisé, pour
+   que les blocs restent cohérents même avec la moitié des éléments retirés.
+   Ce bloc est APRÈS toutes les règles body.stage-mode → il gagne à spécificité
+   égale, sans !important. À revoir visuellement (pas de preview sur ce projet). */
+
+body.guest-mode .remote-control-button,
+body.guest-mode .live-tools {
   display: none;
 }
+
+/* Bloc MASTER : seulement Volume sono + Random playlist */
+body.guest-mode .master-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  grid-template-areas: none;
+  width: 100%;
+  min-width: 0;
+}
+body.guest-mode .master-title,
+body.guest-mode .master-strip .cue-output-group,
+body.guest-mode .master-strip .master-input-group,
+body.guest-mode .master-option-badges,
+body.guest-mode .master-corner-row,
+body.guest-mode .master-stop-cluster {
+  display: none;
+}
+body.guest-mode .master-volume-stack {
+  display: block;
+  width: 100%;
+}
+
+/* Bloc BOARD : boutons mode (studio/garage grisés) + section Aspect + note */
+body.guest-mode .board-strip {
+  display: block;
+}
+body.guest-mode .board-main {
+  display: block;
+}
+body.guest-mode .board-select,
+body.guest-mode .board-info-section-toggle,
+body.guest-mode #boardInfoSectionBody,
+body.guest-mode .versions-section-toggle,
+body.guest-mode .board-version-row,
+body.guest-mode .board-manage-section-toggle,
+body.guest-mode #boardManageSectionBody,
+body.guest-mode .board-mode-selector-extra,
+body.guest-mode .board-skin-select,
+body.guest-mode .board-filter-row,
+body.guest-mode .board-action-grid,
+body.guest-mode .tag-filter-section-header,
+body.guest-mode #tagFilterChipsRow,
+body.guest-mode .board-help-button {
+  display: none;
+}
+body.guest-mode .board-aspect-section-toggle {
+  display: flex;
+}
+body.guest-mode #aspectSectionBody[hidden] {
+  display: block; /* déplié d'office (le JS le fait aussi, ceci est le filet) */
+}
+
+/* Studio / Garage : visibles mais inactifs pour l'invité */
+body.guest-mode [data-board-mode-target="studio"],
+body.guest-mode [data-board-mode-target="garage"] {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Note « version light » sous la section Aspect */
+.guest-light-note {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted, #9aa4b2);
+}
+.guest-light-note[hidden] { display: none; }
+body.guest-mode .guest-light-note { display: block; }
