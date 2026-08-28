@@ -2701,6 +2701,18 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
 
+/* Skin basic, illustration masquée (en scène) : la face FX (.pad-face-back),
+   invisible tant que le pad n'est pas retourné mais empilée dans la même
+   cellule de grille que .pad-face-front, gonflait .pad-flip à SA hauteur
+   naturelle (~256px) → grand vide entre le titre et les contrôles Volume/Pan.
+   Quand le pad affiche son illustration, un plafond de hauteur + overflow:hidden
+   sur .pad masquait le problème. On écrase la face FX tant que le pad n'est pas
+   retourné ; elle retrouve sa taille au flip. */
+body[data-skin="basic"] .pad.is-visual-hidden:not(.is-fx-flipped) .pad-face-back {
+  max-height: 0;
+  overflow: hidden;
+}
+
 /* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
    défaut puis affiché par la règle .has-visual-image/.has-color plus bas.
    Le sélecteur `…is-visual-hidden .pad-trigger` avait été collé ici par erreur
