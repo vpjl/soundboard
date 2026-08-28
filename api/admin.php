@@ -415,13 +415,14 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     <p class="hint">Aucun pour l'instant.</p>
   <?php else: ?>
     <table>
-      <thead><tr><th>Identifiant</th><th>Libellé</th><th>Mot de passe</th><th>Expire</th><th></th></tr></thead>
+      <thead><tr><th>Identifiant</th><th>Lien</th><th>Libellé</th><th>Mot de passe</th><th>Expire</th><th></th></tr></thead>
       <tbody>
       <?php foreach ($partages as $id => $e):
         $plain = ($sk && !empty($e['enc'])) ? dec_password($e['enc'], $sk) : null;
       ?>
         <tr>
           <td><code><?= h((string) $id) ?></code></td>
+          <td><button type="button" class="copy-btn" data-link="<?= h(base_link((string) $id)) ?>" onclick="var b=this;navigator.clipboard.writeText(b.dataset.link).then(function(){var t=b.textContent;b.textContent='Copié !';setTimeout(function(){b.textContent=t;},1500);});">Copier le lien</button></td>
           <td><?= h((string) ($e['label'] ?? '')) ?></td>
           <td>
             <?php if ($plain !== null): ?>
