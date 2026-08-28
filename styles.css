@@ -11928,9 +11928,8 @@ body.guest-mode .board-version-row,
 body.guest-mode .board-manage-section-toggle,
 body.guest-mode #boardManageSectionBody,
 body.guest-mode .board-mode-selector-extra,
-body.guest-mode .board-skin-select,
-body.guest-mode .board-filter-row,
 body.guest-mode .board-action-grid,
+body.guest-mode #openSkinEditorButton,
 body.guest-mode .tag-filter-section-header,
 body.guest-mode #tagFilterChipsRow,
 body.guest-mode .board-help-button {
@@ -11938,9 +11937,6 @@ body.guest-mode .board-help-button {
 }
 body.guest-mode .board-aspect-section-toggle {
   display: flex;
-}
-body.guest-mode #aspectSectionBody[hidden] {
-  display: block; /* déplié d'office (le JS le fait aussi, ceci est le filet) */
 }
 
 /* Studio / Garage : visibles mais inactifs pour l'invité */
