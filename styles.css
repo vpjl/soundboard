@@ -11833,6 +11833,13 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
 .guest-gate-title { margin: 0; font-size: 1.15rem; }
+.guest-gate-label {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent, #49d3a0);
+}
+.guest-gate-label[hidden] { display: none; }
 .guest-gate-intro {
   margin: 0;
   font-size: 0.86rem;
