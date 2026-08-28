@@ -10,7 +10,7 @@
 //   npm run capture-notice
 
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -315,6 +315,12 @@ async function main() {
     // .live-fx-row, aucune erreur JS) : la lecture WebAudio y reste bloquée
     // pour une raison propre à l'environnement headless, pas au code de l'app.
     // Capture à faire manuellement (voir README/notice.md).
+    // Estampille : version de l'app pour laquelle ces captures ont été faites
+    // (lue par generate-notice.py pour avertir si elles sont périmées).
+    const indexHtml = await readFile(join(root, "index.html"), "utf8");
+    const version = (indexHtml.match(/app\.js\?v=(\d+)/) || [])[1] || "?";
+    await writeFile(join(outDir, ".captured-version"), version + "\n");
+    console.log(`✓ .captured-version → v${version}`);
   } finally {
     await browser.close();
     server.close();

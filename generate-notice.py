@@ -25,6 +25,7 @@ neuve (CondPageBreak + KeepTogether). Une image peut être réduite avec un
 préfixe `0.5x|` dans son texte alt : `![0.5x|légende](chemin.png)`.
 """
 
+import datetime
 import os
 import re
 import sys
@@ -41,6 +42,18 @@ from reportlab.platypus import (
 SRC = "notice.md"
 OUT = "soundboard-vl-notice.pdf"
 INDEX = "index.html"
+BUILD_STAMP = ".notice-build"                                   # version pour laquelle le PDF a été bâti
+CAPTURES_STAMP = os.path.join("docs", "notice-captures", ".captured-version")
+
+
+def read_app_version():
+    """Version courante de l'app = le ?v=NNN du <script app.js> dans index.html."""
+    try:
+        with open(INDEX, encoding="utf-8") as f:
+            m = re.search(r"app\.js\?v=(\d+)", f.read())
+        return m.group(1) if m else "?"
+    except OSError:
+        return "?"
 
 ACCENT = colors.HexColor("#2b7a5b")   # vert logo (rappel de l'app)
 INK = colors.HexColor("#1c1f27")
@@ -397,17 +410,43 @@ def main():
     except FileNotFoundError:
         sys.exit(f"Source introuvable : {SRC}")
 
+    version = read_app_version()
+
+    # Captures périmées ? (docs/notice-captures/.captured-version, écrit par capture-notice.mjs)
+    try:
+        with open(CAPTURES_STAMP, encoding="utf-8") as f:
+            captured = f.read().strip()
+    except OSError:
+        captured = None
+    if captured and captured != version:
+        print(f"  ⚠ captures faites pour v{captured}, app en v{version} — "
+              f"relance d'abord : npm run capture-notice")
+
     st = build_styles()
     svgs = extract_button_svgs()
+    today = datetime.date.today().isoformat()
+
+    def footer(canvas, doc_):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(MUTED)
+        canvas.drawString(20 * mm, 10 * mm,
+                          f"Soundboard VL — notice pour l'application v{version} ({today})")
+        canvas.drawRightString(A4[0] - 20 * mm, 10 * mm, f"page {doc_.page}")
+        canvas.restoreState()
+
     doc = SimpleDocTemplate(
         OUT, pagesize=A4,
         leftMargin=20 * mm, rightMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=18 * mm,
-        title="Soundboard VL — Notice de fonctionnement",
+        title=f"Soundboard VL — Notice de fonctionnement (v{version})",
         author="Vincent Lainé",
     )
-    doc.build(parse(md, st, svgs))
-    print(f"OK → {OUT}")
+    doc.build(parse(md, st, svgs), onFirstPage=footer, onLaterPages=footer)
+
+    with open(BUILD_STAMP, "w", encoding="utf-8") as f:
+        f.write(version + "\n")
+    print(f"OK → {OUT}  (v{version})")
 
 
 if __name__ == "__main__":

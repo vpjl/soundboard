@@ -69,6 +69,12 @@ fi
 rm -f "$tmp"
 
 # 2. Fichiers de l'app
+appv="$(grep -oE 'app\.js\?v=[0-9]+' index.html | grep -oE '[0-9]+' | head -1)"
+noticev="$(cat .notice-build 2>/dev/null || echo '?')"
+if [ "$noticev" != "$appv" ]; then
+  echo "  ⚠ notice PDF bâtie pour v${noticev}, app en v${appv}."
+  echo "    Pour la mettre à jour :  npm run capture-notice && python3 generate-notice.py"
+fi
 for f in index.html app.js styles.css service-worker.js manifest.webmanifest soundboard-vl-notice.pdf; do
   [ -f "$f" ] && put "$f" "$REMOTE/$f"
 done
