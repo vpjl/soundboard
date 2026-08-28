@@ -11926,7 +11926,7 @@ body.guest-mode #boardInfoSectionBody,
 body.guest-mode .versions-section-toggle,
 body.guest-mode .board-version-row,
 body.guest-mode .board-manage-section-toggle,
-body.guest-mode #boardManageSectionBody,
+body.guest-mode .board-center-actions,
 body.guest-mode .board-mode-selector-extra,
 body.guest-mode .board-action-grid,
 body.guest-mode #openSkinEditorButton,
@@ -11937,6 +11937,12 @@ body.guest-mode .board-help-button {
 }
 body.guest-mode .board-aspect-section-toggle {
   display: flex;
+}
+/* Le nom du board dans le bloc board = le libellé du partage (cf. #boardName
+   forcé par renderBoardOptions). La section « Gestion » est dépliée d'office
+   mais réduite à ce seul champ (ses boutons sont masqués ci-dessus). */
+body.guest-mode #boardManageSectionBody {
+  display: block;
 }
 
 /* Studio / Garage : visibles mais inactifs pour l'invité */

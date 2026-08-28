@@ -69,8 +69,8 @@ fi
 rm -f "$tmp"
 
 # 2. Fichiers de l'app
-for f in index.html app.js styles.css service-worker.js manifest.webmanifest; do
-  put "$f" "$REMOTE/$f"
+for f in index.html app.js styles.css service-worker.js manifest.webmanifest soundboard-vl-notice.pdf; do
+  [ -f "$f" ] && put "$f" "$REMOTE/$f"
 done
 while IFS= read -r f; do
   put "$f" "$REMOTE/$f"

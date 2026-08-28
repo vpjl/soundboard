@@ -5509,7 +5509,10 @@ function renderBoardOptions() {
     els.boardSelect.append(option);
   });
   els.boardSelect.value = state.currentBoardId;
-  if (els.boardName) els.boardName.value = currentBoard().name;
+  // Mode invité : le nom du board affiché (champ #boardName, rendu en gros titre
+  // dans le bloc board en scène) = le libellé du partage.
+  const guestTitle = (state.guest && state.guestLabel) ? state.guestLabel : null;
+  if (els.boardName) els.boardName.value = guestTitle || currentBoard().name;
   const stageTitle = document.getElementById("stageBoardTitle");
   // Mode invité : en scène on affiche le libellé du partage à la place du nom du board.
   if (stageTitle) stageTitle.textContent = (state.guest && state.guestLabel) ? state.guestLabel : currentBoard().name;
@@ -19544,10 +19547,12 @@ async function setupGuestBoard() {
 function finishGuestUnlock() {
   document.body.classList.remove("guest-locked");
   if (els.guestGate) els.guestGate.hidden = true;
-  // « Version light » : la section Aspect est dépliée d'office pour l'invité.
+  // « Version light » : sections Aspect et Gestion (réduite au nom du board)
+  // dépliées d'office pour l'invité.
   state.aspectSectionOpen = true;
   els.aspectSectionToggle?.setAttribute("aria-expanded", "true");
   if (els.aspectSectionBody) els.aspectSectionBody.hidden = false;
+  if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = false;
 }
 
 async function refreshGuestLabel(shareId) {
