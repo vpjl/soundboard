@@ -32,7 +32,26 @@ $https = (($_SERVER['HTTPS'] ?? '') === 'on')
   || (($_SERVER['SERVER_PORT'] ?? '') === '443');
 if (!$https) fail(400, 'https_requis');
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') fail(405, 'method');
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+// --- GET ?id=… : renvoie juste le libellé (avant saisie du mot de passe) ------
+if ($method === 'GET') {
+  $id = (string) ($_GET['id'] ?? '');
+  if (!preg_match('/^[A-Za-z0-9_-]{4,40}$/', $id)) fail(400, 'id');
+  $partages = @include PRIVE_DIR . '/partages.php';
+  $entry = (is_array($partages) && isset($partages[$id]) && is_array($partages[$id])) ? $partages[$id] : null;
+  if (!$entry) { echo json_encode(['status' => 'inconnu']); exit; }
+  $expire  = $entry['expire'] ?? null;
+  $expired = $expire && strtotime((string) $expire) !== false && strtotime((string) $expire) < time();
+  echo json_encode([
+    'status' => $expired ? 'expire' : 'ok',
+    'label'  => $entry['label'] ?? null,
+    'date'   => $expired ? (string) $expire : null,
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+
+if ($method !== 'POST') fail(405, 'method');
 
 $in = json_decode(file_get_contents('php://input') ?: '', true);
 if (!is_array($in)) fail(400, 'json');

@@ -184,6 +184,7 @@ const state = {
   // Mode invité : identifiant du partage (#g=…) quand la page est ouverte via un
   // lien de partage. Verrouille l'app sur le seul board partagé (voir setupGuestBoard).
   guest: "",
+  guestLabel: "",
   audioContext: null,
   cueAudioContext: null,
   masterGain: null,
@@ -5510,7 +5511,8 @@ function renderBoardOptions() {
   els.boardSelect.value = state.currentBoardId;
   if (els.boardName) els.boardName.value = currentBoard().name;
   const stageTitle = document.getElementById("stageBoardTitle");
-  if (stageTitle) stageTitle.textContent = currentBoard().name;
+  // Mode invité : en scène on affiche le libellé du partage à la place du nom du board.
+  if (stageTitle) stageTitle.textContent = (state.guest && state.guestLabel) ? state.guestLabel : currentBoard().name;
   setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
   renderBoardLayoutControls();
   applyPadLayout();
@@ -19455,6 +19457,7 @@ async function init() {
 // ---------------------------------------------------------------------------
 const GUEST_BOARD_IDS_KEY = "soundboard-guest-board-ids";
 const GUEST_SESSION_KEY = "soundboard-guest-session";
+const GUEST_LABEL_KEY = "soundboard-guest-label";
 
 function readGuestShareId() {
   const fromHash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
@@ -19515,6 +19518,11 @@ async function setupGuestBoard() {
   const shareId = state.guest;
   document.body.classList.add("guest-mode", "guest-locked");
 
+  // Libellé du partage : récupéré avant la saisie du mot de passe (GET), affiché
+  // sur l'écran mot de passe puis à la place du nom du board en scène.
+  state.guestLabel = localStorage.getItem(GUEST_LABEL_KEY) || "";
+  await refreshGuestLabel(shareId);
+
   const sessionOk = sessionStorage.getItem(GUEST_SESSION_KEY) === shareId;
   const existingId = guestBoardIds()[0];
   if (sessionOk && existingId && state.boards.some((b) => b.id === existingId)) {
@@ -19536,6 +19544,29 @@ async function setupGuestBoard() {
 function finishGuestUnlock() {
   document.body.classList.remove("guest-locked");
   if (els.guestGate) els.guestGate.hidden = true;
+}
+
+async function refreshGuestLabel(shareId) {
+  try {
+    const res = await fetch(`api/share.php?id=${encodeURIComponent(shareId)}`, { method: "GET" });
+    const data = await res.json();
+    if (data && typeof data.label === "string" && data.label) {
+      state.guestLabel = data.label;
+      localStorage.setItem(GUEST_LABEL_KEY, data.label);
+    }
+  } catch { /* hors-ligne : on garde le libellé mémorisé */ }
+  applyGuestLabelToGate();
+}
+
+function applyGuestLabelToGate() {
+  const el = document.querySelector("#guestGateLabel");
+  if (!el) return;
+  if (state.guestLabel) {
+    el.textContent = state.guestLabel;
+    el.hidden = false;
+  } else {
+    el.hidden = true;
+  }
 }
 
 function askGuestPassword(shareId) {
