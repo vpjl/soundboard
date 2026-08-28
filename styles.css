@@ -11899,6 +11899,13 @@ body.guest-mode .master-strip {
   grid-template-areas: none;
   width: 100%;
   min-width: 0;
+  /* hauteur = contenu réel : basse quand le volet Random playlist est replié */
+  height: auto;
+  min-height: 0;
+  align-content: start;
+}
+body.guest-mode .master-strip > * {
+  flex: 0 0 auto;
 }
 body.guest-mode .master-title,
 body.guest-mode .master-strip .cue-output-group,
@@ -11930,6 +11937,8 @@ body.guest-mode .board-center-actions,
 body.guest-mode .board-mode-selector-extra,
 body.guest-mode .board-action-grid,
 body.guest-mode #openSkinEditorButton,
+body.guest-mode .board-extent-row,
+body.guest-mode .pad-compactness-row,
 body.guest-mode .tag-filter-section-header,
 body.guest-mode #tagFilterChipsRow,
 body.guest-mode .board-help-button {

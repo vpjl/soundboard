@@ -19967,6 +19967,13 @@ function clearStageStudioLayout() {
 }
 
 function applyStageStudioLayout() {
+  // Mode invité : layout scène entièrement redéfini en CSS (flex, blocs réduits).
+  // L'épinglage basé sur la géométrie studio n'a aucun sens ici et fige des
+  // hauteurs/largeurs parasites → on nettoie tout et on sort.
+  if (state.guest) {
+    clearStageStudioLayout();
+    return;
+  }
   if (!document.body.classList.contains("stage-mode")) {
     clearStageStudioLayout();
     // Si .live-tools avait été sorti du topbar (bloc cues collé pendant le
