@@ -2701,37 +2701,11 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
 
-/* Skin basic, illustration masquée (en scène) : le pad ne contient plus que
-   ~217px de contenu, mais sa rangée de grille est étirée à la hauteur des pads
-   ILLUSTRÉS voisins (~380px). Étiré à cette hauteur, `.pad` (grille,
-   align-content par défaut = stretch) répartissait l'excédent dans sa 1ʳᵉ
-   rangée → `.pad-flip` gonflé de 128 à 254px = grand vide entre titre et
-   contrôles Volume/Pan.
-   - align-self:start : le pad n'est plus étiré à la hauteur de la rangée
-   - align-content:start : sa grille interne n'étire pas ses rangées */
-/* La face FX (panneau d'effets, ~250px de contenu) est empilée dans la MÊME
-   cellule de grille que la face avant (grid-area: 1/1) : même invisible, elle
-   imposait sa hauteur à `.pad-flip` → toute la rangée de pads était tirée à
-   ~250px, et sur un pad dont l'illustration est masquée le titre flottait dans
-   un `.pad-flip` géant, les boutons Volume/Pan poussés dehors. `max-height: 0`
-   ne suffisait pas (la contribution intrinsèque restait comptée par la grille).
-   On la sort complètement du flux tant que le pad n'est pas retourné ; elle
-   revient au flip (`.is-fx-flipped`). */
-body[data-skin="basic"].stage-mode .pad:not(.is-fx-flipped) .pad-face-back {
-  display: none;
-}
-
-/* Pad basic dont l'illustration est masquée, en scène : hauteur alignée sur les
-   pads illustrés voisins pour que la rangée — et donc le cadrage des autres
-   images — ne bouge pas quand on masque une illustration. Ces pads sont exclus
-   du min-height mesuré par syncAllPadMinHeights (app.js) : c'est ce clamp qui
-   les dimensionne, le contenu (titre + Volume/Pan + transport) tenant dedans
-   grâce à row-gap resserré. Le léger jeu vertical est réparti par la grille
-   (align-content par défaut = stretch), pas concentré en un trou. */
-body[data-skin="basic"] .pad.is-visual-hidden {
-  min-height: clamp(150px, 18vw, 260px);
-  row-gap: 6px;
-}
+/* Cf. app.js syncPadFxFlipHeight() : c'est lui qui fige .pad-flip à la hauteur
+   de .pad-head, et il est désormais rappelé au masquage/affichage d'une
+   illustration (setPadVisualImage) — sans quoi .pad-flip restait à la hauteur
+   de l'état illustré (~254px) et les boutons Volume/Pan étaient poussés hors du
+   pad jusqu'au premier flip FX. Aucune règle CSS spécifique nécessaire. */
 
 /* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
    défaut puis affiché par la règle .has-visual-image/.has-color plus bas.

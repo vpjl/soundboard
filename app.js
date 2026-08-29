@@ -12791,6 +12791,15 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
     pad.visualPreviewEl?.style.removeProperty("background-image");
   }
   fitPadTitle(pad);
+  // Masquer/afficher l'illustration change la hauteur naturelle de .pad-head
+  // (skin basic surtout) : .pad-flip est figé en dur par syncPadFxFlipHeight()
+  // — jusqu'ici recalculé seulement à l'entrée en scène et au flip FX, d'où un
+  // .pad-flip resté à la hauteur de l'état illustré (titre géant, boutons
+  // Volume/Pan poussés hors du pad, jusqu'au 1er flip FX). On le recalcule ici,
+  // maintenant (avant le measure de syncAllPadMinHeights) ET au rAF suivant
+  // (une fois le nouveau style de .pad-head totalement appliqué).
+  syncPadFxFlipHeight(pad);
+  requestAnimationFrame(() => { syncPadFxFlipHeight(pad); syncAllPadMinHeightsSoon(); });
   syncAllPadMinHeightsSoon();
 }
 
@@ -20269,15 +20278,7 @@ function syncAllPadMinHeights() {
   } else {
     root.style.removeProperty("--pad-compact-height");
   }
-  const basicSkin = document.body.dataset.skin === "basic";
-  pads.forEach((p, i) => {
-    // Pads basic à illustration masquée : hauteur fixée en CSS (alignée sur les
-    // pads illustrés voisins). On ne leur pose PAS de min-height mesuré : les
-    // mesures faites pendant les transitions Studio↔Scène étaient faussées
-    // (face FX pas stabilisée) et restaient figées → élargissement du pad.
-    if (basicSkin && p.classList.contains("is-visual-hidden")) return;
-    p.style.minHeight = `${measures[i]}px`;
-  });
+  pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
 }
 
 if (els.padCompactness) {
