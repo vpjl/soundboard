@@ -7245,6 +7245,12 @@ body.stage-mode .pads {
 body.stage-mode .pad {
   gap: 10px;
   padding: 10px;
+  /* Quand un pad est plus court que sa rangée (rangée tirée par un pad illustré
+     voisin, fréquent en portrait mobile où les images sont hautes), la grille de
+     `.pad` répartissait le vide ENTRE les éléments (titre / Volume-Pan /
+     transport) = pad étiré avec des trous. `start` : les éléments restent
+     groupés en haut, le vide éventuel va tout en bas. */
+  align-content: start;
 }
 
 body.stage-mode .pad-actions {
