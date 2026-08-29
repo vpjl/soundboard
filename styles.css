@@ -2721,12 +2721,14 @@ body[data-skin="basic"].stage-mode .pad:not(.is-fx-flipped) .pad-face-back {
   display: none;
 }
 
-/* Pad basic dont l'illustration est masquée, en scène : contenu (titre +
-   Volume/Pan + transport) calé en haut ; hauteur alignée sur les pads illustrés
-   voisins pour que la rangée — et donc le cadrage des autres images — ne bouge
-   pas quand on masque une illustration. */
+/* Pad basic dont l'illustration est masquée, en scène : hauteur alignée sur les
+   pads illustrés voisins pour que la rangée — et donc le cadrage des autres
+   images — ne bouge pas quand on masque une illustration. Ces pads sont exclus
+   du min-height mesuré par syncAllPadMinHeights (app.js) : c'est ce clamp qui
+   les dimensionne, le contenu (titre + Volume/Pan + transport) tenant dedans
+   grâce à row-gap resserré. Le léger jeu vertical est réparti par la grille
+   (align-content par défaut = stretch), pas concentré en un trou. */
 body[data-skin="basic"] .pad.is-visual-hidden {
-  align-content: start;
   min-height: clamp(150px, 18vw, 260px);
   row-gap: 6px;
 }

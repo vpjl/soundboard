@@ -20269,7 +20269,15 @@ function syncAllPadMinHeights() {
   } else {
     root.style.removeProperty("--pad-compact-height");
   }
-  pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
+  const basicSkin = document.body.dataset.skin === "basic";
+  pads.forEach((p, i) => {
+    // Pads basic à illustration masquée : hauteur fixée en CSS (alignée sur les
+    // pads illustrés voisins). On ne leur pose PAS de min-height mesuré : les
+    // mesures faites pendant les transitions Studio↔Scène étaient faussées
+    // (face FX pas stabilisée) et restaient figées → élargissement du pad.
+    if (basicSkin && p.classList.contains("is-visual-hidden")) return;
+    p.style.minHeight = `${measures[i]}px`;
+  });
 }
 
 if (els.padCompactness) {
