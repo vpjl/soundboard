@@ -20223,10 +20223,22 @@ function applyPadCompactness(value, save = true) {
   if (save) localStorage.setItem(PAD_COMPACTNESS_STORAGE, String(px));
 }
 
+let padCompactnessRetries = 0;
 function refreshPadCompactnessRange() {
   if (!els.padCompactness) return;
   const width = currentPadWidth();
-  if (!width) return;
+  if (!width) {
+    // Pads pas encore mesurables (mobile lent au 1er rAF) : sans largeur,
+    // --pad-compact-height reste vide et le repli CSS étire les rangées. On
+    // réessaie quelques frames, puis on pose une valeur par défaut de secours.
+    if (padCompactnessRetries++ < 20) {
+      requestAnimationFrame(refreshPadCompactnessRange);
+    } else if (!document.documentElement.style.getPropertyValue("--pad-compact-height")) {
+      document.documentElement.style.setProperty("--pad-compact-height", "260px");
+    }
+    return;
+  }
+  padCompactnessRetries = 0;
   // Minimum du curseur = largeur du pad (format carré). PAS de plancher global :
   // chaque pad porte son propre min-height (cf. syncAllPadMinHeights), pour que la
   // grille n'agrandisse QUE les rangées contenant un pad haut (boutons visibles),

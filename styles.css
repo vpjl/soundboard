@@ -2456,14 +2456,17 @@ button.is-pressed {
   /* Compacité des pads (curseur du volet ASPECT, tous modes/skins) : les
      rangées se compactent vers la cible --pad-compact-height, mais
      minmax(auto, …) ne descend jamais sous le contenu — une rangée avec un
-     pad texte-seul garde sa hauteur minimale de lisibilité. Repli 9999px
-     (≈ pas de plafond) plutôt que "none" : minmax(auto, none) est invalide
-     et annulerait toute la déclaration. */
-  grid-auto-rows: minmax(auto, var(--pad-compact-height, 9999px));
+     pad texte-seul garde sa hauteur minimale de lisibilité. Repli 340px
+     (pas "none" : minmax(auto, none) est invalide) : `auto` en min garantit
+     que le contenu tient toujours, ce plafond empêche seulement une rangée de
+     s'étirer AU-DELÀ — indispensable sur mobile où --pad-compact-height peut
+     n'être pas encore posée (pads pas mesurables au 1er rAF), sinon rangées
+     infinies (l'ancien repli 9999px). */
+  grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
 }
 
 body.stage-mode .pads.has-pad-layout {
-  grid-auto-rows: minmax(auto, var(--pad-compact-height, 9999px));
+  grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
 }
 
 .cable-overlay {
