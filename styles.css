@@ -8434,6 +8434,23 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   padding: 34px 12px 18px !important;
 }
 
+/* Écran tactile : la zone de clic d'un pad illustré est plafonnée par
+   `body.stage-mode .pad-trigger { min-height: clamp(108px, 18vh, 180px) }` —
+   le `18vh` (hauteur d'écran, grande en portrait) donnait ~150px de mini,
+   allongeant les pads illustrés (souvent étroits en portrait, 2-4 colonnes).
+   Ici on cale cette hauteur sur la LARGEUR du pad (`.pad` = conteneur de
+   requête) → pad illustré ≈ carré, quel que soit le nombre de colonnes. */
+@media (pointer: coarse) {
+  body.stage-mode .pads.has-pad-layout > .pad {
+    container-type: inline-size;
+  }
+  body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+  body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+    min-height: clamp(72px, 52cqw, 240px) !important;
+    padding: 12px !important;
+  }
+}
+
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   justify-self: stretch;
