@@ -2701,13 +2701,21 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
 
-/* Skin basic, illustration masquée (en scène) : la face FX (.pad-face-back),
-   invisible tant que le pad n'est pas retourné mais empilée dans la même
-   cellule de grille que .pad-face-front, gonflait .pad-flip à SA hauteur
-   naturelle (~256px) → grand vide entre le titre et les contrôles Volume/Pan.
-   Quand le pad affiche son illustration, un plafond de hauteur + overflow:hidden
-   sur .pad masquait le problème. On écrase la face FX tant que le pad n'est pas
-   retourné ; elle retrouve sa taille au flip. */
+/* Skin basic, illustration masquée (en scène) : le pad ne contient plus que
+   ~217px de contenu, mais sa rangée de grille est étirée à la hauteur des pads
+   ILLUSTRÉS voisins (~380px). Étiré à cette hauteur, `.pad` (grille,
+   align-content par défaut = stretch) répartissait l'excédent dans sa 1ʳᵉ
+   rangée → `.pad-flip` gonflé de 128 à 254px = grand vide entre titre et
+   contrôles Volume/Pan.
+   - align-self:start : le pad n'est plus étiré à la hauteur de la rangée
+   - align-content:start : sa grille interne n'étire pas ses rangées */
+body[data-skin="basic"] .pad.is-visual-hidden {
+  align-self: start;
+  align-content: start;
+}
+/* La face FX (invisible hors flip) est empilée dans la même cellule que la face
+   avant : on l'écrase tant que le pad n'est pas retourné pour qu'elle ne pèse
+   pas sur la hauteur. */
 body[data-skin="basic"] .pad.is-visual-hidden:not(.is-fx-flipped) .pad-face-back {
   max-height: 0;
   overflow: hidden;
