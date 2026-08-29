@@ -2712,11 +2712,13 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
 body[data-skin="basic"] .pad.is-visual-hidden {
   align-self: start;
   align-content: start;
-  /* La grille `.pads` donne à ce pad un min-height:auto qui se résout à la
-     hauteur de la rangée (~393px, dictée par les pads illustrés voisins). Le
-     pad, plus grand que son contenu, étirait alors sa 1ʳᵉ rangée interne
-     (.pad-flip : 128 → 254px) = le grand vide. On neutralise ce plancher. */
-  min-height: 0;
+  /* Même hauteur cible que les pads illustrés voisins : la rangée ne bouge pas
+     quand on masque une illustration (sinon les images des autres pads se
+     recadrent). row-gap resserré pour que titre + Volume/Pan + transport y
+     tiennent sans déborder. Sans ce min-height explicite, la grille imposait un
+     min-height:auto fantôme (~393px) qui gonflait la 1ʳᵉ rangée = le vide. */
+  min-height: clamp(150px, 18vw, 260px);
+  row-gap: 6px;
 }
 /* La face FX (panneau d'effets, ~254px de contenu, invisible tant que le pad
    n'est pas retourné) est empilée dans la même cellule de grille que la face
