@@ -2713,10 +2713,12 @@ body[data-skin="basic"] .pad.is-visual-hidden {
   align-self: start;
   align-content: start;
 }
-/* La face FX (invisible hors flip) est empilée dans la même cellule que la face
-   avant : on l'écrase tant que le pad n'est pas retourné pour qu'elle ne pèse
-   pas sur la hauteur. */
-body[data-skin="basic"] .pad.is-visual-hidden:not(.is-fx-flipped) .pad-face-back {
+/* La face FX (panneau d'effets, ~254px de contenu, invisible tant que le pad
+   n'est pas retourné) est empilée dans la même cellule de grille que la face
+   avant : elle tirait la hauteur de TOUTE la ligne de pads (y compris depuis
+   les pads illustrés). On l'écrase tant que le pad n'est pas retourné ; elle
+   retrouve sa taille au flip. */
+body[data-skin="basic"].stage-mode .pad:not(.is-fx-flipped) .pad-face-back {
   max-height: 0;
   overflow: hidden;
 }
