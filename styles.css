@@ -2718,7 +2718,8 @@ body[data-skin="basic"] .pad.is-visual-hidden {
      tiennent sans déborder. Sans ce min-height explicite, la grille imposait un
      min-height:auto fantôme (~393px) qui gonflait la 1ʳᵉ rangée = le vide. */
   min-height: clamp(150px, 18vw, 260px);
-  row-gap: 6px;
+  row-gap: 4px;
+  padding: 6px;
 }
 /* La face FX (panneau d'effets, ~254px de contenu, invisible tant que le pad
    n'est pas retourné) est empilée dans la même cellule de grille que la face
