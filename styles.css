@@ -2709,30 +2709,26 @@ body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
    contrôles Volume/Pan.
    - align-self:start : le pad n'est plus étiré à la hauteur de la rangée
    - align-content:start : sa grille interne n'étire pas ses rangées */
-body[data-skin="basic"] .pad.is-visual-hidden {
-  align-self: start;
-  align-content: start;
-  /* Même hauteur cible que les pads illustrés voisins : la rangée ne bouge pas
-     quand on masque une illustration (sinon les images des autres pads se
-     recadrent). row-gap resserré pour que titre + Volume/Pan + transport y
-     tiennent sans déborder.
-     !important délibéré : syncAllPadMinHeights() (app.js) POSE un min-height
-     inline mesuré, et pendant la transition Studio→Scène cette mesure est
-     faussée (~390px, la face FF/FB pas encore stabilisée) et reste figée. On
-     neutralise ce plancher inline ; le contenu réel (~255px) dimensionne alors
-     le pad, avec align-content:start pour que tout excédent reste EN BAS. */
-  min-height: clamp(150px, 18vw, 260px) !important;
-  row-gap: 4px;
-  padding: 6px;
-}
-/* La face FX (panneau d'effets, ~254px de contenu, invisible tant que le pad
-   n'est pas retourné) est empilée dans la même cellule de grille que la face
-   avant : elle tirait la hauteur de TOUTE la ligne de pads (y compris depuis
-   les pads illustrés). On l'écrase tant que le pad n'est pas retourné ; elle
-   retrouve sa taille au flip. */
+/* La face FX (panneau d'effets, ~250px de contenu) est empilée dans la MÊME
+   cellule de grille que la face avant (grid-area: 1/1) : même invisible, elle
+   imposait sa hauteur à `.pad-flip` → toute la rangée de pads était tirée à
+   ~250px, et sur un pad dont l'illustration est masquée le titre flottait dans
+   un `.pad-flip` géant, les boutons Volume/Pan poussés dehors. `max-height: 0`
+   ne suffisait pas (la contribution intrinsèque restait comptée par la grille).
+   On la sort complètement du flux tant que le pad n'est pas retourné ; elle
+   revient au flip (`.is-fx-flipped`). */
 body[data-skin="basic"].stage-mode .pad:not(.is-fx-flipped) .pad-face-back {
-  max-height: 0;
-  overflow: hidden;
+  display: none;
+}
+
+/* Pad basic dont l'illustration est masquée, en scène : contenu (titre +
+   Volume/Pan + transport) calé en haut ; hauteur alignée sur les pads illustrés
+   voisins pour que la rangée — et donc le cadrage des autres images — ne bouge
+   pas quand on masque une illustration. */
+body[data-skin="basic"] .pad.is-visual-hidden {
+  align-content: start;
+  min-height: clamp(150px, 18vw, 260px);
+  row-gap: 6px;
 }
 
 /* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
