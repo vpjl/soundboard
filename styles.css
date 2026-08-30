@@ -12054,18 +12054,25 @@ body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.i
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   position: static;
 }
-/* Le titre absolu s'ancre sur `.pad-flip` (position:relative en scène). Pour
-   qu'il touche le BAS du pad, `.pad-flip` doit remplir tout le pad : les
-   contrôles/transport sont masqués sur un pad illustré, donc `.pad` n'a qu'une
-   rangée utile → on la force en `1fr`. */
+/* Pad illustré (sans contrôles visibles) en scène : CARRÉ, point.
+   `aspect-ratio: 1` + `align-self: start` (pas étiré par une rangée tirée par
+   un pad texte voisin) + `min-height: 0 !important` pour neutraliser le
+   min-height inline que `syncAllPadMinHeights` (app.js) leur posait — c'est lui
+   qui rendait les rangées incohérentes (264/196) et empêchait le retour au
+   carré après masquer/afficher l'illustration.
+   `grid-template-rows: 1fr` + `.pad-flip { height: 100% }` : la seule rangée
+   utile remplit le pad → le titre, ancré au bas de `.pad-flip`, touche le bas
+   du pad. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+  aspect-ratio: 1;
+  min-height: 0 !important;
+  align-self: start;
   grid-template-rows: minmax(0, 1fr);
 }
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
   height: 100%;
-  min-height: 100%;
 }
 
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
