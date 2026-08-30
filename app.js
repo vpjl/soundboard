@@ -2560,6 +2560,13 @@ function syncPadFxFlipHeight(pad) {
   // (constaté : pads allongés jusqu'à un changement de skin qui reconstruit
   // les pads). En libérant, .pad-flip retombe sur sa taille de contenu réelle.
   pad.fxFlipEl.style.height = "";
+  // Face effets retournée : on ne fige plus la hauteur. .pad-flip devient la
+  // rangée souple de la grille de .pad (cf. CSS body.stage-mode
+  // .pad.is-fx-flipped { grid-template-rows: minmax(0,1fr) auto auto }) pour
+  // que l'espace libre du pad revienne aux réglages FX au lieu de rester en
+  // vide sous les boutons transport. Au retour sur le recto, la hauteur est
+  // refigée par le rappel de cette fonction (fxFaceFlipped repassé à false).
+  if (pad.fxFaceFlipped) return;
   // Pad qui affiche son illustration / sa couleur (aucun contrôle visible) :
   // `.pad-flip` doit REMPLIR tout le pad (carré), pas se caler sur la hauteur
   // du `.pad-head` — sinon la boîte titre, épinglée au bas de `.pad-flip`,
@@ -2574,9 +2581,12 @@ function syncPadFxFlipHeight(pad) {
 
 function setPadFxFaceFlipped(pad, flipped) {
   if (!pad.fxFlipEl) return;
-  syncPadFxFlipHeight(pad);
+  // fxFaceFlipped / classe posés AVANT la synchro de hauteur : syncPadFxFlipHeight
+  // s'appuie dessus pour décider de figer (recto) ou de libérer (verso) la
+  // hauteur de .pad-flip.
   pad.fxFaceFlipped = flipped;
   pad.node.classList.toggle("is-fx-flipped", flipped);
+  syncPadFxFlipHeight(pad);
   if (flipped) {
     if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
     if (pad.fxBackBodyEl) {

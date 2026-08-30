@@ -2550,6 +2550,17 @@ body.stage-mode .pad.is-fx-flipped .pad-flip {
   transform: rotateY(180deg);
 }
 
+/* Face effets ouverte : .pad-flip devient la rangée souple de la grille de
+   .pad (Volume/Pan et transport, les deux autres rangées, restent à leur
+   hauteur naturelle). L'espace libre du pad — qui tombait sinon tout en bas,
+   inutilisé, à cause de `align-content: start` — revient ainsi aux réglages
+   FX, qui gagnent en hauteur et scrollent moins. Cf. app.js
+   syncPadFxFlipHeight() : il cesse de figer la hauteur de .pad-flip tant que
+   la face effets est retournée. */
+body.stage-mode .pad.is-fx-flipped {
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
 /* Recto et verso empilés dans LA MÊME cellule de grille (grid-area partagée)
    plutôt qu'un recto en flux normal + un verso en position:absolute : les
    deux s'étirent alors identiquement à la taille de .pad-flip (grid stretch
