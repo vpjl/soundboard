@@ -20289,8 +20289,17 @@ function refreshPadCompactnessRange() {
   // sans empêcher les pads illustrés d'être carrés ni bloquer le retour au carré.
   els.padCompactness.min = String(width);
   els.padCompactness.max = String(Math.max(PAD_COMPACTNESS_MAX, width + 60));
-  applyPadCompactness(els.padCompactness.value, false);
+  applyPadCompactness(padCompactnessTarget(), false);
   syncAllPadMinHeightsSoon();
+}
+
+// Cible de compacité : le réglage utilisateur s'il existe, sinon la largeur du
+// pad (= pads carrés par défaut). Sans ça, la valeur par défaut du curseur
+// (260px) rendait les pads portrait sur mobile où un pad fait ~180px de large.
+function padCompactnessTarget() {
+  const stored = Number(localStorage.getItem(PAD_COMPACTNESS_STORAGE));
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  return Number(els.padCompactness?.min) || PAD_COMPACTNESS_MAX;
 }
 
 let padMinHeightFrame = 0;
@@ -20341,9 +20350,8 @@ if (els.padCompactness) {
   els.padCompactness.max = String(PAD_COMPACTNESS_MAX);
   els.padCompactness.addEventListener("change", () => applyPadCompactness(els.padCompactness.value));
   window.addEventListener("resize", () => requestAnimationFrame(refreshPadCompactnessRange));
-  const storedCompactness = Number(localStorage.getItem(PAD_COMPACTNESS_STORAGE));
   requestAnimationFrame(() => {
     refreshPadCompactnessRange();
-    if (Number.isFinite(storedCompactness) && storedCompactness > 0) applyPadCompactness(storedCompactness, false);
+    applyPadCompactness(padCompactnessTarget(), false);
   });
 }
