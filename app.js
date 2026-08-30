@@ -19684,6 +19684,39 @@ function askGuestPassword(shareId) {
   });
 }
 
+// Debug temporaire (mobile) : ouvrir l'app avec #padinfo dans l'URL → overlay
+// listant les hauteurs des pads, rafraîchi toutes les 2 s. Toucher pour fermer.
+if (String(location.hash || "").includes("padinfo")) {
+  const dump = () => {
+    const pads = [...document.querySelectorAll(".pads .pad")];
+    if (!pads.length) return;
+    const grid = document.querySelector(".pads");
+    const lines = pads.map((p, i) => {
+      const f = p.querySelector(".pad-flip");
+      const tag = p.classList.contains("is-visual-hidden") ? "MASQ"
+        : p.classList.contains("has-visual-image") ? "ILLU" : "txt";
+      return `${i + 1}) ${tag} w${Math.round(p.getBoundingClientRect().width)} `
+        + `h${p.offsetHeight} mh${p.style.minHeight || "-"} `
+        + `flip${(f && f.style.height) || "-"}/${f ? f.offsetHeight : "-"} `
+        + `head${p.querySelector(".pad-head")?.offsetHeight ?? "-"}`;
+    });
+    let box = document.getElementById("__padinfo");
+    if (!box) {
+      box = document.createElement("pre");
+      box.id = "__padinfo";
+      box.style.cssText = "position:fixed;inset:0 0 auto 0;z-index:99999;margin:0;"
+        + "padding:8px;background:#000;color:#0f0;font:11px/1.35 monospace;"
+        + "white-space:pre-wrap;max-height:55vh;overflow:auto";
+      box.addEventListener("click", () => box.remove());
+      document.body.appendChild(box);
+    }
+    box.textContent = `skin=${document.body.dataset.skin}\nrows=${getComputedStyle(grid).gridTemplateRows}\n\n`
+      + lines.join("\n") + "\n\n(toucher pour fermer)";
+  };
+  setInterval(dump, 2000);
+  window.__paddump = dump;
+}
+
 init();
 
 function shouldUseServiceWorker() {
