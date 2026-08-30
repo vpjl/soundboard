@@ -19695,10 +19695,15 @@ if (String(location.hash || "").includes("padinfo")) {
       const f = p.querySelector(".pad-flip");
       const tag = p.classList.contains("is-visual-hidden") ? "MASQ"
         : p.classList.contains("has-visual-image") ? "ILLU" : "txt";
-      return `${i + 1}) ${tag} w${Math.round(p.getBoundingClientRect().width)} `
-        + `h${p.offsetHeight} mh${p.style.minHeight || "-"} `
-        + `flip${(f && f.style.height) || "-"}/${f ? f.offsetHeight : "-"} `
-        + `head${p.querySelector(".pad-head")?.offsetHeight ?? "-"}`;
+      const pr = p.getBoundingClientRect();
+      const tt = p.querySelector(".pad-title");
+      const tr = tt && tt.getBoundingClientRect();
+      // distance entre le BAS du titre et le BAS du pad (0 = collé en bas)
+      const titleGap = tr ? Math.round(pr.bottom - tr.bottom) : "-";
+      const trg = p.querySelector(".pad-trigger");
+      return `${i + 1}) ${tag} w${Math.round(pr.width)} h${p.offsetHeight} `
+        + `mh${p.style.minHeight || "-"} flip${(f && f.style.height) || "-"}/${f ? f.offsetHeight : "-"} `
+        + `trg${trg ? trg.offsetHeight : "-"} title h${tt ? tt.offsetHeight : "-"} basGap${titleGap}`;
     });
     let box = document.getElementById("__padinfo");
     if (!box) {
