@@ -7835,6 +7835,23 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
+  /* Mobile / 1 colonne : le bloc Board a un plafond de 460px pensé pour la
+     colonne étroite du layout 2 colonnes (desktop). En 1 colonne il laissait
+     un grand vide à droite, alors que Master et Cues, eux, prennent toute la
+     largeur → logo et pads « repoussés » à gauche. On lève le plafond. */
+  .board-strip {
+    max-width: none;
+  }
+
+  /* --board-extent (curseur « étendue du board ») sert à ne pas étaler le board
+     sur un très grand écran : aucun intérêt sur mobile, et une valeur mémorisée
+     basse rétrécissait toute l'app. On force 100 % ici. */
+  .topbar,
+  .deck,
+  body.stage-mode .deck {
+    width: 100%;
+  }
+
   .live-tools {
     grid-template-columns: minmax(0, 1fr) max-content;
     gap: 7px 8px;
