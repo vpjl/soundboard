@@ -12077,4 +12077,22 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     overflow-x: clip;
     max-width: 100%;
   }
+
+  /* Master en scène : forcer une seule colonne + tout ce qui est dedans à
+     pouvoir rétrécir, et réduire la taille des gros boutons Stop — sinon la
+     grille scène (pensée pour la colonne 2 d'un desktop) restait ~430px de
+     large et son bord droit (Mute) était coupé. */
+  body.stage-mode .master-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
+    --master-stop-size: clamp(48px, 20vw, 110px);
+  }
+  body.stage-mode .master-strip > *,
+  body.stage-mode .master-stop-cluster,
+  body.stage-mode .master-stop-cluster > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  body.stage-mode .master-stop-cluster {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
 }

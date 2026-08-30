@@ -2560,6 +2560,14 @@ function syncPadFxFlipHeight(pad) {
   // (constaté : pads allongés jusqu'à un changement de skin qui reconstruit
   // les pads). En libérant, .pad-flip retombe sur sa taille de contenu réelle.
   pad.fxFlipEl.style.height = "";
+  // Pad qui affiche son illustration / sa couleur (aucun contrôle visible) :
+  // `.pad-flip` doit REMPLIR tout le pad (carré), pas se caler sur la hauteur
+  // du `.pad-head` — sinon la boîte titre, épinglée au bas de `.pad-flip`,
+  // flotte au milieu du pad.
+  const showsVisual = (pad.node.classList.contains("has-visual-image")
+    || pad.node.classList.contains("has-color"))
+    && !pad.node.classList.contains("is-visual-hidden");
+  if (showsVisual) return;
   const naturalHeight = pad.headEl.getBoundingClientRect().height;
   if (naturalHeight > 0) pad.fxFlipEl.style.height = `${naturalHeight}px`;
 }
