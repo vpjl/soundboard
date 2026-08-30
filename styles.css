@@ -12046,6 +12046,14 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   z-index: 2;
   align-self: auto;
 }
+/* .pad-trigger est `position: relative` → le titre en `position:absolute` s'y
+   épinglait (il ne fait que ~la moitié haute du pad) au lieu de se caler sur
+   le bas du pad. On le repasse static pour que l'ancre devienne `.pad-flip`
+   (qui remplit tout le pad illustré). */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  position: static;
+}
 
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
    Ces deux blocs ont un empilement de media queries qui se chevauchent (cf.
