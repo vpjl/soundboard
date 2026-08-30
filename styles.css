@@ -8460,20 +8460,18 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   padding: 34px 12px 18px !important;
 }
 
-/* Écran tactile : la zone de clic d'un pad illustré est plafonnée par
+/* Écran tactile : la zone de clic d'un pad illustré était plafonnée par
    `body.stage-mode .pad-trigger { min-height: clamp(108px, 18vh, 180px) }` —
-   le `18vh` (hauteur d'écran, grande en portrait) donnait ~150px de mini,
-   allongeant les pads illustrés (souvent étroits en portrait, 2-4 colonnes).
-   Ici on cale cette hauteur sur la LARGEUR du pad (`.pad` = conteneur de
-   requête) → pad illustré ≈ carré, quel que soit le nombre de colonnes. */
+   le `18vh` (hauteur d'écran) allongeait les pads en portrait. La hauteur du
+   pad est désormais pilotée par --pad-compact-height (= largeur du pad, carré) ;
+   le trigger n'a plus qu'à ne PAS forcer plus haut → petit plancher fixe.
+   (Ancienne version en `52cqw` + `container-type` : rendait les rangées
+   incohérentes, 184px vs 275px selon que le conteneur était résolu ou non.) */
 @media (pointer: coarse) {
-  body.stage-mode .pads.has-pad-layout > .pad {
-    container-type: inline-size;
-  }
   body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
   body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
-    min-height: clamp(72px, 52cqw, 240px) !important;
-    padding: 12px !important;
+    min-height: 56px !important;
+    padding: 10px !important;
   }
 }
 
@@ -12056,13 +12054,18 @@ body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.i
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   position: static;
 }
-/* .pad-flip est `position: relative` en scène (pour le flip 3D) : tant qu'il
-   l'est, le titre absolu s'y ancre (~148px de haut) au lieu du pad entier.
-   `static` : l'ancre remonte à `.pad` (position:relative, = tout le pad). Le
-   transform du flip 3D ne dépend pas de `position`, donc sans risque. */
+/* Le titre absolu s'ancre sur `.pad-flip` (position:relative en scène). Pour
+   qu'il touche le BAS du pad, `.pad-flip` doit remplir tout le pad : les
+   contrôles/transport sont masqués sur un pad illustré, donc `.pad` n'a qu'une
+   rangée utile → on la force en `1fr`. */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+  grid-template-rows: minmax(0, 1fr);
+}
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
-  position: static;
+  height: 100%;
+  min-height: 100%;
 }
 
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
