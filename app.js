@@ -19692,67 +19692,6 @@ function askGuestPassword(shareId) {
   });
 }
 
-// Debug temporaire (mobile) : ouvrir l'app avec #padinfo dans l'URL → overlay
-// listant les hauteurs des pads, rafraîchi toutes les 2 s. Toucher pour fermer.
-if (String(location.hash || "").includes("padinfo")) {
-  const dump = () => {
-    const pads = [...document.querySelectorAll(".pads .pad")];
-    if (!pads.length) return;
-    const grid = document.querySelector(".pads");
-    const lines = pads.map((p, i) => {
-      const f = p.querySelector(".pad-flip");
-      const tag = p.classList.contains("is-visual-hidden") ? "MASQ"
-        : p.classList.contains("has-visual-image") ? "ILLU" : "txt";
-      const pr = p.getBoundingClientRect();
-      const tt = p.querySelector(".pad-title");
-      const tr = tt && tt.getBoundingClientRect();
-      // distance entre le BAS du titre et le BAS du pad (0 = collé en bas)
-      const titleGap = tr ? Math.round(pr.bottom - tr.bottom) : "-";
-      const trg = p.querySelector(".pad-trigger");
-      return `${i + 1}) ${tag} w${Math.round(pr.width)} h${p.offsetHeight} `
-        + `mh${p.style.minHeight || "-"} flip${(f && f.style.height) || "-"}/${f ? f.offsetHeight : "-"} `
-        + `trg${trg ? trg.offsetHeight : "-"} title h${tt ? tt.offsetHeight : "-"} basGap${titleGap}`;
-    });
-    let box = document.getElementById("__padinfo");
-    if (!box) {
-      box = document.createElement("pre");
-      box.id = "__padinfo";
-      box.style.cssText = "position:fixed;inset:0 0 auto 0;z-index:99999;margin:0;"
-        + "padding:8px;background:#000;color:#0f0;font:11px/1.35 monospace;"
-        + "white-space:pre-wrap;max-height:55vh;overflow:auto";
-      box.addEventListener("click", () => box.remove());
-      document.body.appendChild(box);
-    }
-    // Débordement horizontal : quel élément est plus large que le viewport ?
-    const vw = document.documentElement.clientWidth;
-    let over = "";
-    document.querySelectorAll(".app *").forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.right > vw + 1 && r.width <= vw + 40 && !over) {
-        over = `DÉBORDE: ${el.className || el.tagName} right=${Math.round(r.right)} vw=${vw}`;
-      }
-    });
-    // Détail du titre du 1er pad illustré
-    const ip = pads.find((p) => p.classList.contains("has-visual-image") && !p.classList.contains("is-visual-hidden"));
-    let ti = "";
-    if (ip) {
-      const t = ip.querySelector(".pad-title");
-      if (t) {
-        const s = getComputedStyle(t);
-        ti = `\ntitre: pos=${s.position} bottom=${s.bottom} top=${s.top}`
-          + ` marginBottom=${s.marginBottom} alignSelf=${s.alignSelf}`
-          + ` offsetParent=${t.offsetParent ? (t.offsetParent.className || t.offsetParent.tagName) : "null"}`;
-      }
-    }
-    const cssHref = document.querySelector('link[href*="styles.css"]')?.getAttribute("href");
-    box.textContent = `css=${cssHref}  skin=${document.body.dataset.skin}  vw=${vw} scrollW=${document.documentElement.scrollWidth}\n`
-      + `rows=${getComputedStyle(grid).gridTemplateRows}\n` + (over ? over + "\n" : "") + ti + "\n\n"
-      + lines.join("\n") + "\n\n(toucher pour fermer)";
-  };
-  setInterval(dump, 2000);
-  window.__paddump = dump;
-}
-
 init();
 
 function shouldUseServiceWorker() {
