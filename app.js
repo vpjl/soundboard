@@ -2554,6 +2554,12 @@ function createLiveFxPanVolumeControls(pad) {
 // entrée en scène) sans dépendre de l'état courant de .pad-flip.
 function syncPadFxFlipHeight(pad) {
   if (!pad.fxFlipEl || !pad.headEl) return;
+  // On LIBÈRE d'abord la hauteur figée : .pad-head est en `height:100%` de
+  // .pad-flip (skin basic illustré), donc sans ça on remesurerait la hauteur
+  // qu'on a soi-même posée au coup d'avant → valeur figée jamais corrigée
+  // (constaté : pads allongés jusqu'à un changement de skin qui reconstruit
+  // les pads). En libérant, .pad-flip retombe sur sa taille de contenu réelle.
+  pad.fxFlipEl.style.height = "";
   const naturalHeight = pad.headEl.getBoundingClientRect().height;
   if (naturalHeight > 0) pad.fxFlipEl.style.height = `${naturalHeight}px`;
 }
@@ -12172,6 +12178,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       if (state.stageMode) {
         stageStudioLayoutReleased = true;
         applyStageStudioLayoutSoon();
+        // Re-mesure une fois la transition + le layout stabilisés : sur mobile,
+        // le 1er passage (rAF ci-dessus) tombe trop tôt et fige des hauteurs
+        // gonflées (pads allongés à l'entrée en scène en skin basic).
+        state.pads.forEach((pad) => syncPadFxFlipHeight(pad));
+        syncAllPadMinHeightsSoon();
       }
     }, 500);
     setBoardPadEditing(false);
