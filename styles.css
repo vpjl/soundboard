@@ -12078,10 +12078,25 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     max-width: 100%;
   }
 
+  /* LA cause du débordement : `html body.stage-mode .topbar` (l.~11623, sans
+     media query, !important) impose `minmax(420px,1fr) max-content` → colonne 1
+     à 420px MINIMUM + Master en colonne 2 max-content = topbar bien plus large
+     que le viewport. On force 1 seule colonne ici (même spécificité + important,
+     mais dans un @media et plus tard dans le fichier → gagne). */
+  html body.stage-mode .topbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  html body.stage-mode .board-area,
+  html body.stage-mode .master-strip,
+  html body.stage-mode .live-tools {
+    grid-column: 1 !important;
+    width: auto !important;
+    max-width: 100% !important;
+    justify-self: stretch !important;
+  }
+
   /* Master en scène : forcer une seule colonne + tout ce qui est dedans à
-     pouvoir rétrécir, et réduire la taille des gros boutons Stop — sinon la
-     grille scène (pensée pour la colonne 2 d'un desktop) restait ~430px de
-     large et son bord droit (Mute) était coupé. */
+     pouvoir rétrécir, et réduire la taille des gros boutons Stop. */
   body.stage-mode .master-strip {
     grid-template-columns: minmax(0, 1fr) !important;
     --master-stop-size: clamp(48px, 20vw, 110px);
