@@ -12031,3 +12031,26 @@ body.guest-mode [data-board-mode-target="garage"] {
 }
 .guest-light-note[hidden] { display: none; }
 body.guest-mode .guest-light-note { display: block; }
+
+/* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
+   Ces deux blocs ont un empilement de media queries qui se chevauchent (cf.
+   mémoire projet, bug d'étirement de largeur jamais résolu). Sur écran étroit
+   ils débordaient à droite du viewport (barre de défilement horizontale, reste
+   de l'app « repoussé »). Règle finale, la plus tardive du fichier → gagne :
+   on borne leur largeur au conteneur, quoi qu'il arrive. */
+@media (max-width: 950px), (pointer: coarse) {
+  body .master-strip,
+  body.stage-mode .master-strip,
+  body .live-tools,
+  body.stage-mode .live-tools {
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+    box-sizing: border-box;
+  }
+  body .master-strip,
+  body.stage-mode .master-strip {
+    overflow-x: clip;
+  }
+}
