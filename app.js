@@ -19732,8 +19732,21 @@ if (String(location.hash || "").includes("padinfo")) {
         over = `DÉBORDE: ${el.className || el.tagName} right=${Math.round(r.right)} vw=${vw}`;
       }
     });
-    box.textContent = `skin=${document.body.dataset.skin}  vw=${vw} scrollW=${document.documentElement.scrollWidth}\n`
-      + `rows=${getComputedStyle(grid).gridTemplateRows}\n` + (over ? over + "\n" : "") + "\n"
+    // Détail du titre du 1er pad illustré
+    const ip = pads.find((p) => p.classList.contains("has-visual-image") && !p.classList.contains("is-visual-hidden"));
+    let ti = "";
+    if (ip) {
+      const t = ip.querySelector(".pad-title");
+      if (t) {
+        const s = getComputedStyle(t);
+        ti = `\ntitre: pos=${s.position} bottom=${s.bottom} top=${s.top}`
+          + ` marginBottom=${s.marginBottom} alignSelf=${s.alignSelf}`
+          + ` offsetParent=${t.offsetParent ? (t.offsetParent.className || t.offsetParent.tagName) : "null"}`;
+      }
+    }
+    const cssHref = document.querySelector('link[href*="styles.css"]')?.getAttribute("href");
+    box.textContent = `css=${cssHref}  skin=${document.body.dataset.skin}  vw=${vw} scrollW=${document.documentElement.scrollWidth}\n`
+      + `rows=${getComputedStyle(grid).gridTemplateRows}\n` + (over ? over + "\n" : "") + ti + "\n\n"
       + lines.join("\n") + "\n\n(toucher pour fermer)";
   };
   setInterval(dump, 2000);
