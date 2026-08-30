@@ -12042,17 +12042,23 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   left: 8px;
   right: 8px;
   bottom: 8px;
+  width: auto;
   margin: 0;
+  text-align: center;
   z-index: 2;
   align-self: auto;
 }
-/* .pad-trigger est `position: relative` → le titre en `position:absolute` s'y
-   épinglait (il ne fait que ~la moitié haute du pad) au lieu de se caler sur
-   le bas du pad. On le repasse static pour que l'ancre devienne `.pad-flip`
-   (qui remplit tout le pad illustré). */
+/* .pad-trigger est `position: relative` : on le repasse static, ET on fait
+   remplir `.pad-flip` (qui reste l'ancre) sur toute la hauteur du pad — sinon
+   il ne fait que ~la hauteur du titre et le titre absolu se cale à SON bas,
+   ~40px au-dessus du bas du pad. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   position: static;
+}
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
+  height: 100%;
 }
 
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
