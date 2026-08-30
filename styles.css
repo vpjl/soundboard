@@ -12056,9 +12056,13 @@ body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.i
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   position: static;
 }
+/* .pad-flip est `position: relative` en scène (pour le flip 3D) : tant qu'il
+   l'est, le titre absolu s'y ancre (~148px de haut) au lieu du pad entier.
+   `static` : l'ancre remonte à `.pad` (position:relative, = tout le pad). Le
+   transform du flip 3D ne dépend pas de `position`, donc sans risque. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
-  height: 100%;
+  position: static;
 }
 
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
