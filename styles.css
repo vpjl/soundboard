@@ -12032,6 +12032,21 @@ body.guest-mode [data-board-mode-target="garage"] {
 .guest-light-note[hidden] { display: none; }
 body.guest-mode .guest-light-note { display: block; }
 
+/* Skin basic, pad illustré en scène : la boîte titre est ÉPINGLÉE au bas du pad
+   (position:absolute sur `.pad`, position:relative), quel que soit le layout
+   interne de `.pad-flip` / `.pad-play-row` / des rangées progress/vu/alerts qui
+   la laissaient flotter ~140px au-dessus du bas. */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  z-index: 2;
+  align-self: auto;
+}
+
 /* ==== Garde-fou anti-débordement mobile (Master / Cues) ====================
    Ces deux blocs ont un empilement de media queries qui se chevauchent (cf.
    mémoire projet, bug d'étirement de largeur jamais résolu). Sur écran étroit
@@ -12052,5 +12067,14 @@ body.guest-mode .guest-light-note { display: block; }
   body .master-strip,
   body.stage-mode .master-strip {
     overflow-x: clip;
+  }
+
+  /* Dernier rempart : rien ne dépasse le viewport horizontalement (plus de
+     défilement latéral / d'app rétrécie), même si un bloc interne insiste. */
+  html,
+  body,
+  .app {
+    overflow-x: clip;
+    max-width: 100%;
   }
 }

@@ -19715,7 +19715,17 @@ if (String(location.hash || "").includes("padinfo")) {
       box.addEventListener("click", () => box.remove());
       document.body.appendChild(box);
     }
-    box.textContent = `skin=${document.body.dataset.skin}\nrows=${getComputedStyle(grid).gridTemplateRows}\n\n`
+    // Débordement horizontal : quel élément est plus large que le viewport ?
+    const vw = document.documentElement.clientWidth;
+    let over = "";
+    document.querySelectorAll(".app *").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.right > vw + 1 && r.width <= vw + 40 && !over) {
+        over = `DÉBORDE: ${el.className || el.tagName} right=${Math.round(r.right)} vw=${vw}`;
+      }
+    });
+    box.textContent = `skin=${document.body.dataset.skin}  vw=${vw} scrollW=${document.documentElement.scrollWidth}\n`
+      + `rows=${getComputedStyle(grid).gridTemplateRows}\n` + (over ? over + "\n" : "") + "\n"
       + lines.join("\n") + "\n\n(toucher pour fermer)";
   };
   setInterval(dump, 2000);
@@ -20298,12 +20308,14 @@ function refreshPadCompactnessRange() {
   syncAllPadMinHeightsSoon();
 }
 
-// Cible de compacité : le réglage utilisateur s'il existe, sinon la largeur du
-// pad (= pads carrés par défaut). Sans ça, la valeur par défaut du curseur
-// (260px) rendait les pads portrait sur mobile où un pad fait ~180px de large.
+// Cible de compacité : le réglage utilisateur SEULEMENT s'il l'a réglé lui-même
+// (drapeau posé au `change` du curseur) — sinon largeur du pad = pads carrés.
+// Une valeur stockée par une version passée (souvent 260, l'ancien max) ne doit
+// PAS empêcher le carré par défaut.
 function padCompactnessTarget() {
+  const explicit = localStorage.getItem(PAD_COMPACTNESS_STORAGE + "-set") === "1";
   const stored = Number(localStorage.getItem(PAD_COMPACTNESS_STORAGE));
-  if (Number.isFinite(stored) && stored > 0) return stored;
+  if (explicit && Number.isFinite(stored) && stored > 0) return stored;
   return Number(els.padCompactness?.min) || PAD_COMPACTNESS_MAX;
 }
 
@@ -20353,7 +20365,10 @@ function syncAllPadMinHeights() {
 
 if (els.padCompactness) {
   els.padCompactness.max = String(PAD_COMPACTNESS_MAX);
-  els.padCompactness.addEventListener("change", () => applyPadCompactness(els.padCompactness.value));
+  els.padCompactness.addEventListener("change", () => {
+    localStorage.setItem(PAD_COMPACTNESS_STORAGE + "-set", "1"); // réglage explicite de l'utilisateur
+    applyPadCompactness(els.padCompactness.value);
+  });
   window.addEventListener("resize", () => requestAnimationFrame(refreshPadCompactnessRange));
   requestAnimationFrame(() => {
     refreshPadCompactnessRange();
