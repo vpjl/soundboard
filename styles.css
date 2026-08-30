@@ -7049,6 +7049,15 @@ body.stage-mode .board-skin-select {
   width: 100%;
 }
 
+/* Scène : les curseurs « étendue du board » et « compacité des pads » sont des
+   réglages de préparation (studio), inutiles en direct — ils ne faisaient
+   qu'allonger le bloc board sous les Cues. Le mécanisme (--pad-compact-height)
+   continue de tourner, seul l'affichage est retiré. */
+body.stage-mode .board-extent-row,
+body.stage-mode .pad-compactness-row {
+  display: none;
+}
+
 body.stage-mode .board-filter-row {
   grid-column: 1;
   padding-right: 52px;
@@ -9709,14 +9718,16 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
-  place-items: center;
+  /* end : la boîte titre est collée EN BAS de l'illustration, pas centrée. */
+  place-items: end center;
   padding: 8px !important;
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
   display: grid;
-  place-items: center;
+  place-items: end center;
+  align-content: end;
   height: 100%;
 }
 
