@@ -12033,6 +12033,11 @@ body.guest-mode .board-aspect-section-toggle {
 body.guest-mode #boardManageSectionBody {
   display: block;
 }
+/* Le titre du board (l'invité le voit déjà via #boardSelect en haut du bloc) :
+   ne pas le répéter dans la section « Gestion ». */
+body.guest-mode .board-name {
+  display: none !important;
+}
 
 /* Studio / Garage : visibles mais inactifs pour l'invité */
 body.guest-mode [data-board-mode-target="studio"],
