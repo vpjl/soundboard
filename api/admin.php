@@ -503,10 +503,23 @@ if ($method === 'POST' && $_POST) {
   $partages = load_partages();
 }
 
-render_page('Console de partage', function () use ($partages, $errors, $notice, $createdLink, $httpsOk) {
+// Création en échec : on réaffiche les valeurs saisies (dont le board déjà
+// reçu, si sa tranche est encore sur le serveur) plutôt que de tout vider.
+$formOld = ($errors && ($_POST['action'] ?? '') === 'create') ? [
+  'password'  => (string) ($_POST['password'] ?? ''),
+  'label'     => (string) ($_POST['label'] ?? ''),
+  'expire'    => (string) ($_POST['expire'] ?? ''),
+  'id'        => (string) ($_POST['id'] ?? ''),
+  'guestskin' => (($_POST['guestskin'] ?? '') === 'all') ? 'all' : 'current',
+  'assembled' => (string) ($_POST['assembled'] ?? ''),
+] : [];
+
+render_page('Console de partage', function () use ($partages, $errors, $notice, $createdLink, $httpsOk, $formOld) {
   $csrf = csrf_token();
+  $idFmtMsg = "Identifiant : 4 à 40 caractères parmi A-Z a-z 0-9 _ -";
+  $idFmtErr = in_array($idFmtMsg, $errors, true); // affiché sous le champ, pas en tête
   if (!$httpsOk) echo '<p class="warn">⚠ Page servie sans HTTPS.</p>';
-  show_errors($errors);
+  show_errors(array_values(array_filter($errors, fn($e) => $e !== $idFmtMsg)));
   if ($notice) echo '<p class="ok">' . h($notice) . '</p>';
   if ($createdLink): ?>
     <div class="link-out">
@@ -525,17 +538,18 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   <form method="post" autocomplete="off" id="createForm">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
     <input type="hidden" name="action" value="create">
-    <input type="hidden" name="assembled" id="assembledId" value="">
+    <input type="hidden" name="assembled" id="assembledId" value="<?= h($formOld['assembled'] ?? '') ?>">
     <fieldset class="skin-choice">
       <legend>Skins accessibles à l'invité</legend>
-      <label class="radio"><input type="radio" name="guestskin" value="current" checked> Seulement le skin du board</label>
-      <label class="radio"><input type="radio" name="guestskin" value="all"> Tous les skins intégrés</label>
+      <label class="radio"><input type="radio" name="guestskin" value="current"<?= ($formOld['guestskin'] ?? 'current') !== 'all' ? ' checked' : '' ?>> Seulement le skin du board</label>
+      <label class="radio"><input type="radio" name="guestskin" value="all"<?= ($formOld['guestskin'] ?? '') === 'all' ? ' checked' : '' ?>> Tous les skins intégrés</label>
     </fieldset>
-    <label>Mot de passe pour l'invité<input type="text" name="password" required></label>
-    <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80"></label>
-    <label>Expiration (facultatif)<input type="date" name="expire"></label>
+    <label>Mot de passe pour l'invité<input type="text" name="password" value="<?= h($formOld['password'] ?? '') ?>" required></label>
+    <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80" value="<?= h($formOld['label'] ?? '') ?>"></label>
+    <label>Expiration (facultatif)<input type="date" name="expire" value="<?= h($formOld['expire'] ?? '') ?>"></label>
     <label>Identifiant du lien (facultatif — un par invité)
-      <input type="text" name="id" pattern="[A-Za-z0-9_-]{4,40}" placeholder="généré automatiquement"></label>
+      <input type="text" name="id" id="linkId" pattern="[A-Za-z0-9_-]{4,40}" placeholder="généré automatiquement" value="<?= h($formOld['id'] ?? '') ?>">
+      <span class="field-err" id="linkIdErr"<?= $idFmtErr ? '' : ' hidden' ?>>Identifiant : 4 à 40 caractères parmi A-Z a-z 0-9 _ -</span></label>
     <button type="submit" id="createBtn">Créer le lien</button>
     <p class="hint" id="createProgress" hidden></p>
   </form>
@@ -546,8 +560,20 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     var prog = document.getElementById('createProgress');
     var hint = document.getElementById('createHint');
     var assembled = document.getElementById('assembledId');
+    var idField = document.getElementById('linkId');
+    var idErr = document.getElementById('linkIdErr');
     var csrf = form.querySelector('input[name=csrf]').value;
     var busy = false;
+
+    // Signale l'identifiant invalide sous le champ ; renvoie false = bloquant.
+    function idOk() {
+      var v = (idField.value || '').trim();
+      var ok = !v || /^[A-Za-z0-9_-]{4,40}$/.test(v);
+      idErr.hidden = ok;
+      if (!ok) idField.focus();
+      return ok;
+    }
+    idField.addEventListener('input', function () { if (!idErr.hidden) idOk(); });
 
     // Sans fenêtre appelante, impossible de récupérer le board : on désactive la
     // création (la gestion des partages ci-dessous reste utilisable).
@@ -581,6 +607,7 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     // « Créer le lien » : on demande d'abord le board courant à l'application,
     // qui l'envoie en tranches, puis la vraie soumission part (message staged).
     form.addEventListener('submit', function (e) {
+      if (!idOk()) { e.preventDefault(); return; }
       if (assembled.value) return;              // board déjà reçu → soumission normale
       e.preventDefault();
       if (busy) return;
@@ -712,6 +739,8 @@ function render_page(string $title, callable $body): void {
   fieldset.skin-choice legend { padding: 0 6px; font-size: 0.8rem; color: #9aa4b2; }
   label.radio { display: flex; align-items: center; gap: 8px; color: #e6e8ec; font-size: 0.9rem; }
   label.radio input { width: auto; padding: 0; }
+  .field-err { color: #ff8a8f; font-size: 0.8rem; }
+  .field-err[hidden] { display: none; }
   details.foldout { margin: 28px 0 0; border-top: 1px solid #2a2f3a; padding-top: 14px; }
   details.foldout > summary { cursor: pointer; font-size: 1rem; font-weight: 600; color: #e6e8ec; list-style: revert; }
   details.foldout[open] > summary { margin-bottom: 12px; }
