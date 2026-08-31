@@ -18,6 +18,9 @@ const WINDOW_SECONDS = 900;
 const MIN_DELAY_MS   = 350;
 const ITER           = 210000;
 
+@ini_set('memory_limit', '256M'); // upload de board « avec audio » : plusieurs Mo
+@set_time_limit(60);
+
 // Free Pages Perso ne fournit pas de sessions PHP fiables (session_start()
 // échoue → 503). On gère donc nous-mêmes une mini-session : un jeton aléatoire
 // dans un cookie + un fichier serveur prive/admin-sess.json (hors du web via
@@ -327,7 +330,15 @@ if (!$loggedIn) {
 
 $partages = load_partages();
 
-if ($method === 'POST') {
+// POST reçu mais corps vide = dépassement de post_max_size (Free : souvent 8 Mo).
+// Sans ça la page se recharge en silence et l'invité n'est pas créé.
+if ($method === 'POST' && !$_POST && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+  $mb = round(((int) $_SERVER['CONTENT_LENGTH']) / 1048576, 1);
+  $errors[] = "Envoi de {$mb} Mo refusé par l'hébergeur (limite de taille des formulaires). "
+    . "Ce board est trop lourd pour l'upload navigateur : passer par tools/make-share.mjs + FTP.";
+}
+
+if ($method === 'POST' && $_POST) {
   if (!csrf_ok()) {
     $errors[] = "Session expirée, recommencez.";
   } elseif (($_POST['action'] ?? '') === 'logout') {
@@ -393,19 +404,23 @@ if ($method === 'POST') {
     if (strlen($pass) < 4) $errors[] = "Mot de passe invité trop court.";
     if ($expire !== '' && strtotime($expire) === false) $errors[] = "Date d'expiration invalide.";
 
-    $payload = null;
+    // Board « avec audio » = plusieurs Mo → on ne charge PAS tout en mémoire
+    // (Free plante en 503 : memory_limit bas). Validation sur un entête borné,
+    // écriture par copy() du fichier temporaire.
+    $boardName = 'board';
     if (!$errors) {
-      $raw = file_get_contents($up['tmp_name']) ?: '';
-      $payload = json_decode($raw, true);
-      if (!is_array($payload) || ($payload['format'] ?? '') !== 'soundboard-live-board') {
+      $head = (string) file_get_contents($up['tmp_name'], false, null, 0, 300000);
+      if (!preg_match('/"format"\s*:\s*"soundboard-live-board"/', $head)) {
         $errors[] = "Ce fichier n'est pas un board exporté (format « soundboard-live-board » attendu).";
-      } elseif (empty($payload['includesAudio'])) {
-        $errors[] = "Ce board a été exporté SANS audio. Réexporter en « avec audio ».";
+      } elseif (!preg_match('/"includesAudio"\s*:\s*true/', $head)) {
+        $errors[] = "Ce board a été exporté SANS audio (ou son entête dépasse 300 Ko). Réexporter en « avec audio ».";
+      }
+      if (preg_match('/"board"\s*:\s*\{[^}]*?"name"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"/', $head, $m)) {
+        $boardName = json_decode('"' . $m[1] . '"') ?: 'board';
       }
     }
 
     if (!$errors) {
-      $boardName = (string) ($payload['board']['name'] ?? 'board');
       $id = $wantId !== '' ? $wantId : slugify($boardName) . '-' . bin2hex(random_bytes(3));
       if (!preg_match('/^[A-Za-z0-9_-]{4,40}$/', $id)) {
         $errors[] = "Identifiant : 4 à 40 caractères parmi A-Z a-z 0-9 _ -";
@@ -414,8 +429,10 @@ if ($method === 'POST') {
       } else {
         if (!is_dir(BOARDS_DIR)) @mkdir(BOARDS_DIR, 0755, true);
         $fileName = slugify($boardName) . '.' . date('Ymd-His') . '.json';
-        if (file_put_contents(BOARDS_DIR . '/' . $fileName, $raw, LOCK_EX) === false) {
-          $errors[] = "Impossible d'écrire le board dans prive/boards/ (droits ?).";
+        $dest = BOARDS_DIR . '/' . $fileName;
+        if (!(is_uploaded_file($up['tmp_name']) && move_uploaded_file($up['tmp_name'], $dest))
+            && !@copy($up['tmp_name'], $dest)) {
+          $errors[] = "Impossible d'écrire le board dans prive/boards/ (droits ou espace disque ?).";
         } else {
           $sk = session_key();
           $partages[$id] = [
