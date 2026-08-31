@@ -12,3 +12,4 @@ prive/admin-sess.json
 prive/sessions/
 tools/.make-share.json
 tools/.deploy-netrc
+prive/tmp/

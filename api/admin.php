@@ -338,6 +338,40 @@ if ($method === 'POST' && !$_POST && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
     . "Ce board est trop lourd pour l'upload navigateur : passer par tools/make-share.mjs + FTP.";
 }
 
+/* ---- Upload en tranches : gros boards « avec audio » > post_max_size Free -- */
+const CHUNK_DIR       = PRIVE_DIR . '/tmp';
+const CHUNK_MAX_TOTAL = 80 * 1048576;
+
+function chunk_path(string $uid): ?string {
+  return preg_match('/^[a-f0-9]{16,40}$/', $uid) ? CHUNK_DIR . '/' . $uid . '.part' : null;
+}
+
+if ($method === 'POST' && ($_POST['action'] ?? '') === 'chunk') {
+  header('Content-Type: application/json; charset=utf-8');
+  if (!csrf_ok())        { http_response_code(403); exit('{"error":"csrf"}'); }
+  $path = chunk_path((string) ($_POST['uid'] ?? ''));
+  $seq  = (int) ($_POST['seq'] ?? -1);
+  $part = $_FILES['part'] ?? null;
+  if ($path === null || !$part || ($part['error'] ?? 1) !== UPLOAD_ERR_OK) {
+    http_response_code(400); exit('{"error":"part"}');
+  }
+  if (!is_dir(CHUNK_DIR)) @mkdir(CHUNK_DIR, 0755, true);
+  foreach (glob(CHUNK_DIR . '/*.part') ?: [] as $old) {          // purge orphelins > 1 h
+    if (@filemtime($old) < time() - 3600) @unlink($old);
+  }
+  if ($seq === 0) @unlink($path);                                // nouvel envoi
+  $cur = is_file($path) ? (int) filesize($path) : 0;
+  if ($cur + (int) ($part['size'] ?? 0) > CHUNK_MAX_TOTAL) {
+    @unlink($path); http_response_code(413); exit('{"error":"too_big"}');
+  }
+  $in = @fopen($part['tmp_name'], 'rb');
+  $out = @fopen($path, 'ab');
+  if (!$in || !$out) { http_response_code(500); exit('{"error":"io"}'); }
+  stream_copy_to_stream($in, $out);
+  fclose($in); fclose($out);
+  exit(json_encode(['ok' => true, 'seq' => $seq, 'bytes' => (int) filesize($path)]));
+}
+
 if ($method === 'POST' && $_POST) {
   if (!csrf_ok()) {
     $errors[] = "Session expirée, recommencez.";
@@ -392,11 +426,23 @@ if ($method === 'POST' && $_POST) {
     $expire  = trim((string) ($_POST['expire'] ?? ''));
     $wantId  = trim((string) ($_POST['id'] ?? ''));
     $up      = $_FILES['board'] ?? null;
+    $upOk    = $up && ($up['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
 
-    if (!$up || ($up['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    // Source du board : soit l'upload direct (petits boards), soit le fichier
+    // reconstitué à partir des tranches (gros boards « avec audio »).
+    $asm      = (string) ($_POST['assembled'] ?? '');
+    $asmPath  = $asm !== '' ? chunk_path($asm) : null;
+    $srcPath  = null;
+    $srcIsUpload = false;
+    if ($asmPath && is_file($asmPath)) {
+      $srcPath = $asmPath;
+    } elseif ($upOk) {
+      $srcPath = $up['tmp_name'];
+      $srcIsUpload = true;
+    } else {
       $code = $up['error'] ?? UPLOAD_ERR_NO_FILE;
       if (in_array($code, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
-        $errors[] = "Board trop volumineux pour l'upload PHP de Free. Utiliser tools/make-share.mjs + FTP pour ce board.";
+        $errors[] = "Board trop volumineux pour l'upload direct. L'envoi en tranches aurait dû prendre le relais — réessaie, ou utilise tools/make-share.mjs + FTP.";
       } else {
         $errors[] = "Aucun fichier de board reçu.";
       }
@@ -406,10 +452,10 @@ if ($method === 'POST' && $_POST) {
 
     // Board « avec audio » = plusieurs Mo → on ne charge PAS tout en mémoire
     // (Free plante en 503 : memory_limit bas). Validation sur un entête borné,
-    // écriture par copy() du fichier temporaire.
+    // écriture par rename()/copy() du fichier source.
     $boardName = 'board';
     if (!$errors) {
-      $head = (string) file_get_contents($up['tmp_name'], false, null, 0, 300000);
+      $head = (string) file_get_contents($srcPath, false, null, 0, 300000);
       if (!preg_match('/"format"\s*:\s*"soundboard-live-board"/', $head)) {
         $errors[] = "Ce fichier n'est pas un board exporté (format « soundboard-live-board » attendu).";
       } elseif (!preg_match('/"includesAudio"\s*:\s*true/', $head)) {
@@ -430,8 +476,8 @@ if ($method === 'POST' && $_POST) {
         if (!is_dir(BOARDS_DIR)) @mkdir(BOARDS_DIR, 0755, true);
         $fileName = slugify($boardName) . '.' . date('Ymd-His') . '.json';
         $dest = BOARDS_DIR . '/' . $fileName;
-        if (!(is_uploaded_file($up['tmp_name']) && move_uploaded_file($up['tmp_name'], $dest))
-            && !@copy($up['tmp_name'], $dest)) {
+        $moved = $srcIsUpload && is_uploaded_file($srcPath) && move_uploaded_file($srcPath, $dest);
+        if (!$moved && !@rename($srcPath, $dest) && !@copy($srcPath, $dest)) {
           $errors[] = "Impossible d'écrire le board dans prive/boards/ (droits ou espace disque ?).";
         } else {
           $sk = session_key();
@@ -474,18 +520,72 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   <?php endif; ?>
 
   <h2>Créer un lien</h2>
-  <form method="post" enctype="multipart/form-data" autocomplete="off">
+  <form method="post" enctype="multipart/form-data" autocomplete="off" id="createForm">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
     <input type="hidden" name="action" value="create">
+    <input type="hidden" name="assembled" id="assembledId" value="">
     <label>Board exporté (.json « avec audio »)
-      <input type="file" name="board" accept="application/json,.json" required></label>
+      <input type="file" name="board" id="boardFile" accept="application/json,.json" required></label>
     <label>Mot de passe pour l'invité<input type="text" name="password" required></label>
     <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80"></label>
     <label>Expiration (facultatif)<input type="date" name="expire"></label>
     <label>Identifiant du lien (facultatif — un par invité)
       <input type="text" name="id" pattern="[A-Za-z0-9_-]{4,40}" placeholder="généré automatiquement"></label>
-    <button type="submit">Créer le lien</button>
+    <button type="submit" id="createBtn">Créer le lien</button>
+    <p class="hint" id="createProgress" hidden></p>
   </form>
+  <script>
+  (function () {
+    var form = document.getElementById('createForm');
+    var fileInput = document.getElementById('boardFile');
+    var btn = document.getElementById('createBtn');
+    var prog = document.getElementById('createProgress');
+    var csrf = form.querySelector('input[name=csrf]').value;
+    var CHUNK = 1400000;           // < post_max_size de Free (souvent 8 Mo)
+    var DIRECT_MAX = 4000000;      // en-dessous : envoi direct classique
+    var busy = false;
+
+    form.addEventListener('submit', function (e) {
+      var f = fileInput.files[0];
+      if (busy || !f || f.size <= DIRECT_MAX) return;   // laisse l'envoi normal
+      e.preventDefault();
+      busy = true; btn.disabled = true;
+      var uid = ''; for (var i = 0; i < 4; i++) uid += Math.random().toString(16).slice(2, 10);
+      uid = uid.slice(0, 32);
+      var total = Math.ceil(f.size / CHUNK), seq = 0;
+      prog.hidden = false;
+
+      function sendNext() {
+        if (seq >= total) { finish(); return; }
+        var slice = f.slice(seq * CHUNK, (seq + 1) * CHUNK);
+        var fd = new FormData();
+        fd.append('action', 'chunk'); fd.append('csrf', csrf);
+        fd.append('uid', uid); fd.append('seq', seq);
+        fd.append('part', slice, 'part');
+        fetch(location.pathname, { method: 'POST', body: fd, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function () {
+            seq++;
+            prog.textContent = 'Envoi en cours… ' + seq + ' / ' + total;
+            sendNext();
+          })
+          .catch(function (err) {
+            prog.textContent = 'Échec de l’envoi (' + err + '). Réessaie, ou passe par make-share.mjs + FTP.';
+            busy = false; btn.disabled = false;
+          });
+      }
+      function finish() {
+        document.getElementById('assembledId').value = uid;
+        fileInput.removeAttribute('required');
+        fileInput.value = '';
+        prog.textContent = 'Envoi terminé, création du lien…';
+        busy = false;
+        form.submit();
+      }
+      sendNext();
+    });
+  })();
+  </script>
 
   <h2>Partages actifs (<?= count($partages) ?>)</h2>
   <?php
