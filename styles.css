@@ -11967,8 +11967,16 @@ body.guest-locked { overflow: hidden; }
    égale, sans !important. À revoir visuellement (pas de preview sur ce projet). */
 
 body.guest-mode .remote-control-button,
-body.guest-mode .live-tools {
+body.guest-mode .live-tools,
+body.guest-mode #liveFxPanel {
   display: none;
+}
+/* Board partagé : jamais de face effets, même si un état la réclamait. */
+body.guest-mode .pad-face-back {
+  visibility: hidden !important;
+}
+body.guest-mode .pad.is-fx-flipped .pad-face-front {
+  visibility: visible !important;
 }
 
 /* Bloc MASTER : seulement Volume sono + Random playlist */

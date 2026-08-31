@@ -2642,6 +2642,7 @@ function setupPadFxFlipTrigger(pad) {
   let lastFlipClickAt = 0;
   pad.fxFlipEl?.addEventListener("click", (event) => {
     if (!document.body.classList.contains("stage-mode")) return;
+    if (state.guest) return; // pas de face effets pour un board partagé
     if (event.target.closest("button, input, select, textarea, a, [data-action], .live-fx-control, .pad-tags-chips")) return;
     const now = event.timeStamp || Date.now();
     if (now - lastFlipClickAt < 400) {
