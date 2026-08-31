@@ -6384,12 +6384,14 @@ function updateSkinOptions() {
   const previousGroup = els.skinSelect.querySelector('optgroup[data-custom-skins="true"]');
   if (previousGroup) previousGroup.remove();
 
-  const customSkins = readCustomSkins();
+  // Invité : les skins utilisateur (éditeur) ne lui sont jamais proposés, même
+  // si son navigateur en a en localStorage d'un autre usage.
+  const customSkins = state.guest ? [] : readCustomSkins();
 
   const group = document.createElement("optgroup");
   group.dataset.customSkins = "true";
   group.label = "Skins utilisateur";
-  els.skinSelect.append(group);
+  if (customSkins.length) els.skinSelect.append(group);
 
   customSkins
     .slice()
@@ -19694,6 +19696,7 @@ function finishGuestUnlock() {
     localStorage.getItem(GUEST_SKIN_CHOICE_KEY) !== "all",
   );
   if (els.guestGate) els.guestGate.hidden = true;
+  updateSkinOptions(); // retire les skins utilisateur éventuellement en localStorage
   // « Version light » : sections Aspect et Gestion (réduite au nom du board)
   // dépliées d'office pour l'invité.
   state.aspectSectionOpen = true;
