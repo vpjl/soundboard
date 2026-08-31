@@ -137,13 +137,18 @@ function save_partages(array $data): bool {
   return file_put_contents(PARTAGES_FILE, $out, LOCK_EX) !== false;
 }
 
+// Lecture défensive du fichier de comptage : s'il est absent, énorme ou
+// corrompu, on repart d'une liste vide plutôt que de faire planter la page.
+function rate_read(): array {
+  if (!is_file(RATE_FILE) || filesize(RATE_FILE) > 200000) return [];
+  $data = json_decode((string) @file_get_contents(RATE_FILE), true);
+  return is_array($data) ? $data : [];
+}
+
 function rate_blocked(): bool {
   $ip = $_SERVER['REMOTE_ADDR'] ?? 'x';
   $now = time();
-  $hits = [];
-  if (is_file(RATE_FILE)) {
-    $hits = json_decode(file_get_contents(RATE_FILE) ?: '[]', true) ?: [];
-  }
+  $hits = rate_read();
   $hits = array_values(array_filter($hits, fn($x) => ($x['t'] ?? 0) > $now - WINDOW_SECONDS));
   $mine = array_filter($hits, fn($x) => ($x['ip'] ?? '') === $ip);
   return count($mine) >= MAX_ATTEMPTS;
@@ -152,7 +157,7 @@ function rate_blocked(): bool {
 function rate_note_failure(): void {
   $ip = $_SERVER['REMOTE_ADDR'] ?? 'x';
   $now = time();
-  $hits = is_file(RATE_FILE) ? (json_decode(file_get_contents(RATE_FILE) ?: '[]', true) ?: []) : [];
+  $hits = rate_read();
   $hits = array_values(array_filter($hits, fn($x) => ($x['t'] ?? 0) > $now - WINDOW_SECONDS));
   $hits[] = ['ip' => $ip, 't' => $now];
   @file_put_contents(RATE_FILE, json_encode($hits), LOCK_EX);

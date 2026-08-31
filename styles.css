@@ -11903,12 +11903,23 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
 }
 .guest-gate-title { margin: 0; font-size: 1.15rem; }
 .guest-gate-label {
-  margin: 0;
-  font-size: 1rem;
+  margin: -6px 0 0;           /* collé sous le titre */
+  font-size: 0.82rem;         /* nettement plus petit que le titre */
   font-weight: 600;
   color: var(--accent, #49d3a0);
 }
 .guest-gate-label[hidden] { display: none; }
+
+/* Mode invité : libellé du partage en sous-titre, sous le nom du board. */
+.guest-board-subtitle {
+  margin: 3px 0 0;
+  font-size: 0.95rem;        /* nettement plus petit que le nom du board (gros en scène) */
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--accent, #49d3a0);
+}
+.guest-board-subtitle[hidden] { display: none; }
 .guest-gate-intro {
   margin: 0;
   font-size: 0.86rem;

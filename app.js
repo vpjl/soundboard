@@ -5533,13 +5533,17 @@ function renderBoardOptions() {
     els.boardSelect.append(option);
   });
   els.boardSelect.value = state.currentBoardId;
-  // Mode invité : le nom du board affiché (champ #boardName, rendu en gros titre
-  // dans le bloc board en scène) = le libellé du partage.
-  const guestTitle = (state.guest && state.guestLabel) ? state.guestLabel : null;
-  if (els.boardName) els.boardName.value = guestTitle || currentBoard().name;
+  if (els.boardName) els.boardName.value = currentBoard().name;
   const stageTitle = document.getElementById("stageBoardTitle");
-  // Mode invité : en scène on affiche le libellé du partage à la place du nom du board.
-  if (stageTitle) stageTitle.textContent = (state.guest && state.guestLabel) ? state.guestLabel : currentBoard().name;
+  if (stageTitle) stageTitle.textContent = currentBoard().name;
+  // Mode invité : le libellé du partage s'affiche en sous-titre, sous le nom du
+  // board (plus petit — cf. .guest-board-subtitle).
+  const guestSub = document.getElementById("guestBoardSubtitle");
+  if (guestSub) {
+    const label = state.guest && state.guestLabel ? state.guestLabel : "";
+    guestSub.textContent = label;
+    guestSub.hidden = !label;
+  }
   setMasterVolume(currentBoard().masterVolume ?? DEFAULT_MASTER_VOLUME, false);
   renderBoardLayoutControls();
   applyPadLayout();
