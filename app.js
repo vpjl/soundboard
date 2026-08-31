@@ -10101,38 +10101,75 @@ async function saveCandidatesToDisk(allCandidates) {
 }
 
 // Bouton « Sauvegarder tous les sons… » du panneau « Sons stockés » : copie
-// TOUS les sons stockés (utilisés + inutilisés, un exemplaire par son) dans un
-// dossier choisi sur le Finder — ou un zip si le navigateur ne sait pas ouvrir
-// un sélecteur de dossier.
+// TOUS les sons stockés dans un dossier choisi sur le Finder, avec UN
+// SOUS-DOSSIER PAR BOARD (chaque son utilisé par plusieurs boards est copié
+// dans chacun) + un dossier « _sons inutilisés ». Zip équivalent si le
+// navigateur n'a pas de sélecteur de dossier (Safari, Firefox).
 async function backupAllStoredSounds() {
-  setStatus("Préparation de la sauvegarde des sons…", "progress");
   const used = await usedAudioEntries();
-  const orphans = await orphanAudioCandidates(used);
-  const seen = new Set();
-  const items = [];
-  for (const entry of [...used, ...orphans]) {
-    if (!entry.record?.audio) continue;
-    const fp = audioFingerprint(entry.record);
-    if (seen.has(fp)) continue;
-    seen.add(fp);
-    items.push({
-      record: entry.record,
-      key: entry.key,
-      boardName: entry.boardName || "",
-      label: cleanupAudioLabel(entry.record, entry.key),
-      detail: entry.detail,
-    });
-  }
-  if (!items.length) {
+  const orphanUnique = groupCandidatesByFingerprint(await orphanAudioCandidates(used))
+    .map((group) => group.candidates[0])
+    .filter((candidate) => candidate.record?.audio);
+  if (!used.length && !orphanUnique.length) {
     setStatus("Aucun son à sauvegarder", "stop");
     return;
   }
-  try {
-    await saveCandidatesToDisk(items);
-  } catch (err) {
-    if (err?.name === "AbortError") { setStatus("Sauvegarde annulée"); return; }
-    setStatus("Sauvegarde des sons impossible", "stop");
+
+  const ORPHAN_DIR = "_sons inutilisés";
+  const fileNameFor = (record, key) =>
+    `${safeFileName(cleanupAudioLabel(record, key))}.${recordingExtension(record.type || "audio/mpeg")}`;
+
+  // { dossier → [{name, record}] }, un exemplaire par son et par board.
+  const folders = new Map();
+  const push = (folder, record, key) => {
+    if (!record?.audio) return;
+    if (!folders.has(folder)) folders.set(folder, { seen: new Set(), files: [] });
+    const bucket = folders.get(folder);
+    const fp = audioFingerprint(record);
+    if (bucket.seen.has(fp)) return;
+    bucket.seen.add(fp);
+    let name = fileNameFor(record, key);
+    for (let n = 2; bucket.files.some((f) => f.name === name); n += 1) {
+      name = name.replace(/(\.[^.]+)$/, ` (${n})$1`);
+    }
+    bucket.files.push({ name, record });
+  };
+  used.forEach((entry) => push(safeFileName(entry.boardName) || "board", entry.record, entry.key));
+  orphanUnique.forEach((candidate) => push(ORPHAN_DIR, candidate.record, candidate.key));
+
+  const total = [...folders.values()].reduce((sum, b) => sum + b.files.length, 0);
+
+  if (window.showDirectoryPicker) {
+    let root;
+    try {
+      root = await window.showDirectoryPicker({ mode: "readwrite" });
+    } catch (err) {
+      if (err?.name === "AbortError") { setStatus("Sauvegarde annulée"); return; }
+      throw err;
+    }
+    setStatus("Sauvegarde des sons en cours…", "progress");
+    for (const [folder, bucket] of folders) {
+      const dir = await root.getDirectoryHandle(folder, { create: true });
+      for (const file of bucket.files) {
+        const handle = await dir.getFileHandle(file.name, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([file.record.audio], { type: file.record.type || "audio/mpeg" }));
+        await writable.close();
+      }
+    }
+    setStatus(`${total} son${total > 1 ? "s" : ""} sauvegardé${total > 1 ? "s" : ""} — un sous-dossier par board`);
+    return;
   }
+
+  const zipFiles = [];
+  for (const [folder, bucket] of folders) {
+    for (const file of bucket.files) {
+      zipFiles.push({ name: `${folder}/${file.name}`, data: new Uint8Array(file.record.audio) });
+    }
+  }
+  const zipName = `${timestampForFile()}.sons-sauvegardes.zip`;
+  downloadBlobAsFile(buildZipBlob(zipFiles), zipName);
+  setStatus(`${total} son${total > 1 ? "s" : ""} dans "${zipName}" (Téléchargements) — un dossier par board`);
 }
 
 // window.confirm() n'admet pas de libellés de boutons personnalisés : son
