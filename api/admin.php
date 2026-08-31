@@ -18,39 +18,76 @@ const WINDOW_SECONDS = 900;
 const MIN_DELAY_MS   = 350;
 const ITER           = 210000;
 
-// Free Pages Perso ne fournit pas de dossier de sessions : on en crée un dans
-// prive/ (interdit d'accès web par prive/.htaccess). On PURGE au passage les
-// vieux fichiers de session (> 1 jour) : sans ça, le dossier se remplit et Free
-// finit par bloquer les écritures (quota de fichiers) → session_start() plante
-// et toute la page renvoie 503.
-$sessionDir = PRIVE_DIR . '/sessions';
-if (!is_dir($sessionDir)) @mkdir($sessionDir, 0700, true);
-if (is_dir($sessionDir) && is_writable($sessionDir)) {
-  $cutoff = time() - 86400;
-  foreach (glob($sessionDir . '/sess_*') ?: [] as $old) {
-    if (@filemtime($old) < $cutoff) @unlink($old);
-  }
-} else {
-  $sessionDir = sys_get_temp_dir(); // repli si prive/ non inscriptible
-}
-@ini_set('session.save_path', $sessionDir);
-@ini_set('session.use_strict_mode', '1');
-if (@session_start() !== true) {
-  // Sessions HS (quota Free, droits…) : message clair plutôt qu'un 503 nu.
-  http_response_code(503);
-  header('Content-Type: text/plain; charset=utf-8');
-  exit("Les sessions PHP sont indisponibles sur cet hébergement pour le moment.\n"
-    . "Videz le dossier prive/sessions/ par FTP, puis rechargez.");
-}
-header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-store');
-header('X-Robots-Tag: noindex, nofollow');
-header('Referrer-Policy: no-referrer');
+// Free Pages Perso ne fournit pas de sessions PHP fiables (session_start()
+// échoue → 503). On gère donc nous-mêmes une mini-session : un jeton aléatoire
+// dans un cookie + un fichier serveur prive/admin-sess.json (hors du web via
+// prive/.htaccess). Purge des entrées de plus de 12 h à chaque passage.
+const SESS_FILE = PRIVE_DIR . '/admin-sess.json';
+const SESS_TTL  = 43200;
 
 $httpsOk = (($_SERVER['HTTPS'] ?? '') === 'on')
   || (($_SERVER['REQUEST_SCHEME'] ?? '') === 'https')
   || (strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
   || (($_SERVER['SERVER_PORT'] ?? '') === '443');
+
+function sess_all(): array {
+  if (!is_file(SESS_FILE) || filesize(SESS_FILE) > 500000) return [];
+  $d = json_decode((string) @file_get_contents(SESS_FILE), true);
+  return is_array($d) ? $d : [];
+}
+
+$SESS = [];
+$sessTok = preg_replace('/[^a-f0-9]/', '', (string) ($_COOKIE['adm'] ?? ''));
+$sessAll = array_filter(sess_all(), fn($e) => ($e['t'] ?? 0) > time() - SESS_TTL);
+if ($sessTok !== '' && strlen($sessTok) === 64 && isset($sessAll[$sessTok])) {
+  $SESS = is_array($sessAll[$sessTok]['d'] ?? null) ? $sessAll[$sessTok]['d'] : [];
+} else {
+  $sessTok = bin2hex(random_bytes(32));
+}
+
+// Persiste $SESS (fichier). $withCookie : rafraîchit aussi le cookie — à
+// n'appeler QUE tant qu'aucune sortie n'a commencé (avant render_page).
+function sess_persist(bool $withCookie = false): void {
+  global $SESS, $sessTok, $httpsOk;
+  if (!is_dir(PRIVE_DIR)) @mkdir(PRIVE_DIR, 0755, true);
+  $all = array_filter(sess_all(), fn($e) => ($e['t'] ?? 0) > time() - SESS_TTL);
+  $all[$sessTok] = ['t' => time(), 'd' => $SESS];
+  @file_put_contents(SESS_FILE, json_encode($all), LOCK_EX);
+  if ($withCookie) {
+    setcookie('adm', $sessTok, [
+      'expires'  => time() + SESS_TTL,
+      'path'     => rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/') ?: '/',
+      'httponly' => true,
+      'samesite' => 'Lax',
+      'secure'   => $httpsOk,
+    ]);
+  }
+}
+
+function sess_rotate(): void {
+  global $SESS, $sessTok;
+  $all = array_filter(sess_all(), fn($e) => ($e['t'] ?? 0) > time() - SESS_TTL);
+  unset($all[$sessTok]);
+  @file_put_contents(SESS_FILE, json_encode($all), LOCK_EX);
+  $sessTok = bin2hex(random_bytes(32));
+}
+
+function sess_destroy(): void {
+  global $SESS, $sessTok;
+  $all = array_filter(sess_all(), fn($e) => ($e['t'] ?? 0) > time() - SESS_TTL);
+  unset($all[$sessTok]);
+  @file_put_contents(SESS_FILE, json_encode($all), LOCK_EX);
+  $SESS = [];
+}
+
+// Jeton CSRF prêt dès maintenant (avant toute sortie) puis cookie + fichier posés.
+if (empty($SESS['csrf'])) $SESS['csrf'] = bin2hex(random_bytes(16));
+sess_persist(true);
+
+header('Content-Type: text/html; charset=utf-8');
+header('Cache-Control: no-store');
+header('X-Robots-Tag: noindex, nofollow');
+header('Referrer-Policy: no-referrer');
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -108,7 +145,8 @@ function write_config(string $hash, string $kdfSaltB64): bool {
 }
 
 function session_key(): ?string {
-  $b64 = $_SESSION['mk'] ?? '';
+  global $SESS;
+  $b64 = $SESS['mk'] ?? '';
   $k = is_string($b64) && $b64 !== '' ? base64_decode($b64, true) : false;
   return ($k !== false && strlen($k) === 32) ? $k : null;
 }
@@ -179,12 +217,14 @@ function rate_note_failure(): void {
 }
 
 function csrf_token(): string {
-  if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(16));
-  return $_SESSION['csrf'];
+  global $SESS;
+  if (empty($SESS['csrf'])) $SESS['csrf'] = bin2hex(random_bytes(16));
+  return $SESS['csrf'];
 }
 function csrf_ok(): bool {
-  return isset($_POST['csrf'], $_SESSION['csrf'])
-    && hash_equals($_SESSION['csrf'], (string) $_POST['csrf']);
+  global $SESS;
+  return isset($_POST['csrf'], $SESS['csrf'])
+    && hash_equals($SESS['csrf'], (string) $_POST['csrf']);
 }
 
 function base_link(string $id): string {
@@ -198,7 +238,7 @@ function base_link(string $id): string {
 
 $config = is_file(CONFIG_FILE) ? (@include CONFIG_FILE) : null;
 $hasMaster = is_array($config) && !empty($config['hash']);
-$loggedIn = ($_SESSION['admin'] ?? false) === true;
+$loggedIn = ($SESS['admin'] ?? false) === true;
 $errors = [];
 $notice = null;
 $createdLink = null;
@@ -218,8 +258,9 @@ if (!$hasMaster) {
       if (!write_config(pbkdf2_hash($p1), $kdf)) {
         $errors[] = "Impossible d'écrire " . h(CONFIG_FILE) . " (droits ?).";
       } else {
-        $_SESSION['admin'] = true;
-        $_SESSION['mk'] = base64_encode(derive_key($p1, $kdf));
+        $SESS['admin'] = true;
+        $SESS['mk'] = base64_encode(derive_key($p1, $kdf));
+        sess_persist(true);
         header('Location: ' . $_SERVER['REQUEST_URI']);
         exit;
       }
@@ -250,8 +291,8 @@ if (!$loggedIn) {
       usleep(MIN_DELAY_MS * 1000);
       $master = (string) ($_POST['master'] ?? '');
       if (pbkdf2_verify($master, (string) $config['hash'])) {
-        session_regenerate_id(true);
-        $_SESSION['admin'] = true;
+        sess_rotate();
+        $SESS['admin'] = true;
         // Sel de dérivation : présent depuis cette version ; migré ici pour les
         // installs plus anciennes (on a le mot de passe sous la main).
         $kdf = $config['kdf'] ?? '';
@@ -259,7 +300,8 @@ if (!$loggedIn) {
           $kdf = base64_encode(random_bytes(16));
           @write_config((string) $config['hash'], $kdf);
         }
-        $_SESSION['mk'] = base64_encode(derive_key($master, $kdf));
+        $SESS['mk'] = base64_encode(derive_key($master, $kdf));
+        sess_persist(true);
         header('Location: ' . $_SERVER['REQUEST_URI']);
         exit;
       }
@@ -289,8 +331,7 @@ if ($method === 'POST') {
   if (!csrf_ok()) {
     $errors[] = "Session expirée, recommencez.";
   } elseif (($_POST['action'] ?? '') === 'logout') {
-    $_SESSION = [];
-    session_destroy();
+    sess_destroy();
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
   } elseif (($_POST['action'] ?? '') === 'chgmaster') {
@@ -315,7 +356,8 @@ if ($method === 'POST') {
       }
       $newHash = pbkdf2_hash($n1);
       if (write_config($newHash, $newKdf) && save_partages($partages)) {
-        $_SESSION['mk'] = base64_encode($newKey);
+        $SESS['mk'] = base64_encode($newKey);
+        sess_persist();
         $config = ['hash' => $newHash, 'kdf' => $newKdf]; // valeurs à jour pour ce rendu
         $notice = "Mot de passe maître modifié.";
       } else {
