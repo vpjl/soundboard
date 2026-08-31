@@ -4966,6 +4966,25 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   line-height: 1.4;
 }
 
+.audio-library-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 4px 0 2px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.audio-library-sort label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.audio-library-sort input {
+  margin: 0;
+}
+
 .audio-library-section-title {
   margin: 14px 0 6px;
   font-size: 0.78rem;

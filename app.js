@@ -139,6 +139,7 @@ const CUE_VOLUME_STORAGE = "soundboard-live-cue-volume";
 const BOARD_EXTENT_STORAGE = "soundboard-live-board-extent";
 const BOARD_EXTENT_DEFAULT = 1280;
 const PAD_COMPACTNESS_STORAGE = "soundboard-live-pad-compactness";
+const AUDIO_LIB_SORT_STORAGE = "soundboard-live-audio-lib-sort"; // fenêtre « Sons stockés »
 const PAD_COMPACTNESS_MAX = 260;
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
@@ -337,6 +338,9 @@ const state = {
   noteOverlayPad: null,
   versionNotesDraft: null,
   audioLibraryOrphans: [],
+  audioLibraryUsedEntries: [],
+  audioLibraryOrphanGroups: [],
+  audioLibrarySort: null,
   cueFloatAnchorTop: null,
   skinEditorVariables: {},
 };
@@ -711,6 +715,7 @@ const els = {
   closeAudioLibraryBtn: document.querySelector("#closeAudioLibraryBtn"),
   deleteSelectedUnusedSounds: document.querySelector("#deleteSelectedUnusedSounds"),
   backupAllSounds: document.querySelector("#backupAllSounds"),
+  audioLibrarySortRadios: [...document.querySelectorAll('input[name="audioLibrarySort"]')],
   saveBeforeDeleteSoundsDialog: document.querySelector("#saveBeforeDeleteSoundsDialog"),
   saveBeforeDeleteSoundsSave: document.querySelector("#saveBeforeDeleteSoundsSave"),
   saveBeforeDeleteSoundsSkip: document.querySelector("#saveBeforeDeleteSoundsSkip"),
@@ -9909,6 +9914,32 @@ function renderAudioLibraryList(container, items, { orphan = false } = {}) {
   });
 }
 
+// Mode de tri de la fenêtre « Sons stockés » (boutons radio) : "name" (fichier),
+// "board", "size" (taille décroissante).
+function audioLibrarySortMode() {
+  const v = state.audioLibrarySort || localStorage.getItem(AUDIO_LIB_SORT_STORAGE) || "name";
+  return ["name", "board", "size"].includes(v) ? v : "name";
+}
+
+function sortUsedGroups(groups) {
+  const mode = audioLibrarySortMode();
+  const byName = (a, b) =>
+    (a.fileName || a.soundName).localeCompare(b.fileName || b.soundName, "fr", { sensitivity: "base" });
+  return groups.sort((a, b) => {
+    if (mode === "size") return (b.size - a.size) || byName(a, b);
+    if (mode === "board") {
+      return (a.boards[0] || "").localeCompare(b.boards[0] || "", "fr", { sensitivity: "base" }) || byName(a, b);
+    }
+    return byName(a, b);
+  });
+}
+
+function sortOrphanGroups(groups) {
+  const mode = audioLibrarySortMode();
+  const byLabel = (a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" });
+  return groups.sort((a, b) => (mode === "size" ? (b.size - a.size) || byLabel(a, b) : byLabel(a, b)));
+}
+
 // Groupe les sons utilisés par son (pas par occurrence) : le nom du son ne
 // doit apparaître qu'une fois, suivi des boards qui l'utilisent — pas répété
 // à chaque board comme "son — board / pad". Le nom de fichier original est
@@ -9920,9 +9951,12 @@ function groupUsedEntriesBySound(entries) {
     if (!groups.has(fp)) {
       groups.set(fp, { soundName: entry.soundName, fileName: entry.fileName, size: entry.size, boards: [] });
     }
-    groups.get(fp).boards.push(entry.boardName);
+    const group = groups.get(fp);
+    if (!group.boards.includes(entry.boardName)) group.boards.push(entry.boardName);
   });
-  return [...groups.values()].sort((a, b) => a.soundName.localeCompare(b.soundName, "fr", { sensitivity: "base" }));
+  const list = [...groups.values()];
+  list.forEach((g) => g.boards.sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" })));
+  return sortUsedGroups(list);
 }
 
 function renderUsedAudioList(container, entries) {
@@ -9981,10 +10015,29 @@ async function openAudioLibraryDialog() {
     const breakdown = audioFormatBreakdown(used);
     els.audioLibrarySummary.textContent = `${used.length} son${used.length > 1 ? "s" : ""} utilisé${used.length > 1 ? "s" : ""}${breakdown ? ` dont ${breakdown}` : ""} (${formatAudioSize(usedSize)}) · ${orphanCandidates.length} son${orphanCandidates.length > 1 ? "s" : ""} inutilisé${orphanCandidates.length > 1 ? "s" : ""} (${formatAudioSize(orphanSize)})`;
   }
+  state.audioLibraryUsedEntries = used;
+  state.audioLibraryOrphanGroups = orphanGroups;
+  renderAudioLibrarySort();
   renderUsedAudioList(els.audioLibraryUsedList, used);
-  renderAudioLibraryList(els.audioLibraryOrphanList, orphanGroups, { orphan: true });
+  renderAudioLibraryList(els.audioLibraryOrphanList, sortOrphanGroups(orphanGroups.slice()), { orphan: true });
   if (els.deleteSelectedUnusedSounds) els.deleteSelectedUnusedSounds.hidden = !orphanCandidates.length;
   els.audioLibraryDialog?.showModal?.();
+}
+
+// Reflète le mode de tri courant sur les boutons radio, puis ré-affiche les
+// deux listes (sans recalculer : on repart des données déjà en mémoire).
+function renderAudioLibrarySort() {
+  const mode = audioLibrarySortMode();
+  els.audioLibrarySortRadios?.forEach((radio) => { radio.checked = radio.value === mode; });
+}
+
+function reRenderAudioLibraryLists() {
+  renderUsedAudioList(els.audioLibraryUsedList, state.audioLibraryUsedEntries || []);
+  renderAudioLibraryList(
+    els.audioLibraryOrphanList,
+    sortOrphanGroups((state.audioLibraryOrphanGroups || []).slice()),
+    { orphan: true },
+  );
 }
 
 // Remplace l'ancienne modale automatique après chaque suppression de pad
@@ -18901,6 +18954,14 @@ async function init() {
   });
   els.backupAllSounds?.addEventListener("click", () => {
     backupAllStoredSounds().catch(() => setStatus("Sauvegarde des sons impossible", "stop"));
+  });
+  els.audioLibrarySortRadios?.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (!radio.checked) return;
+      state.audioLibrarySort = radio.value;
+      try { localStorage.setItem(AUDIO_LIB_SORT_STORAGE, radio.value); } catch { /* quota */ }
+      reRenderAudioLibraryLists();
+    });
   });
   els.refreshMicrophones?.addEventListener("click", () => {
     refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
