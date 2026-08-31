@@ -541,8 +541,8 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     var btn = document.getElementById('createBtn');
     var prog = document.getElementById('createProgress');
     var csrf = form.querySelector('input[name=csrf]').value;
-    var CHUNK = 1400000;           // < post_max_size de Free (souvent 8 Mo)
-    var DIRECT_MAX = 4000000;      // en-dessous : envoi direct classique
+    var CHUNK = 3000000;           // < post_max_size de Free (souvent 8 Mo)
+    var DIRECT_MAX = 3500000;      // en-dessous : envoi direct classique
     var busy = false;
 
     form.addEventListener('submit', function (e) {
