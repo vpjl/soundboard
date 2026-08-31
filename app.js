@@ -677,6 +677,7 @@ const els = {
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
   openShareAdmin: document.querySelector("#openShareAdmin"),
+  openShareConsole: document.querySelector("#openShareConsole"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
   relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
   relinkVideoFolder: document.querySelector("#relinkVideoFolder"),
@@ -8692,6 +8693,7 @@ function confirmExportWithoutVideos(includeVideo) {
 let shareAdminWin = null;
 let shareAdminSkinScope = "current";
 let shareAdminBusy = false;
+let shareAdminPushBoard = false; // true : pousser le board courant ; false : simple gestion
 
 // Envoie un board (Blob) directement à api/admin.php en tranches (mécanisme
 // « chunk » déjà utilisé par le formulaire), puis prévient la console.
@@ -18695,6 +18697,7 @@ async function init() {
       + "• Annuler : seulement le skin actuel (recommandé)"
     );
     shareAdminSkinScope = all ? "all" : "current";
+    shareAdminPushBoard = true;
     // Fenêtre nommée (pas de noopener) : la console doit pouvoir nous renvoyer
     // un message une fois connectée, et nous lui poussons le board directement.
     shareAdminWin = window.open("api/admin.php", "sb_share_console");
@@ -18705,13 +18708,23 @@ async function init() {
     setStatus("Console de partage ouverte — connecte-toi, l'envoi du board se fait ensuite tout seul.");
   });
 
+  els.openShareConsole?.addEventListener("click", () => {
+    // Accès simple à la console (liste / révocation / mots de passe) : on
+    // n'envoie PAS le board courant.
+    shareAdminPushBoard = false;
+    shareAdminWin = window.open("api/admin.php", "sb_share_console");
+    if (!shareAdminWin) {
+      setStatus("La fenêtre de la console est bloquée — autorise les pop-ups pour ce site.");
+    }
+  });
+
   // La console de partage (api/admin.php), une fois connectée, nous signale
   // qu'elle est prête : on lui pousse alors le board courant (avec audio).
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin) return;
     const data = event.data || {};
     if (data.type !== "sb-admin-ready" || event.source !== shareAdminWin) return;
-    if (shareAdminBusy) return;
+    if (!shareAdminPushBoard || shareAdminBusy) return;
     shareAdminBusy = true;
     const csrf = String(data.csrf || "");
     exportCurrentBoard("audioOnly", {
