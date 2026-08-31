@@ -19,14 +19,29 @@ const MIN_DELAY_MS   = 350;
 const ITER           = 210000;
 
 // Free Pages Perso ne fournit pas de dossier de sessions : on en crée un dans
-// prive/ (interdit d'accès web par prive/.htaccess).
+// prive/ (interdit d'accès web par prive/.htaccess). On PURGE au passage les
+// vieux fichiers de session (> 1 jour) : sans ça, le dossier se remplit et Free
+// finit par bloquer les écritures (quota de fichiers) → session_start() plante
+// et toute la page renvoie 503.
 $sessionDir = PRIVE_DIR . '/sessions';
 if (!is_dir($sessionDir)) @mkdir($sessionDir, 0700, true);
-if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
+if (is_dir($sessionDir) && is_writable($sessionDir)) {
+  $cutoff = time() - 86400;
+  foreach (glob($sessionDir . '/sess_*') ?: [] as $old) {
+    if (@filemtime($old) < $cutoff) @unlink($old);
+  }
+} else {
   $sessionDir = sys_get_temp_dir(); // repli si prive/ non inscriptible
 }
-@session_save_path($sessionDir);
-@session_start();
+@ini_set('session.save_path', $sessionDir);
+@ini_set('session.use_strict_mode', '1');
+if (@session_start() !== true) {
+  // Sessions HS (quota Free, droits…) : message clair plutôt qu'un 503 nu.
+  http_response_code(503);
+  header('Content-Type: text/plain; charset=utf-8');
+  exit("Les sessions PHP sont indisponibles sur cet hébergement pour le moment.\n"
+    . "Videz le dossier prive/sessions/ par FTP, puis rechargez.");
+}
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex, nofollow');
