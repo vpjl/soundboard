@@ -18705,7 +18705,18 @@ async function init() {
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin) return;
     const data = event.data || {};
-    if (data.type !== "sb-request-board" || event.source !== shareAdminWin) return;
+    if (event.source !== shareAdminWin) return;
+    if (data.type === "sb-admin-ready") {
+      // La console vient de s'ouvrir : lui donner le nom du board à afficher.
+      try {
+        shareAdminWin.postMessage(
+          { type: "sb-board-info", name: currentBoard().name },
+          location.origin,
+        );
+      } catch {}
+      return;
+    }
+    if (data.type !== "sb-request-board") return;
     if (shareAdminBusy) return;
     shareAdminBusy = true;
     const csrf = String(data.csrf || "");

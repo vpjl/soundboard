@@ -444,7 +444,7 @@ if ($method === 'POST' && $_POST) {
       if (in_array($code, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
         $errors[] = "Envoi du board interrompu (taille). Réessaie ou utilise tools/make-share.mjs + FTP.";
       } else {
-        $errors[] = "Aucun board reçu — ouvre cette fenêtre via le bouton « Partager le board à un invité » de l'application.";
+        $errors[] = "Aucun board reçu — ouvre cette fenêtre via le bouton « Partage du board » de l'application.";
       }
     }
     if (strlen($pass) < 4) $errors[] = "Mot de passe invité trop court.";
@@ -519,9 +519,9 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     </div>
   <?php endif; ?>
 
-  <h2>Créer un lien d'invitation</h2>
+  <h2>Créer un lien d'invitation<span id="createBoardName"></span></h2>
   <p class="hint" id="createHint" hidden>Cette fenêtre doit être ouverte depuis le bouton
-    « Partager le board à un invité » de l'application : c'est elle qui fournit le board.</p>
+    « Partage du board » de l'application : c'est elle qui fournit le board.</p>
   <form method="post" autocomplete="off" id="createForm">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
     <input type="hidden" name="action" value="create">
@@ -562,7 +562,10 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     window.addEventListener('message', function (ev) {
       if (ev.origin !== location.origin || ev.source !== window.opener) return;
       var d = ev.data || {};
-      if (d.type === 'sb-board-progress') {
+      if (d.type === 'sb-board-info') {
+        var s = document.getElementById('createBoardName');
+        if (s && d.name) s.textContent = ' du board « ' + d.name + ' »';
+      } else if (d.type === 'sb-board-progress') {
         prog.hidden = false;
         prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
       } else if (d.type === 'sb-board-staged') {
@@ -588,7 +591,7 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
       try {
         window.opener.postMessage({ type: 'sb-request-board', skinScope: scope, csrf: csrf }, location.origin);
       } catch (err) {
-        prog.textContent = 'Fenêtre de l’application introuvable — rouvre-la via le bouton « Partager le board ».';
+        prog.textContent = 'Fenêtre de l’application introuvable — rouvre-la via le bouton « Partage du board ».';
         busy = false; btn.disabled = false;
       }
     });
