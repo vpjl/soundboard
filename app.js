@@ -9725,7 +9725,14 @@ function cleanupSourceBoardName(record) {
 // la purge automatique des orphelins déjà utilisés ailleurs.
 function audioFingerprint(record) {
   const name = String(record?.name || record?.audioName || "").trim().toLowerCase();
-  const size = Number(record?.audioByteLength) || 0;
+  // audioByteLength vaut 0 pour les enregistrements .webm → deux captures
+  // différentes portant le même nom auto (« Enregistrement 5.webm ») avaient
+  // la même empreinte et étaient fusionnées (un board apparaissait à tort dans
+  // la liste d'un autre son). On retombe sur la taille réelle des octets.
+  const size = Number(record?.audioByteLength)
+    || Number(record?.audio?.byteLength)
+    || Number(record?.audio?.size)
+    || 0;
   return `${name}::${size}`;
 }
 
