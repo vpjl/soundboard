@@ -4,16 +4,33 @@ const KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 // n'ont plus de raccourci clavier par défaut). Des pads peuvent toujours être ajoutés
 // ensuite un par un avec « Ajouter un pad ».
 const MAX_NEW_BOARD_PAD_COUNT = KEYS.length;
-const DB_NAME = "soundboard-live";
+
+// Mode invité (URL #g=… / ?g=…) : tout l'espace de stockage est cloisonné —
+// base IndexedDB ET liste de boards distinctes de celles de l'éditeur. Ainsi
+// un board partagé importé sur le navigateur du propriétaire ne peut jamais
+// écraser ni faire supprimer ses vrais boards (cf. purgeGuestBoards).
+const GUEST_SHARE_ID_AT_BOOT = (() => {
+  try {
+    const h = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+    const q = new URLSearchParams(location.search);
+    const id = (h.get("g") || q.get("g") || "").trim();
+    return /^[A-Za-z0-9_-]{4,40}$/.test(id) ? id : "";
+  } catch { return ""; }
+})();
+const IS_GUEST_BOOT = GUEST_SHARE_ID_AT_BOOT !== "";
+const GUEST_DB_NAME = "soundboard-live-guest";
+const GUEST_BOARDS_STORAGE = "soundboard-guest-boards";
+
+const DB_NAME = IS_GUEST_BOOT ? GUEST_DB_NAME : "soundboard-live";
 const STORE = "sounds";
 const PRESS_MS = 180;
 const PAD_NAME_REPAIR = "pad-title-repair-v1";
-const BOARDS_STORAGE = "soundboard-live-boards";
+const BOARDS_STORAGE = IS_GUEST_BOOT ? GUEST_BOARDS_STORAGE : "soundboard-live-boards";
 const NEW_BOARD_PAD_COUNT_STORAGE = "soundboard-live-new-board-pad-count";
 // Dernier créateur saisi à la création d'un board : pré-remplit le champ (souvent
 // la même personne d'un board à l'autre), sans jamais présumer une valeur par défaut.
 const NEW_BOARD_CREATOR_STORAGE = "soundboard-live-new-board-creator";
-const CURRENT_BOARD_STORAGE = "soundboard-live-current-board";
+const CURRENT_BOARD_STORAGE = IS_GUEST_BOOT ? "soundboard-guest-current-board" : "soundboard-live-current-board";
 const DUCKING_STORAGE = "soundboard-live-ducking-percent";
 const MASTER_DUCK_ENABLED_STORAGE = "soundboard-live-ducking-enabled";
 const FADE_IN_STORAGE = "soundboard-live-fade-in-seconds";
@@ -693,6 +710,7 @@ const els = {
   closeAudioLibrary: document.querySelector("#closeAudioLibrary"),
   closeAudioLibraryBtn: document.querySelector("#closeAudioLibraryBtn"),
   deleteSelectedUnusedSounds: document.querySelector("#deleteSelectedUnusedSounds"),
+  backupAllSounds: document.querySelector("#backupAllSounds"),
   saveBeforeDeleteSoundsDialog: document.querySelector("#saveBeforeDeleteSoundsDialog"),
   saveBeforeDeleteSoundsSave: document.querySelector("#saveBeforeDeleteSoundsSave"),
   saveBeforeDeleteSoundsSkip: document.querySelector("#saveBeforeDeleteSoundsSkip"),
@@ -9639,11 +9657,14 @@ async function referencedAudioKeysForBoard(board) {
   const padCount = Math.max(0, Number(board?.padCount) || 0);
   for (let index = 0; index < padCount; index += 1) {
     const ownKey = padAudioKeyFor(board.id, index);
-    keys.add(ownKey);
     const [audioRecord, metaRecord] = await Promise.all([
       dbGet(ownKey),
       dbGet(padMetaKeyFor(board.id, index)),
     ]);
+    // Ne protéger la clé du pad que s'il a réellement un son : sinon un blob
+    // résiduel (son retiré sans purge) resterait « référencé » à vie, invisible
+    // et impossible à nettoyer. Meta absent → on protège (ancien stockage).
+    if (padMetaDescribesAudio(metaRecord) !== false) keys.add(ownKey);
     keys.add(referencedAudioKeyForRecord(board.id, index, audioRecord));
     keys.add(referencedAudioKeyForRecord(board.id, index, metaRecord));
   }
@@ -9799,6 +9820,18 @@ function audioFormatBreakdown(entries) {
 // audioRefIndex vers un autre pad) et encore référencés par un board actuel —
 // vue « visibilité » demandée en complément du nettoyage des sons inutilisés.
 // Classé par son d'abord (révèle direct les doublons entre boards), board ensuite.
+// Un enregistrement audio peut subsister sous la clé d'un pad qui n'a plus de
+// son (son remplacé/retiré sans purge du blob) : ça faisait apparaître le board
+// à tort comme « utilisant » ce son. On ne compte le pad que si son meta décrit
+// bien un son (nom de fichier / chemin) — audioRefIndex n'est pas fiable
+// (savePadMeta écrit 0 pour un pad vide). Meta absent = ancien stockage → on
+// retombe sur « il y a des octets ».
+function padMetaDescribesAudio(meta) {
+  if (!meta) return null; // signal « pas d'info meta »
+  if (meta.textMode) return false;
+  return Boolean(String(meta.audioName || meta.audioPath || "").trim());
+}
+
 async function usedAudioEntries() {
   const entries = [];
   for (const board of state.boards) {
@@ -9807,6 +9840,8 @@ async function usedAudioEntries() {
       const record = await dbGet(key);
       if (!recordContainsAudio(record)) continue;
       const meta = await dbGet(padMetaKeyFor(board.id, index));
+      const described = padMetaDescribesAudio(meta);
+      if (described === false) continue; // blob résiduel : le pad n'a plus de son
       const title = meta?.title || record?.title || `Pad ${index + 1}`;
       const soundName = cleanupAudioLabel(record, key);
       entries.push({
@@ -10034,7 +10069,7 @@ async function saveCandidatesToDisk(allCandidates) {
   const stamp = timestampForFile();
   const fileNameFor = (candidate) => {
     const extension = recordingExtension(candidate.record.type || "audio/mpeg");
-    const boardName = safeFileName(cleanupSourceBoardName(candidate.record));
+    const boardName = safeFileName(candidate.boardName || cleanupSourceBoardName(candidate.record));
     const padName = safeFileName(cleanupAudioLabel(candidate.record, candidate.key));
     return `${boardName}.${padName}.${extension}`;
   };
@@ -10063,6 +10098,41 @@ async function saveCandidatesToDisk(allCandidates) {
   })));
   downloadBlobAsFile(zipBlob, zipName);
   setStatus(`${withAudio.length} son${withAudio.length > 1 ? "s" : ""} enregistré${withAudio.length > 1 ? "s" : ""} dans "${zipName}" (dossier Téléchargements), un seul fichier zip contenant tous les sons`);
+}
+
+// Bouton « Sauvegarder tous les sons… » du panneau « Sons stockés » : copie
+// TOUS les sons stockés (utilisés + inutilisés, un exemplaire par son) dans un
+// dossier choisi sur le Finder — ou un zip si le navigateur ne sait pas ouvrir
+// un sélecteur de dossier.
+async function backupAllStoredSounds() {
+  setStatus("Préparation de la sauvegarde des sons…", "progress");
+  const used = await usedAudioEntries();
+  const orphans = await orphanAudioCandidates(used);
+  const seen = new Set();
+  const items = [];
+  for (const entry of [...used, ...orphans]) {
+    if (!entry.record?.audio) continue;
+    const fp = audioFingerprint(entry.record);
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+    items.push({
+      record: entry.record,
+      key: entry.key,
+      boardName: entry.boardName || "",
+      label: cleanupAudioLabel(entry.record, entry.key),
+      detail: entry.detail,
+    });
+  }
+  if (!items.length) {
+    setStatus("Aucun son à sauvegarder", "stop");
+    return;
+  }
+  try {
+    await saveCandidatesToDisk(items);
+  } catch (err) {
+    if (err?.name === "AbortError") { setStatus("Sauvegarde annulée"); return; }
+    setStatus("Sauvegarde des sons impossible", "stop");
+  }
 }
 
 // window.confirm() n'admet pas de libellés de boutons personnalisés : son
@@ -18785,6 +18855,9 @@ async function init() {
   els.deleteSelectedUnusedSounds?.addEventListener("click", () => {
     deleteSelectedUnusedSounds().catch(() => setStatus("Suppression audio impossible"));
   });
+  els.backupAllSounds?.addEventListener("click", () => {
+    backupAllStoredSounds().catch(() => setStatus("Sauvegarde des sons impossible", "stop"));
+  });
   els.refreshMicrophones?.addEventListener("click", () => {
     refreshMicrophoneDevices(true).catch(() => setStatus("Micro inaccessible"));
   });
@@ -19617,41 +19690,67 @@ function guestBoardIds() {
   }
 }
 
-// Retire de l'appareil les boards importés lors d'une précédente session invitée
-// (contenu + audio IndexedDB + réglages), pour ne rien laisser traîner.
+// Efface l'espace invité. L'espace invité (base IndexedDB + clés localStorage)
+// est PHYSIQUEMENT séparé de celui de l'éditeur : ce nettoyage ne peut donc
+// jamais toucher les vrais boards du propriétaire.
 async function purgeGuestBoards() {
-  const ids = guestBoardIds();
-  if (!ids.length) return;
-  let stored = [];
-  try {
-    stored = JSON.parse(localStorage.getItem(BOARDS_STORAGE) || "[]");
-    if (!Array.isArray(stored)) stored = [];
-  } catch {
-    stored = [];
+  if (!state.guest) {
+    // Chargement normal de l'éditeur : on jette tout l'espace invité.
+    const legacyIds = guestBoardIds();
+    try { indexedDB.deleteDatabase(GUEST_DB_NAME); } catch { /* ignore */ }
+    localStorage.removeItem(GUEST_BOARDS_STORAGE);
+    localStorage.removeItem("soundboard-guest-current-board");
+    localStorage.removeItem(GUEST_BOARD_IDS_KEY);
+    localStorage.removeItem(GUEST_LABEL_KEY);
+    localStorage.removeItem(GUEST_SKIN_CHOICE_KEY);
+    // Migration : les sessions invitées d'avant le cloisonnement écrivaient dans
+    // la base + la liste principales. On retire uniquement les boards dont l'id
+    // figure dans l'ancienne clé invité ET présents dans la liste (padCount
+    // réel, aucune suppression « au cas où »).
+    if (legacyIds.length) await cleanLegacyGuestPollution(legacyIds);
+    return;
   }
+  // En session invitée : repartir d'une liste propre dans l'espace invité
+  // (toute la base invitée sera de toute façon jetée au prochain chargement
+  // normal de l'éditeur).
+  const ids = guestBoardIds();
+  localStorage.removeItem(BOARDS_STORAGE);
+  localStorage.removeItem(GUEST_BOARD_IDS_KEY);
+  state.boards = loadBoards();
+  state.currentBoardId = state.boards[0].id;
   for (const id of ids) {
-    const board = stored.find((b) => b && b.id === id);
-    const padCount = Math.max(1, Number(board?.padCount) || 128);
-    for (let index = 0; index < padCount + 8; index += 1) {
+    for (let index = 0; index < 136; index += 1) {
       try { await dbDelete(padMetaKeyFor(id, index)); } catch { /* absent */ }
       try { await dbDelete(padAudioKeyFor(id, index)); } catch { /* absent */ }
     }
     try { await dbDelete(boardHistoryKey(id)); } catch { /* absent */ }
-    localStorage.removeItem(boardShortcutsKey(id));
-    localStorage.removeItem(boardShortcutsEnabledKey(id));
+  }
+}
+
+async function cleanLegacyGuestPollution(ids) {
+  let stored;
+  try {
+    stored = JSON.parse(localStorage.getItem("soundboard-live-boards") || "[]");
+    if (!Array.isArray(stored)) return;
+  } catch { return; }
+  const doomed = stored.filter((b) => b && ids.includes(b.id));
+  if (!doomed.length) return;
+  for (const board of doomed) {
+    const padCount = Math.max(0, Number(board.padCount) || 0);
+    for (let index = 0; index < padCount; index += 1) {
+      try { await dbDelete(padMetaKeyFor(board.id, index)); } catch { /* absent */ }
+      try { await dbDelete(padAudioKeyFor(board.id, index)); } catch { /* absent */ }
+    }
+    try { await dbDelete(boardHistoryKey(board.id)); } catch { /* absent */ }
+    localStorage.removeItem(boardShortcutsKey(board.id));
+    localStorage.removeItem(boardShortcutsEnabledKey(board.id));
   }
   const kept = stored.filter((b) => b && !ids.includes(b.id));
-  if (kept.length) {
-    localStorage.setItem(BOARDS_STORAGE, JSON.stringify(kept));
-    state.boards = kept.map((b) => normalizeBoard(b));
-  } else {
-    localStorage.removeItem(BOARDS_STORAGE);
-    state.boards = loadBoards();
-  }
-  if (!state.boards.some((b) => b.id === state.currentBoardId)) {
+  localStorage.setItem("soundboard-live-boards", JSON.stringify(kept));
+  state.boards = state.boards.filter((b) => !ids.includes(b.id));
+  if (!state.boards.some((b) => b.id === state.currentBoardId) && state.boards[0]) {
     state.currentBoardId = state.boards[0].id;
   }
-  localStorage.removeItem(GUEST_BOARD_IDS_KEY);
 }
 
 // Charge le board partagé : jeton d'onglet valide → rechargement local direct ;
