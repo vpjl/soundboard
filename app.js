@@ -8688,7 +8688,41 @@ function confirmExportWithoutVideos(includeVideo) {
   );
 }
 
-async function exportCurrentBoard(modeOrIncludeAudio = "full") {
+// Partage à un invité : fenêtre de la console + périmètre des skins choisi au clic.
+let shareAdminWin = null;
+let shareAdminSkinScope = "current";
+let shareAdminBusy = false;
+
+// Envoie un board (Blob) directement à api/admin.php en tranches (mécanisme
+// « chunk » déjà utilisé par le formulaire), puis prévient la console.
+async function uploadBoardToAdmin(blob, boardName, win, csrf) {
+  const CHUNK = 3000000;
+  let uid = "";
+  for (let i = 0; i < 4; i += 1) uid += Math.random().toString(16).slice(2, 10);
+  uid = uid.slice(0, 32);
+  const total = Math.max(1, Math.ceil(blob.size / CHUNK));
+  for (let seq = 0; seq < total; seq += 1) {
+    const fd = new FormData();
+    fd.append("action", "chunk");
+    fd.append("csrf", csrf);
+    fd.append("uid", uid);
+    fd.append("seq", String(seq));
+    fd.append("part", blob.slice(seq * CHUNK, (seq + 1) * CHUNK), "part");
+    const res = await fetch("api/admin.php", { method: "POST", body: fd, credentials: "same-origin" });
+    if (!res.ok) throw new Error(`tranche ${seq + 1}/${total} refusée (${res.status})`);
+    setStatus(`Envoi du board à la console : ${seq + 1} / ${total}`, "progress");
+    try { win?.postMessage({ type: "sb-board-progress", seq: seq + 1, total }, location.origin); } catch {}
+  }
+  try { win?.postMessage({ type: "sb-board-staged", uid, name: boardName }, location.origin); } catch {}
+  setStatus("Board transmis à la console de partage.");
+}
+
+// opts.skinScope : "all" (défaut) embarque toute la bibliothèque de skins perso ;
+//   "current" ne garde que le skin appliqué par le board.
+// opts.deliver(blob, filename, boardName) : remise du fichier ; par défaut
+//   shareOrDownloadBoard (téléchargement). Le partage à un invité fournit sa
+//   propre remise (upload direct vers api/admin.php).
+async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
   const exportMode = normalizeExportMode(modeOrIncludeAudio);
   const includeAudio = exportMode !== "settings";
   const includeVideo = exportMode === "full";
@@ -8831,13 +8865,24 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full") {
     },
   };
 
+  if (opts.skinScope === "current") {
+    const ref = payload.board.skin;
+    const keepId = typeof ref === "string" && ref.startsWith(CUSTOM_SKIN_PREFIX)
+      ? ref.slice(CUSTOM_SKIN_PREFIX.length)
+      : null;
+    payload.board.customSkins = keepId
+      ? (payload.board.customSkins || []).filter((skin) => skin && skin.id === keepId)
+      : [];
+  }
+
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
   const suffix = exportMode === "full"
     ? "soundboard"
     : exportMode === "audioOnly"
       ? "soundboard-audio-sans-video"
       : "soundboard-settings";
-  await shareOrDownloadBoard(blob, `${safeFileName(board.name)}.${timestampForFile()}.${suffix}.json`, board.name);
+  const deliver = typeof opts.deliver === "function" ? opts.deliver : shareOrDownloadBoard;
+  await deliver(blob, `${safeFileName(board.name)}.${timestampForFile()}.${suffix}.json`, board.name);
 }
 
 function orderedPadsForCurrentBoard() {
@@ -18643,7 +18688,47 @@ async function init() {
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
   els.openShareAdmin?.addEventListener("click", () => {
-    window.open("api/admin.php", "_blank", "noopener");
+    const all = window.confirm(
+      `Partager le board « ${currentBoard().name} » à un invité.\n\n`
+      + "Inclure TOUS les skins de ta bibliothèque dans le partage ?\n\n"
+      + "• OK : tous les skins\n"
+      + "• Annuler : seulement le skin actuel (recommandé)"
+    );
+    shareAdminSkinScope = all ? "all" : "current";
+    // Fenêtre nommée (pas de noopener) : la console doit pouvoir nous renvoyer
+    // un message une fois connectée, et nous lui poussons le board directement.
+    shareAdminWin = window.open("api/admin.php", "sb_share_console");
+    if (!shareAdminWin) {
+      setStatus("La fenêtre de partage est bloquée — autorise les pop-ups pour ce site.");
+      return;
+    }
+    setStatus("Console de partage ouverte — connecte-toi, l'envoi du board se fait ensuite tout seul.");
+  });
+
+  // La console de partage (api/admin.php), une fois connectée, nous signale
+  // qu'elle est prête : on lui pousse alors le board courant (avec audio).
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin) return;
+    const data = event.data || {};
+    if (data.type !== "sb-admin-ready" || event.source !== shareAdminWin) return;
+    if (shareAdminBusy) return;
+    shareAdminBusy = true;
+    const csrf = String(data.csrf || "");
+    exportCurrentBoard("audioOnly", {
+      skinScope: shareAdminSkinScope,
+      deliver: (blob, _filename, name) => uploadBoardToAdmin(blob, name, shareAdminWin, csrf),
+    })
+      .then(() => { shareAdminWin = null; })
+      .catch((err) => {
+        setStatus(`Transmission du board impossible : ${err?.message || err}`);
+        try {
+          shareAdminWin?.postMessage(
+            { type: "sb-board-error", message: String(err?.message || err) },
+            location.origin,
+          );
+        } catch {}
+      })
+      .finally(() => { shareAdminBusy = false; });
   });
   els.importBoardFile?.addEventListener("change", () => {
     const file = els.importBoardFile.files?.[0];

@@ -519,12 +519,13 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     </div>
   <?php endif; ?>
 
-  <h2>Créer un lien</h2>
+  <h2>Créer un lien d'invitation</h2>
   <form method="post" enctype="multipart/form-data" autocomplete="off" id="createForm">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
     <input type="hidden" name="action" value="create">
     <input type="hidden" name="assembled" id="assembledId" value="">
-    <label>Board exporté (.json « avec audio »)
+    <p class="ok" id="stagedBanner" hidden></p>
+    <label id="boardFileRow">Board exporté (.json « avec audio »)
       <input type="file" name="board" id="boardFile" accept="application/json,.json" required></label>
     <label>Mot de passe pour l'invité<input type="text" name="password" required></label>
     <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80"></label>
@@ -540,10 +541,41 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     var fileInput = document.getElementById('boardFile');
     var btn = document.getElementById('createBtn');
     var prog = document.getElementById('createProgress');
+    var banner = document.getElementById('stagedBanner');
+    var fileRow = document.getElementById('boardFileRow');
     var csrf = form.querySelector('input[name=csrf]').value;
     var CHUNK = 3000000;           // < post_max_size de Free (souvent 8 Mo)
     var DIRECT_MAX = 3500000;      // en-dessous : envoi direct classique
     var busy = false;
+
+    function stageAssembled(uid, name) {
+      document.getElementById('assembledId').value = uid;
+      fileInput.removeAttribute('required');
+      fileInput.value = '';
+      if (fileRow) fileRow.hidden = true;
+      prog.hidden = true;
+      banner.hidden = false;
+      banner.textContent = 'Board « ' + (name || 'board') + ' » reçu du studio ✓ — saisis le mot de passe puis « Créer le lien ».';
+    }
+
+    // Ouvert depuis l'application (« Partager le board à un invité ») : la
+    // fenêtre studio nous pousse le board dès qu'on est connecté.
+    if (window.opener) {
+      try { window.opener.postMessage({ type: 'sb-admin-ready', csrf: csrf }, location.origin); } catch (e) {}
+      window.addEventListener('message', function (ev) {
+        if (ev.origin !== location.origin || ev.source !== window.opener) return;
+        var d = ev.data || {};
+        if (d.type === 'sb-board-progress') {
+          prog.hidden = false;
+          prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
+        } else if (d.type === 'sb-board-staged') {
+          stageAssembled(d.uid, d.name);
+        } else if (d.type === 'sb-board-error') {
+          prog.hidden = false;
+          prog.textContent = 'Le studio n’a pas pu envoyer le board (' + (d.message || '?') + '). Choisis un fichier manuellement.';
+        }
+      });
+    }
 
     form.addEventListener('submit', function (e) {
       var f = fileInput.files[0];
