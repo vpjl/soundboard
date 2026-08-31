@@ -12038,6 +12038,10 @@ body.guest-mode #boardManageSectionBody {
 body.guest-mode .board-name {
   display: none !important;
 }
+/* Partage « skin du board seulement » : masquer le sélecteur de skin. */
+body.guest-mode.guest-skin-locked .board-skin-select {
+  display: none !important;
+}
 
 /* Studio / Garage : visibles mais inactifs pour l'invité */
 body.guest-mode [data-board-mode-target="studio"],

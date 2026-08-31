@@ -677,7 +677,6 @@ const els = {
   importBoard: document.querySelector("#importBoard"),
   importBoardFile: document.querySelector("#importBoardFile"),
   openShareAdmin: document.querySelector("#openShareAdmin"),
-  openShareConsole: document.querySelector("#openShareConsole"),
   relinkAudioFolder: document.querySelector("#relinkAudioFolder"),
   relinkAudioFolderInput: document.querySelector("#relinkAudioFolderInput"),
   relinkVideoFolder: document.querySelector("#relinkVideoFolder"),
@@ -8691,9 +8690,7 @@ function confirmExportWithoutVideos(includeVideo) {
 
 // Partage à un invité : fenêtre de la console + périmètre des skins choisi au clic.
 let shareAdminWin = null;
-let shareAdminSkinScope = "current";
 let shareAdminBusy = false;
-let shareAdminPushBoard = false; // true : pousser le board courant ; false : simple gestion
 
 // Envoie un board (Blob) directement à api/admin.php en tranches (mécanisme
 // « chunk » déjà utilisé par le formulaire), puis prévient la console.
@@ -8719,8 +8716,8 @@ async function uploadBoardToAdmin(blob, boardName, win, csrf) {
   setStatus("Board transmis à la console de partage.");
 }
 
-// opts.skinScope : "all" (défaut) embarque toute la bibliothèque de skins perso ;
-//   "current" ne garde que le skin appliqué par le board.
+// opts.forGuestShare : purge les skins perso du board et pose payload.guestSkinChoice
+//   ("all" | "current") d'après opts.guestSkinChoice.
 // opts.deliver(blob, filename, boardName) : remise du fichier ; par défaut
 //   shareOrDownloadBoard (téléchargement). Le partage à un invité fournit sa
 //   propre remise (upload direct vers api/admin.php).
@@ -8867,14 +8864,17 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     },
   };
 
-  if (opts.skinScope === "current") {
-    const ref = payload.board.skin;
-    const keepId = typeof ref === "string" && ref.startsWith(CUSTOM_SKIN_PREFIX)
-      ? ref.slice(CUSTOM_SKIN_PREFIX.length)
-      : null;
-    payload.board.customSkins = keepId
-      ? (payload.board.customSkins || []).filter((skin) => skin && skin.id === keepId)
-      : [];
+  if (opts.forGuestShare) {
+    // Les skins perso (créés dans l'éditeur) ne voyagent jamais vers un invité :
+    // bibliothèque vidée, et si le board pointe un skin perso on retombe sur le
+    // skin intégré par défaut.
+    payload.board.customSkins = [];
+    if (typeof payload.board.skin === "string" && payload.board.skin.startsWith(CUSTOM_SKIN_PREFIX)) {
+      payload.board.skin = null;
+    }
+    // Périmètre des skins offert à l'invité (radio de la console) : "all" = tous
+    // les skins intégrés, sinon il reste bloqué sur le skin du board.
+    payload.guestSkinChoice = opts.guestSkinChoice === "all" ? "all" : "current";
   }
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -18690,52 +18690,36 @@ async function init() {
   });
   els.importBoard?.addEventListener("click", () => els.importBoardFile?.click());
   els.openShareAdmin?.addEventListener("click", () => {
-    const all = window.confirm(
-      `Partager le board « ${currentBoard().name} » à un invité.\n\n`
-      + "Inclure TOUS les skins de ta bibliothèque dans le partage ?\n\n"
-      + "• OK : tous les skins\n"
-      + "• Annuler : seulement le skin actuel (recommandé)"
-    );
-    shareAdminSkinScope = all ? "all" : "current";
-    shareAdminPushBoard = true;
-    // Fenêtre nommée (pas de noopener) : la console doit pouvoir nous renvoyer
-    // un message une fois connectée, et nous lui poussons le board directement.
+    // Fenêtre nommée (pas de noopener) : la console doit pouvoir nous demander
+    // le board et recevoir nos messages en retour.
     shareAdminWin = window.open("api/admin.php", "sb_share_console");
     if (!shareAdminWin) {
       setStatus("La fenêtre de partage est bloquée — autorise les pop-ups pour ce site.");
       return;
     }
-    setStatus("Console de partage ouverte — connecte-toi, l'envoi du board se fait ensuite tout seul.");
+    setStatus("Fenêtre de partage ouverte.");
   });
 
-  els.openShareConsole?.addEventListener("click", () => {
-    // Accès simple à la console (liste / révocation / mots de passe) : on
-    // n'envoie PAS le board courant.
-    shareAdminPushBoard = false;
-    shareAdminWin = window.open("api/admin.php", "sb_share_console");
-    if (!shareAdminWin) {
-      setStatus("La fenêtre de la console est bloquée — autorise les pop-ups pour ce site.");
-    }
-  });
-
-  // La console de partage (api/admin.php), une fois connectée, nous signale
-  // qu'elle est prête : on lui pousse alors le board courant (avec audio).
+  // La console (api/admin.php) demande le board courant quand on clique
+  // « Créer le lien » : on l'exporte (avec audio) et on l'envoie en tranches.
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin) return;
     const data = event.data || {};
-    if (data.type !== "sb-admin-ready" || event.source !== shareAdminWin) return;
-    if (!shareAdminPushBoard || shareAdminBusy) return;
+    if (data.type !== "sb-request-board" || event.source !== shareAdminWin) return;
+    if (shareAdminBusy) return;
     shareAdminBusy = true;
     const csrf = String(data.csrf || "");
+    const guestSkinChoice = data.skinScope === "all" ? "all" : "current";
+    const win = shareAdminWin;
     exportCurrentBoard("audioOnly", {
-      skinScope: shareAdminSkinScope,
-      deliver: (blob, _filename, name) => uploadBoardToAdmin(blob, name, shareAdminWin, csrf),
+      forGuestShare: true,
+      guestSkinChoice,
+      deliver: (blob, _filename, name) => uploadBoardToAdmin(blob, name, win, csrf),
     })
-      .then(() => { shareAdminWin = null; })
       .catch((err) => {
         setStatus(`Transmission du board impossible : ${err?.message || err}`);
         try {
-          shareAdminWin?.postMessage(
+          win?.postMessage(
             { type: "sb-board-error", message: String(err?.message || err) },
             location.origin,
           );
@@ -19601,6 +19585,7 @@ async function init() {
 const GUEST_BOARD_IDS_KEY = "soundboard-guest-board-ids";
 const GUEST_SESSION_KEY = "soundboard-guest-session";
 const GUEST_LABEL_KEY = "soundboard-guest-label";
+const GUEST_SKIN_CHOICE_KEY = "soundboard-guest-skin-choice";
 
 function readGuestShareId() {
   const fromHash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
@@ -19677,6 +19662,11 @@ async function setupGuestBoard() {
 
   const payloadText = await askGuestPassword(shareId);
   await purgeGuestBoards();
+  // Périmètre des skins autorisé pour cet invité (posé par la console de partage).
+  try {
+    const choice = JSON.parse(payloadText)?.guestSkinChoice === "all" ? "all" : "current";
+    localStorage.setItem(GUEST_SKIN_CHOICE_KEY, choice);
+  } catch { localStorage.setItem(GUEST_SKIN_CHOICE_KEY, "current"); }
   await importBoardFile({ name: `${shareId}.json`, text: async () => payloadText });
   const board = currentBoard();
   localStorage.setItem(GUEST_BOARD_IDS_KEY, JSON.stringify([board.id]));
@@ -19686,6 +19676,12 @@ async function setupGuestBoard() {
 
 function finishGuestUnlock() {
   document.body.classList.remove("guest-locked");
+  // "current" (défaut) : l'invité reste sur le skin du board (menu skin masqué) ;
+  // "all" : il peut basculer entre les skins intégrés.
+  document.body.classList.toggle(
+    "guest-skin-locked",
+    localStorage.getItem(GUEST_SKIN_CHOICE_KEY) !== "all",
+  );
   if (els.guestGate) els.guestGate.hidden = true;
   // « Version light » : sections Aspect et Gestion (réduite au nom du board)
   // dépliées d'office pour l'invité.

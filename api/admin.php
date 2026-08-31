@@ -442,9 +442,9 @@ if ($method === 'POST' && $_POST) {
     } else {
       $code = $up['error'] ?? UPLOAD_ERR_NO_FILE;
       if (in_array($code, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
-        $errors[] = "Board trop volumineux pour l'upload direct. L'envoi en tranches aurait dû prendre le relais — réessaie, ou utilise tools/make-share.mjs + FTP.";
+        $errors[] = "Envoi du board interrompu (taille). Réessaie ou utilise tools/make-share.mjs + FTP.";
       } else {
-        $errors[] = "Aucun fichier de board reçu.";
+        $errors[] = "Aucun board reçu — ouvre cette fenêtre via le bouton « Partager le board à un invité » de l'application.";
       }
     }
     if (strlen($pass) < 4) $errors[] = "Mot de passe invité trop court.";
@@ -520,13 +520,17 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   <?php endif; ?>
 
   <h2>Créer un lien d'invitation</h2>
-  <form method="post" enctype="multipart/form-data" autocomplete="off" id="createForm">
+  <p class="hint" id="createHint" hidden>Cette fenêtre doit être ouverte depuis le bouton
+    « Partager le board à un invité » de l'application : c'est elle qui fournit le board.</p>
+  <form method="post" autocomplete="off" id="createForm">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
     <input type="hidden" name="action" value="create">
     <input type="hidden" name="assembled" id="assembledId" value="">
-    <p class="ok" id="stagedBanner" hidden></p>
-    <label id="boardFileRow">Board exporté (.json « avec audio »)
-      <input type="file" name="board" id="boardFile" accept="application/json,.json" required></label>
+    <fieldset class="skin-choice">
+      <legend>Skins accessibles à l'invité</legend>
+      <label class="radio"><input type="radio" name="guestskin" value="current" checked> Seulement le skin du board</label>
+      <label class="radio"><input type="radio" name="guestskin" value="all"> Tous les skins intégrés</label>
+    </fieldset>
     <label>Mot de passe pour l'invité<input type="text" name="password" required></label>
     <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80"></label>
     <label>Expiration (facultatif)<input type="date" name="expire"></label>
@@ -538,83 +542,55 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
   <script>
   (function () {
     var form = document.getElementById('createForm');
-    var fileInput = document.getElementById('boardFile');
     var btn = document.getElementById('createBtn');
     var prog = document.getElementById('createProgress');
-    var banner = document.getElementById('stagedBanner');
-    var fileRow = document.getElementById('boardFileRow');
+    var hint = document.getElementById('createHint');
+    var assembled = document.getElementById('assembledId');
     var csrf = form.querySelector('input[name=csrf]').value;
-    var CHUNK = 3000000;           // < post_max_size de Free (souvent 8 Mo)
-    var DIRECT_MAX = 3500000;      // en-dessous : envoi direct classique
     var busy = false;
 
-    function stageAssembled(uid, name) {
-      document.getElementById('assembledId').value = uid;
-      fileInput.removeAttribute('required');
-      fileInput.value = '';
-      if (fileRow) fileRow.hidden = true;
-      prog.hidden = true;
-      banner.hidden = false;
-      banner.textContent = 'Board « ' + (name || 'board') + ' » reçu du studio ✓ — saisis le mot de passe puis « Créer le lien ».';
+    // Sans fenêtre appelante, impossible de récupérer le board : on désactive la
+    // création (la gestion des partages ci-dessous reste utilisable).
+    if (!window.opener) {
+      hint.hidden = false;
+      btn.disabled = true;
+      return;
     }
 
-    // Ouvert depuis l'application (« Partager le board à un invité ») : la
-    // fenêtre studio nous pousse le board dès qu'on est connecté.
-    if (window.opener) {
-      try { window.opener.postMessage({ type: 'sb-admin-ready', csrf: csrf }, location.origin); } catch (e) {}
-      window.addEventListener('message', function (ev) {
-        if (ev.origin !== location.origin || ev.source !== window.opener) return;
-        var d = ev.data || {};
-        if (d.type === 'sb-board-progress') {
-          prog.hidden = false;
-          prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
-        } else if (d.type === 'sb-board-staged') {
-          stageAssembled(d.uid, d.name);
-        } else if (d.type === 'sb-board-error') {
-          prog.hidden = false;
-          prog.textContent = 'Le studio n’a pas pu envoyer le board (' + (d.message || '?') + '). Choisis un fichier manuellement.';
-        }
-      });
-    }
+    try { window.opener.postMessage({ type: 'sb-admin-ready', csrf: csrf }, location.origin); } catch (e) {}
 
-    form.addEventListener('submit', function (e) {
-      var f = fileInput.files[0];
-      if (busy || !f || f.size <= DIRECT_MAX) return;   // laisse l'envoi normal
-      e.preventDefault();
-      busy = true; btn.disabled = true;
-      var uid = ''; for (var i = 0; i < 4; i++) uid += Math.random().toString(16).slice(2, 10);
-      uid = uid.slice(0, 32);
-      var total = Math.ceil(f.size / CHUNK), seq = 0;
-      prog.hidden = false;
-
-      function sendNext() {
-        if (seq >= total) { finish(); return; }
-        var slice = f.slice(seq * CHUNK, (seq + 1) * CHUNK);
-        var fd = new FormData();
-        fd.append('action', 'chunk'); fd.append('csrf', csrf);
-        fd.append('uid', uid); fd.append('seq', seq);
-        fd.append('part', slice, 'part');
-        fetch(location.pathname, { method: 'POST', body: fd, credentials: 'same-origin' })
-          .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-          .then(function () {
-            seq++;
-            prog.textContent = 'Envoi en cours… ' + seq + ' / ' + total;
-            sendNext();
-          })
-          .catch(function (err) {
-            prog.textContent = 'Échec de l’envoi (' + err + '). Réessaie, ou passe par make-share.mjs + FTP.';
-            busy = false; btn.disabled = false;
-          });
-      }
-      function finish() {
-        document.getElementById('assembledId').value = uid;
-        fileInput.removeAttribute('required');
-        fileInput.value = '';
-        prog.textContent = 'Envoi terminé, création du lien…';
-        busy = false;
+    window.addEventListener('message', function (ev) {
+      if (ev.origin !== location.origin || ev.source !== window.opener) return;
+      var d = ev.data || {};
+      if (d.type === 'sb-board-progress') {
+        prog.hidden = false;
+        prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
+      } else if (d.type === 'sb-board-staged') {
+        assembled.value = d.uid;
+        prog.textContent = 'Board reçu, création du lien…';
         form.submit();
+      } else if (d.type === 'sb-board-error') {
+        prog.textContent = 'Le studio n’a pas pu envoyer le board (' + (d.message || '?') + ').';
+        busy = false; btn.disabled = false;
       }
-      sendNext();
+    });
+
+    // « Créer le lien » : on demande d'abord le board courant à l'application,
+    // qui l'envoie en tranches, puis la vraie soumission part (message staged).
+    form.addEventListener('submit', function (e) {
+      if (assembled.value) return;              // board déjà reçu → soumission normale
+      e.preventDefault();
+      if (busy) return;
+      busy = true; btn.disabled = true;
+      var scope = (form.querySelector('input[name=guestskin]:checked') || {}).value || 'current';
+      prog.hidden = false;
+      prog.textContent = 'Demande du board au studio…';
+      try {
+        window.opener.postMessage({ type: 'sb-request-board', skinScope: scope, csrf: csrf }, location.origin);
+      } catch (err) {
+        prog.textContent = 'Fenêtre de l’application introuvable — rouvre-la via le bouton « Partager le board ».';
+        busy = false; btn.disabled = false;
+      }
     });
   })();
   </script>
@@ -661,15 +637,17 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     <p class="hint">Les mots de passe sont chiffrés au repos ; seul le mot de passe maître permet de les réafficher.</p>
   <?php endif; ?>
 
-  <h2>Mot de passe maître</h2>
-  <form method="post" autocomplete="off">
-    <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
-    <input type="hidden" name="action" value="chgmaster">
-    <label>Mot de passe actuel<input type="password" name="current" required></label>
-    <label>Nouveau mot de passe<input type="password" name="new" required minlength="10"></label>
-    <label>Confirmer<input type="password" name="new2" required minlength="10"></label>
-    <button type="submit">Changer le mot de passe maître</button>
-  </form>
+  <details class="foldout">
+    <summary>Mot de passe maître</summary>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
+      <input type="hidden" name="action" value="chgmaster">
+      <label>Mot de passe actuel<input type="password" name="current" required></label>
+      <label>Nouveau mot de passe<input type="password" name="new" required minlength="10"></label>
+      <label>Confirmer<input type="password" name="new2" required minlength="10"></label>
+      <button type="submit">Changer le mot de passe maître</button>
+    </form>
+  </details>
 
   <form method="post" class="logout">
     <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
@@ -727,6 +705,13 @@ function render_page(string $title, callable $body): void {
   .copy-btn { padding: 8px 14px; white-space: nowrap; }
   .logout { margin-top: 30px; }
   .logout button { border-color: #444c5a; background: #222732; }
+  fieldset.skin-choice { border: 1px solid #333a47; border-radius: 7px; padding: 10px 12px; display: grid; gap: 6px; }
+  fieldset.skin-choice legend { padding: 0 6px; font-size: 0.8rem; color: #9aa4b2; }
+  label.radio { display: flex; align-items: center; gap: 8px; color: #e6e8ec; font-size: 0.9rem; }
+  label.radio input { width: auto; padding: 0; }
+  details.foldout { margin: 28px 0 0; border-top: 1px solid #2a2f3a; padding-top: 14px; }
+  details.foldout > summary { cursor: pointer; font-size: 1rem; font-weight: 600; color: #e6e8ec; list-style: revert; }
+  details.foldout[open] > summary { margin-bottom: 12px; }
 </style>
 </head>
 <body>
