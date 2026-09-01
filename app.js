@@ -5122,10 +5122,19 @@ function fillBulkCrossfadeControls(pad) {
   fillCrossfadeTargetSelect(els.bulkEndStartTarget, pad?.endStartTarget || "");
 }
 
+// Bouton « Trim auto » : « Trim auto » cliquable au repos, « Trim prêt » grisé une
+// fois le calcul fait (les valeurs sont en mémoire, plus rien à recalculer).
+function setBulkAutoTrimButtonReady(ready) {
+  if (!els.bulkAutoTrim) return;
+  els.bulkAutoTrim.textContent = ready ? "Trim prêt" : "Trim auto";
+  els.bulkAutoTrim.disabled = ready;
+}
+
 function resetBulkAutoTrimUi() {
   state.bulkAutoTrimResults = null;
   if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = false;
   if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
+  setBulkAutoTrimButtonReady(false);
   syncBulkApplyState();
 }
 
@@ -5166,8 +5175,10 @@ async function prepareBulkAutoTrim() {
       : "Aucun silence détecté";
     if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = summary;
     setStatus(`Trim auto groupé : ${summary}`);
-  } finally {
-    if (els.bulkAutoTrim) els.bulkAutoTrim.disabled = false;
+    setBulkAutoTrimButtonReady(Boolean(results.size));
+  } catch (error) {
+    console.error(error);
+    setBulkAutoTrimButtonReady(false);
   }
 }
 
@@ -18748,8 +18759,16 @@ async function init() {
   els.bulkAutoTrim?.addEventListener("click", () => {
     prepareBulkAutoTrim().catch(() => setStatus("Trim auto groupé impossible"));
   });
-  // Cocher/décocher « appliquer le trim auto » à la main doit aussi (dé)griser « Appliquer ».
-  els.bulkApplyAutoTrim?.addEventListener("change", syncBulkApplyState);
+  // Décocher « Trim audio » à la main : on abandonne le calcul, le bouton « Trim prêt »
+  // redevient « Trim auto » cliquable. (Recocher sans recalcul n'aurait rien à appliquer.)
+  els.bulkApplyAutoTrim?.addEventListener("change", () => {
+    if (!els.bulkApplyAutoTrim.checked) {
+      state.bulkAutoTrimResults = null;
+      if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
+      setBulkAutoTrimButtonReady(false);
+    }
+    syncBulkApplyState();
+  });
   els.applyBulkEdit?.addEventListener("click", () => {
     applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
   });
