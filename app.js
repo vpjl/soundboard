@@ -655,7 +655,6 @@ const els = {
   bulkLoop: document.querySelector("#bulkLoop"),
   bulkDuck: document.querySelector("#bulkDuck"),
   bulkApplyAutoTrim: document.querySelector("#bulkApplyAutoTrim"),
-  bulkAutoTrim: document.querySelector("#bulkAutoTrim"),
   bulkAutoTrimStatus: document.querySelector("#bulkAutoTrimStatus"),
   bulkApplyReverb: document.querySelector("#bulkApplyReverb"),
   bulkReverbNone: document.querySelector("#bulkReverbNone"),
@@ -5122,22 +5121,20 @@ function fillBulkCrossfadeControls(pad) {
   fillCrossfadeTargetSelect(els.bulkEndStartTarget, pad?.endStartTarget || "");
 }
 
-// Bouton « Trim auto » : « Trim auto » cliquable au repos, « Trim prêt » grisé une
-// fois le calcul fait (les valeurs sont en mémoire, plus rien à recalculer).
-function setBulkAutoTrimButtonReady(ready) {
-  if (!els.bulkAutoTrim) return;
-  els.bulkAutoTrim.textContent = ready ? "Trim prêt" : "Trim auto";
-  els.bulkAutoTrim.disabled = ready;
+function setBulkAutoTrimStatus(text) {
+  if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = text;
 }
 
 function resetBulkAutoTrimUi() {
   state.bulkAutoTrimResults = null;
   if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = false;
-  if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
-  setBulkAutoTrimButtonReady(false);
+  setBulkAutoTrimStatus("Trim non calculé");
   syncBulkApplyState();
 }
 
+// Cocher « Trim audio » déclenche directement le calcul (analyse des silences, pad
+// par pad). Le libellé à côté de la case sert de témoin d'état :
+// « Trim non calculé » → « Calcul… » → « Trim prêt (17 · 8 ignorés) ».
 async function prepareBulkAutoTrim() {
   const pads = state.bulkEditPads.filter((pad) => pad && padType(pad) === "audio");
   if (!pads.length) {
@@ -5145,8 +5142,7 @@ async function prepareBulkAutoTrim() {
     setStatus("Trim auto groupé : aucun pad audio", "stop");
     return;
   }
-  if (els.bulkAutoTrim) els.bulkAutoTrim.disabled = true;
-  if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Calcul...";
+  setBulkAutoTrimStatus("Calcul…");
   const results = new Map();
   let detectedCount = 0;
   let skippedCount = 0;
@@ -5165,20 +5161,23 @@ async function prepareBulkAutoTrim() {
         skippedCount += 1;
       }
     }
-    state.bulkAutoTrimResults = results.size ? results : null;
-    if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = Boolean(results.size);
-    // La case « appliquer » vient d'être (dé)cochée par programme : réévaluer l'état
-    // du bouton « Appliquer », qui sinon reste grisé malgré « N prêts ».
-    syncBulkApplyState();
-    const summary = results.size
-      ? `${detectedCount} prêt${detectedCount > 1 ? "s" : ""}${skippedCount ? `, ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""}` : ""}`
-      : "Aucun silence détecté";
-    if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = summary;
-    setStatus(`Trim auto groupé : ${summary}`);
-    setBulkAutoTrimButtonReady(Boolean(results.size));
   } catch (error) {
     console.error(error);
-    setBulkAutoTrimButtonReady(false);
+    resetBulkAutoTrimUi();
+    setStatus("Trim auto groupé impossible", "stop");
+    return;
+  }
+  state.bulkAutoTrimResults = results.size ? results : null;
+  // Rien de coupable détecté : on décoche, il n'y aurait rien à appliquer.
+  if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = Boolean(results.size);
+  syncBulkApplyState();
+  if (results.size) {
+    const detail = skippedCount ? ` (${detectedCount} · ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""})` : ` (${detectedCount})`;
+    setBulkAutoTrimStatus(`Trim prêt${detail}`);
+    setStatus(`Trim auto groupé : ${detectedCount} prêt${detectedCount > 1 ? "s" : ""}${skippedCount ? `, ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""}` : ""}`);
+  } else {
+    setBulkAutoTrimStatus("Aucun silence détecté");
+    setStatus("Trim auto groupé : aucun silence détecté");
   }
 }
 
@@ -18756,16 +18755,15 @@ async function init() {
   els.bulkColorButtons?.forEach((button) => {
     button.addEventListener("click", () => setBulkColorValue(button.dataset.bulkColor || ""));
   });
-  els.bulkAutoTrim?.addEventListener("click", () => {
-    prepareBulkAutoTrim().catch(() => setStatus("Trim auto groupé impossible"));
-  });
-  // Décocher « Trim audio » à la main : on abandonne le calcul, le bouton « Trim prêt »
-  // redevient « Trim auto » cliquable. (Recocher sans recalcul n'aurait rien à appliquer.)
+  // Cocher « Trim audio » lance le calcul ; décocher oublie les valeurs.
   els.bulkApplyAutoTrim?.addEventListener("change", () => {
-    if (!els.bulkApplyAutoTrim.checked) {
+    if (els.bulkApplyAutoTrim.checked) {
+      if (!state.bulkAutoTrimResults) {
+        prepareBulkAutoTrim().catch(() => { resetBulkAutoTrimUi(); setStatus("Trim auto groupé impossible", "stop"); });
+      }
+    } else {
       state.bulkAutoTrimResults = null;
-      if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
-      setBulkAutoTrimButtonReady(false);
+      setBulkAutoTrimStatus("Trim non calculé");
     }
     syncBulkApplyState();
   });
