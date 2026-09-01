@@ -5126,6 +5126,7 @@ function resetBulkAutoTrimUi() {
   state.bulkAutoTrimResults = null;
   if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = false;
   if (els.bulkAutoTrimStatus) els.bulkAutoTrimStatus.textContent = "Non calculé";
+  syncBulkApplyState();
 }
 
 async function prepareBulkAutoTrim() {
@@ -5157,6 +5158,9 @@ async function prepareBulkAutoTrim() {
     }
     state.bulkAutoTrimResults = results.size ? results : null;
     if (els.bulkApplyAutoTrim) els.bulkApplyAutoTrim.checked = Boolean(results.size);
+    // La case « appliquer » vient d'être (dé)cochée par programme : réévaluer l'état
+    // du bouton « Appliquer », qui sinon reste grisé malgré « N prêts ».
+    syncBulkApplyState();
     const summary = results.size
       ? `${detectedCount} prêt${detectedCount > 1 ? "s" : ""}${skippedCount ? `, ${skippedCount} ignoré${skippedCount > 1 ? "s" : ""}` : ""}`
       : "Aucun silence détecté";
@@ -18744,6 +18748,8 @@ async function init() {
   els.bulkAutoTrim?.addEventListener("click", () => {
     prepareBulkAutoTrim().catch(() => setStatus("Trim auto groupé impossible"));
   });
+  // Cocher/décocher « appliquer le trim auto » à la main doit aussi (dé)griser « Appliquer ».
+  els.bulkApplyAutoTrim?.addEventListener("change", syncBulkApplyState);
   els.applyBulkEdit?.addEventListener("click", () => {
     applyBulkEdit().catch(() => setStatus("Modification groupée impossible"));
   });
