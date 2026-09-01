@@ -39,7 +39,25 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 
 > On construit : créer et éditer les sons, organiser le board et les pads.
 
-### Board
+Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du board et des pads, Aspect, Sélection.
+
+### Infos board
+
+- ![#boardInfoNotice] **Notice du board** : génère automatiquement une notice du board courant aux formats DOC et PDF (liste des pads, durées, versions).
+- ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation, protégé par un mot de passe, donnant à un invité un accès limité au board courant, et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
+
+### Versions
+
+- ![#saveVersion] **Sauvegarder une version** : crée un instantané local du board courant (8 versions maximum hors archives).
+- **Restaurer une version** : choisir une version dans le menu déroulant la restaure aussitôt.
+- ![#versionNotes] **Notes de version** : attache une note de texte libre (jusqu'à 1200 caractères) à la version sélectionnée — utile pour noter le contexte d'un filage (ex. « Filage 14 juin, avant modif éclairage »).
+
+![0.5x|Notes de version](docs/notice-captures/dialog-version-notes.png)
+- ![#renameVersion] **Renommer une version** : donne un nom explicite à une version (ex : « Filage 14 juin »).
+- ![#archiveVersion] **Archiver une version** : protège une version de l'écrasement automatique (elle ne compte plus dans le quota de 8).
+- ![#deleteVersion] **Supprimer une version** : supprime définitivement la version sélectionnée.
+
+### Gestion du board et des pads
 
 - ![#addPad] **Ajouter un pad** _(voir glossaire)_ : ajoute un nouveau pad vide au board courant.
 - ![#addBoard|#duplicateBoard] **Ajouter un board / Dupliquer** : crée un nouveau board (le créateur, saisi à la création, ne peut plus être changé ensuite) ou duplique le board courant avec tous ses pads.
@@ -51,11 +69,20 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 
 ![0.5x|Export du board — choix entre réglages seuls ou réglages + sons](docs/notice-captures/dialog-export-board.png)
 - ![#importBoard] **Importer un board** : importe un board depuis un fichier JSON, avec ou sans audio embarqué.
-- ![#boardInfoNotice] **Notice du board** : génère automatiquement une notice du board courant aux formats DOC et PDF (liste des pads, durées, versions).
-- ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation, protégé par un mot de passe, donnant à un invité un accès limité au board courant, et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
-- ![#openSkinEditorButton] **Éditeur de skin** _(voir glossaire)_ : personnalise l'apparence visuelle du board — couleurs, harmonie chromatique, polices.
-- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons utilisés (triable par fichier, board ou taille) et non utilisés (triable par nom ou taille). Ce stockage est propre au navigateur, pas au système de fichiers — utiliser « Sauvegarder tous les sons… » (un sous-dossier par board sur le Finder, ou un zip en repli) ou l'export du board pour une copie durable ; ni l'un ni l'autre ne reprend cependant les sons qui n'existent plus que dans une version sauvegardée du board.
+- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons stockés dans le navigateur. Pour une copie sur le Finder, choisir « Sauvegarder tous les sons… » (sons de tous les boards) ou « Exporter le board (avec les sons) » (sons et réglages du board courant dans sa version actuelle). Les sons répertoriés dans d'autres versions mais supprimés ne sont pas sauvegardés.
 - ![#boardInfoDelete] **Supprimer le board** : supprime définitivement le board après confirmation.
+
+### Aspect
+
+- **Skin** : change l'apparence visuelle du board (skin prédéfini) — détails au chapitre Skins et apparence.
+- ![#openSkinEditorButton] **Éditeur de skin** _(voir glossaire)_ : personnalise l'apparence visuelle du board — couleurs, harmonie chromatique, polices.
+
+### Sélection
+
+- **Filtre par tag (OU / ET)** : sélectionne visuellement les pads par type, option ou tag — OU : au moins un des tags ; ET : tous les tags.
+- ![#filterInvertBtn|#filterTousBtn] **Inverser / Effacer la sélection** : inverse les pads sélectionnés / désélectionne tout.
+- ![#filterCompactToggle] **Masquer les pads non sélectionnés**.
+- **Modification groupée** : applique un réglage à tous les pads sélectionnés en une seule opération.
 
 ### Pad — Import de médias
 
@@ -80,30 +107,13 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 - ![action:duck] **Duck trigger** : ce pad déclenche le ducking _(voir glossaire)_ des autres pads quand il joue.
 - **Crossfade audio** _(voir glossaire)_ : configure les déclenchements croisés entre pads ou entre tags.
 
-### Sélection groupée
-
-- **Filtre par tag (OU / ET)** : sélectionne visuellement les pads par type, option ou tag — OU : au moins un des tags ; ET : tous les tags.
-- ![#filterInvertBtn|#filterTousBtn] **Inverser / Effacer la sélection** : inverse les pads sélectionnés / désélectionne tout.
-- ![#filterCompactToggle] **Masquer les pads non sélectionnés**.
-- **Modification groupée** : applique un réglage à tous les pads sélectionnés en une seule opération.
-
 ![Mode Garage — **1** Board et actions du board · **2** Pads en édition](docs/notice-captures/mode-garage.png)
 
 ## Mode Studio — répétition
 
 > On règle et on répète : peaufiner les sons, vérifier les niveaux, tester cues et fades.
 
-### Versions du board
-
-- ![#saveVersion] **Sauvegarder une version** : crée un instantané local du board courant (8 versions maximum hors archives).
-- **Restaurer une version** : choisir une version dans le menu déroulant la restaure aussitôt.
-- ![#versionNotes] **Notes de version** : attache une note de texte libre (jusqu'à 1200 caractères) à la version sélectionnée — utile pour noter le contexte d'un filage (ex. « Filage 14 juin, avant modif éclairage »).
-
-![0.5x|Notes de version](docs/notice-captures/dialog-version-notes.png)
-- ![#renameVersion] **Renommer une version** : donne un nom explicite à une version (ex : « Filage 14 juin »).
-- ![#archiveVersion] **Archiver une version** : protège une version de l'écrasement automatique (elle ne compte plus dans le quota de 8).
-- ![#deleteVersion] **Supprimer une version** : supprime définitivement la version sélectionnée.
-- **Skin** : change l'apparence visuelle du board (skin prédéfini) — détails au chapitre Skins et apparence.
+> Les volets Board (Infos board, Versions, Gestion du board et des pads, Aspect, Sélection) sont documentés au chapitre Mode Garage — construction ci-dessus. En Studio, seuls Aspect et Sélection restent accessibles ; Infos board, Versions et Gestion du board et des pads redeviennent visibles en repassant en Garage.
 
 ### Pad en Studio
 
@@ -245,7 +255,7 @@ Limites spécifiques à certains navigateurs uniquement.
 | Enregistrement au micro | Oui | Oui | Oui | Oui |
 | Synthèse vocale (lecture de texte) | Oui | Oui | Oui | Oui |
 
-> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » avec les sons, ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés — ces deux méthodes ne sauvegardent pas les sons qui n'existent plus que dans une version enregistrée du board (versions du board).
+> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une copie sur le Finder, utiliser systématiquement « Exporter le board (avec les sons) » ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés. Les sons répertoriés dans d'autres versions mais supprimés ne sont pas sauvegardés.
 
 ## Licence
 
