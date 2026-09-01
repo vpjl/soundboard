@@ -52,9 +52,9 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 ![0.5x|Export du board — choix entre réglages seuls ou réglages + sons](docs/notice-captures/dialog-export-board.png)
 - ![#importBoard] **Importer un board** : importe un board depuis un fichier JSON, avec ou sans audio embarqué.
 - ![#boardInfoNotice] **Notice du board** : génère automatiquement une notice du board courant aux formats DOC et PDF (liste des pads, durées, versions).
-- ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation donnant à un invité un accès limité au board courant (avec ou sans mot de passe), et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
+- ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation, protégé par un mot de passe, donnant à un invité un accès limité au board courant, et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
 - ![#openSkinEditorButton] **Éditeur de skin** _(voir glossaire)_ : personnalise l'apparence visuelle du board — couleurs, harmonie chromatique, polices.
-- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons stockés dans le navigateur (utilisés ou non), triable par fichier, board ou taille. Ce stockage est propre au navigateur, pas au système de fichiers — utiliser « Sauvegarder tous les sons… » (un sous-dossier par board sur le Finder, ou un zip en repli) ou l'export du board pour une copie durable.
+- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons utilisés (triable par fichier, board ou taille) et non utilisés (triable par nom ou taille). Ce stockage est propre au navigateur, pas au système de fichiers — utiliser « Sauvegarder tous les sons… » (un sous-dossier par board sur le Finder, ou un zip en repli) ou l'export du board pour une copie durable ; ni l'un ni l'autre ne reprend cependant les sons qui n'existent plus que dans une version sauvegardée du board.
 - ![#boardInfoDelete] **Supprimer le board** : supprime définitivement le board après confirmation.
 
 ### Pad — Import de médias
@@ -245,7 +245,7 @@ Limites spécifiques à certains navigateurs uniquement.
 | Enregistrement au micro | Oui | Oui | Oui | Oui |
 | Synthèse vocale (lecture de texte) | Oui | Oui | Oui | Oui |
 
-> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » avec les sons, ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés.
+> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » avec les sons, ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés — ces deux méthodes ne sauvegardent pas les sons qui n'existent plus que dans une version enregistrée du board (versions du board).
 
 ## Licence
 
