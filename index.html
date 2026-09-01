@@ -894,7 +894,7 @@
                 </dt><dd>Efface la sélection.</dd>
                 <dt aria-label="Masquer les pads non sélectionnés">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-47c7b4c5" xlink:href="#ic-47c7b4c5"></use></svg>
-                </dt><dd>Masque les pads non sélectionnés (n’affiche que la sélection).</dd>
+                </dt><dd>Masque les pads non sélectionnés.</dd>
               </dl>
 
               <h3 style="margin-top: 16px;">Board (scène)</h3>
@@ -914,7 +914,7 @@
                 </dt><dd>Ajoute un pad au board courant.</dd>
                 <dt aria-label="Ajouter un board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-ee4ee409" xlink:href="#ic-ee4ee409"></use></svg>
-                </dt><dd>Crée un nouveau board : nombre de pads, nom et créateur sont demandés ensemble. Le créateur n'est saisi qu'à cet instant et ne peut plus être changé ensuite.</dd>
+                </dt><dd>Crée un nouveau board. Le créateur ne peut plus être changé ensuite.</dd>
                 <dt aria-label="Dupliquer le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-b4559364" xlink:href="#ic-b4559364"></use></svg>
                 </dt><dd>Duplique le board courant.</dd>
@@ -929,13 +929,21 @@
                 </dt><dd>Annule le dernier réglage modifié ou le dernier pad supprimé.</dd>
                 <dt aria-label="Annuler les modifications du board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-135b75dc" xlink:href="#ic-135b75dc"></use></svg>
-                </dt><dd>Annule toutes les modifications et restaure le board tel qu’il était en entrant.</dd>
+                </dt><dd>Annule les modifications et restaure le board tel qu’il était en entrant.</dd>
                 <dt aria-label="Notice du board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-3acdc5f3" xlink:href="#ic-3acdc5f3"></use></svg>
                 </dt><dd>Écrit une notice du board courant aux formats DOC et PDF.</dd>
+                <dt aria-label="Partage du board : invitation et gestion">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="8" width="18" height="4" rx="1"/>
+                    <path d="M12 8v13"/>
+                    <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/>
+                    <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>
+                  </svg>
+                </dt><dd>Ouvre la console de partage : crée un lien d’invitation pour un invité (accès limité au board courant, avec ou sans mot de passe), et gère les invitations déjà créées (liste, révocation, mots de passe).</dd>
                 <dt aria-label="Exporter le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9c2d9615" xlink:href="#ic-9c2d9615"></use></svg>
-                </dt><dd>Exporte le board : choisir Réglages (sans les sons) ou Réglages + sons. Les vidéos ne sont jamais incluses : les conserver à part puis les relier après import via « Sélectionner un dossier de vidéos ».</dd>
+                </dt><dd>Exporte le board avec ou sans les sons. Les vidéos ne sont pas incluses, il faut les conserver à part puis les relier via « Sélectionner un dossier de vidéos ».</dd>
                 <dt aria-label="Importer un board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-8487e55d" xlink:href="#ic-8487e55d"></use></svg>
                 </dt><dd>Importe un board au format json, avec ou sans audio.</dd>
@@ -944,7 +952,7 @@
                 </dt><dd>Ouvre l’éditeur de skin (couleurs, harmonie, polices).</dd>
                 <dt aria-label="Sons stockés">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-5f10c4cc" xlink:href="#ic-5f10c4cc"></use></svg>
-                </dt><dd>Liste des sons (utilisés ou non).  Ils sont stockés dans le navigateur, pas sur le Finder : pour une sauvegarde durable, utiliser « Exporter le board » (option Réglages + sons)</dd>
+                </dt><dd>Liste des sons (utilisés ou non), triable par fichier, board ou taille. Ils sont stockés dans le navigateur, pas sur le Finder : pour une sauvegarde durable, utiliser « Sauvegarder tous les sons… » (un sous-dossier par board sur le Finder, ou un zip en repli) ou « Exporter le board » (avec les sons).</dd>
                 <dt aria-label="Supprimer le board">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-aee2b53b" xlink:href="#ic-aee2b53b"></use></svg>
                 </dt><dd>Supprime le board courant après confirmation.</dd>
@@ -1051,7 +1059,7 @@
                 </dt><dd>Efface la sélection.</dd>
                 <dt aria-label="Masquer les pads non sélectionnés">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-47c7b4c5" xlink:href="#ic-47c7b4c5"></use></svg>
-                </dt><dd>Masque les pads non sélectionnés (n’affiche que la sélection).</dd>
+                </dt><dd>Masque les pads non sélectionnés.</dd>
                 <dt aria-label="Modifier">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f131c7a3" xlink:href="#ic-f131c7a3"></use></svg>
                 </dt><dd>Modification groupée des pads sélectionnés.</dd>

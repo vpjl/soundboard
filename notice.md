@@ -42,18 +42,19 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 ### Board
 
 - ![#addPad] **Ajouter un pad** _(voir glossaire)_ : ajoute un nouveau pad vide au board courant.
-- ![#addBoard|#duplicateBoard] **Ajouter un board / Dupliquer** : crée un nouveau board (nombre de pads, nom et créateur demandés à la création — le créateur n'est ensuite plus modifiable) ou duplique le board courant avec tous ses pads.
+- ![#addBoard|#duplicateBoard] **Ajouter un board / Dupliquer** : crée un nouveau board (le créateur, saisi à la création, ne peut plus être changé ensuite) ou duplique le board courant avec tous ses pads.
 - ![#relinkAudioFolder] **Sélectionner un dossier de sons** : relie le board à un dossier local pour retrouver les fichiers audio. À refaire si le dossier est déplacé.
 - ![#relinkVideoFolder] **Sélectionner un dossier de vidéos** : relie le board à un dossier local pour les fichiers vidéo.
 - ![#undoBoardEdit] **Annuler la dernière modification** : annule le dernier réglage modifié ou le dernier pad supprimé (pas à pas).
 - ![#cancelBoardEdit] **Annuler les modifications du board** : restaure le board tel qu'il était à l'entrée dans le mode (annulation globale).
-- ![#exportBoard] **Exporter le board** : propose « Réglages » (JSON de configuration seul) ou « Réglages + sons » (archive complète, réglages + fichiers audio — recommandé pour toute sauvegarde durable, les sons stockés dans le navigateur peuvent être perdus). Les vidéos ne sont jamais incluses : les conserver séparément, puis les relier après import.
+- ![#exportBoard] **Exporter le board** : exporte le board avec ou sans les sons. Les vidéos ne sont pas incluses, il faut les conserver à part puis les relier via « Sélectionner un dossier de vidéos ».
 
 ![0.5x|Export du board — choix entre réglages seuls ou réglages + sons](docs/notice-captures/dialog-export-board.png)
 - ![#importBoard] **Importer un board** : importe un board depuis un fichier JSON, avec ou sans audio embarqué.
 - ![#boardInfoNotice] **Notice du board** : génère automatiquement une notice du board courant aux formats DOC et PDF (liste des pads, durées, versions).
+- ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation donnant à un invité un accès limité au board courant (avec ou sans mot de passe), et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
 - ![#openSkinEditorButton] **Éditeur de skin** _(voir glossaire)_ : personnalise l'apparence visuelle du board — couleurs, harmonie chromatique, polices.
-- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons stockés dans le navigateur (utilisés ou non). Ce stockage est propre au navigateur, pas au système de fichiers — utiliser l'export pour une copie durable.
+- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons stockés dans le navigateur (utilisés ou non), triable par fichier, board ou taille. Ce stockage est propre au navigateur, pas au système de fichiers — utiliser « Sauvegarder tous les sons… » (un sous-dossier par board sur le Finder, ou un zip en repli) ou l'export du board pour une copie durable.
 - ![#boardInfoDelete] **Supprimer le board** : supprime définitivement le board après confirmation.
 
 ### Pad — Import de médias
@@ -83,7 +84,7 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 
 - **Filtre par tag (OU / ET)** : sélectionne visuellement les pads par type, option ou tag — OU : au moins un des tags ; ET : tous les tags.
 - ![#filterInvertBtn|#filterTousBtn] **Inverser / Effacer la sélection** : inverse les pads sélectionnés / désélectionne tout.
-- ![#filterCompactToggle] **Masquer les pads non sélectionnés** : n'affiche que les pads de la sélection courante.
+- ![#filterCompactToggle] **Masquer les pads non sélectionnés**.
 - **Modification groupée** : applique un réglage à tous les pads sélectionnés en une seule opération.
 
 ![Mode Garage — **1** Board et actions du board · **2** Pads en édition](docs/notice-captures/mode-garage.png)
@@ -244,7 +245,7 @@ Limites spécifiques à certains navigateurs uniquement.
 | Enregistrement au micro | Oui | Oui | Oui | Oui |
 | Synthèse vocale (lecture de texte) | Oui | Oui | Oui | Oui |
 
-> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » (Réglages + sons).
+> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » avec les sons, ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés.
 
 ## Licence
 
