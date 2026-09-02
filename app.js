@@ -2853,7 +2853,7 @@ function initLiveFxPanelChrome() {
     const opening = state.liveFxPanelDocked;
     setLiveFxPanelDocked(!opening, true, opening);
   });
-  window.addEventListener("resize", () => clampLiveFxPanelPosition());
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   const storedAllowed = localStorage.getItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE);
   setLiveFxPanelAllowed(storedAllowed == null ? true : storedAllowed === "on", false);
   els.masterLiveFxPanelEnabled?.addEventListener("change", () => {
@@ -5355,45 +5355,46 @@ async function confirmDeletePads(pads, { requireEmpty = false } = {}) {
     window.alert(requireEmpty ? "Aucun pad vide sélectionné" : "Aucun pad sélectionné");
     return false;
   }
+  if (!state.boardEditMode) return false;
   const count = uniquePads.length;
   const label = `${count} pad${count > 1 ? "s" : ""}${requireEmpty ? ` vide${count > 1 ? "s" : ""}` : ""}`;
-  const remainingCount = Math.max(1, currentBoard().padCount - count);
   const suffix = count >= currentBoard().padCount
     ? "\n\nLe dernier pad du board sera conservé."
     : "";
   if (!window.confirm(`Supprimer ${label} ?${suffix}`)) return false;
 
-  const indexes = uniquePads
-    .map((pad) => pad.index)
-    .filter((index) => Number.isInteger(index))
-    .sort((a, b) => b - a);
-  let deletedCount = 0;
-  for (const index of indexes) {
-    if (currentBoard().padCount <= 1) break;
-    const pad = state.pads[index];
-    if (!pad || (requireEmpty && !isEmptyPad(pad))) continue;
-    const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: false, status: false });
-    if (removed) deletedCount += 1;
-  }
+  // La suppression groupée réécrit toute la grille en IndexedDB : sur un gros
+  // board ça prend ~1 s pendant laquelle rien ne bouge. Retour visuel immédiat
+  // (bouton grisé + statut) pour ne pas donner l'impression d'un blocage.
+  const deleteBtn = els.deleteBulkEditPads;
+  const prevLabel = deleteBtn?.textContent;
+  if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.textContent = "Suppression…"; }
+  if (els.applyBulkEdit) els.applyBulkEdit.disabled = true;
+  setStatus(`Suppression de ${label}…`);
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
-  if (deletedCount) {
-    await renderPads({ preserveEditMode: true });
-    setBoardPadEditing(true);
+  try {
+    const { deletedCount, keptLast } = await removePadsCompact(uniquePads, { requireEmpty });
+    state.activeStructuralFilters = [];
+    state.activeTagFilters = [];
+    // Les pads sélectionnés viennent de disparaître (leurs uid ne correspondent
+    // plus à rien après le renderPads) : on quitte le mode sélection au lieu de
+    // laisser le curseur "+" armé sur une sélection fantôme.
+    clearManualSelection();
+    state.manualSelectMode = false;
+    syncManualSelectMode();
+    refreshBoardTagFilterOptions();
+    applyBoardTagFilter();
+    const emptyWord = requireEmpty ? ` vide${deletedCount > 1 ? "s" : ""}` : "";
+    setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""}${emptyWord} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
+    return true;
+  } catch (error) {
+    console.warn("Suppression groupée impossible", error);
+    setStatus("Suppression impossible", "stop");
+    return false;
+  } finally {
+    if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.textContent = prevLabel || "Supprimer"; }
   }
-  state.activeStructuralFilters = [];
-  state.activeTagFilters = [];
-  // Les pads sélectionnés viennent de disparaître (leurs uid ne correspondent
-  // plus à rien après le renderPads ci-dessus) : on quitte le mode sélection
-  // au lieu de laisser le curseur "+" armé sur une sélection fantôme.
-  clearManualSelection();
-  state.manualSelectMode = false;
-  syncManualSelectMode();
-  refreshBoardTagFilterOptions();
-  applyBoardTagFilter();
-  const keptLast = count > deletedCount && remainingCount === 1;
-  const emptyWord = requireEmpty ? ` vide${deletedCount > 1 ? "s" : ""}` : "";
-  setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""}${emptyWord} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
-  return true;
 }
 
 async function applyBulkEdit() {
@@ -8375,11 +8376,21 @@ async function undoLastGarageChange() {
   if (entry.type === "delete") {
     await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
     const board = currentBoard();
-    const orphanRecord = entry.orphanKey ? await dbGet(entry.orphanKey) : null;
-    if (orphanRecord && entry.index < board.padCount) {
-      const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
-      await dbSet(padAudioKeyFor(board.id, entry.index), restored);
-      if (entry.orphanKey) await dbDelete(entry.orphanKey);
+    // Suppression unitaire : entry.orphanKey/index. Suppression groupée : entry.orphanKeys[].
+    const orphans = Array.isArray(entry.orphanKeys) && entry.orphanKeys.length
+      ? entry.orphanKeys
+      : (entry.orphanKey ? [{ key: entry.orphanKey, index: entry.index }] : []);
+    let restoredAny = false;
+    for (const { key, index } of orphans) {
+      const orphanRecord = key ? await dbGet(key) : null;
+      if (orphanRecord && index < board.padCount) {
+        const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
+        await dbSet(padAudioKeyFor(board.id, index), restored);
+        await dbDelete(key);
+        restoredAny = true;
+      }
+    }
+    if (restoredAny) {
       await renderPads({ preserveEditMode: true });
       updateAudioLibraryBadge().catch(() => {});
     }
@@ -9594,6 +9605,99 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
   refreshUndoButton();
   return true;
+}
+
+// Suppression groupée en une seule passe. Appeler removePadFromCurrentBoard une
+// fois par pad relit/réécrit TOUS les pads restants à chaque itération (O(K×N),
+// plusieurs secondes de gel sur un gros board). Ici on lit la grille une fois, on
+// applique en mémoire — index par index, en ordre décroissant — le même décalage
+// des références audio et des cibles de crossfade que la version unitaire, puis
+// on réécrit la grille compactée une seule fois. Un seul point d'annulation.
+async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
+  if (!state.boardEditMode) return { deletedCount: 0, keptLast: false };
+  const board = currentBoard();
+  const boardId = state.currentBoardId;
+  const originalCount = board.padCount;
+
+  const targets = [...new Set(padsToDelete)]
+    .filter(Boolean)
+    .filter((pad) => Number.isInteger(pad.index))
+    .filter((pad) => !requireEmpty || isEmptyPad(pad));
+  if (!targets.length || originalCount <= 1) return { deletedCount: 0, keptLast: false };
+
+  commitPendingUndoCheckpoint();
+  const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
+
+  stopAllLocal();
+  if (targets.some((pad) => state.recordingPad === pad)) resetRecordingState();
+
+  // Lecture unique de toute la grille.
+  const rows = [];
+  for (let index = 0; index < originalCount; index += 1) {
+    rows.push({
+      index,
+      audio: await dbGet(padAudioKeyFor(boardId, index)),
+      meta: await dbGet(padMetaKeyFor(boardId, index)),
+    });
+  }
+
+  const orphanKeys = [];
+  let deletedCount = 0;
+  // Ordre décroissant : retirer un index haut ne décale pas les index plus bas
+  // encore présents dans `rows`.
+  const descending = [...targets].sort((a, b) => b.index - a.index);
+  for (const pad of descending) {
+    if (originalCount - deletedCount <= 1) break; // toujours conserver un pad
+    const rowPos = rows.findIndex((row) => row.index === pad.index);
+    if (rowPos < 0) continue;
+    const [removed] = rows.splice(rowPos, 1);
+    const deletedAudio = removed.audio;
+    for (const row of rows) {
+      row.audio = adjustAudioRefAfterDelete(row.audio, pad.index, deletedAudio);
+      row.meta = adjustAudioRefAfterDelete(row.meta, pad.index);
+      row.audio = resetDeletedPadCrossfadeRefs(row.audio, pad);
+      row.meta = resetDeletedPadCrossfadeRefs(row.meta, pad);
+    }
+    if (deletedAudio?.audio && !snapshotsReferenceAudio(rows.map((row) => ({ audio: row.audio })), deletedAudio)) {
+      const key = await preserveAudioForCleanup(deletedAudio, `${board.name} / ${pad.title}`);
+      if (key) orphanKeys.push({ key, index: pad.index });
+    }
+    deletedCount += 1;
+  }
+  if (!deletedCount) return { deletedCount: 0, keptLast: false };
+
+  // Réécriture compactée unique.
+  for (let index = 0; index < rows.length; index += 1) {
+    const snap = { audio: rows[index].audio, meta: rows[index].meta };
+    renumberDefaultPadSnapshot(snap, index);
+    if (snap.meta) await dbSet(padMetaKeyFor(boardId, index), snap.meta);
+    else await dbDelete(padMetaKeyFor(boardId, index));
+    if (snap.audio) await dbSet(padAudioKeyFor(boardId, index), snap.audio);
+    else await dbDelete(padAudioKeyFor(boardId, index));
+  }
+  for (let index = rows.length; index < originalCount; index += 1) {
+    await dbDelete(padMetaKeyFor(boardId, index));
+    await dbDelete(padAudioKeyFor(boardId, index));
+  }
+
+  board.padCount = rows.length;
+  saveBoards();
+  await renderPads({ preserveEditMode: true });
+  setBoardPadEditing(true);
+  updateAudioLibraryBadge().catch(() => {});
+
+  state.undoStack.push({
+    type: "delete",
+    boardId,
+    snapshot: preDeleteSnapshot,
+    orphanKeys,
+    title: deletedCount > 1 ? `${deletedCount} pads` : (targets[0]?.title || "Pad"),
+  });
+  if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  refreshUndoButton();
+
+  const keptLast = deletedCount < targets.length && rows.length === 1;
+  return { deletedCount, keptLast };
 }
 
 function isDefaultPadTitle(title) {
@@ -18487,14 +18591,7 @@ async function init() {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
     updateShortcutIndicators();
   });
-  window.addEventListener("resize", () => {
-    renderBoardLayoutControls();
-    applyPadLayout(currentBoard());
-    state.pads.forEach(renderWaveform);
-    if (document.body.classList.contains("show-cables")) drawCableOverlay();
-    syncFloatingCueFrame(true);
-    window.setTimeout(() => state.pads.forEach(fitPadTitle), 0);
-  });
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   // rAF-throttlé : un scroll listener synchrone qui lit/écrit du layout (comme
   // syncFloatingCueFrame, avec ses getBoundingClientRect + setProperty) est un
   // "scroll-linked effect" que Firefox signale explicitement comme instable en
@@ -18677,14 +18774,7 @@ async function init() {
       els.cueDialog.close();
     }
   });
-  window.addEventListener("resize", () => {
-    if (els.patchBayDialog?.open) drawPatchBayOverlay();
-    if (document.body.classList.contains("show-cables")) {
-      drawCableOverlay();
-      positionCableLegend();
-    }
-    syncFloatingCueFrame(true);
-  });
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
   els.cancelBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
@@ -20211,7 +20301,7 @@ boardModeBodyObserver.observe(document.body, {
 });
 
 window.addEventListener("load", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
-window.addEventListener("resize", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
+// (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
 
 
 /* Alignement dynamique Studio vers Scène */
@@ -20522,7 +20612,44 @@ function refreshStageStudioGeometrySoon() {
     syncFloatingCueFrame(true);
   });
 }
-window.addEventListener("resize", refreshStageStudioGeometrySoon);
+// ── Gestionnaire "resize" unique et coalisé ───────────────────────────────
+// Il y avait 6 listeners "resize" indépendants (3 appelaient syncFloatingCueFrame,
+// 2 drawCableOverlay, aucun coordonné). Sur un drag de fenêtre en scène :
+// ~5000 lectures de layout forcées, ~9 ms/frame de jank (mesuré 09/2026).
+// Ici : tout le travail géométrique tourne 1×/frame max (rAF), et le travail
+// lourd par pad (waveforms, ajustement des titres) est repoussé à la fin du
+// redimensionnement (debounce ~180 ms) — il n'a pas besoin d'être exact pendant
+// le drag.
+let windowResizeFrame = 0;
+let windowResizeSettleTimer = 0;
+
+function onWindowResizeFrame() {
+  windowResizeFrame = 0;
+  renderBoardLayoutControls();
+  applyPadLayout(currentBoard());
+  refreshPadCompactnessRange();            // → applyPadCompactness + syncAllPadMinHeightsSoon (rAF)
+  if (els.patchBayDialog?.open) drawPatchBayOverlay();
+  if (document.body.classList.contains("show-cables")) {
+    drawCableOverlay();
+    positionCableLegend();
+  }
+  clampLiveFxPanelPosition();
+  refreshStageStudioGeometrySoon();        // → (rAF) captureStudioLayout + applyStageStudioLayout + syncFloatingCueFrame
+  syncBoardModeSelectorSoon();
+}
+
+function onWindowResizeSettle() {
+  windowResizeSettleTimer = 0;
+  state.pads.forEach(renderWaveform);
+  state.pads.forEach(fitPadTitle);
+  syncFloatingCueFrame(true);
+}
+
+window.addEventListener("resize", () => {
+  if (!windowResizeFrame) windowResizeFrame = requestAnimationFrame(onWindowResizeFrame);
+  if (windowResizeSettleTimer) clearTimeout(windowResizeSettleTimer);
+  windowResizeSettleTimer = window.setTimeout(onWindowResizeSettle, 180);
+});
 window.addEventListener("load", applyStageStudioLayoutSoon);
 
 // Étendue du board (curseur du bloc Aspect) : pilote --board-extent, la
@@ -20668,7 +20795,7 @@ if (els.padCompactness) {
     localStorage.setItem(PAD_COMPACTNESS_STORAGE + "-set", "1"); // réglage explicite de l'utilisateur
     applyPadCompactness(els.padCompactness.value);
   });
-  window.addEventListener("resize", () => requestAnimationFrame(refreshPadCompactnessRange));
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   requestAnimationFrame(() => {
     refreshPadCompactnessRange();
     applyPadCompactness(padCompactnessTarget(), false);
