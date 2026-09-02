@@ -20764,6 +20764,13 @@ function syncAllPadMinHeights() {
   // On laisse ces pads de côté ; ils seront remesurés à la fermeture.
   const pads = [...document.querySelectorAll(".pads .pad")].filter((p) => !p.classList.contains("is-fx-open"));
   if (!pads.length) return;
+  // `--pad-compact-height: 1px` écrase toute la hauteur du document le temps de
+  // la mesure → le navigateur clampe scrollY vers 0 et ne le restaure PAS quand
+  // on rétablit la hauteur (page qui saute en haut, surtout à l'ouverture du
+  // panneau effets plein pad : setTimeout(syncAllPadMinHeightsSoon, 400)). On
+  // mémorise et on restaure la position.
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
   const prev = root.style.getPropertyValue("--pad-compact-height");
   pads.forEach((p) => p.style.removeProperty("min-height"));
   root.style.setProperty("--pad-compact-height", "1px");
@@ -20787,6 +20794,7 @@ function syncAllPadMinHeights() {
     root.style.removeProperty("--pad-compact-height");
   }
   pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
+  if (window.scrollX !== scrollX || window.scrollY !== scrollY) window.scrollTo(scrollX, scrollY);
 }
 
 if (els.padCompactness) {
