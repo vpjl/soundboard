@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=893">
+    <link rel="stylesheet" href="styles.css?v=899">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -43,6 +43,8 @@
     <symbol id="ic-1f2dd5c6" viewBox="0 0 24 24"><path d="M6 3.5 17 12l-4.6 1.3L15 19l-2.4 1-2.6-5.7L6 17.5V3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
     <symbol id="ic-241ff5f1" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></symbol>
     <symbol id="ic-f7dd6a71" viewBox="0 0 24 24"><path d="M4 20 21 3M4 4l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 3h5v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 15l6 6M21 16v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-dices" viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 18h.01M10 14h.01M15 6h.01M18 9h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-rndpause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="6" y="4" width="4" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
     <symbol id="ic-a43e6e48" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 15l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-d554dad1" viewBox="0 0 24 24"><path d="M5 7h4m6 0h4M5 17h4m6 0h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="11" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 9c0 4 2 4 2 6M13 15c0-4-2-4-2-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="ic-4f2985b1" viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h2M10 16h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
@@ -420,8 +422,8 @@
           </div>
           <div class="master-control random-group-control">
             <button class="random-group-section-toggle" type="button" id="randomGroupSectionToggle" aria-expanded="false">
-              <span class="random-group-playing-dot" aria-hidden="true"></span>
               <span>Random playlist</span>
+              <span class="random-group-playing-dot" aria-hidden="true"></span>
               <svg class="filter-section-chevron" viewBox="0 0 24 24" aria-hidden="true" width="12" height="12"><polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
             <div id="randomGroupSectionBody" class="random-group-section-body" hidden>
@@ -436,7 +438,7 @@
                 <span class="random-group-inline-label">max.</span>
                 <input id="randomGroupCount" type="number" min="1" max="12" value="2" aria-label="Nombre maximum de pads simultanés">
                 <button id="randomGroupToggle" class="icon-button" type="button" aria-label="Lancer la random playlist" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f7dd6a71" xlink:href="#ic-f7dd6a71"></use></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-dices" xlink:href="#ic-dices"></use></svg>
                 </button>
               </span>
               <label class="random-group-row random-group-row-avoid-repeat">
@@ -560,8 +562,6 @@
 
     <template id="padTemplate">
       <article class="pad" data-pad>
-       <div class="pad-flip" data-pad-flip>
-        <div class="pad-face pad-face-front" data-pad-face-front>
         <div class="pad-head">
           <div class="pad-play-row">
             <span class="pad-shortcut" data-shortcut></span>
@@ -575,7 +575,7 @@
                 <span class="pad-tags" data-tags-display></span>
               </span>
             </button>
-              <span class="visual-toggle-button" role="button" tabindex="0" data-action="visual-toggle" aria-label="Masquer l’image du pad" aria-pressed="false">
+              <span class="visual-toggle-button" role="button" tabindex="0" data-action="visual-toggle" aria-label="Effets live du pad" aria-pressed="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-1cf0e48f" xlink:href="#ic-1cf0e48f"></use></svg>
               </span>
               <button class="pad-note-button" type="button" data-action="note" aria-label="Pense-bête">
@@ -700,14 +700,6 @@
           </div>
           <input class="file-input" type="file" accept=".mp3,.wav,.m4a,.aac,.aif,.aiff,.caf,.ogg,.flac" data-file>
         </div>
-        </div>
-        <div class="pad-face pad-face-back" data-pad-face-back>
-          <div class="pad-fx-back-head">
-            <span class="pad-fx-back-title" data-pad-fx-back-title>Effets</span>
-          </div>
-          <div class="pad-fx-back-body" data-pad-fx-back-body></div>
-        </div>
-       </div>
 
         <div class="pad-actions">
           <div class="pad-live-row">
@@ -775,6 +767,20 @@
             <input type="range" min="-1" max="1" step="0.01" value="0" data-pan>
           </label>
         </div>
+
+        <div class="pad-visual-slide" data-pad-visual-slide aria-hidden="true">
+          <div class="pad-visual-slide-img"></div>
+        </div>
+
+        <div class="pad-fx-overlay" data-pad-fx-overlay aria-hidden="true">
+          <div class="pad-fx-panel">
+            <div class="pad-fx-back-head">
+              <span class="pad-fx-back-title" data-pad-fx-back-title>Effets</span>
+            </div>
+            <div class="pad-fx-back-body" data-pad-fx-back-body></div>
+          </div>
+        </div>
+
         <input class="file-input" type="file" accept="image/*" data-image-file>
         <input class="file-input" type="file" accept="image/*" capture="environment" data-camera-file>
       </article>
@@ -809,7 +815,7 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4f2985b1" xlink:href="#ic-4f2985b1"></use></svg>
                 </dt><dd>Ouvre les réglages audio master.</dd>
                 <dt aria-label="Lancer la random playlist">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f7dd6a71" xlink:href="#ic-f7dd6a71"></use></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-dices" xlink:href="#ic-dices"></use></svg>
                 </dt><dd>Random playlist : choisir un tag (ou « Tous » pour tous les pads audio du board), régler le nombre de pads simultanés (min et max — un nombre est tiré au hasard entre les deux à chaque lancement), puis lancer. Pioche sans répétition parmi les pads audio du groupe choisi, en remplaçant chaque pad dès qu'il se termine. Reclic pour arrêter. Le crossfade automatique et le crossfade manuel (armé) sont désactivés tant que la playlist tourne.</dd>
               </dl>
             </section>
@@ -876,7 +882,7 @@
                 </dt><dd>Supprime la version sélectionnée.</dd>
                 <dt aria-label="Skin">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-eca1e8df" xlink:href="#ic-eca1e8df"></use></svg>
-                </dt><dd>Change l’apparence du board (skin). <strong>Basic/Custom</strong> affiche une illustration (image, dessin ou couleur), masque les badges d’options audio et les contrôles pour un rendu épuré ; le bouton œil masque l’illustration et revient à l’affichage standard.</dd>
+                </dt><dd>Change l’apparence du board (skin). <strong>Basic/Custom</strong> affiche une illustration (image, dessin ou couleur), masque les badges d’options audio et les contrôles pour un rendu épuré ; le bouton œil masque l’illustration et revient à l’affichage standard (puis, comme sur les autres skins, ouvre le panneau d’effets live plein pad).</dd>
               </dl>
 
               <h3 style="margin-top: 16px;">Sélection</h3>
@@ -902,7 +908,7 @@
                 <dt aria-label="Verrouiller le mode scène">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-f58ebccb" xlink:href="#ic-f58ebccb"></use></svg>
                 </dt><dd>Dé/verrouille la sortie du mode scène avec un mot de passe.</dd>
-                <dt aria-label="Effets live d'un pad">ƒ</dt><dd>Double-clic sur une zone vide en haut d’un pad : bascule vers ses effets live (distortion, filtre, flanger, delay), même quand il ne joue pas.</dd>
+                <dt aria-label="Effets live d'un pad">ƒ</dt><dd>Le bouton œil d’un pad audio fait glisser un panneau d’effets plein pad (distortion, filtre, flanger, delay + Volume/Pan), même quand il ne joue pas ; 2ᵉ clic pour refermer.</dd>
               </dl>
             </section>
 
@@ -990,7 +996,7 @@
               <h3 style="margin-top: 16px;">Modes</h3>
               <div class="board-mode-help board-mode-frame">
                 <p><strong>Studio :</strong> on règle et on répète (peaufiner les sons, vérifier les niveaux, tester cues et fades…)</p>
-                <p><strong>Scène :</strong> on joue (se concentrer sur le spectacle et lancer la machine&nbsp;!) — double-clic sur une zone vide en haut d’un pad pour accéder à ses effets live sans attendre qu’il joue.</p>
+                <p><strong>Scène :</strong> on joue (se concentrer sur le spectacle et lancer la machine&nbsp;!) — le bouton œil d’un pad ouvre ses effets live plein pad sans attendre qu’il joue.</p>
               </div>
             </section>
 
@@ -1619,7 +1625,7 @@
             <button id="bulkTagsAdd" class="tags-add-btn" type="button" aria-label="Ajouter un tag" aria-expanded="false">
               <svg viewBox="0 0 24 24" aria-hidden="true" width="14" height="14"><use href="#ic-986fd925" xlink:href="#ic-986fd925"></use></svg>
             </button>
-            <input id="bulkTags" type="text" maxlength="64" placeholder="ex: intro, voix">
+            <input id="bulkTags" type="text" maxlength="64" placeholder="ex: intro, voix" data-tags>
           </div>
           <label class="bulk-apply-field"><input id="bulkApplyVisual" type="checkbox"> Aspect du pad</label>
           <div class="bulk-visual-picker">
@@ -2406,7 +2412,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=893"></script>
+    <script src="app.js?v=899"></script>
 
 
   </body>

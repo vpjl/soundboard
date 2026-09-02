@@ -2019,6 +2019,24 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   flex: 1;
 }
 
+/* Titre « Random playlist » : on réutilise le style partagé « .master-control span »
+   (police / taille / couleur / capitales), déjà actif ici puisque .random-group-control
+   porte la classe .master-control — exactement comme le libellé « Volume sono ».
+   Il n'y a donc rien à redéclarer : on neutralise seulement le flex:1 du toggle
+   et la coloration verte « playlist en cours » pour que l'aspect reste identique. */
+#randomGroupSectionToggle > span:not(.random-group-playing-dot) {
+  flex: 0 1 auto;
+}
+
+#randomGroupSectionToggle.is-active > span:not(.random-group-playing-dot) {
+  color: var(--muted);
+}
+
+/* Flash de lecture collé à droite du titre ; le chevron repart à l'extrémité. */
+#randomGroupSectionToggle .filter-section-chevron {
+  margin-left: auto;
+}
+
 .random-group-section-toggle[aria-expanded="false"] .filter-section-chevron {
   transform: rotate(-90deg);
 }
@@ -2121,6 +2139,28 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   border-color: var(--color_status_progress);
   background: color-mix(in srgb, var(--color_status_progress) 30%, var(--color_ui_panel_secondary));
   color: var(--color_ui_text);
+}
+
+/* Bouton lancer/arrêter : même gabarit que le bouton stop global (#stopAll).
+   Contenu du volet Random playlist (déjà en flux), donc n'affecte pas les
+   dimensions repliées du bloc master. */
+.random-group-row-minmax #randomGroupToggle {
+  width: var(--master-stop-size);
+  height: var(--master-stop-size);
+  min-height: var(--master-stop-size);
+  aspect-ratio: 1 / 1;
+}
+
+.random-group-row-minmax #randomGroupToggle svg {
+  width: 58%;
+  height: 58%;
+}
+
+/* Board partagé à un invité : bouton moitié moins grand. */
+body.guest-mode .random-group-row-minmax #randomGroupToggle {
+  width: calc(var(--master-stop-size) / 2);
+  height: calc(var(--master-stop-size) / 2);
+  min-height: calc(var(--master-stop-size) / 2);
 }
 
 /* Rangée regroupant les étiquettes d'options ET les boutons patchbay/audio/aide
@@ -2354,7 +2394,7 @@ input[type="range"] {
   accent-color: var(--color_status_success);
   /* Sans ça, un double-tap sur un curseur (reset à la valeur par défaut,
      cf. createLiveFxControl) peut être intercepté par le zoom natif au
-     double-tap du navigateur — même correctif que .pad-flip. */
+     double-tap du navigateur — même correctif que .pad-actions. */
   touch-action: manipulation;
 }
 
@@ -2496,119 +2536,186 @@ body.show-cables .cable-overlay {
   box-shadow: 0 12px 32px var(--color_ui_shadow);
 }
 
-/* Recto/verso de la MOITIÉ SUPÉRIEURE du pad en scène (setupPadFxFlipTrigger/
-   setPadFxFaceFlipped, app.js) : double-clic sur une zone vide de .pad-flip
-   (= l'ancien .pad-head) pour révéler les effets live sans attendre que le
-   son joue. .pad-actions (boutons live) et .controls (Volume/Pan) restent en
-   dehors de .pad-flip, inchangés sur les deux faces — pas de second jeu de
-   curseurs à garder synchronisé/aligné. Hors scène, .pad-flip/.pad-face-front
-   s'effacent (display:contents) pour laisser .pad-head en enfant direct de la
-   grille de .pad, comme avant cette évolution — même principe que
-   .control-group sur les 3 modes. .pad-face-back reste display:none : jamais
-   montré hors scène. */
-.pad-flip,
-.pad-face-front {
-  display: contents;
-}
-
-.pad-face-back {
+/* Panneau effets live plein pad. Déclencheur : le bouton œil du pad
+   (.visual-toggle-button → handlePadEyeButton / setPadFxOverlayOpen, app.js).
+   Le panneau .pad-fx-panel glisse verticalement à l'intérieur de
+   .pad-fx-overlay (qui le clippe) : il monte du bas vers le haut à
+   l'ouverture, redescend à la fermeture. Affiché en scène ET en studio, jamais en garage
+   (board-edit-mode) ni en board partagé (guest-mode). Contenu reconstruit à
+   chaque ouverture : 4 effets live + Pan + Volume + bypass. */
+.pad-fx-overlay {
   display: none;
 }
 
-body.stage-mode .pad {
-  -webkit-perspective: 1200px;
-  perspective: 1200px;
-}
-
-/* .pad-flip prend la place de .pad-head dans l'ordre visuel existant
-   (".pad:not(.is-editing) .pad-head{order:1}", ".controls{order:2}",
-   ".pad-actions{order:3}", plus bas dans ce fichier) : en scène, .pad-head
-   n'est plus un enfant direct de la grille de .pad (il est descendu dans
-   .pad-flip > .pad-face-front), donc son order:1 n'a plus d'effet sur le
-   classement de .pad — c'est .pad-flip qu'il faut positionner à sa place. */
-body.stage-mode .pad:not(.is-editing) .pad-flip {
-  order: 1;
-}
-
-body.stage-mode .pad-flip {
-  display: grid;
-  position: relative;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
-  transition: transform 0.5s ease;
-  /* Sans ça, un double-tap tactile est intercepté par le zoom au double-tap
-     du navigateur avant d'atteindre le JS (dblclick ne se déclenche jamais) —
-     même correctif que .pad-actions applique déjà pour ses boutons. */
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-body.stage-mode .pad.is-fx-flipped .pad-flip {
-  -webkit-transform: rotateY(180deg);
-  transform: rotateY(180deg);
-}
-
-/* Face effets ouverte : .pad-flip devient la rangée souple de la grille de
-   .pad (Volume/Pan et transport, les deux autres rangées, restent à leur
-   hauteur naturelle). L'espace libre du pad — qui tombait sinon tout en bas,
-   inutilisé, à cause de `align-content: start` — revient ainsi aux réglages
-   FX, qui gagnent en hauteur et scrollent moins. Cf. app.js
-   syncPadFxFlipHeight() : il cesse de figer la hauteur de .pad-flip tant que
-   la face effets est retournée. */
-body.stage-mode .pad.is-fx-flipped {
-  grid-template-rows: minmax(0, 1fr) auto auto;
-}
-
-/* Recto et verso empilés dans LA MÊME cellule de grille (grid-area partagée)
-   plutôt qu'un recto en flux normal + un verso en position:absolute : les
-   deux s'étirent alors identiquement à la taille de .pad-flip (grid stretch
-   par défaut), sans dépendre l'un de l'autre pour leur hauteur.
-   backface-visibility ne suffit pas à masquer la face arrière (constaté :
-   les deux faces restent visibles superposées). On la garde en filet de
-   sécurité, mais le masquage réel vient d'un visibility caché/affiché au
-   milieu de la rotation (transition-delay = moitié de la durée de
-   .pad-flip) : la face qui s'éloigne disparaît quand elle est de toute
-   façon vue par la tranche, donc sans à-coup visible, indépendamment du
-   support de backface-visibility. */
-body.stage-mode .pad-face-front,
-body.stage-mode .pad-face-back {
-  grid-area: 1 / 1;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  transition: visibility 0s linear 0.25s;
-}
-
-/* display:contents (règle par défaut plus haut) rendrait grid-area/
-   backface-visibility/visibility sans effet — .pad-face-front doit redevenir
-   une vraie boîte en scène. display:block suffit : un seul enfant
-   (.pad-head), pas de rangées à empiler comme avant cette évolution. */
-body.stage-mode .pad-face-front {
+body.stage-mode .pad:not(.is-editing) .pad-fx-overlay,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing) .pad-fx-overlay {
   display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
-body.stage-mode .pad-face-back {
+/* Fermé : transparent aux clics (le pad reste jouable au travers). Ouvert :
+   interactif (curseurs). Scopé au mode pour battre la spécificité de la règle
+   d'affichage ci-dessus (sinon `pointer-events` ne repasse jamais à `auto`
+   et les curseurs sont gelés). */
+body.stage-mode .pad:not(.is-editing):not(.is-fx-open) .pad-fx-overlay,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing):not(.is-fx-open) .pad-fx-overlay {
+  pointer-events: none;
+}
+
+/* Pas d'effets live sur les pads texte / vidéo : ni panneau, ni bouton œil
+   dans son rôle « effets ». Le bouton reste disponible pour le rôle
+   « illustration » en skin basic (règles .has-visual-image / .has-color). */
+.pad.is-text-pad .pad-fx-overlay,
+.pad.is-video-pad .pad-fx-overlay,
+.pad.is-text-pad .visual-toggle-button,
+.pad.is-video-pad .visual-toggle-button {
+  display: none !important;
+}
+
+body[data-skin="basic"] .pad.is-text-pad.has-visual-image:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-text-pad.has-color:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-video-pad.has-visual-image:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-video-pad.has-color:not(.is-editing) .visual-toggle-button {
+  display: grid !important;
+}
+
+.pad-fx-overlay .pad-fx-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  visibility: hidden;
-  -webkit-transform: rotateY(180deg);
-  transform: rotateY(180deg);
+  box-sizing: border-box;
+  /* Calé sur l'overlay (lui-même inset:0 du pad) — jamais dimensionné par son
+     contenu, donc n'influence aucune mesure de hauteur du pad. */
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  /* Double fond : le tint pad (--color_pad_background) est à ~90 % d'opacité,
+     insuffisant par-dessus une illustration — le fond UI opaque dessous
+     garantit un panneau plein. */
+  background-color: var(--color_ui_background);
+  background-image: linear-gradient(var(--color_pad_background), var(--color_pad_background));
   overflow-y: auto;
-  /* overflow-x explicite : sans lui, la spec le fait passer à "auto" dès que
-     overflow-y n'est pas "visible" — un débordement horizontal de l'ordre du
-     pixel (arrondi flex/grid) suffisait à faire apparaître une scrollbar
-     horizontale pleine largeur en bas. */
   overflow-x: hidden;
+  /* Fermé : escamoté sous le pad → il monte du bas vers le haut à l'ouverture. */
+  -webkit-transform: translateY(100%);
+  transform: translateY(100%);
+  transition: transform 0.32s ease;
 }
 
-body.stage-mode .pad.is-fx-flipped .pad-face-front {
+.pad.is-fx-open .pad-fx-overlay .pad-fx-panel {
+  -webkit-transform: translateY(0);
+  transform: translateY(0);
+}
+
+/* Panneau ouvert : le pad devient un contexte d'empilement isolé et tout ce
+   qui est SOUS le panneau est neutralisé (visibility), quel que soit son
+   z-index — seuls le panneau (.pad-fx-overlay) et le bouton œil restent
+   visibles. Évite qu'un bouton du pad (pense-bête, etc.) transparaisse. */
+.pad.is-fx-open {
+  isolation: isolate;
+}
+
+.pad.is-fx-open .pad-head,
+.pad.is-fx-open .pad-actions,
+.pad.is-fx-open .controls,
+.pad.is-fx-open .pad-visual-slide {
   visibility: hidden;
 }
 
-body.stage-mode .pad.is-fx-flipped .pad-face-back {
+/* Bouton œil ramené en haut à droite, au-dessus du panneau ouvert, pour
+   permettre la fermeture au 2e clic. On neutralise explicitement le
+   placement de grille du bloc skin basic (grid-area:eye / align-self /
+   justify-self / margin) sinon la cellule « eye » sert de bloc conteneur et
+   le bouton se cale au milieu du pad. */
+.pad.is-fx-open .visual-toggle-button {
   visibility: visible;
+  position: absolute !important;
+  grid-area: auto !important;
+  z-index: 7;
+  inset: 8px 8px auto auto;
+  margin: 0 !important;
+  align-self: start !important;
+  justify-self: end !important;
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+
+.pad.is-fx-open .pad-fx-back-head {
+  padding-right: 44px;
+}
+
+/* Le bouton œil est le déclencheur du panneau : visible sur tous les skins
+   en scène et en studio (hors pad en édition), masqué en garage / invité. */
+body.stage-mode .pad:not(.is-editing) .visual-toggle-button,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing) .visual-toggle-button {
+  display: grid;
+}
+
+body.guest-mode .pad .visual-toggle-button {
+  display: none !important;
+}
+
+body.guest-mode .pad-fx-overlay {
+  display: none !important;
+}
+
+/* Illustration / couleur du pad (skin basic) : couche dédiée qui glisse vers
+   le bas quand on la masque (bouton œil) pour découvrir le pad, et remonte à
+   la ré-affichage. .pad-visual-slide est un CLIP fixe (inset:0, overflow
+   hidden) — donc il ne déborde jamais et n'entre dans aucune mesure de
+   hauteur du pad ; seule .pad-visual-slide-img se translate à l'intérieur.
+   z-index 4 : au-dessus du contenu du pad, sous le panneau effets (6). */
+.pad-visual-slide {
+  display: none;
+}
+
+/* Contexte d'empilement local : cantonne les z-index de la couche illustration
+   et de .pad-trigger au pad, sans interférence entre pads voisins. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) {
+  isolation: isolate;
+}
+
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-visual-slide,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-visual-slide {
+  display: block;
+  position: absolute;
+  inset: 0;
+  /* z-index 1 : au-dessus du fond du pad, sous .pad-trigger (z-index 2, qui
+     porte la boîte titre) et sous le panneau effets (z-index 6). */
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  /* Décorative : les clics passent au travers (lecture du pad, bouton œil). */
+  pointer-events: none;
+}
+
+.pad-visual-slide-img {
+  position: absolute;
+  inset: 0;
+  background-position: var(--pad-image-position, center);
+  background-size: var(--pad-image-size, cover);
+  background-repeat: no-repeat;
+  -webkit-transform: translateY(0);
+  transform: translateY(0);
+  transition: transform 0.32s ease;
+}
+
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-visual-slide-img {
+  background-image: var(--pad-image);
+}
+
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-visual-slide-img {
+  background: var(--pad-color);
+}
+
+body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
+  -webkit-transform: translateY(100%);
+  transform: translateY(100%);
 }
 
 .pad-fx-back-head {
@@ -2714,12 +2821,6 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
-
-/* Cf. app.js syncPadFxFlipHeight() : c'est lui qui fige .pad-flip à la hauteur
-   de .pad-head, et il est désormais rappelé au masquage/affichage d'une
-   illustration (setPadVisualImage) — sans quoi .pad-flip restait à la hauteur
-   de l'état illustré (~254px) et les boutons Volume/Pan étaient poussés hors du
-   pad jusqu'au premier flip FX. Aucune règle CSS spécifique nécessaire. */
 
 /* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
    défaut puis affiché par la règle .has-visual-image/.has-color plus bas.
@@ -2838,6 +2939,13 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   grid-template-columns: 1fr;
   align-items: center;
   justify-items: stretch;
+  /* `.pad-trigger` est un item de grille : `z-index` s'y applique sans
+     `position`. container-type en fait déjà un contexte d'empilement (statique,
+     donc rendu au niveau du flux) ; z-index 2 le hisse au-dessus de la couche
+     illustration `.pad-visual-slide` (z-index 1) pour que la boîte titre
+     qu'il contient reste visible. Sous les badges (z-index 3) et le bouton
+     œil (z-index 5). */
+  z-index: 2;
   width: 100%;
   height: 100%;
   min-height: inherit;
@@ -9572,16 +9680,13 @@ body.stage-mode .pad:not(.is-editing) .controls {
   }
 }
 
-body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
-  border-radius: 8px;
-  padding: 7px 9px !important;
-}
-
-
-body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
-  border-radius: 8px;
-  padding: 7px 9px !important;
-}
+/* Anciennement : padding: 7px 9px !important propre à candy/classic (juin 2026,
+   « Restore candy pad title frame »). Depuis que la boîte visible du titre est
+   portée par .pad-title et que .pad-trigger n'est plus qu'une zone de clic à
+   `padding: 4px 0 !important`, ce padding horizontal de 9px ne faisait que
+   rétrécir le titre de 18px (161px au lieu de 179px comme High Contrast) — d'où
+   un retour à la ligne prématuré et le débordement des boutons du pad. On aligne
+   candy et classic dark sur High Contrast (règle générale .pad-trigger). */
 
 /* Badge « audio manquant » : masqué par défaut, révélé par .is-missing-audio.
    (Le masquage des badges d'options en skin basic n'est plus inconditionnel : il
@@ -9638,6 +9743,16 @@ body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
+/* Illustration affichée : le bouton œil doit passer AU-DESSUS de la couche
+   .pad-visual-slide (z-index 1) — sinon il est masqué par l'illustration. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .visual-toggle-button,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .visual-toggle-button {
+  position: absolute !important;
+  grid-area: auto !important;
+  z-index: 5;
+  inset: 6px 6px auto auto;
+}
+
 body[data-skin="basic"] .pad.is-editing .visual-toggle-button {
   display: none;
 }
@@ -9670,6 +9785,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   opacity: 1;
   position: absolute;
   grid-area: auto;
+  z-index: 3;
   top: 20px;
   left: 50%;
   right: auto;
@@ -11990,13 +12106,6 @@ body.guest-mode .live-tools,
 body.guest-mode #liveFxPanel {
   display: none;
 }
-/* Board partagé : jamais de face effets, même si un état la réclamait. */
-body.guest-mode .pad-face-back {
-  visibility: hidden !important;
-}
-body.guest-mode .pad.is-fx-flipped .pad-face-front {
-  visibility: visible !important;
-}
 
 /* Bloc MASTER : seulement Volume sono + Random playlist */
 body.guest-mode .master-strip {
@@ -12090,7 +12199,7 @@ body.guest-mode .guest-light-note { display: block; }
 
 /* Skin basic, pad illustré en scène : la boîte titre est ÉPINGLÉE au bas du pad
    (position:absolute sur `.pad`, position:relative), quel que soit le layout
-   interne de `.pad-flip` / `.pad-play-row` / des rangées progress/vu/alerts qui
+   interne de `.pad-head` / `.pad-play-row` / des rangées progress/vu/alerts qui
    la laissaient flotter ~140px au-dessus du bas. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
@@ -12104,22 +12213,17 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   z-index: 2;
   align-self: auto;
 }
-/* .pad-trigger est `position: relative` : on le repasse static, ET on fait
-   remplir `.pad-flip` (qui reste l'ancre) sur toute la hauteur du pad — sinon
-   il ne fait que ~la hauteur du titre et le titre absolu se cale à SON bas,
-   ~40px au-dessus du bas du pad. */
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
-  position: static;
-}
+/* (`.pad-trigger` occupe la rangée `1fr` de la grille du play-row en skin
+   basic — il fait donc presque toute la hauteur du pad, et le titre absolu
+   s'ancre bien à son bas. Cf. règle basic illustré plus haut pour son z-index.) */
 /* Pad illustré (sans contrôles visibles) en scène : CARRÉ, point.
    `aspect-ratio: 1` + `align-self: start` (pas étiré par une rangée tirée par
    un pad texte voisin) + `min-height: 0 !important` pour neutraliser le
    min-height inline que `syncAllPadMinHeights` (app.js) leur posait — c'est lui
    qui rendait les rangées incohérentes (264/196) et empêchait le retour au
    carré après masquer/afficher l'illustration.
-   `grid-template-rows: 1fr` + `.pad-flip { height: 100% }` : la seule rangée
-   utile remplit le pad → le titre, ancré au bas de `.pad-flip`, touche le bas
+   `grid-template-rows: 1fr` + `.pad-head { height: 100% }` : la seule rangée
+   utile remplit le pad → le titre, ancré au bas de `.pad-head`, touche le bas
    du pad. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
@@ -12128,8 +12232,8 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   align-self: start;
   grid-template-rows: minmax(0, 1fr);
 }
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-head {
   height: 100%;
 }
 

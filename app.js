@@ -266,7 +266,6 @@ const state = {
   audioMediaDraft: null,
   audioCrossfadeDraft: null,
   masterAudioDraft: null,
-  audioTrimDrag: null,
   reverbBuffers: {},
   imagePad: null,
   imageDraft: null,
@@ -1314,6 +1313,8 @@ function updatePadType(pad) {
   pad.node?.classList.toggle("is-text-pad", type === "text");
   pad.node?.classList.toggle("is-video-pad", type === "video");
   pad.node?.classList.toggle("is-audio-pad", type === "audio");
+  // Devenu texte/vidéo : pas d'effets live, refermer le panneau s'il était ouvert.
+  if (type !== "audio" && pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false);
 }
 
 function normalizedTextRate(value, fallback = DEFAULT_TEXT_RATE) {
@@ -1770,6 +1771,8 @@ function setBoardPadEditing(editing) {
     resetUndoStack();
   }
   state.filterSectionOpen = false;
+  // Le panneau effets plein pad n'existe pas en garage : refermer ceux restés ouverts.
+  if (state.boardEditMode) state.pads.forEach((pad) => { if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false); });
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
@@ -2489,17 +2492,15 @@ function createLiveFxBypassButton(pad) {
 }
 
 // Les 4 curseurs d'effets (distortion/filtre/flanger/delay), partagés entre
-// la rangée du panneau flottant (créée à la lecture) et le verso du pad en
-// scène (créé une seule fois, sans dépendre de la lecture — cf. point 1 de la
-// demande : pouvoir préparer les réglages d'un son trop court pour manipuler
-// la fenêtre flottante pendant qu'il joue). applyPadLiveXxx sort en no-op
-// tant que les nœuds live du pad n'existent pas (pad à l'arrêt) ; seule la
-// valeur mémorisée (saveLiveFxPadSetting) compte alors. Pan/Volume ne sont
-// PAS inclus ici : ce sont les vrais curseurs du pad (.controls), en dehors
-// de .pad-flip désormais — seule la moitié supérieure du pad bascule (cf.
-// setupPadFxFlipTrigger) ; Volume/Pan et les boutons restent inchangés sur
-// les deux faces. createLiveFxPanVolumeControls fournit juste au panneau
-// flottant sa propre présentation compacte de Pan/Volume (existante).
+// la rangée du panneau flottant (créée à la lecture) et le panneau effets
+// plein pad (setPadFxOverlayOpen, reconstruit à chaque ouverture — sans
+// dépendre de la lecture : on peut préparer les réglages d'un son trop court
+// pour manipuler la fenêtre flottante pendant qu'il joue). applyPadLiveXxx
+// sort en no-op tant que les nœuds live du pad n'existent pas (pad à
+// l'arrêt) ; seule la valeur mémorisée (saveLiveFxPadSetting) compte alors.
+// Pan/Volume ne sont pas inclus ici : les deux appelants les ajoutent au
+// besoin via createLiveFxPanVolumeControls (leur applyFn pilote les vrais
+// curseurs .controls du pad).
 function buildLiveFxControlsBody(pad) {
   const remembered = getLiveFxPadSettings(pad);
   const body = document.createElement("div");
@@ -2553,127 +2554,109 @@ function createLiveFxPanVolumeControls(pad) {
   ];
 }
 
-// Bascule recto (pad habituel) / verso (effets live) en mode Scène — double-
-// clic sur la moitié supérieure du pad (.pad-flip), cf. setupPadFxFlipTrigger.
-// Seule cette moitié bascule : .pad-actions et .controls (boutons live,
-// Volume/Pan) restent en place, inchangés, sur les deux faces — donc pas de
-// double Volume/Pan à garder synchronisé/aligné. Le verso est reconstruit à
-// chaque ouverture (au lieu d'être tenu à jour en continu) : plus simple, et
-// ça garantit des valeurs toujours à jour (mémorisées pendant que le pad ne
-// jouait pas, ou modifiées depuis le panneau flottant pendant qu'il jouait)
-// sans mécanisme de synchronisation permanent.
-// .pad-flip est un item de la grille de .pad, donc soumis au même étirement
-// que .pad-head avant cette évolution (ex. rangée de pads dont un voisin est
-// plus grand). Avant, .pad-head (display:contents autour) absorbait cet
-// étirement en silence. Maintenant .pad-flip doit aussi accueillir
-// .pad-face-back en grid-area partagée : le laisser "auto" rouvre la
-// question de combien d'espace supplémentaire revient à .pad-flip vs
-// .pad-actions/.controls (répartition peu prévisible, constatée : décalage
-// vers le bas qui persistait même après être revenu au recto). On fixe donc
-// sa hauteur en dur sur la hauteur naturelle de .pad-head (mesurable même
-// masqué par visibility:hidden), ce qui la sort du calcul d'étirement de la
-// grille de .pad. Idempotent — peut être rappelée à tout moment (bascule,
-// entrée en scène) sans dépendre de l'état courant de .pad-flip.
-function syncPadFxFlipHeight(pad) {
-  if (!pad.fxFlipEl || !pad.headEl) return;
-  // On LIBÈRE d'abord la hauteur figée : .pad-head est en `height:100%` de
-  // .pad-flip (skin basic illustré), donc sans ça on remesurerait la hauteur
-  // qu'on a soi-même posée au coup d'avant → valeur figée jamais corrigée
-  // (constaté : pads allongés jusqu'à un changement de skin qui reconstruit
-  // les pads). En libérant, .pad-flip retombe sur sa taille de contenu réelle.
-  pad.fxFlipEl.style.height = "";
-  // Face effets retournée : on ne fige plus la hauteur. .pad-flip devient la
-  // rangée souple de la grille de .pad (cf. CSS body.stage-mode
-  // .pad.is-fx-flipped { grid-template-rows: minmax(0,1fr) auto auto }) pour
-  // que l'espace libre du pad revienne aux réglages FX au lieu de rester en
-  // vide sous les boutons transport. Au retour sur le recto, la hauteur est
-  // refigée par le rappel de cette fonction (fxFaceFlipped repassé à false).
-  if (pad.fxFaceFlipped) return;
-  // Pad qui affiche son illustration / sa couleur (aucun contrôle visible) :
-  // `.pad-flip` doit REMPLIR tout le pad (carré), pas se caler sur la hauteur
-  // du `.pad-head` — sinon la boîte titre, épinglée au bas de `.pad-flip`,
-  // flotte au milieu du pad.
-  const showsVisual = (pad.node.classList.contains("has-visual-image")
-    || pad.node.classList.contains("has-color"))
-    && !pad.node.classList.contains("is-visual-hidden");
-  if (showsVisual) return;
-  const naturalHeight = pad.headEl.getBoundingClientRect().height;
-  if (naturalHeight > 0) pad.fxFlipEl.style.height = `${naturalHeight}px`;
+// Panneau effets live plein pad (scène + studio). Déclenché par le bouton œil
+// du pad (handlePadEyeButton). Le panneau .pad-fx-panel glisse verticalement
+// sur le pad (CSS translateY) ; ici on se contente de poser la classe et de
+// (re)construire le contenu à chaque ouverture — valeurs toujours à jour,
+// qu'elles aient été mémorisées à l'arrêt ou changées depuis le panneau
+// flottant pendant la lecture. Contenu : 4 effets + Pan + Volume + bypass.
+function setPadFxOverlayOpen(pad, open) {
+  if (!pad.fxOverlayEl) return;
+  pad.fxOverlayOpen = open;
+  pad.node.classList.toggle("is-fx-open", open);
+  pad.fxOverlayEl.setAttribute("aria-hidden", String(!open));
+  pad.visualToggleEl?.setAttribute("aria-pressed", String(open));
+  syncPadEyeButtonLabel(pad);
+  if (!open) return;
+  if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
+  if (pad.fxBackBodyEl) {
+    const freshBody = buildLiveFxControlsBody(pad);
+    // buildLiveFxControlsBody ne pose que "live-fx-row-body" (classe du
+    // panneau flottant) : sans cet ajout le corps reconstruit perd
+    // "pad-fx-back-body" (flex:1 en CSS) et n'occupe plus que sa hauteur
+    // naturelle. Pan/Volume ajoutés comme dans le panneau flottant.
+    freshBody.classList.add("pad-fx-back-body");
+    freshBody.append(...createLiveFxPanVolumeControls(pad));
+    pad.fxBackBodyEl.replaceWith(freshBody);
+    pad.fxBackBodyEl = freshBody;
+  }
+  syncPadFxOverlayBypass(pad);
+  // Le pad joue déjà (ligne présente dans le panneau flottant) : on ramène ce
+  // panneau en bas d'écran, qu'il ait été rabattu ou déplacé, pour garder le
+  // rack (mêmes réglages, vue globale) visible à côté.
+  if (document.getElementById(liveFxRowId(pad))) {
+    if (state.liveFxPanelDocked) setLiveFxPanelDocked(false, true, true);
+    else resetLiveFxPanelPositionToBottom();
+  }
+  // Le panneau flottant s'ouvre toujours coupé (sécurité). Ici, ouverture par
+  // un geste délibéré : on rétablit les effets. pad.liveFxBypassed est partagé
+  // avec le panneau flottant (un seul graphe audio) — le rétablissement vaut
+  // pour lui aussi.
+  setLiveFxBypassed(pad, false);
 }
 
-function setPadFxFaceFlipped(pad, flipped) {
-  if (!pad.fxFlipEl) return;
-  // fxFaceFlipped / classe posés AVANT la synchro de hauteur : syncPadFxFlipHeight
-  // s'appuie dessus pour décider de figer (recto) ou de libérer (verso) la
-  // hauteur de .pad-flip.
-  pad.fxFaceFlipped = flipped;
-  pad.node.classList.toggle("is-fx-flipped", flipped);
-  syncPadFxFlipHeight(pad);
-  if (flipped) {
-    if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
-    if (pad.fxBackBodyEl) {
-      const freshBody = buildLiveFxControlsBody(pad);
-      // buildLiveFxControlsBody ne pose que "live-fx-row-body" (classe du
-      // panneau flottant, l'autre appelant) : sans cet ajout, le corps
-      // reconstruit perd "pad-fx-back-body" (flex:1 en CSS) dès la première
-      // bascule et n'occupe plus que sa hauteur naturelle.
-      freshBody.classList.add("pad-fx-back-body");
-      pad.fxBackBodyEl.replaceWith(freshBody);
-      pad.fxBackBodyEl = freshBody;
-    }
-    pad.fxBackHeadEl?.querySelector(".live-fx-row-bypass")?.remove();
-    pad.fxBackHeadEl?.appendChild(createLiveFxBypassButton(pad));
-    // Le pad joue déjà (ligne présente dans le panneau flottant) : on
-    // ramène ce panneau en bas d'écran, qu'il ait été rabattu ou déplacé
-    // ailleurs par l'utilisateur — sinon le verso s'ouvre sur le pad sans
-    // que le rack (mêmes réglages, vue globale) soit visible à côté.
-    if (document.getElementById(liveFxRowId(pad))) {
-      if (state.liveFxPanelDocked) setLiveFxPanelDocked(false, true, true);
-      else resetLiveFxPanelPositionToBottom();
-    }
-    // Le panneau flottant s'ouvre toujours coupé (par sécurité, à chaque
-    // lecture — comportement existant avant cette évolution). Le verso,
-    // ouvert par un geste délibéré, l'ignore et rétablit les effets : sinon
-    // il apparaît systématiquement "coupé" (bouton rouge) dès qu'un pad a
-    // déjà joué une fois, ce qui va à l'encontre du but recherché (préparer
-    // les effets d'un son trop court). pad.liveFxBypassed est partagé avec
-    // le panneau flottant s'il est affiché en même temps (un seul graphe
-    // audio réel) : ce rétablissement s'applique donc aussi à lui.
-    setLiveFxBypassed(pad, false);
+// Le bouton « couper les effets » n'a de sens que quand un graphe audio existe
+// (pad en lecture) — sinon il n'y a rien à couper. On l'ajoute/retire donc du
+// bandeau du panneau plein pad selon l'état de lecture.
+function syncPadFxOverlayBypass(pad) {
+  const head = pad.fxBackHeadEl;
+  if (!head) return;
+  head.querySelector(".live-fx-row-bypass")?.remove();
+  if (pad.fxOverlayOpen && document.getElementById(liveFxRowId(pad))) {
+    head.appendChild(createLiveFxBypassButton(pad));
   }
 }
 
-// Double-clic sur une zone vide de la moitié supérieure du pad (.pad-flip :
-// fond, espaces entre les blocs) en mode Scène : bascule recto/verso. Pas de
-// bouton dédié (plus de place sur le pad) — on exclut tout ce qui est déjà
-// interactif ou fait partie des curseurs d'effets pour ne détecter qu'un
-// vrai double-clic « dans le vide ». Le reste du pad (.pad-actions,
-// .controls) n'écoute pas ce double-clic : il reste inchangé sur les deux
-// faces, donc pas concerné par la bascule.
-function setupPadFxFlipTrigger(pad) {
-  // Double-clic plutôt que simple clic (retour utilisateur : la zone vide
-  // disponible entre boutons/curseurs est trop fine pour un clic fiable) —
-  // un geste délibéré tolère une zone fine sans provoquer de bascules
-  // accidentelles, et laisse le simple clic intact pour jouer/interagir.
-  //
-  // Détection manuelle via deux "click" rapprochés plutôt que l'événement
-  // "dblclick" natif : sur mobile, même avec touch-action:manipulation,
-  // certains navigateurs ne synthétisent pas dblclick de façon fiable à
-  // partir de deux taps (constaté : double-tap sans effet). "click" est
-  // le seul événement garanti à la fois pour souris et tactile.
-  let lastFlipClickAt = 0;
-  pad.fxFlipEl?.addEventListener("click", (event) => {
-    if (!document.body.classList.contains("stage-mode")) return;
-    if (state.guest) return; // pas de face effets pour un board partagé
-    if (event.target.closest("button, input, select, textarea, a, [data-action], .live-fx-control, .pad-tags-chips")) return;
-    const now = event.timeStamp || Date.now();
-    if (now - lastFlipClickAt < 400) {
-      lastFlipClickAt = 0;
-      setPadFxFaceFlipped(pad, !pad.fxFaceFlipped);
-    } else {
-      lastFlipClickAt = now;
+// Bouton œil du pad. Rôle selon le skin et l'état :
+//  - skin basic, illustration/couleur affichée : la masque (dévoile le pad nu,
+//    comportement historique) ;
+//  - panneau effets ouvert : le ferme (+ ré-affiche l'illustration en basic) ;
+//  - sinon : ouvre le panneau effets.
+// (Les skins perso sont rendus comme "classic" — pas d'illustration plein pad —
+// donc seul "basic" a la branche illustration.)
+// Libellé du bouton œil selon ce que fera le prochain clic.
+function syncPadEyeButtonLabel(pad) {
+  if (!pad.visualToggleEl) return;
+  let label = "Afficher les effets live du pad";
+  if (pad.fxOverlayOpen) {
+    label = "Masquer les effets live du pad";
+  } else if (document.body.dataset.skin === "basic"
+    && (pad.visualImage || pad.color)
+    && !pad.node.classList.contains("is-visual-hidden")) {
+    label = "Masquer l’image du pad";
+  }
+  pad.visualToggleEl.setAttribute("aria-label", label);
+}
+
+function handlePadEyeButton(pad) {
+  const isBasicSkin = document.body.dataset.skin === "basic";
+  const hasIllustration = Boolean(pad.visualImage || pad.color);
+  // Pads texte / vidéo : pas d'effets live — le bouton ne gère que l'illustration.
+  const fxAllowed = padType(pad) === "audio";
+  const illustrationShown = isBasicSkin && hasIllustration
+    && !pad.node.classList.contains("is-visual-hidden");
+  if (illustrationShown) {
+    setPadVisualImage(pad, pad.visualImage, true);
+    savePadMeta(pad);
+  } else if (!fxAllowed) {
+    if (isBasicSkin && hasIllustration) {
+      setPadVisualImage(pad, pad.visualImage, false);
+      savePadMeta(pad);
     }
-  });
+  } else if (pad.fxOverlayOpen) {
+    setPadFxOverlayOpen(pad, false);
+    if (isBasicSkin && hasIllustration) {
+      setPadVisualImage(pad, pad.visualImage, false);
+      savePadMeta(pad);
+    }
+  } else {
+    setPadFxOverlayOpen(pad, true);
+  }
+  // Les transitions (panneau qui glisse, illustration qui remonte) durent
+  // ~0,32 s : une seule mesure en rAF tombe en plein milieu et fige un
+  // min-height gonflé sur le pad (skin basic surtout). On remesure une fois
+  // les transitions retombées.
+  window.setTimeout(() => syncAllPadMinHeightsSoon(), 400);
 }
 
 function addLiveFxRow(pad) {
@@ -2723,20 +2706,22 @@ function addLiveFxRow(pad) {
   // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
   // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
   // pas explicitement les effets (pas de surprise sonore à l'ouverture) —
-  // SAUF si le verso du pad est déjà déplié : l'utilisateur vient alors de
-  // rétablir les effets explicitement en le dépliant (cf.
-  // setPadFxFaceFlipped), lancer le pad ne doit pas annuler ce choix. On
+  // SAUF si le panneau effets plein pad est déjà ouvert : l'utilisateur vient
+  // alors de rétablir les effets explicitement en l'ouvrant (cf.
+  // setPadFxOverlayOpen), lancer le pad ne doit pas annuler ce choix. On
   // passe par setLiveFxBypassed(pad, false) plutôt que de simplement sauter
   // l'appel : les nœuds audio effets sont recréés à zéro à chaque lecture
   // (juste avant addLiveFxRow), donc sans repasser par son branche
   // "non coupé" (reapplyLiveFxRow), les valeurs mémorisées des curseurs
   // n'étaient jamais réappliquées aux nouveaux nœuds — le bouton affichait
   // le bon état mais le son restait sec.
-  setLiveFxBypassed(pad, !pad.fxFaceFlipped);
+  setLiveFxBypassed(pad, !pad.fxOverlayOpen);
+  syncPadFxOverlayBypass(pad);
 }
 
 function removeLiveFxRow(pad) {
   document.getElementById(liveFxRowId(pad))?.remove();
+  syncPadFxOverlayBypass(pad);
 }
 
 const LIVE_FX_PANEL_POSITION_STORAGE = "soundboard-live-fx-panel-position";
@@ -3098,6 +3083,7 @@ function makePad(index) {
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
+    fxOverlayOpen: false,
     visualKind: "",
     visualPositionX: 50,
     visualPositionY: 50,
@@ -3160,7 +3146,7 @@ function makePad(index) {
   pad.startStopTagEl = node.querySelector("[data-start-stop-tag]");
   pad.endStartModeEl = node.querySelector("[data-end-start-mode]");
   pad.endStartTargetEl = node.querySelector("[data-end-start-target]");
-  pad.fxFlipEl = node.querySelector("[data-pad-flip]");
+  pad.fxOverlayEl = node.querySelector("[data-pad-fx-overlay]");
   pad.headEl = node.querySelector(".pad-head");
   pad.fxBackTitleEl = node.querySelector("[data-pad-fx-back-title]");
   pad.fxBackHeadEl = node.querySelector(".pad-fx-back-head");
@@ -3301,8 +3287,6 @@ function makePad(index) {
     }
   });
 
-  setupPadFxFlipTrigger(pad);
-
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
     // Mode sélection manuelle d'abord : il doit primer sur lecture/édition.
@@ -3370,14 +3354,12 @@ function makePad(index) {
   pad.visualToggleEl?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    setPadVisualImage(pad, pad.visualImage, !pad.visualImageHidden);
-    savePadMeta(pad);
+    handlePadEyeButton(pad);
   });
   pad.visualToggleEl?.addEventListener("keydown", (event) => {
     if (!["Enter", " "].includes(event.key)) return;
     event.preventDefault();
-    setPadVisualImage(pad, pad.visualImage, !pad.visualImageHidden);
-    savePadMeta(pad);
+    handlePadEyeButton(pad);
   });
 
   pad.nameEl.addEventListener("input", () => {
@@ -3387,27 +3369,18 @@ function makePad(index) {
     syncCueControls();
     savePadMeta(pad);
   });
-  pad.tagsEl.addEventListener("input", () => {
-    setPadTags(pad, pad.tagsEl.value);
-    refreshStopGroupOptions();
-    refreshBoardTagFilterOptions();
-    refreshCrossfadeTargetOptions();
-    syncCueControls();
-    savePadMeta(pad);
-  });
   pad.tagsEl.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const sorted = padTagList(pad).sort((a, b) => a.localeCompare(b)).join(", ");
-      setPadTags(pad, sorted);
-      const field = pad.tagsEl.closest(".tag-field");
-      if (field) {
-        field.classList.remove("tags-input-open");
-        field.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
-      }
-      pad.tagsEl.blur();
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitPadTagDraft(pad);
+    const field = pad.tagsEl.closest(".tag-field");
+    if (field) {
+      field.classList.remove("tags-input-open");
+      field.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
     }
+    pad.tagsEl.blur();
   });
+  pad.tagsEl.addEventListener("blur", () => commitPadTagDraft(pad));
   pad.fadeEl.addEventListener("input", () => {
     setPadFade(pad, pad.fadeEl.value, false);
     savePadMeta(pad);
@@ -4952,7 +4925,10 @@ function syncBulkTemplateFields(pad) {
   state.bulkTemplatePadObj = pad;
   if (els.bulkVolume) els.bulkVolume.value = String(pad.volume);
   if (els.bulkPan) els.bulkPan.value = String(pad.panValue);
-  if (els.bulkTags) els.bulkTags.value = pad.tags;
+  if (els.bulkTags) {
+    els.bulkTags.dataset.tags = pad.tags;
+    els.bulkTags.value = "";
+  }
   renderBulkTagChips();
   updateBulkRangeValues();
   setBulkColorValue(pad.color || "");
@@ -5202,14 +5178,15 @@ function updateBulkRangeValues() {
   }
 }
 
-// Tags en chips (même principe que le pad) : le champ #bulkTags porte la chaîne
-// « a, b, c », les chips en sont le rendu (avec × pour retirer).
+// Tags en chips (même principe que le pad) : la chaîne committée « a, b, c » vit
+// dans dataset.tags, les chips en sont le rendu (avec × pour retirer). Le champ
+// texte lui-même ne sert qu'à saisir un nouveau tag et reste vide au repos.
 function renderBulkTagChips() {
   const chips = els.bulkTagsChips;
   if (!chips || !els.bulkTags) return;
   chips.innerHTML = "";
   const list = [...new Set(
-    els.bulkTags.value.split(/[#,;]+|\s+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
+    (els.bulkTags.dataset.tags || "").split(/[#,;]+|\s+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
   )];
   list.forEach((tag) => {
     const chip = document.createElement("span");
@@ -5222,13 +5199,24 @@ function renderBulkTagChips() {
     rm.textContent = "×";
     rm.addEventListener("click", (e) => {
       e.stopPropagation();
-      els.bulkTags.value = list.filter((t) => t !== tag).join(", ");
+      els.bulkTags.dataset.tags = list.filter((t) => t !== tag).join(", ");
       renderBulkTagChips();
       markBulkFieldChanged(els.bulkApplyTags);
     });
     chip.append(rm);
     chips.append(chip);
   });
+}
+
+// Fusionne le tag en cours de saisie dans dataset.tags, puis vide le champ.
+function commitBulkTagDraft() {
+  if (!els.bulkTags) return;
+  const draft = els.bulkTags.value;
+  els.bulkTags.value = "";
+  if (!draft.trim()) return;
+  els.bulkTags.dataset.tags = mergeTagStrings(els.bulkTags.dataset.tags, draft);
+  renderBulkTagChips();
+  markBulkFieldChanged(els.bulkApplyTags);
 }
 
 // Modifier un réglage coche automatiquement sa case « appliquer ».
@@ -5253,7 +5241,7 @@ function bulkFieldGroups() {
     { apply: els.bulkApplyPan, controls: [els.bulkPan],
       restore: (pad) => { if (els.bulkPan) els.bulkPan.value = String(pad.panValue); updateBulkRangeValues(); } },
     { apply: els.bulkApplyTags, controls: [els.bulkTags],
-      restore: (pad) => { if (els.bulkTags) els.bulkTags.value = pad.tags; renderBulkTagChips(); } },
+      restore: (pad) => { if (els.bulkTags) { els.bulkTags.dataset.tags = pad.tags; els.bulkTags.value = ""; } renderBulkTagChips(); } },
     { apply: els.bulkApplyLiveFade, controls: [els.bulkFadeInEnabled, els.bulkFadeOutEnabled],
       restore: (pad) => {
         if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
@@ -5411,6 +5399,8 @@ async function confirmDeletePads(pads, { requireEmpty = false } = {}) {
 async function applyBulkEdit() {
   const pads = state.bulkEditPads.filter(Boolean);
   if (!pads.length) return;
+  // Un tag saisi mais pas encore validé (ni Entrée ni blur) doit compter.
+  commitBulkTagDraft();
   for (const pad of pads) {
     if (els.bulkApplyVolume?.checked) {
       pad.volume = Number(els.bulkVolume?.value) || 0;
@@ -5425,7 +5415,7 @@ async function applyBulkEdit() {
       if (pad.pan && state.audioContext) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
     }
     if (els.bulkApplyTags?.checked) {
-      setPadTags(pad, els.bulkTags?.value || "");
+      setPadTags(pad, els.bulkTags?.dataset.tags || "");
     }
     if (els.bulkApplyVisual?.checked) {
       if (state.bulkVisualMode === "color") {
@@ -8071,7 +8061,7 @@ function applySkin(skin) {
 
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
-  state.pads.forEach(fitPadTitle);
+  state.pads.forEach((pad) => { fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
 }
 
 function revealGalleryPads(save = true) {
@@ -12237,18 +12227,32 @@ async function preloadStagePads(pads) {
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
     return;
   }
-  for (let i = 0; i < total; i += 1) {
-    const pad = pads[i];
-    setStatus(`Préchargement : ${i + 1} / ${total} — ${pad.title}`, "progress");
-    try {
-      pad.buffer = await ensurePadAudioDecoded(pad);
-      applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
-      renderWaveform(pad);
-    } catch (error) {
-      console.error(error);
-      pad.node?.classList.add("is-missing-audio");
+  // Préchargement parallèle borné : ~6 pads décodés de front au lieu d'un par un.
+  // Séquentiel, 25 pads = ~4 s à l'entrée en scène (mesuré 09/2026, ~158 ms/pad).
+  // decodeAudioData tourne hors thread principal ; la limite évite seulement de
+  // lancer 25 fetch/décodages simultanés sur une machine modeste.
+  const PRELOAD_CONCURRENCY = 6;
+  let done = 0;
+  let next = 0;
+  const decodeNextPad = async () => {
+    while (next < total) {
+      const pad = pads[next];
+      next += 1;
+      try {
+        pad.buffer = await ensurePadAudioDecoded(pad);
+        applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
+        renderWaveform(pad);
+      } catch (error) {
+        console.error(error);
+        pad.node?.classList.add("is-missing-audio");
+      }
+      done += 1;
+      setStatus(`Préchargement : ${done} / ${total}`, "progress");
     }
-  }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(PRELOAD_CONCURRENCY, total) }, decodeNextPad)
+  );
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
 }
 
@@ -12418,11 +12422,6 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     // recalibre ici, un rAF après la compensation de layout pour être sûr
     // qu'elle a déjà tourné.
     requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
-    // Fige la hauteur de .pad-flip (cf. syncPadFxFlipHeight) dès l'entrée en
-    // scène plutôt que d'attendre la première bascule d'un pad : sans ça, le
-    // tout premier rendu (avant tout double-clic) reste soumis à
-    // l'étirement de grille peu prévisible que cette fonction évite.
-    requestAnimationFrame(() => state.pads.forEach((pad) => syncPadFxFlipHeight(pad)));
     // Relâche le gel de mise en page studio (voir stageStudioLayoutReleased)
     // une fois la transition visuelle passée, pour que .live-tools retrouve
     // la largeur réelle de la scène au lieu de rester bridé par les
@@ -12432,9 +12431,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
         stageStudioLayoutReleased = true;
         applyStageStudioLayoutSoon();
         // Re-mesure une fois la transition + le layout stabilisés : sur mobile,
-        // le 1er passage (rAF ci-dessus) tombe trop tôt et fige des hauteurs
-        // gonflées (pads allongés à l'entrée en scène en skin basic).
-        state.pads.forEach((pad) => syncPadFxFlipHeight(pad));
+        // le 1er passage tombe trop tôt et fige des hauteurs gonflées (pads
+        // allongés à l'entrée en scène en skin basic).
         syncAllPadMinHeightsSoon();
       }
     }, 500);
@@ -12451,9 +12449,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   } else {
     state.stageSkipPreload = false;
     syncStageVisiblePads();
-    // Sortie de scène : ne pas laisser un pad affiché côté verso (effets) au
-    // retour en scène — la bascule recto/verso n'a de sens qu'en scène.
-    state.pads.forEach((pad) => { if (pad.fxFaceFlipped) setPadFxFaceFlipped(pad, false); });
+    // Sortie de scène : refermer tout panneau effets plein pad resté ouvert.
+    state.pads.forEach((pad) => { if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false); });
     // Sortie de scène : effacer le message « Board prêt pour la scène… »
     if (/^(Board prêt pour la scène|Mode scène)/.test(els.status.textContent || "")) {
       setStatus("");
@@ -12756,10 +12753,35 @@ function setPadDuckMode(pad, mode = "global", percent = pad?.duckPercent ?? 60) 
 
 function setPadTags(pad, tags) {
   pad.tags = tags.trim();
-  pad.tagsEl.value = pad.tags;
   pad.tagsDisplayEl.textContent = pad.tags;
   pad.tagsDisplayEl.hidden = !pad.tags;
   renderPadTagChips(pad);
+}
+
+// Fusionne une chaîne de tags de base avec des tags saisis : sans doublon, triés.
+function mergeTagStrings(base, extra) {
+  const parse = (value) => String(value || "")
+    .split(/[#,;]+|\s+/)
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set([...parse(base), ...parse(extra)])]
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
+}
+
+// Le champ [+] d'un pad ne sert qu'à AJOUTER : il s'ouvre vide, les tags déjà
+// posés restent affichés en chips. On fusionne la saisie à l'existant à la
+// validation (Entrée) ou à la perte de focus, jamais frappe par frappe.
+function commitPadTagDraft(pad) {
+  const draft = pad.tagsEl.value;
+  pad.tagsEl.value = "";
+  if (!draft.trim()) return;
+  setPadTags(pad, mergeTagStrings(pad.tags, draft));
+  refreshStopGroupOptions();
+  refreshBoardTagFilterOptions();
+  refreshCrossfadeTargetOptions();
+  syncCueControls();
+  savePadMeta(pad);
 }
 
 function renderPadTagChips(pad) {
@@ -13045,6 +13067,7 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.node.classList.toggle("has-visual-image", Boolean(pad.visualImage));
   pad.node.classList.toggle("is-visual-hidden", pad.visualImageHidden);
   pad.visualToggleEl?.setAttribute("aria-pressed", String(pad.visualImageHidden));
+  syncPadEyeButtonLabel(pad);
   pad.node.style.setProperty("--pad-image-position", `${pad.visualPositionX}% ${pad.visualPositionY}%`);
   pad.node.style.setProperty("--pad-image-size", pad.visualKind === "sketch" ? "contain" : (pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`));
   if (pad.visualImage) {
@@ -13055,15 +13078,10 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
     pad.visualPreviewEl?.style.removeProperty("background-image");
   }
   fitPadTitle(pad);
-  // Masquer/afficher l'illustration change la hauteur naturelle de .pad-head
-  // (skin basic surtout) : .pad-flip est figé en dur par syncPadFxFlipHeight()
-  // — jusqu'ici recalculé seulement à l'entrée en scène et au flip FX, d'où un
-  // .pad-flip resté à la hauteur de l'état illustré (titre géant, boutons
-  // Volume/Pan poussés hors du pad, jusqu'au 1er flip FX). On le recalcule ici,
-  // maintenant (avant le measure de syncAllPadMinHeights) ET au rAF suivant
-  // (une fois le nouveau style de .pad-head totalement appliqué).
-  syncPadFxFlipHeight(pad);
-  requestAnimationFrame(() => { syncPadFxFlipHeight(pad); syncAllPadMinHeightsSoon(); });
+  // Masquer/afficher l'illustration change la hauteur naturelle du pad (skin
+  // basic surtout) : on remesure les hauteurs mini maintenant et au rAF
+  // suivant (une fois le nouveau style de .pad-head totalement appliqué).
+  requestAnimationFrame(() => syncAllPadMinHeightsSoon());
   syncAllPadMinHeightsSoon();
 }
 
@@ -13617,62 +13635,6 @@ function renderAudioDialogWaveform(pad = state.audioPad) {
   if (els.audioTrimStartValue) els.audioTrimStartValue.textContent = formatSecondsTenths(trimStart(pad));
   if (els.audioTrimEndValue) els.audioTrimEndValue.textContent = formatSecondsTenths(trimDisplayEnd(pad));
   updateAudioPlayhead(pad);
-}
-
-function audioTrimPositionFromPointer(event) {
-  const pad = state.audioPad;
-  if (!pad?.duration || !els.audioWaveform) return 0;
-  const rect = els.audioWaveform.getBoundingClientRect();
-  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  return ratio * pad.duration;
-}
-
-function setAudioTrimFromPointer(handle, event) {
-  const pad = state.audioPad;
-  if (!pad) return;
-  const seconds = audioTrimPositionFromPointer(event);
-  if (handle === "start") {
-    setPadTrim(pad, seconds, pad.trimEnd);
-  } else {
-    setPadTrim(pad, pad.trimStart, seconds);
-  }
-  updatePadTime(pad);
-  renderAudioDialogWaveform(pad);
-}
-
-function bindAudioDialogTrim() {
-  // Le trim n'est plus éditable depuis les Réglages (barres retirées) : il se règle
-  // dans l'éditeur audio (Trim auto). La waveform des Réglages reste un affichage.
-  return; // eslint-disable-line no-unreachable
-  if (!els.audioWaveform) return;
-  els.audioWaveform.addEventListener("pointerdown", (event) => {
-    const pad = state.audioPad;
-    if (pad?.videoName) return;
-    if (!pad?.duration) return;
-    event.preventDefault();
-    const pointerSeconds = audioTrimPositionFromPointer(event);
-    const startDistance = Math.abs(pointerSeconds - trimStart(pad));
-    const endDistance = Math.abs(pointerSeconds - trimDisplayEnd(pad));
-    const handle = event.target.id === "audioTrimStartHandle" ? "start"
-      : event.target.id === "audioTrimEndHandle" ? "end"
-        : startDistance <= endDistance ? "start" : "end";
-    state.audioTrimDrag = { pointerId: event.pointerId, handle };
-    els.audioWaveform.setPointerCapture?.(event.pointerId);
-    setAudioTrimFromPointer(handle, event);
-  });
-  els.audioWaveform.addEventListener("pointermove", (event) => {
-    if (!state.audioTrimDrag || state.audioTrimDrag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    setAudioTrimFromPointer(state.audioTrimDrag.handle, event);
-  });
-  const stopDrag = (event) => {
-    if (!state.audioTrimDrag || state.audioTrimDrag.pointerId !== event.pointerId) return;
-    state.audioTrimDrag = null;
-    els.audioWaveform.releasePointerCapture?.(event.pointerId);
-    if (state.audioPad) savePadMeta(state.audioPad);
-  };
-  els.audioWaveform.addEventListener("pointerup", stopDrag);
-  els.audioWaveform.addEventListener("pointercancel", stopDrag);
 }
 
 function syncAudioDialog(pad = state.audioPad, options = {}) {
@@ -17041,9 +17003,7 @@ function connectRemoteControl() {
   // stopRandomGroup), donc rien à préserver ici contrairement au rôle "display".
   if (state.remoteRole === "controller") {
     state.remoteRandomGroupRunning = false;
-    els.randomGroupToggle?.classList.remove("is-active");
-    els.randomGroupToggle?.setAttribute("aria-pressed", "false");
-    els.randomGroupSectionToggle?.classList.remove("is-active");
+    syncRandomGroupButton(false);
   }
   window.clearTimeout(state.remoteReconnectTimer);
   state.remoteReconnectTimer = null;
@@ -17887,6 +17847,12 @@ function syncRandomGroupButton(running = Boolean(state.randomEngine)) {
   els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
   els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la random playlist" : "Lancer la random playlist");
   els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la random playlist" : "Lancer la random playlist");
+  // Icône : dés (Lucide « dices ») au repos, pause (Lucide « pause ») quand la playlist tourne.
+  const rgIconRef = running ? "#ic-rndpause" : "#ic-dices";
+  els.randomGroupToggle?.querySelectorAll("svg use").forEach((use) => {
+    use.setAttribute("href", rgIconRef);
+    use.setAttribute("xlink:href", rgIconRef);
+  });
   // Reflet visible même volet replié : sinon rien n'indique que la playlist tourne.
   els.randomGroupSectionToggle?.classList.toggle("is-active", running);
   broadcastRemoteRandomGroupState(running);
@@ -18443,7 +18409,13 @@ async function init() {
         field.classList.toggle("tags-input-open");
         tagsAddBtn.setAttribute("aria-expanded", String(field.classList.contains("tags-input-open")));
         if (field.classList.contains("tags-input-open")) {
-          field.querySelector("[data-tags]")?.focus();
+          // Ouverture pour ajouter un tag : champ vide, les tags déjà posés
+          // restent visibles en chips.
+          const input = field.querySelector("[data-tags]");
+          if (input) {
+            input.value = "";
+            input.focus();
+          }
         }
       }
       return;
@@ -18730,10 +18702,20 @@ async function init() {
   // Valeur chiffrée volume/pan qui suit les curseurs.
   els.bulkVolume?.addEventListener("input", updateBulkRangeValues);
   els.bulkPan?.addEventListener("input", updateBulkRangeValues);
-  // Tags en chips (comme le pad) : le champ pilote les chips, le bouton + le révèle
-  // (bascule gérée par le listener délégué global sur ".tags-add-btn" — un second
-  // listener dédié ici ferait basculer la classe deux fois par clic et s'annulerait).
-  els.bulkTags?.addEventListener("input", renderBulkTagChips);
+  // Tags en chips (comme le pad) : le champ [+] ne sert qu'à AJOUTER, il s'ouvre
+  // vide (chips = tags déjà posés, dans dataset.tags). La saisie est fusionnée à
+  // l'existant sur Entrée ou perte de focus. La bascule d'ouverture est gérée par
+  // le listener délégué global sur ".tags-add-btn".
+  els.bulkTags?.addEventListener("blur", commitBulkTagDraft);
+  els.bulkTags?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitBulkTagDraft();
+    const field = els.bulkTags.closest(".tag-field");
+    field?.classList.remove("tags-input-open");
+    field?.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
+    els.bulkTags.blur();
+  });
   // Modifier un réglage coche sa case ; décocher la case restaure la valeur initiale.
   bindBulkFieldGroups();
   els.bulkEditDialog?.addEventListener("click", (event) => {
@@ -19279,7 +19261,6 @@ async function init() {
         });
     }
   });
-  bindAudioDialogTrim();
   els.audioAutoTrim?.addEventListener("click", () => {
     applyAutoTrimToAudioDialog().catch(() => setStatus("Trim auto impossible"));
   });
@@ -19931,6 +19912,10 @@ function finishGuestUnlock() {
   els.aspectSectionToggle?.setAttribute("aria-expanded", "true");
   if (els.aspectSectionBody) els.aspectSectionBody.hidden = false;
   if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = false;
+  // Volet « Random playlist » également déplié d'office pour l'invité.
+  state.randomGroupSectionOpen = true;
+  els.randomGroupSectionToggle?.setAttribute("aria-expanded", "true");
+  if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = false;
 }
 
 async function refreshGuestLabel(shareId) {
@@ -20646,7 +20631,11 @@ function syncAllPadMinHeightsSoon() {
 // déborde, pour garder une marge basse. Lecture synchrone : pas de repaint.
 function syncAllPadMinHeights() {
   const root = document.documentElement;
-  const pads = [...document.querySelectorAll(".pads .pad")];
+  // Panneau effets plein pad ouvert : le contenu du pad est encore dans le flux
+  // (visibility:hidden), donc scrollHeight renverrait la hauteur « boutons
+  // visibles » et figerait un min-height gonflé — même sur les pads illustrés.
+  // On laisse ces pads de côté ; ils seront remesurés à la fermeture.
+  const pads = [...document.querySelectorAll(".pads .pad")].filter((p) => !p.classList.contains("is-fx-open"));
   if (!pads.length) return;
   const prev = root.style.getPropertyValue("--pad-compact-height");
   pads.forEach((p) => p.style.removeProperty("min-height"));

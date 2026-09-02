@@ -7,15 +7,14 @@ Soundboard VL est une application web de gestion et de déclenchement sonore con
 1. Les trois espaces
 2. Mode Garage — construction
 3. Mode Studio — répétition
-4. Commandes globales (Master) — tous modes
-5. Audio Master
-6. Effets live par pad
-7. Mode Scène — live
-8. Contrôle à distance (régie/façade)
-9. Skins et apparence
-10. Glossaire
-11. Compatibilité navigateurs
-12. Licence
+4. Master — tous modes
+5. Effets live par pad
+6. Mode Scène — live
+7. Contrôle à distance (régie/façade)
+8. Skins et apparence
+9. Glossaire
+10. Compatibilité navigateurs
+11. Licence
 
 ## Les trois espaces
 
@@ -39,9 +38,11 @@ Vue de performance en temps réel. Interface épurée pour la régie _(voir glos
 
 > On construit : créer et éditer les sons, organiser le board et les pads.
 
-Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du board et des pads, Aspect, Sélection.
+Le panneau du board se déplie en volets, dans l'ordre : **Infos board**, **Versions**, **Gestion du board et des pads**, **Aspect**, puis **Sélection**.
 
 ### Infos board
+
+Récapitulatif du board courant : nom, créateur, date de création, nombre de pads actifs / vides, nombre de sons / vidéos / textes.
 
 - ![#boardInfoNotice] **Notice du board** : génère automatiquement une notice du board courant aux formats DOC et PDF (liste des pads, durées, versions).
 - ![#openShareAdmin] **Partage du board : invitation et gestion** : ouvre la console de partage — crée un lien d'invitation, protégé par un mot de passe, donnant à un invité un accès limité au board courant, et gère les invitations déjà créées (liste, révocation, mots de passe). L'invité évolue dans un espace cloisonné, sans accès aux autres boards ni aux réglages du garage.
@@ -69,20 +70,18 @@ Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du b
 
 ![0.5x|Export du board — choix entre réglages seuls ou réglages + sons](docs/notice-captures/dialog-export-board.png)
 - ![#importBoard] **Importer un board** : importe un board depuis un fichier JSON, avec ou sans audio embarqué.
-- ![#boardInfoAudioLibrary] **Sons stockés** : liste les sons stockés dans le navigateur. Pour une copie sur le Finder, choisir « Sauvegarder tous les sons… » (sons de tous les boards) ou « Exporter le board (avec les sons) » (sons et réglages du board courant dans sa version actuelle). Les sons répertoriés dans d'autres versions mais supprimés ne sont pas sauvegardés.
+- ![#boardInfoAudioLibrary] **Sons stockés** : liste des sons stockés dans le navigateur. Pour une copie sur le Finder, choisir « Sauvegarder tous les sons… » (sons de tous les boards) ou « Exporter le board (avec les sons) » (sons et réglages du board courant dans sa version actuelle). Les sons répertoriés dans d'autres versions mais supprimés ne sont pas sauvegardés.
 - ![#boardInfoDelete] **Supprimer le board** : supprime définitivement le board après confirmation.
 
 ### Aspect
 
-- **Skin** : change l'apparence visuelle du board (skin prédéfini) — détails au chapitre Skins et apparence.
 - ![#openSkinEditorButton] **Éditeur de skin** _(voir glossaire)_ : personnalise l'apparence visuelle du board — couleurs, harmonie chromatique, polices.
-
-### Sélection
-
-- **Filtre par tag (OU / ET)** : sélectionne visuellement les pads par type, option ou tag — OU : au moins un des tags ; ET : tous les tags.
-- ![#filterInvertBtn|#filterTousBtn] **Inverser / Effacer la sélection** : inverse les pads sélectionnés / désélectionne tout.
-- ![#filterCompactToggle] **Masquer les pads non sélectionnés**.
-- **Modification groupée** : applique un réglage à tous les pads sélectionnés en une seule opération.
+- **Skin** : menu de choix d'un skin prédéfini (Basic/Custom, Candy, Classic Dark, High Contrast, Neon Stage, Studio Grey) — détails au chapitre Skins et apparence.
+- **Colonnes / lignes** : fixe le nombre de colonnes de pads (ou « Auto ») ; le nombre de lignes se déduit automatiquement.
+- **Étendue du board** : élargit ou resserre les marges latérales du board.
+- **Compacité des pads** : réduit la hauteur des pads jusqu'à une forme carrée.
+- ![#stageMode] **Mode plein écran scène** : bascule l'affichage en vue Scène plein écran.
+- ![#stageLock] **Verrouiller le mode scène** : protège la sortie du mode Scène par un mot de passe.
 
 ### Pad — Import de médias
 
@@ -107,13 +106,25 @@ Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du b
 - ![action:duck] **Duck trigger** : ce pad déclenche le ducking _(voir glossaire)_ des autres pads quand il joue.
 - **Crossfade audio** _(voir glossaire)_ : configure les déclenchements croisés entre pads ou entre tags.
 
+### Sélection et modification groupée
+
+- **Filtre par tag (OU / ET)** : sélectionne visuellement les pads par type, option ou tag — OU : au moins un des tags ; ET : tous les tags.
+- ![#filterInvertBtn|#filterTousBtn] **Inverser / Effacer la sélection** : inverse les pads sélectionnés / désélectionne tout.
+- ![#filterManualSelectBtn] **Sélection manuelle** : cliquer les pads pour les ajouter ou les retirer de la sélection.
+- ![#filterCompactToggle] **Masquer les pads non sélectionnés**.
+- **Modification groupée** : applique un réglage à tous les pads sélectionnés en une seule opération, ou les supprime.
+
 ![Mode Garage — **1** Board et actions du board · **2** Pads en édition](docs/notice-captures/mode-garage.png)
 
 ## Mode Studio — répétition
 
 > On règle et on répète : peaufiner les sons, vérifier les niveaux, tester cues et fades.
 
-> Les volets Board (Infos board, Versions, Gestion du board et des pads, Aspect, Sélection) sont documentés au chapitre Mode Garage — construction ci-dessus. En Studio, seuls Aspect et Sélection restent accessibles ; Infos board, Versions et Gestion du board et des pads redeviennent visibles en repassant en Garage.
+### Board (studio)
+
+Le panneau du board présente les mêmes volets qu'en garage (Infos board, Versions, Gestion du board et des pads, Aspect, Sélection), avec les actions d'édition en moins. Les **versions du board** se pilotent depuis le volet Versions — voir *Mode Garage → Versions*.
+
+- **Skin** : change l'apparence visuelle du board (skin prédéfini) — détails au chapitre Skins et apparence.
 
 ### Pad en Studio
 
@@ -143,14 +154,29 @@ Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du b
 
 ![Mode Studio — **1** Board et versions · **2** Master (commandes globales) · **3** Bloc Cues/Crossfade · **4** Pads](docs/notice-captures/mode-studio.png)
 
-## Commandes globales (Master) — tous modes
+## Master — tous modes
+
+Le bloc Master est présent dans tous les modes. Il se lit en volets : **Stop / Mute**, **Random playlist**, **Boutons** (accès aux fenêtres), puis la fenêtre **Audio Master**.
+
+### Stop / Mute
 
 - ![#stopAll] **Tout arrêter** : arrête immédiatement tous les pads en cours de lecture.
 - ![#stopGroup] **Arrêter un groupe** : stop groupé — arrête uniquement les pads du tag choisi dans le menu (le bouton reste désactivé tant qu'aucun tag n'est sélectionné).
 - ![#masterMute] **Mute global** : coupe ou rétablit le son en sortie sans arrêter les pads.
+- **Volume sono / Volume Cue** : niveaux de sortie principale et de pré-écoute, avec VU-mètres et rappel des périphériques de sortie.
+
+### Random playlist
+
 - ![#randomGroupToggle] **Random playlist** : choisir un tag (ou « Tous » pour tous les pads audio du board) et un nombre de pads simultanés (min et max, tiré au hasard entre les deux à chaque lancement), puis lancer — pioche sans répétition parmi les pads audio du groupe, en remplaçant chaque pad dès qu'il se termine. Reclic pour arrêter. Désactive le crossfade (automatique et manuel) tant qu'elle tourne.
 
-## Audio Master
+### Boutons
+
+- ![#openCueDialog] **Réglage des cues** : ouvre l'éditeur de cues (séquence programmée).
+- ![#patchBay] **Patch bay crossfade** : ouvre la vue de câblage crossfade.
+- ![#masterAudio] **Audio master** : ouvre la fenêtre Audio Master (ci-dessous).
+- ![#remoteControlButton] **Contrôle à distance** : ouvre la fenêtre régie/façade — voir le chapitre dédié.
+
+### Audio Master (fenêtre)
 
 - **Fade in / Fade out global** : durée de fondu entrant et sortant appliquée par défaut à tous les pads (sauf réglage individuel).
 - **Ducking global** : atténuation automatique des autres pads lorsqu'un pad prioritaire se déclenche.
@@ -167,7 +193,7 @@ Le panneau Board se déplie en cinq volets : Infos board, Versions, Gestion du b
 Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distorsion, filtre, flanger, delay. Deux points d'accès pour les mêmes réglages :
 
 - ![#liveFxPanelDock] **Panneau flottant** : déplaçable et rabattable, une rangée apparaît automatiquement pour chaque pad en cours de lecture. Par sécurité, les effets sont coupés (bypass _(voir glossaire)_) à chaque nouvelle lecture — il faut les réactiver explicitement.
-- **Verso du pad, en mode Scène uniquement** : double-clic (ou double-tap) sur une zone vide du pad pour le retourner et retrouver les mêmes 4 curseurs, prêts d'emblée (pas de bypass automatique ici) — pratique pour préparer un effet sur un son trop court pour le manipuler en direct via le panneau flottant.
+- **Panneau plein pad, en modes Scène et Studio** (pads audio uniquement) : le bouton œil du pad fait glisser sur le pad un panneau reprenant les mêmes 4 curseurs plus Volume et Pan, prêts d'emblée (pas de bypass automatique ici) — pratique pour préparer un effet sur un son trop court pour le manipuler en direct via le panneau flottant. Un 2ᵉ clic sur le bouton œil referme le panneau. En skin Basic, si le pad affiche une illustration, le bouton œil la masque d'abord (le panneau s'ouvre au clic suivant).
 - **Remise à zéro** : double-clic (ou double-tap) sur un curseur pour le ramener à sa valeur neutre.
 - Les réglages sont mémorisés par pad d'une session à l'autre.
 - Le panneau flottant peut être désactivé globalement dans **Audio Master → Effets live → Afficher le panneau**.
@@ -175,11 +201,19 @@ Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distors
 
 ## Mode Scène — live
 
+### Pads
+
 - **Déclenchement des pads** : interface épurée sans les outils d'édition — seuls les contrôles de lecture sont accessibles.
-- **Bascule recto/verso du pad** : double-clic (ou double-tap) sur une zone vide d'un pad pour révéler ses effets live au verso — voir Effets live par pad.
+- **Effets live du pad** : le bouton œil du pad fait glisser un panneau d'effets plein pad (4 curseurs + Volume + Pan) ; 2ᵉ clic pour le refermer — voir Effets live par pad.
+
+### Board
+
 - **Changement de board** : le menu board reste accessible pour passer d'un board à l'autre au fil du spectacle.
 - ![#stageLock] **Verrouiller le mode Scène** : protège la sortie du mode Scène par un mot de passe, pour éviter toute modification accidentelle pendant la représentation.
-- **Bloc Cues/Crossfade** : quand les cues sont activées, le bloc s'étire à la largeur des pads (aligné sur eux) avec de gros boutons ; au défilement, il se fixe en haut de l'écran pour rester accessible. Inactif, il reste compact.
+
+### Bloc Cues/Crossfade
+
+- **Comportement** : quand les cues sont activées, le bloc s'étire à la largeur des pads (aligné sur eux) avec de gros boutons ; au défilement, il se fixe en haut de l'écran pour rester accessible. Inactif, il reste compact.
 
 ![Mode Scène — **1** Board (verrouillable) · **2** Master (commandes globales) · **3** Bloc Cues/Crossfade · **4** Pads de déclenchement](docs/notice-captures/mode-scene.png)
 
@@ -255,7 +289,7 @@ Limites spécifiques à certains navigateurs uniquement.
 | Enregistrement au micro | Oui | Oui | Oui | Oui |
 | Synthèse vocale (lecture de texte) | Oui | Oui | Oui | Oui |
 
-> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une copie sur le Finder, utiliser systématiquement « Exporter le board (avec les sons) » ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés. Les sons répertoriés dans d'autres versions mais supprimés ne sont pas sauvegardés.
+> Note finale : les fichiers audio sont stockés dans le navigateur, pas dans le Finder. Un rechargement sur un autre appareil ou navigateur nécessite de ré-importer les fichiers. Pour une sauvegarde durable, utiliser systématiquement « Exporter le board » avec les sons, ou « Sauvegarder tous les sons… » depuis la fenêtre Sons stockés — ces deux méthodes ne sauvegardent pas les sons qui n'existent plus que dans une version enregistrée du board (versions du board).
 
 ## Licence
 
