@@ -2508,6 +2508,17 @@ button.is-pressed {
 body.stage-mode .pads.has-pad-layout {
   grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
 }
+/* Skin basic en scène : les pads illustrés sont forcés carrés (aspect-ratio:1,
+   ~145-250px selon le nb de colonnes). Avec `minmax(auto, X)`, le mot-clé `auto`
+   en minimum gonfle CHAQUE piste jusqu'au `max` (--pad-compact-height ≈ 260-310)
+   même pour une rangée de petits carrés → ~60-120px de vide sous chaque rangée.
+   `minmax(min-content, max-content)` dimensionne la piste au contenu réel (testé :
+   pas de rangée écrasée — les pads non illustrés portent leur min-height via
+   syncAllPadMinHeights). Le plafond --pad-compact-height n'a pas de sens ici : la
+   taille des carrés est déjà pilotée par la largeur de colonne. */
+body.stage-mode[data-skin="basic"] .pads.has-pad-layout {
+  grid-auto-rows: minmax(min-content, max-content);
+}
 
 .cable-overlay {
   display: none;
@@ -2909,13 +2920,26 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
    toute la surface du pad reste cliquable via le .pad-trigger transparent. */
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  display: block;
   align-self: end;
   margin: 0 8px 8px;
   padding: 6px 12px;
   border-radius: 6px;
   background: linear-gradient(145deg, rgba(37, 42, 50, 0.82), rgba(28, 31, 39, 0.82));
-  -webkit-line-clamp: unset;
+  /* `display: block` + `-webkit-line-clamp: unset` annulaient la limite 2 lignes
+     de la règle `.pad-title` de base : un titre long débordait alors du carré en
+     scène (beaucoup de colonnes). On garde la limite 2 lignes + « … » ; on borne
+     aussi en dur (`max-height`) au cas où `-webkit-box` ne prendrait pas comme
+     item de grille (Firefox). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  /* Borne dure = exactement 2 interlignes + le padding vertical (6+6), au cas où
+     `-webkit-line-clamp` ne prenne pas (Firefox : `.pad-title` item de grille se
+     calcule `flow-root`). `lh` = interligne réel de l'élément. `overflow: hidden`
+     vient de la règle `.pad-title` de base → titre plus long coupé net. */
+  box-sizing: border-box;
+  max-height: calc(2lh + 12px);
   /* Boîte compacte : police plus petite que le titre de scène (clamp jusqu'à 1.6rem),
      relative à la largeur du trigger (conteneur inline-size). */
   font-size: clamp(0.9rem, 6cqi, 1.25rem);
@@ -12212,6 +12236,52 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   text-align: center;
   z-index: 2;
   align-self: auto;
+  /* Limite 2 lignes. `-webkit-line-clamp` ne prend pas sous Firefox ici (élément
+     calculé `flow-root`), donc c'est `max-height` + `overflow: hidden` qui borne.
+     Piège : `overflow: hidden` clippe au bord de la BOÎTE DE PADDING → une 3ᵉ
+     ligne pouvait affleurer dans les 6px de padding bas. On réduit le padding bas
+     à 2px et on cale `max-height` sur (2 interlignes + 6px haut + 2px bas). */
+  overflow: hidden;
+  padding-block: 6px 2px;
+  max-height: calc(2lh + 8px);
+}
+/* `.pad-trigger` (offset-parent du titre absolu) et `.pad-label` gardent en
+   scène/basic illustré un `min-height` figé (clamp jusqu'à 260px / 100%),
+   indépendant du carré réel. Sur un carré plus petit, `bottom` ancrait le titre
+   au bas de ces ~260px, donc SOUS la ligne de coupe. On les recale sur le carré.
+   (Studio non concerné : le pad y fait bien --pad-compact-height de haut.) */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+  min-height: 0 !important;
+}
+/* Carré étroit (beaucoup de colonnes) : `.pad-play-row` a un gabarit de grille à
+   colonnes fixes (24+16+28+28px + gaps ≈ 150px de plancher) → ses tracks restent
+   à ~152px même quand le carré fait 139. `.pad-trigger` (sa rangée « label »)
+   fait donc 152 lui aussi, et comme il porte `container-type: inline-size` c'est
+   LUI le bloc de référence du titre absolu → titre décalé/rogné à droite.
+   Solution : déplacer le `container-type` (et donc le bloc de référence du titre
+   + la base des `cqi` de la police) sur `.pad` lui-même, qui fait bien la largeur
+   du carré. `.pad-play-row` : on clippe quand même son débordement visuel. */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+  container-type: inline-size;
+}
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  /* `.pad-trigger` est `position: relative` (règle de base l.3442) : c'est LUI
+     l'offset-parent du titre absolu, pas `.pad`, même après le passage du
+     `container-type` sur `.pad`. On le repasse `static` ici pour que le titre
+     s'ancre sur `.pad` (largeur du carré). Le carré n'a plus de contrôles empilés
+     dessus en scène, le z-index de `.pad-trigger` ne sert plus. */
+  container-type: normal;
+  position: static;
 }
 /* (`.pad-trigger` occupe la rangée `1fr` de la grille du play-row en skin
    basic — il fait donc presque toute la hauteur du pad, et le titre absolu
