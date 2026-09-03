@@ -7334,12 +7334,18 @@ body.stage-mode .master-strip {
 }
 
 body.stage-mode .live-tools {
-  grid-column: 1;
+  /* `1 / -1` comme en studio (base .live-tools @media min-width:901px) : le bloc
+     Cues occupe toute la largeur des 2 colonnes du topbar, au-dessus des pads.
+     Avant en `grid-column: 1` (colonne board seule) il manquait ~22px pour tenir
+     Cues + Crossfade sur une ligne dès que Master élargissait la colonne 2
+     (boutons scène plus gros) → le bouton crossfade armé passait à la ligne.
+     Étape S3 : rapproche le layout scène du studio pour pouvoir retirer la
+     couche d'épinglage JS. Sous 900px le topbar passe à 1 colonne → `1 / -1` = `1`. */
+  grid-column: 1 / -1;
   /* Pas de align-self ici : styles.css ~11083 ("Ne pas réduire/repositionner
      Master et Cues en mode Scène") impose align-self:stretch !important sans
      media query, donc gagne systématiquement — toute valeur posée ici serait
-     morte. Optimisation du 2026-08-20 : la précédente valeur (end) ne
-     s'appliquait jamais, retirée. */
+     morte. */
 }
 
 body.stage-mode .group-stop-control,

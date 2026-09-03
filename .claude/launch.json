@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Soundboard Live (iPhone / réseau local)",
-      "runtimeExecutable": "/Applications/codage/Codex.app/Contents/Resources/cua_node/bin/node",
+      "runtimeExecutable": "node",
       "runtimeArgs": ["serve-iphone.js"],
       "port": 5174
     }
