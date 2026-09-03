@@ -1203,7 +1203,9 @@ function effectiveLayoutForBoard(board) {
 // Recalculé à chaque render/resize → gère le portable automatiquement (écran
 // étroit ⇒ maxCols bas, cohérent avec les media queries mobiles), sans cas
 // spécial. Renvoie une valeur large si la zone n'est pas encore mesurable.
-const MIN_PAD_COLUMN_WIDTH = 150;
+// 135px : un pad plus étroit que ça « grignote » à droite. Abaissé de 150 →
+// 135 sur retour utilisateur (le plafond bloquait une colonne encore correcte).
+const MIN_PAD_COLUMN_WIDTH = 135;
 function maxPadColumnsForWidth() {
   // Largeur dispo pour la grille de pads. On mesure `.deck` (le conteneur) si sa
   // valeur est plausible ; sinon (layout pas encore stabilisé au render initial)
