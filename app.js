@@ -20634,12 +20634,21 @@ function onWindowResizeFrame() {
     positionCableLegend();
   }
   clampLiveFxPanelPosition();
-  refreshStageStudioGeometrySoon();        // → (rAF) captureStudioLayout + applyStageStudioLayout + syncFloatingCueFrame
+  // PENDANT le drag : on NE recapture PAS la géométrie studio.
+  // captureStudioLayoutForStage() bascule `stage-mode` en synchrone pour mesurer ;
+  // répété à chaque frame de drag, ça faisait clignoter tout le layout scène
+  // (~290 sélecteurs), rognait l'écran (haut/bas) et — quand on réappliquait
+  // l'épinglage avec un snapshot périmé — faisait se recouvrir master/board/cues.
+  // On laisse les transforms d'épinglage tels quels (ils dérivent doucement avec
+  // le reflow) et on ne resynchronise que le bloc cues. La recapture + le
+  // réépinglage propre se font UNE fois, à la fin du redimensionnement.
+  if (document.body.classList.contains("stage-mode")) syncFloatingCueFrame();
   syncBoardModeSelectorSoon();
 }
 
 function onWindowResizeSettle() {
   windowResizeSettleTimer = 0;
+  refreshStageStudioGeometrySoon();        // recapture géométrie studio + réépingle proprement, 1× en fin de drag
   state.pads.forEach(renderWaveform);
   state.pads.forEach(fitPadTitle);
   syncFloatingCueFrame(true);
