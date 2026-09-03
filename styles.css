@@ -267,9 +267,7 @@ body[data-skin="minimal"] .manage-group {
   min-width: 0;
 }
 
-body[data-skin="minimal"] .pad-title {
-  font-size: 0.86rem;
-}
+/* .pad-title font-size → token --pad-title-size (bloc S1 près de la règle .pad-title) */
 
 body[data-skin="minimal"] .pad-time {
   font-size: 0.72rem;
@@ -2940,9 +2938,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
      vient de la règle `.pad-title` de base → titre plus long coupé net. */
   box-sizing: border-box;
   max-height: calc(2lh + 12px);
-  /* Boîte compacte : police plus petite que le titre de scène (clamp jusqu'à 1.6rem),
-     relative à la largeur du trigger (conteneur inline-size). */
-  font-size: clamp(0.9rem, 6cqi, 1.25rem);
+  /* font-size (clamp cqi) → token --pad-title-size (bloc S1) */
 }
 
 /* Pads basic SANS illustration : pas de boîte titre superflue. */
@@ -3806,6 +3802,33 @@ body[data-skin="print"] .patch-bay-node {
   transform: none;
 }
 
+/* ── S1 — taille de police du titre de pad, en token ─────────────────────────
+   Avant : 8 règles éparses posaient `font-size` sur `.pad-title` avec 4 niveaux
+   de spécificité + 3 @media qui se chevauchaient → cascade imprévisible.
+   Maintenant : UN consommateur (`.pad-title { font-size: var(--pad-title-size) }`,
+   dans la règle de base ci-dessous) et des setters en `:where()` (spécificité 0)
+   → la PRIORITÉ SE LIT DANS L'ORDRE de ce bloc, de haut (faible) en bas (fort).
+   Les 3 @media (setters mobiles) sont plus bas dans le fichier, donc gagnent
+   quand ils s'appliquent (≤950px → 0.86rem, de façon cohérente). */
+:where(.pads) {
+  /* défaut (1-4 colonnes, skins custom) : suit le réglage de skin, sinon la
+     police est héritée du parent (var invalide → font-size hérite). */
+  --pad-title-size: var(--skin_font_size_title);
+}
+:where(body[data-skin="minimal"] .pads) { --pad-title-size: 0.86rem; }
+:where(.pads[data-columns="5"], .pads[data-columns="6"]) { --pad-title-size: 0.88rem; }
+:where(
+  .pads[data-columns="7"], .pads[data-columns="8"], .pads[data-columns="9"],
+  .pads[data-columns="10"], .pads[data-columns="11"], .pads[data-columns="12"]
+) { --pad-title-size: 0.78rem; }
+:where(
+  body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+  body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden)
+) {
+  /* pad illustré : relatif à la largeur du conteneur, borné */
+  --pad-title-size: clamp(0.9rem, 6cqi, 1.25rem);
+}
+
 /* Le trigger n'est plus qu'une zone de clic : sa boîte visible est désormais
    portée par .pad-title. On neutralise tous ses fonds/bordures/ombres (built-in,
    basic, playing, pressed…). Le filtre is-ducked reste sur le trigger : il
@@ -3814,6 +3837,7 @@ body[data-skin="print"] .patch-bay-node {
   min-width: 0;
   overflow: hidden;
   font-weight: 800;
+  font-size: var(--pad-title-size);
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -3841,19 +3865,7 @@ body[data-skin="print"] .patch-bay-node {
   filter: brightness(1.15);
 }
 
-.pads[data-columns="5"] .pad-title,
-.pads[data-columns="6"] .pad-title {
-  font-size: 0.88rem;
-}
-
-.pads[data-columns="7"] .pad-title,
-.pads[data-columns="8"] .pad-title,
-.pads[data-columns="9"] .pad-title,
-.pads[data-columns="10"] .pad-title,
-.pads[data-columns="11"] .pad-title,
-.pads[data-columns="12"] .pad-title {
-  font-size: 0.78rem;
-}
+/* .pad-title font-size par nb de colonnes → token --pad-title-size (bloc S1) */
 
 .pad-shortcut,
 .pad-type {
@@ -7882,9 +7894,7 @@ body.stage-mode .pad-alerts {
     padding: 6px 6px 32px;
   }
 
-  .pad-title {
-    font-size: 0.86rem;
-  }
+  :where(.pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile, cf. bloc token */
 
   .pad-time {
     font-size: 0.72rem;
@@ -7959,9 +7969,7 @@ body.stage-mode .pad-alerts {
     padding: 6px 6px 32px;
   }
 
-  body.stage-mode .pad-title {
-    font-size: 0.86rem;
-  }
+  :where(body.stage-mode .pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile */
 
   body.stage-mode .pad-time {
     font-size: 0.72rem;
@@ -8320,10 +8328,7 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     gap: 6px;
   }
 
-  .pad-title,
-  body.stage-mode .pad-title {
-    font-size: 0.86rem;
-  }
+  :where(.pads, body.stage-mode .pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile (landscape) */
 
   .pad-time,
   body.stage-mode .pad-time {
@@ -10712,7 +10717,9 @@ body.stage-mode #boardName:focus {
   font-family: var(--skin_font_family, inherit);
 }
 
-.pad-title,
+/* `.pad-title` (vrai board) : font-size via le token --pad-title-size (bloc S1).
+   L'aperçu éditeur de skin garde son override direct au cas où son `.pad-title`
+   ne serait pas dans un `.pads`. */
 .skin-editor-preview .pad-title {
   font-size: var(--skin_font_size_title, inherit);
 }
