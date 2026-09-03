@@ -738,6 +738,7 @@ const els = {
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padColumnsComputed: document.querySelector("#padColumnsComputed"),
+  padColumnsLimitHint: document.querySelector("#padColumnsLimitHint"),
   padRows: document.querySelector("#padRows"),
   cueEditor: document.querySelector("#cueEditor"),
   openCueDialog: document.querySelector("#openCueDialog"),
@@ -1194,6 +1195,30 @@ function effectiveLayoutForBoard(board) {
   }
 
   return layout;
+}
+
+// Nombre max de colonnes de pads qui tiennent dans la largeur courante sans
+// écraser les pads : leur rangée de contrôles du haut (en scène surtout) a un
+// plancher d'environ 150px, en dessous les pads sont "grignotés" à droite.
+// Recalculé à chaque render/resize → gère le portable automatiquement (écran
+// étroit ⇒ maxCols bas, cohérent avec les media queries mobiles), sans cas
+// spécial. Renvoie une valeur large si la zone n'est pas encore mesurable.
+const MIN_PAD_COLUMN_WIDTH = 150;
+function maxPadColumnsForWidth() {
+  // Largeur dispo pour la grille de pads. On mesure `.deck` (le conteneur) si sa
+  // valeur est plausible ; sinon (layout pas encore stabilisé au render initial)
+  // on l'estime : min(étendue du board, fenêtre) − chrome horizontal de `.app`.
+  const measured = document.querySelector(".deck")?.getBoundingClientRect().width || 0;
+  let area = measured;
+  if (measured < 300) {
+    const extent = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--board-extent")
+    ) || 1280;
+    area = Math.min(extent, window.innerWidth) - 48;
+  }
+  if (area < MIN_PAD_COLUMN_WIDTH) return 12;
+  const gap = 12; // .pads { gap: 12px }
+  return Math.max(1, Math.floor((area + gap) / (MIN_PAD_COLUMN_WIDTH + gap)));
 }
 
 function normalizeCueAction(action) {
@@ -3674,9 +3699,13 @@ function applyPadLayout(board = currentBoard()) {
   const enabled = layout.columns > 0 && layout.rows > 0;
   els.pads.classList.toggle("has-pad-layout", enabled);
   if (enabled) {
-    els.pads.style.setProperty("--pad-columns", String(layout.columns));
-    els.pads.style.setProperty("--pad-rows", String(layout.rows));
-    els.pads.dataset.columns = String(layout.columns);
+    // Plafonne à ce que la largeur d'écran permet (cf. maxPadColumnsForWidth) —
+    // pads "grignotés" à droite sinon. board.padColumns n'est pas modifié.
+    const cols = Math.min(layout.columns, maxPadColumnsForWidth());
+    const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
+    els.pads.style.setProperty("--pad-columns", String(cols));
+    els.pads.style.setProperty("--pad-rows", String(Math.max(1, Math.ceil(padCount / cols))));
+    els.pads.dataset.columns = String(cols);
   } else {
     els.pads.style.removeProperty("--pad-columns");
     els.pads.style.removeProperty("--pad-rows");
@@ -5506,14 +5535,28 @@ function renderBoardLayoutControls() {
   const portraitLocked = shouldForcePortablePortraitLayout();
   const landscapeLimited = shouldLimitPortableLandscapeColumns();
 
+  const maxCols = maxPadColumnsForWidth();
+
   if (els.padColumns) {
-    renderPadColumnOptions(landscapeLimited ? 5 : 10);
+    renderPadColumnOptions(landscapeLimited ? 5 : 10, portraitLocked ? Infinity : maxCols);
     els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
     els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
   }
 
-  const displayedColumns = portraitLocked ? 2 : layout.columns || 4;
+  // Colonnes choisies > ce que la largeur d'écran permet : le rendu est plafonné
+  // (applyPadLayout) et on l'annonce. `board.padColumns` reste inchangé → dès que
+  // l'écran s'élargit, on retrouve la valeur voulue.
+  const chosenCols = portraitLocked ? 2 : (layout.mode === "auto" ? 0 : (layout.columns || 4));
+  const widthLimited = chosenCols > maxCols;
+  if (els.padColumnsLimitHint) {
+    els.padColumnsLimitHint.hidden = !widthLimited;
+    els.padColumnsLimitHint.textContent = widthLimited
+      ? `Écran trop étroit pour ${chosenCols} colonnes — affichage limité à ${maxCols}`
+      : "";
+  }
+
+  const displayedColumns = portraitLocked ? 2 : Math.min(layout.columns || 4, maxCols);
   if (els.padColumnsComputed) {
     els.padColumnsComputed.textContent = String(displayedColumns);
   }
@@ -6375,7 +6418,7 @@ function shouldLimitPortableLandscapeColumns() {
   return isPortableLandscape();
 }
 
-function renderPadColumnOptions(limit = 10) {
+function renderPadColumnOptions(limit = 10, maxEnabled = Infinity) {
   if (!els.padColumns) return;
   const currentValue = els.padColumns.value || "auto";
   els.padColumns.innerHTML = "";
@@ -6389,6 +6432,10 @@ function renderPadColumnOptions(limit = 10) {
     const option = document.createElement("option");
     option.value = String(columns);
     option.textContent = String(columns);
+    // Colonnes qui ne tiennent pas dans la largeur d'écran : grisées (on garde
+    // la valeur choisie active si elle dépasse, pour la restaurer si l'écran
+    // s'élargit — le rendu, lui, est plafonné dans applyPadLayout).
+    if (columns > maxEnabled && String(columns) !== currentValue) option.disabled = true;
     els.padColumns.append(option);
   }
 

@@ -1016,6 +1016,16 @@ body.board-edit-mode .board-action-grid .stage-lock-button {
   flex: 1;
 }
 
+/* Message « écran trop étroit pour N colonnes » (plafond largeur, cf. app.js
+   maxPadColumnsForWidth). */
+.board-cols-limit-hint {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--color_ui_warn, #e0a33c);
+}
+.board-cols-limit-hint[hidden] { display: none; }
+
 .stage-lock-button .lock-closed-icon,
 .stage-lock-button.is-active .lock-open-icon {
   display: none;
