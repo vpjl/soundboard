@@ -3970,45 +3970,6 @@ function syncFloatingCueFrame(resetAnchor = false) {
   // sortirait sinon de l'écran — jamais à la simple activation des cues.
   const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
   document.body.classList.toggle("cues-stuck", shouldStick);
-  // En scène, .live-tools est un descendant de <header class="topbar">, qui a
-  // un transform permanent (cf. applyStageStudioLayout/pinPanelToStudioPosition,
-  // pour stabiliser sa position studio). Un transform sur un ancêtre devient le
-  // nouveau bloc de référence pour un descendant en position:fixed (même bug
-  // que celui déjà résolu sur #openAppNotice) : le bloc cues collé ne suivait
-  // donc pas le vrai scroll de la page, mais restait "fixé" par rapport au
-  // topbar, qui lui défile normalement. On sort .live-tools du topbar pendant
-  // qu'il est collé (hors de portée de ce transform), et on le replace à sa
-  // position d'origine au décollage.
-  // Auto-correctif plutôt que déclenché sur stickChanged uniquement : un
-  // diagnostic sur téléphone réel a montré .live-tools parfois coincé dans
-  // .app (parent:app) alors que stuck:0 — le bloc tombait alors en flux normal
-  // TOUT EN BAS de .app (après tous les pads), le déplacement de retour vers
-  // .topbar n'ayant pas abouti (course entre évènements scroll rapprochés).
-  // On vérifie donc le parent RÉEL à chaque appel et on corrige si besoin, au
-  // lieu de ne réagir qu'au changement détecté d'un appel à l'autre.
-  if (document.body.classList.contains("stage-mode")) {
-    const appEl = document.querySelector(".app");
-    const topbarEl = document.querySelector(".topbar");
-    if (shouldStick) {
-      if (appEl && els.liveTools.parentElement !== appEl) {
-        state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
-        // Rattaché à .app (comme #openAppNotice), pas body : reste dans la
-        // portée des styles .app/.app * (user-select, etc.) tout en échappant
-        // au transform du topbar.
-        appEl.appendChild(els.liveTools);
-        els.liveTools.style.removeProperty("position");
-        els.liveTools.style.removeProperty("transform");
-      }
-    } else if (topbarEl && els.liveTools.parentElement !== topbarEl) {
-      if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbarEl) {
-        topbarEl.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
-      } else {
-        topbarEl.appendChild(els.liveTools);
-      }
-      state.liveToolsOriginalNextSibling = null;
-      applyStageStudioLayoutSoon();
-    }
-  }
 
   // Bloc cues activé aligné sur le bord GAUCHE de la zone des pads (.deck) —
   // plus sur sa largeur entière depuis le 2026-08-20 (le bloc épouse son
@@ -12547,14 +12508,6 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
-  // Démarrage direct en scène (restauration au rafraîchissement) : aucun clic
-  // sur "Scène" n'a eu lieu, donc captureStudioLayoutForStage() n'a jamais
-  // tourné (voir son propre commentaire) — on la déclenche ici une seule fois
-  // (tant qu'aucune capture n'existe) pour que board/master/live-tools soient
-  // épinglés dès la première frame, comme lors d'une transition Studio→Scène.
-  if (state.stageMode && !stageStudioLayoutSnapshot.selectorRect) {
-    captureStudioLayoutForStage();
-  }
   els.stageMode?.classList.toggle("is-active", state.stageMode);
   els.stageMode?.setAttribute("aria-pressed", String(state.stageMode));
   if (els.boardSelect) {
@@ -12568,26 +12521,15 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   if (state.stageMode) {
     // Le bloc cues est ancré via syncCueControls() (ligne ~10184), avant le
-    // basculement body.stage-mode et la compensation desktop
-    // (applyStageStudioLayout, appliquée en rAF via le MutationObserver sur la
-    // classe body). L'ancre capturée trop tôt reste calée sur la géométrie
-    // studio → bloc mal positionné jusqu'au prochain rescan (ex: refresh). On
-    // recalibre ici, un rAF après la compensation de layout pour être sûr
-    // qu'elle a déjà tourné.
+    // basculement body.stage-mode. L'ancre capturée trop tôt reste calée sur la
+    // géométrie studio → bloc mal positionné jusqu'au prochain rescan (ex:
+    // refresh). On recalibre ici, deux rAF après le basculement de classe.
     requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
-    // Relâche le gel de mise en page studio (voir stageStudioLayoutReleased)
-    // une fois la transition visuelle passée, pour que .live-tools retrouve
-    // la largeur réelle de la scène au lieu de rester bridé par les
-    // dimensions studio figées.
+    // Re-mesure des hauteurs de pad une fois la transition + le layout
+    // stabilisés : sur mobile, le 1er passage tombe trop tôt et fige des
+    // hauteurs gonflées (pads allongés à l'entrée en scène en skin basic).
     window.setTimeout(() => {
-      if (state.stageMode) {
-        stageStudioLayoutReleased = true;
-        applyStageStudioLayoutSoon();
-        // Re-mesure une fois la transition + le layout stabilisés : sur mobile,
-        // le 1er passage tombe trop tôt et fige des hauteurs gonflées (pads
-        // allongés à l'entrée en scène en skin basic).
-        syncAllPadMinHeightsSoon();
-      }
+      if (state.stageMode) syncAllPadMinHeightsSoon();
     }, 500);
     setBoardPadEditing(false);
     const activeCount = syncStageVisiblePads();
@@ -20353,311 +20295,17 @@ window.addEventListener("load", () => window.setTimeout(syncBoardModeSelectorSoo
 // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
 
 
-/* Alignement dynamique Studio vers Scène */
-const stageStudioLayoutSnapshot = {
-  selectorRect: null,
-  topbarRect: null,
-  masterStripRect: null,
-  liveToolsRect: null,
-  inlineStyles: [],
-};
-// Le gel évite un saut visuel du logo au clic sur "Scène", mais bride ensuite
-// la largeur dispo pour .live-tools (ex. bouton crossfade armé qui passe à la
-// ligne). On le relâche après la transition ; tant qu'il n'est pas relâché,
-// toute mutation de classe (cues-enabled, etc.) le regèlerait sinon.
-let stageStudioLayoutReleased = false;
+/* Alignement Studio ↔ Scène : entièrement en CSS depuis le retrait de la couche
+   d'épinglage JS (S3). Ne restent ici que les resynchronisations du bloc Cues
+   flottant (largeur/ancre de collage), qui dépendent de la fenêtre. */
 
-function stageStudioLayoutElements() {
-  return [
-    [document.querySelector(".topbar"), ["grid-template-columns", "align-items", "gap"]],
-    [document.querySelector(".brand"), ["display", "align-items", "gap", "min-height"]],
-    [document.querySelector(".mark"), ["width", "height", "min-width", "min-height"]],
-    [document.querySelector(".mark svg"), ["width", "height"]],
-    [document.querySelector(".brand h1"), ["font-size", "line-height", "margin", "font-weight"]],
-    [document.querySelector(".brand p"), ["font-size", "line-height", "margin", "display"]],
-    [document.querySelector("#audioStatus"), ["font-size", "line-height", "margin", "display"]],
-    [document.querySelector(".brand-tools"), ["display", "align-self", "grid-template-columns", "gap"]],
-  ].filter(([element]) => Boolean(element));
-}
-
-function captureStudioLayoutForStage() {
-  const selector = document.querySelector(".board-mode-selector");
-  if (!selector) return;
-
-  stageStudioLayoutReleased = false;
-
-  // Flush any pending stage transforms so positions are measured clean
-  clearStageStudioLayout();
-
-  // Clic sur "Scène" depuis Studio : capture appelée AVANT le basculement de
-  // mode, la géométrie Studio est donc déjà directement mesurable. Mais au
-  // démarrage direct en Scène (rafraîchissement de page, cf. init() qui
-  // restaure stageMode sans jamais passer par ce clic), la classe stage-mode
-  // est déjà posée et aucune transition Studio→Scène n'a eu lieu : il n'existe
-  // aucune géométrie Studio à mesurer. On bascule alors brièvement (synchrone,
-  // avant toute peinture) hors du mode scène pour obtenir cette référence —
-  // sans quoi board/master/live-tools restent non épinglés (position naturelle
-  // de Scène, différente de celle de Studio) jusqu'à la prochaine transition.
-  const needsToggle = document.body.classList.contains("stage-mode");
-  if (needsToggle) document.body.classList.remove("stage-mode");
-
-  stageStudioLayoutSnapshot.selectorRect = selector.getBoundingClientRect();
-
-  const topbar = document.querySelector(".topbar");
-  stageStudioLayoutSnapshot.topbarRect = topbar ? topbar.getBoundingClientRect() : null;
-
-  const masterStrip = document.querySelector(".master-strip");
-  stageStudioLayoutSnapshot.masterStripRect = masterStrip ? masterStrip.getBoundingClientRect() : null;
-
-  const liveTools = document.querySelector(".live-tools");
-  stageStudioLayoutSnapshot.liveToolsRect = liveTools ? liveTools.getBoundingClientRect() : null;
-
-  stageStudioLayoutSnapshot.inlineStyles = stageStudioLayoutElements().map(([element, props]) => {
-    const computed = window.getComputedStyle(element);
-    return {
-      element,
-      props: props.map((prop) => [prop, computed.getPropertyValue(prop)]),
-    };
-  });
-
-  if (needsToggle) document.body.classList.add("stage-mode");
-}
-
-// Relâche uniquement le gel topbar/brand/live-tools (cf. beabd2c, "fix bloc
-// cues en scène") : la géométrie studio figée sur ces éléments bridait la
-// largeur du bloc Cues/Crossfade indéfiniment. Le bloc board (board-strip) ET
-// le bloc master (master-strip) NE SONT PAS concernés — leur épinglage vient
-// d'un fix distinct et antérieur (4e98ec9 "Stabilize board mode selector
-// layout") dont le but est qu'aucun des deux ne bouge visuellement pendant
-// toute la session scène, pas seulement le temps de la transition. Les deux
-// doivent rester épinglés ENSEMBLE (ce sont deux colonnes de la même ligne) :
-// épingler l'un sans l'autre les désaligne dès que la topbar change de
-// hauteur au relâchement.
-function clearTopbarStudioLayout() {
-  stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
-    props.forEach(([prop]) => element.style.removeProperty(prop));
-  });
-
-  const topbar = document.querySelector(".topbar");
-  if (topbar) {
-    topbar.style.removeProperty("position");
-    topbar.style.removeProperty("transform");
-    topbar.style.removeProperty("top");
-    topbar.style.removeProperty("left");
-  }
-}
-
-function clearPinnedPanelsStudioLayout() {
-  [".board-strip", ".master-strip", ".live-tools"].forEach((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    el.style.removeProperty("position");
-    el.style.removeProperty("transform");
-    el.style.removeProperty("left");
-    el.style.removeProperty("top");
-  });
-  // Largeur studio imposée au master en scène (cf. applyStageStudioLayout) : à
-  // retirer avec l'épinglage, sinon elle fausse la mesure du snapshot et reste
-  // collée au retour en studio. Ciblé master uniquement — la largeur inline de
-  // .live-tools appartient à syncFloatingCueFrame, qui gère son propre cycle.
-  document.querySelector(".master-strip")?.style.removeProperty("width");
-}
-
-function clearStageStudioLayout() {
-  clearTopbarStudioLayout();
-  clearPinnedPanelsStudioLayout();
-}
-
-function applyStageStudioLayout() {
-  // Mode invité : layout scène entièrement redéfini en CSS (flex, blocs réduits).
-  // L'épinglage basé sur la géométrie studio n'a aucun sens ici et fige des
-  // hauteurs/largeurs parasites → on nettoie tout et on sort.
-  if (state.guest) {
-    clearStageStudioLayout();
-    return;
-  }
-  if (!document.body.classList.contains("stage-mode")) {
-    clearStageStudioLayout();
-    // Si .live-tools avait été sorti du topbar (bloc cues collé pendant le
-    // scroll, cf. syncFloatingCueFrame) et qu'on quitte la scène entre-temps
-    // (ex. retour en studio pendant que le bloc était collé), le remettre à
-    // sa place : cette relocalisation ne concerne que la scène.
-    const liveTools = document.querySelector(".live-tools");
-    const topbar = document.querySelector(".topbar");
-    if (liveTools && topbar && liveTools.parentElement !== topbar) {
-      topbar.appendChild(liveTools);
-    }
-    return;
-  }
-
-  // Mobile/tactile : la grille CSS positionne déjà la scène correctement. Toute
-  // compensation JS (styles inline hérités du studio + transform de la topbar) se
-  // bat avec la cascade → marge haute anormale, bloc cues/crossfade sous les pads,
-  // trou entre master et pads au scroll. On NETTOIE et on sort AVANT d'appliquer
-  // quoi que ce soit (le garde était placé trop tard : la topbar était déjà décalée).
-  if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) {
-    clearStageStudioLayout();
-    return;
-  }
-
-  // Partie brand/live-tools : gel temporaire des propriétés internes (tailles
-  // de police, gap...), relâché après 500ms (cf. beabd2c) — sert uniquement à
-  // lisser la transition visuelle, ces valeurs sont désormais identiques entre
-  // Studio et Scène (cf. fix align-items .brand-tools) donc le relâchement n'a
-  // plus d'effet visible sur elles.
-  if (stageStudioLayoutReleased) {
-    clearTopbarStudioLayout();
-  } else {
-    stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
-      props.forEach(([prop, value]) => {
-        element.style.setProperty(prop, value, "important");
-      });
-    });
-  }
-
-  // Position de la topbar : épinglage permanent (comme board/master/live-
-  // tools ci-dessous), indépendant du gel/relâchement ci-dessus. .app a un
-  // padding plus petit en Scène (cf. body.stage-mode .app) : sans cet
-  // épinglage propre, tout l'en-tête (logo + texte) se décale en haut à
-  // gauche dès que le gel des propriétés internes se relâche, même une fois
-  // celles-ci équivalentes entre les deux modes.
-  pinPanelToStudioPosition(document.querySelector(".topbar"), stageStudioLayoutSnapshot.topbarRect);
-
-  // Partie board-strip + master-strip : épinglage permanent tant qu'on est en
-  // scène (voir commentaire de clearTopbarStudioLayout) — recalculé à chaque
-  // appel, y compris après le relâchement ci-dessus, pour rester exact quelle
-  // que soit la hauteur courante de la topbar. Les deux blocs sont traités de
-  // façon identique et indépendante (chacun avec son propre point de
-  // référence) pour qu'ils bougent ensemble, sans se désaligner l'un de
-  // l'autre.
-  const boardStrip = document.querySelector(".board-strip");
-  const selector = document.querySelector(".board-mode-selector");
-  const studioRect = stageStudioLayoutSnapshot.selectorRect;
-
-  if (boardStrip && selector && studioRect && !state.guest) {
-    boardStrip.style.setProperty("position", "relative", "important");
-    boardStrip.style.setProperty("transform", "none", "important");
-
-    const stageRect = selector.getBoundingClientRect();
-    const dx = Math.round(studioRect.left - stageRect.left);
-    // Voir commentaire de pinPanelToStudioPosition : + window.scrollY rend le
-    // calcul indépendant d'un éventuel scroll au moment du réappel.
-    const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
-
-    boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
-  }
-
-  // Même largeur qu'en studio (mesurée dans le snapshot) : en scène le master a
-  // ses propres tailles (gros boutons stop) et son fit-content diffère — or
-  // l'épinglage ne cale que le bord GAUCHE sur la position studio, le bord
-  // droit se retrouvait donc décalé du bord droit des pads. À largeur égale,
-  // les deux bords coïncident avec le studio (la colonne 1fr interne absorbe
-  // la différence). Posée AVANT l'épinglage, qui mesure la géométrie résultante.
-  const masterStripEl = document.querySelector(".master-strip");
-  if (masterStripEl && stageStudioLayoutSnapshot.masterStripRect) {
-    masterStripEl.style.setProperty("width", `${Math.round(stageStudioLayoutSnapshot.masterStripRect.width)}px`, "important");
-  }
-  pinPanelToStudioPosition(masterStripEl, stageStudioLayoutSnapshot.masterStripRect);
-  // .live-tools (bloc Cues/Crossfade) : sa position naturelle dépend de la
-  // hauteur réelle (non transformée) de la ligne board+master au-dessus —
-  // un transform sur board/master ne change pas leur encombrement dans le
-  // flux, donc .live-tools doit être épinglé indépendamment lui aussi, sinon
-  // il reste décalé même quand board/master sont bien alignés entre eux.
-  // Sauf pendant qu'il est "collé" (cues-stuck) : il est alors sorti du
-  // topbar (cf. syncFloatingCueFrame) pour échapper au transform ci-dessus,
-  // et géré entièrement par le CSS de cues-stuck — l'épingler ici le
-  // ramènerait à tort dans le référentiel studio.
-  // Et sauf quand les cues sont ACTIVÉES : le bloc est alors aligné sur la
-  // zone des pads par syncFloatingCueFrame (largeur + marge), pas sur sa
-  // position studio — le snapshot correspond au bloc compact (cues
-  // désactivées) et l'épinglage le décalait/débordait à droite jusqu'au
-  // premier scroll. On retire un éventuel épinglage résiduel puis on
-  // resynchronise l'alignement sur les pads (la topbar vient d'être épinglée,
-  // la marge doit être recalculée dans ce référentiel).
-  const liveToolsEl = document.querySelector(".live-tools");
-  if (document.body.classList.contains("cues-enabled")) {
-    if (liveToolsEl && !document.body.classList.contains("cues-stuck")) {
-      liveToolsEl.style.removeProperty("position");
-      liveToolsEl.style.removeProperty("transform");
-    }
-    syncFloatingCueFrame();
-  } else if (!document.body.classList.contains("cues-stuck")) {
-    pinPanelToStudioPosition(liveToolsEl, stageStudioLayoutSnapshot.liveToolsRect);
-  }
-}
-
-function pinPanelToStudioPosition(el, studioRect) {
-  if (!el || !studioRect) return;
-  el.style.setProperty("position", "relative", "important");
-  el.style.setProperty("transform", "none", "important");
-
-  const stageRect = el.getBoundingClientRect();
-  const dx = Math.round(studioRect.left - stageRect.left);
-  // studioRect est capturé au repos (scrollY≈0, entrée en scène ou boot) donc
-  // document-relative de fait ; stageRect.top est viewport-relative et donc
-  // faussé si cette fonction est réappelée pendant que la page est scrollée
-  // (ex. relâchement du bloc cues collé) — + window.scrollY compense.
-  const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
-
-  el.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
-}
-
-let stageStudioLayoutFrame = 0;
-
-function applyStageStudioLayoutSoon() {
-  if (stageStudioLayoutFrame) {
-    cancelAnimationFrame(stageStudioLayoutFrame);
-  }
-
-  stageStudioLayoutFrame = requestAnimationFrame(() => {
-    stageStudioLayoutFrame = 0;
-    applyStageStudioLayout();
-  });
-}
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest?.("[data-board-mode-target='stage']");
-  if (!button) return;
-  captureStudioLayoutForStage();
-}, true);
-
-const stageStudioLayoutObserver = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    const prev = (mutation.oldValue || "").replace(/\bcues-stuck\b/g, "").trim();
-    const next = document.body.className.replace(/\bcues-stuck\b/g, "").trim();
-    if (prev !== next) {
-      applyStageStudioLayoutSoon();
-      return;
-    }
-  }
-});
-stageStudioLayoutObserver.observe(document.body, {
-  attributes: true,
-  attributeFilter: ["class"],
-  attributeOldValue: true,
-});
-
-// Au redimensionnement, le snapshot studio (positions de référence de
-// l'épinglage) est périmé : capturé à l'ancienne largeur de fenêtre, il
-// épinglait board/master/cues sur des positions qui n'existent plus — le bloc
-// cues restait en place pendant que les pads reflowaient par-dessus. On
-// recapture donc la géométrie studio avant de réappliquer, et on resynchronise
-// le bloc cues (sa largeur = zone des pads et son ancre de collage dépendent
-// aussi de la fenêtre), en studio comme en scène.
-let stageStudioResizeFrame = 0;
-function refreshStageStudioGeometrySoon() {
-  if (stageStudioResizeFrame) cancelAnimationFrame(stageStudioResizeFrame);
-  stageStudioResizeFrame = requestAnimationFrame(() => {
-    stageStudioResizeFrame = 0;
-    // Même garde mobile que applyStageStudioLayout : pas d'épinglage là-bas,
-    // donc rien à recapturer (et le toggle synchrone de classe serait inutile).
-    if (
-      document.body.classList.contains("stage-mode")
-      && !window.matchMedia("(max-width: 950px), (pointer: coarse)").matches
-    ) {
-      captureStudioLayoutForStage();
-    }
-    applyStageStudioLayout();
+let stageCueResizeFrame = 0;
+function refreshFloatingCueFrameSoon() {
+  // La géométrie Studio↔Scène est figée en CSS ; seul le bloc Cues flottant
+  // (largeur = zone des pads, ancre de collage) dépend de la fenêtre.
+  if (stageCueResizeFrame) cancelAnimationFrame(stageCueResizeFrame);
+  stageCueResizeFrame = requestAnimationFrame(() => {
+    stageCueResizeFrame = 0;
     syncFloatingCueFrame(true);
   });
 }
@@ -20683,21 +20331,13 @@ function onWindowResizeFrame() {
     positionCableLegend();
   }
   clampLiveFxPanelPosition();
-  // PENDANT le drag : on NE recapture PAS la géométrie studio.
-  // captureStudioLayoutForStage() bascule `stage-mode` en synchrone pour mesurer ;
-  // répété à chaque frame de drag, ça faisait clignoter tout le layout scène
-  // (~290 sélecteurs), rognait l'écran (haut/bas) et — quand on réappliquait
-  // l'épinglage avec un snapshot périmé — faisait se recouvrir master/board/cues.
-  // On laisse les transforms d'épinglage tels quels (ils dérivent doucement avec
-  // le reflow) et on ne resynchronise que le bloc cues. La recapture + le
-  // réépinglage propre se font UNE fois, à la fin du redimensionnement.
+  // Le bloc cues flottant suit la largeur de la zone des pads → resync par frame.
   if (document.body.classList.contains("stage-mode")) syncFloatingCueFrame();
   syncBoardModeSelectorSoon();
 }
 
 function onWindowResizeSettle() {
   windowResizeSettleTimer = 0;
-  refreshStageStudioGeometrySoon();        // recapture géométrie studio + réépingle proprement, 1× en fin de drag
   state.pads.forEach(renderWaveform);
   state.pads.forEach(fitPadTitle);
   syncFloatingCueFrame(true);
@@ -20708,7 +20348,6 @@ window.addEventListener("resize", () => {
   if (windowResizeSettleTimer) clearTimeout(windowResizeSettleTimer);
   windowResizeSettleTimer = window.setTimeout(onWindowResizeSettle, 180);
 });
-window.addEventListener("load", applyStageStudioLayoutSoon);
 
 // Étendue du board (curseur du bloc Aspect) : pilote --board-extent, la
 // largeur commune topbar/deck/bloc cues collé. Permet d'occuper un grand
@@ -20722,7 +20361,7 @@ function applyBoardExtent(value, save = true) {
   document.documentElement.style.setProperty("--board-extent", `${px}px`);
   if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
   if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
-  refreshStageStudioGeometrySoon();
+  refreshFloatingCueFrameSoon();
   requestAnimationFrame(refreshPadCompactnessRange);
 }
 

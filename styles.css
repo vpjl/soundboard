@@ -7308,18 +7308,17 @@ body.stage-mode .version-select {
 }
 
 body.stage-mode .master-strip {
-  --master-stop-size: clamp(96px, 10.5vw, 140px);
-  /* Taille réelle des boutons stop/mute : par défaut identique à
-     --master-stop-size (comportement d'origine, celui qu'on veut partout sauf
-     sur grand écran à pointeur fin — cf. media query ci-dessous qui la réduit
-     aux 2/3). En laissant cette valeur par défaut égale à --master-stop-size,
-     les nombreuses media queries de repli (portrait, 560/900/950px…) qui ne
-     connaissent pas cette variable retombent automatiquement sur le gabarit
-     historique, sans avoir à les corriger une par une. */
+  /* Master identique au Studio en Scène (taille des boutons stop/mute, grille,
+     largeur) : depuis le retrait de la couche d'épinglage JS (S3), toute
+     différence de gabarit décale visiblement le bloc à la bascule. Les boutons
+     agrandis « live » d'avant sont abandonnés (peu accessibles une fois la
+     grille scrollée — repositionnement à revoir séparément). */
+  --master-stop-size: 70px;
   --master-stop-btn-size: var(--master-stop-size);
-  --master-stop-panel-height: calc(var(--master-stop-btn-size) + 34px);
+  --master-stop-panel-height: 112px;
+  gap: 10px;
   grid-column: 2;
-  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
+  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
     "title title title title"
     "master master . stop"
@@ -7330,17 +7329,6 @@ body.stage-mode .master-strip {
   justify-self: end;
   box-sizing: border-box;
   overflow: visible;
-}
-
-/* Réduction des boutons stop/mute (2/3 de --master-stop-size) réservée au
-   vrai bureau : grand écran ET pointeur fin. Négation exacte de
-   « @media (max-width: 950px), (pointer: coarse) », utilisée partout ailleurs
-   dans ce fichier pour détecter mobile/tactile — garantit qu'un écran large
-   mais tactile garde les boutons pleine taille, comme le reste de l'appli. */
-@media (min-width: 951px) and (pointer: fine) {
-  body.stage-mode .master-strip {
-    --master-stop-btn-size: calc(var(--master-stop-size) * 2 / 3);
-  }
 }
 
 body.stage-mode .live-tools {
@@ -7354,28 +7342,15 @@ body.stage-mode .live-tools {
 
 body.stage-mode .group-stop-control,
 body.stage-mode .stop-all-control {
-  min-width: 0;
-  width: 100%;
+  /* Pas de min-width:0 / width:100% ici : les blocs gardent leur gabarit
+     Studio, dont l'élargissement du bloc « stop groupé » selon la longueur des
+     tags (--stop-group-width). Aligné sur le Studio (choix : Scène comme
+     Studio), donc largeur du master identique entre les deux modes. */
   min-height: var(--master-stop-panel-height);
   height: auto;
   box-sizing: border-box;
   padding: 3px;
   align-content: space-between;
-}
-
-/* Marge basse explicite (12px, > que le padding 3px des autres côtés) :
-   espace visible entre le bas du bouton (réduit, cf. --master-stop-btn-size
-   ci-dessus) et le bas du bloc. align-content:space-between seul ne suffit
-   pas — quand le contenu tient dans min-height, aucun espace n'est distribué
-   après la dernière ligne (le bouton colle au padding-bottom), d'où cette
-   marge fixée directement. Même garde que --master-stop-btn-size (grand
-   écran + pointeur fin) : sur portable, le bouton garde sa pleine taille et
-   n'a pas besoin de cette marge supplémentaire. */
-@media (min-width: 951px) and (pointer: fine) {
-  body.stage-mode .group-stop-control,
-  body.stage-mode .stop-all-control {
-    padding-bottom: 12px;
-  }
 }
 
 /* .stop-all-control n'a pas de .group-stop-row (pas de select) : sa 2e ligne
@@ -7386,9 +7361,11 @@ body.stage-mode .stop-all-control {
 }
 
 body.stage-mode .group-stop-row {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 24px var(--master-stop-btn-size);
-  width: 100%;
+  /* Colonne calée sur --stop-group-width comme en Studio (cf. .group-stop-row
+     de base) : c'est ce qui élargit le bloc « stop groupé » selon la longueur
+     des tags. Rangée du select à 28px, également comme en Studio. */
+  grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
+  grid-template-rows: 28px var(--master-stop-btn-size);
 }
 
 /* Spécificité : body.stage-mode .group-stop-row (type+classe) bat
@@ -7399,13 +7376,8 @@ body.stage-mode .master-mute-control .group-stop-row {
   grid-template-rows: var(--master-stop-btn-size);
 }
 
-body.stage-mode .group-stop-row select {
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 24px;
-  padding: 0 3px;
-  font-size: 0.62rem;
-}
+/* Select « stop groupé » : entièrement au gabarit Studio en Scène
+   (cf. .group-stop-row select de base) — plus aucun override ici. */
 
 /* Boutons stop (global/groupé) et mute suivent --master-stop-btn-size (posée sur
    .master-strip ci-dessus, égale à --master-stop-size sauf sur grand écran à
@@ -11646,7 +11618,9 @@ body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-
   }
 }
 
-/* Mode Scène : stabiliser Board / Master / Cues-Crossfade sur les positions Studio */
+/* Mode Scène : ces blocs restent dans le flux, sans transform. (`transform: none`
+   conservé pour .live-tools, qui reçoit un translateX de repli via cues-stuck
+   avant que syncFloatingCueFrame ne recale sa position au scroll.) */
 body.stage-mode .board-strip,
 body.stage-mode .board-main,
 body.stage-mode .master-strip,
@@ -11656,7 +11630,6 @@ body.stage-mode .cues-strip,
 body.stage-mode .crossfade-strip,
 body.stage-mode .cues-crossfade-strip {
   transform: none !important;
-  transition: none !important;
 }
 
 body.stage-mode .board-main > .board-mode-selector {
@@ -11777,17 +11750,6 @@ html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-
   background: color-mix(in srgb, var(--soundboard-logo-green) 38%, var(--color_ui_panel_secondary)) !important;
   filter: none !important;
 }
-/* Compensation du bloc board pendant la transition Studio→Scène : la
-   position/transform réelle est pilotée en JS (applyStageStudioLayout),
-   cette règle ne sert que de repli si le JS ne s'applique pas (mobile). */
-body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  position: static !important;
-  transform: none !important;
-}
-
 /* Le logo / titre / signature / message gardent le même aspect qu'en
    Studio/Garage (pas de réduction de taille en Scène) — seul l'agencement
    change (largeur du titre libérée, centrage vertical). */
@@ -11810,33 +11772,13 @@ html body.stage-mode .topbar {
 html body.stage-mode .brand {
   display: flex !important;
   /* "start", comme en Studio/Garage (cf. .brand de base) : "center" décalait
-     visiblement le logo vers le bas et le texte vers le haut au relâchement
-     de la compensation Studio->Scène (~1s après l'entrée en scène), quand le
-     align-items figé de Studio cède la place à cette règle. */
+     visiblement le logo/texte lors de l'ancienne compensation Studio→Scène. */
   align-items: start !important;
-  transform: none !important;
 }
 
 html body.stage-mode .brand-tools {
-  /* "auto" (= start, hérité de .brand), comme en Studio/Garage : "center" ici
-     recentrait le logo (plus haut que .mark seul, cf. .brand-tools) contre la
-     colonne de texte, plus haute que lui, au relâchement de la compensation
-     Studio->Scène (~1s après l'entrée en scène) — le logo semblait "descendre"
-     par rapport au texte resté fixe. Même cause que les fix précédents sur
-     .brand/.topbar, sur un troisième élément distinct. */
+  /* "auto" (= start, hérité de .brand), comme en Studio/Garage. */
   align-self: auto !important;
-  transform: none !important;
-}
-
-
-/* CORRECTIF : éviter les transitions visibles lors de l'alignement dynamique Studio → Scène */
-body.stage-mode .board-strip,
-body.stage-mode .brand,
-body.stage-mode .mark,
-body.stage-mode .brand h1,
-body.stage-mode .brand p,
-body.stage-mode #audioStatus {
-  transition: none !important;
 }
 
 .help-button {
