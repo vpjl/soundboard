@@ -7173,7 +7173,11 @@ body:not(.stage-mode) .stage-board-title {
 body.stage-mode .board-strip,
 body.stage-mode .master-strip {
   gap: 6px;
-  padding: 7px;
+  /* padding identique au studio (12px, cf. règles de base) : un padding plus
+     petit en scène décalait le contenu de board/master de ~5px vers le haut-
+     gauche à la bascule, ce que la couche d'épinglage JS compensait. Étape 1 de
+     S3 (retrait progressif de cette couche). */
+  padding: 12px;
   box-shadow: none;
 }
 
