@@ -1,3 +1,17 @@
+/* S2 — vraie syntaxe @layer, amorcée sur le composant pad (titre/tags, lot 1).
+   Ordre de priorité croissante : base < mode < skin < responsive. Choisi par
+   analyse du sous-système titre/tags (04/09/2026) : le skin (couleurs/déco)
+   doit toujours battre un état/mode générique (ex. fond dégradé illustré basic
+   qui doit rester même pendant la lecture), alors qu'un mode+skin combiné
+   (ex. positionnement scène du titre illustré basic) est classé skin (il porte
+   déjà le qualificatif data-skin). Cet ordre n'est PAS encore revérifié pour
+   les autres sous-zones du pad (trigger/play-row/vu/progress, ~100 !important
+   restants) — à revalider avant d'étendre. Les règles encore hors couche
+   continuent à suivre la cascade normale (spécificité) et gagnent toujours
+   sur une règle mise en couche : c'est volontaire tant qu'une zone n'est pas
+   migrée. */
+@layer base, mode, skin, responsive;
+
 :root {
   color-scheme: dark;
   --color_ui_background: #101114;
@@ -2667,6 +2681,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
    semi-transparente, juste un peu plus haute que le texte, posée en bas.
    Le .pad-label (height:100%, transparent) sert uniquement à l'aligner en bas ;
    toute la surface du pad reste cliquable via le .pad-trigger transparent. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   align-self: end;
@@ -2697,6 +2712,7 @@ body[data-skin="basic"] .pad:not(.has-visual-image):not(.has-color):not(.is-edit
   background: transparent;
   border-radius: 0;
   padding: 0;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
@@ -2768,14 +2784,17 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label 
   text-align: left;
 }
 
-/* Exception au défaut `center` (règle de base .pad-title) : icône + titre côte
-   à côte (grille 44px 1fr ci-dessus) → texte aligné à gauche. Gagne par
-   spécificité seule (attr[data-skin] + 4 classes > .pad-title/.pad-tags de
-   base, 1 seule classe) ; plus besoin de !important depuis la consolidation
-   S1 des 5 règles text-align concurrentes. */
+/* Exception au défaut `center` (règle de base .pad-title, @layer base) : icône
+   + titre côte à côte (grille 44px 1fr ci-dessus) → texte aligné à gauche.
+   Combine skin+mode (garage+édition) → classée @layer skin (skin gagne
+   toujours sur base ici, cf. commentaire d'ordre des couches en tête de
+   fichier) ; plus besoin de !important depuis la consolidation S1 des 5
+   règles text-align concurrentes. */
+@layer skin {
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-title,
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags {
   text-align: left;
+}
 }
 
 .pad.is-empty {
@@ -2804,6 +2823,7 @@ body.filter-compact .pad.is-tag-dimmed {
 /* Mode « sélection manuelle » armé : le clic sur un pad l'ajoute/le retire de la
    sélection au lieu de le jouer (cf. handleManualSelectPadClick). Repères visuels :
    curseur de copie + liseré discret sur les pads cliquables. */
+@layer mode {
 body.manual-select-mode .pad,
 body.manual-select-mode .pad .pad-trigger,
 body.manual-select-mode .pad .pad-title {
@@ -2816,6 +2836,7 @@ body.manual-select-mode .pad.is-tag-match,
 body.manual-select-mode .pad.is-tag-match .pad-trigger,
 body.manual-select-mode .pad.is-tag-match .pad-title {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23222' stroke='%23fff' stroke-width='2'/%3E%3Crect x='5' y='9' width='10' height='2' rx='1' fill='%23fff'/%3E%3C/svg%3E") 10 10, pointer;
+}
 }
 
 body.manual-select-mode .pad:not(.is-tag-match) {
@@ -3589,6 +3610,7 @@ body[data-skin="print"] .patch-bay-node {
    portée par .pad-title. On neutralise tous ses fonds/bordures/ombres (built-in,
    basic, playing, pressed…). Le filtre is-ducked reste sur le trigger : il
    assombrit le titre (enfant). */
+@layer base {
 .pad-title {
   min-width: 0;
   overflow: hidden;
@@ -3619,7 +3641,9 @@ body[data-skin="print"] .patch-bay-node {
   border-radius: 6px;
   padding: 4px 10px;
 }
+}
 
+@layer mode {
 .pad.is-playing .pad-title {
   background: var(--color_pad_trigger_playing_background);
 }
@@ -3628,6 +3652,7 @@ body[data-skin="print"] .patch-bay-node {
   /* Feedback de pression NEUTRE (skin) : léger éclaircissement, plus de couleurs
      Succès/Progression codées en dur (mission #3.5). Le fond reste « Fond titre ». */
   filter: brightness(1.15);
+}
 }
 
 /* .pad-title font-size par nb de colonnes → token --pad-title-size (bloc S1) */
@@ -3691,6 +3716,7 @@ body[data-skin="print"] .patch-bay-node {
   height: 14px;
 }
 
+@layer base {
 .pad-tags {
   grid-column: 1 / -1;
   min-width: 0;
@@ -3700,6 +3726,7 @@ body[data-skin="print"] .patch-bay-node {
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
 }
 
 .pad,
@@ -4046,9 +4073,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   text-align: center;
 }
 
+@layer mode {
 .pad.is-editing .pad-title,
 .pad.is-editing .pad-tags {
   width: 100%;
+}
 }
 
 .pad.is-editing .pad-shortcut.is-number {
@@ -4231,8 +4260,10 @@ body.board-edit-mode .pad.is-editing .tags-add-btn:hover {
 }
 
 /* Garage: hide tags from trigger display, show only in chips below */
+@layer mode {
 body.board-edit-mode .pad.is-editing .pad-tags {
   display: none;
+}
 }
 
 body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
@@ -8319,10 +8350,12 @@ body.stage-mode .pad-type {
   content: none !important;
 }
 
+@layer base {
 .pad-tags {
   width: 100%;
   min-width: 0;
   text-align: center;
+}
 }
 
 /* Ne pas repasser la durée en flux ICI (sélecteur commun aux trois modes) : le garage
@@ -8604,6 +8637,7 @@ body.stage-mode .pad:not(.is-editing) .pad-label {
   min-width: 0;
 }
 
+@layer base {
 .pad:not(.is-editing) .pad-title,
 body.stage-mode .pad:not(.is-editing) .pad-title {
   display: -webkit-box;
@@ -8612,9 +8646,12 @@ body.stage-mode .pad:not(.is-editing) .pad-title {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+}
 
+@layer base {
 .pad-tags:empty {
   display: none;
+}
 }
 
 .pad:not(.is-editing) .pad-vu,
@@ -9014,24 +9051,29 @@ body.stage-mode .board-action-grid .version-notes-button {
   display: none !important;
 }
 
+@layer base {
 body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags,
 body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
   display: block;
+}
 }
 
 /* Skin Basic : dès que l'illustration (image, dessin ou couleur) est affichée,
    tags ET badges d'options sont masqués — jamais par-dessus l'illustration, en
    studio comme en scène. En mode « données » (illustration masquée par le bouton
    œil, ou pad sans illustration) ils restent visibles dans les deux modes : tags
-   via `.pad-tags{display:block}` plus haut, badges via `.pad-alerts{display:flex}`.
-   Pas de !important ni de .stage-mode : ces sélecteurs (0,6,1) battent déjà les
-   règles de base, et le critère est l'illustration, pas le mode. `display:none`
-   suffit (les resets margin/border/… d'avant étaient morts sous un display:none). */
+   via `.pad-tags{display:block}` plus haut (@layer base), badges via
+   `.pad-alerts{display:flex}`. Pas de !important : @layer skin gagne déjà sur
+   @layer base (cf. commentaire d'ordre des couches en tête de fichier), et le
+   critère est l'illustration, pas le mode. `display:none` suffit (les resets
+   margin/border/… d'avant étaient morts sous un display:none). */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
   display: none;
+}
 }
 
 /* Aides contextuelles */
@@ -9771,6 +9813,7 @@ body.stage-mode #boardName:focus {
 }
 
 /* Apply font overrides to both preview and real board */
+@layer base {
 .pad-title,
 .pad-trigger,
 .skin-editor-preview .pad-title,
@@ -9783,6 +9826,7 @@ body.stage-mode #boardName:focus {
    ne serait pas dans un `.pads`. */
 .skin-editor-preview .pad-title {
   font-size: var(--skin_font_size_title, inherit);
+}
 }
 
 .skin-editor-preview .skin-hue-match,
@@ -11203,7 +11247,11 @@ body.guest-mode .guest-light-note { display: block; }
 /* Skin basic, pad illustré en scène : la boîte titre est ÉPINGLÉE au bas du pad
    (position:absolute sur `.pad`, position:relative), quel que soit le layout
    interne de `.pad-head` / `.pad-play-row` / des rangées progress/vu/alerts qui
-   la laissaient flotter ~140px au-dessus du bas. */
+   la laissaient flotter ~140px au-dessus du bas.
+   Combine skin+mode (basic+scène) → classée @layer skin (comme l'exception
+   garage plus haut) : au sein de la couche skin, la spécificité normale la
+   fait déjà gagner sur la règle skin illustrée générale (2684, sans .stage-mode). */
+@layer skin {
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   position: absolute;
@@ -11222,6 +11270,7 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   overflow: hidden;
   padding-block: 6px 2px;
   max-height: calc(2lh + 8px);
+}
 }
 /* `.pad-trigger` (offset-parent du titre absolu) et `.pad-label` gardent en
    scène/basic illustré un `min-height` figé (clamp jusqu'à 260px / 100%),
