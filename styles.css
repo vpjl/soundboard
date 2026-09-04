@@ -1253,71 +1253,48 @@ body.board-edit-mode .board-info-section-toggle {
   display: none;
 }
 
-.live-tools {
-  /* --master-stop-size n'existe que sur .master-strip (pas de portée globale) ;
-     .live-tools est un bloc frère (pas un descendant), donc sans cette
-     redéfinition en miroir, .cue-stop-all-button ne pouvait pas la lire du
-     tout (var() invalide → ignorée). Valeurs alignées sur .master-strip à
-     chaque breakpoint non-scène (.cue-stop-all-button a ses propres règles
-     dédiées en mode scène, indépendantes de cette variable). */
+/* Barre Cues : îlot compact FIXE, centré en bas du viewport, dans tous les
+   modes (studio/scène ; masqué en garage et en invité). Remplace l'ancienne
+   mécanique sticky-scroll (classe body.cues-stuck + JS syncFloatingCueFrame,
+   toutes deux retirées) et le placement en grille dans .topbar. Le bloc
+   n'occupe plus de place dans le flux : .app réserve une bande basse pour que
+   la dernière rangée de pads ne passe pas dessous (cf. --cues-bar-clearance).
+   .cue-live-row / .xfade-live-row restent display:contents : leurs enfants
+   sont des items flex directs de .live-tools, ordonnés via `order`.
+   Scopé `.topbar > .live-tools` : l'aperçu de l'éditeur de skin a son propre
+   .live-tools (hors .topbar), qui garde un rendu en flux normal. */
+.topbar > .live-tools {
+  /* --master-stop-size n'existe que sur .master-strip (bloc frère, pas
+     ancêtre) → redéfinie ici en miroir pour que .cue-stop-all-button puisse
+     la lire. Valeur studio (le mode scène a ses propres règles dédiées). */
   --master-stop-size: 70px;
+  position: fixed;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 65;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  grid-column: 1;
-  grid-row: 3;
-  align-self: end;
-  /* max-content (pas 100%, ni fit-content) + justify-self:start : Cues n'a
-     pas besoin de toute la largeur de sa cellule de grille (souvent bien
-     plus large que ses quelques boutons, surtout en studio) — l'étirer
-     laissait un grand vide à droite dans le bloc, repéré le 2026-08-20.
-     fit-content avait été essayé d'abord, mais sur cet élément qui span 2
-     colonnes de grille (grid-column:1/-1, ci-dessous ~901px) son résultat
-     dépendait de façon incohérente de la hauteur de la fenêtre (même largeur,
-     largeur calculée différente selon la hauteur) — max-content, qui ignore
-     l'espace disponible et se cale uniquement sur le contenu, n'a pas ce
-     problème... sauf que max-content lui-même s'est avéré incohérent aussi :
-     mesuré à 707px alors que .cue-status (le texte du cue courant) est
-     plafonné à 320px par ailleurs — la contribution de .cue-status au calcul
-     max-content du parent ignore son propre max-width (chromium/firefox
-     semblent calculer cette contribution sur la taille NON contrainte).
-     680px (proche du besoin réel mesuré en état correct, 668px) : garde-fou
-     explicite sur le CONTENEUR lui-même (contourne le calcul intrinsèque peu
-     fiable, quelle qu'en soit la cause exacte — 700px ne suffisait pas,
-     à peine sous la valeur bugguée mesurée à 707px). */
+  justify-content: center;
   width: max-content;
-  max-width: min(100%, 680px);
-  justify-self: start;
+  max-width: calc(100vw - 20px);
   box-sizing: border-box;
   margin: 0;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--color_ui_panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
 }
 
-/* Studio/Garage, largeur réelle (.topbar vraiment à 2 colonnes, board+master
-   côte à côte — cf. .topbar, repli 1 colonne sous 900px) : Cues occupe sa
-   propre ligne sur toute la largeur des 2 colonnes, au-dessus des pads, sous
-   Board ET Master (pas seulement sous Board), quelle que soit leur hauteur
-   respective. Demandé le 2026-08-20, après un essai de regroupement
-   Board+Cues (colonne 1 seule) qui ne correspondait pas au design voulu.
-   Scopé à min-width:901px : sous ce seuil, .topbar passe à 1 seule colonne
-   et Board/Master/Cues ont déjà chacun leur propre ligne (2/3/4, cf. plus
-   bas) — un design différent, correct, pas touché ici (élargir grid-column
-   là-dessous provoquait un chevauchement Cues/Master, repéré le 2026-08-20). */
-@media (min-width: 901px) {
-  .live-tools {
-    grid-column: 1 / -1;
-    /* margin-top négatif : compense le gap uniforme de .topbar (18px, cf.
-       .topbar) pour que l'écart Board/Master → Cues retombe à 12px — la
-       même valeur que le gap entre pads (cf. .pads) — au lieu des 18px
-       hérités. CSS Grid ne permet pas un gap différent par paire de lignes ;
-       c'est le seul point de couplage avec la valeur de gap de .topbar (à
-       ajuster si l'un des deux change). */
-    margin-top: -6px;
-  }
+/* Volet crossfade armé (titre « Crossfade » + bouton showCables) : masquable
+   via la case master « Afficher le volet crossfade » (body.xfade-panel-hidden).
+   Le stop global et l'aide restent, eux, toujours visibles. */
+body.xfade-panel-hidden .topbar > .live-tools .xfade-live-title,
+body.xfade-panel-hidden .topbar > .live-tools .show-cables-button {
+  display: none;
 }
 
 .live-tools-title {
@@ -1329,160 +1306,41 @@ body.board-edit-mode .board-info-section-toggle {
   text-transform: uppercase;
 }
 
-/* Panneau flottant des filtres live par pad : toujours position:fixed (pas de
-   mécanique sticky-scroll comme .live-tools), déplaçable par sa poignée
-   (setupLiveFxPanelDrag) et rabattable en bas de l'écran (setLiveFxPanelDocked).
-   Une rangée repliable par pad en cours de lecture, ajoutée/retirée directement
-   par addLiveFxRow/removeLiveFxRow. */
-.live-fx-panel {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 69;
-  display: flex;
-  flex-direction: column;
-  width: 220px;
-  max-width: calc(100vw - 16px);
-}
-
-.live-fx-panel:not(:has(.live-fx-row)) {
+/* Îlot : le titre « Cues » est porté par le bouton activer/désactiver
+   (#cueEditor), pas par le h2. */
+.topbar > .live-tools .live-tools-title {
   display: none;
 }
 
-body.board-edit-mode .live-fx-panel,
-body.live-fx-panel-disabled .live-fx-panel {
-  display: none;
-}
-
-.live-fx-panel-handle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px 8px 0 0;
-  background: var(--color_ui_panel);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.live-fx-panel-handle.is-dragging {
-  cursor: grabbing;
-}
-
-.live-fx-panel-grip {
-  flex-shrink: 0;
-  color: var(--muted);
-}
-
-.live-fx-panel-title {
-  flex: 1;
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: var(--color_ui_text);
-}
-
-/* Bat .icon-button (42px) : bouton compact pour la barre de poignée du
-   panneau (padding 6px 8px), sinon le bouton forçait toute la barre à
-   grandir pour loger ses 42px. */
-#liveFxPanelDock {
-  width: 24px;
-  height: 24px;
-}
-
-#liveFxPanelDock svg {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.18s;
-}
-
-#liveFxPanelDock.is-flipped svg {
-  transform: rotate(180deg);
-}
-
-.live-fx-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  max-height: 60vh;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  background: var(--panel);
-}
-
-.live-fx-panel.is-docked {
-  top: auto !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: 0 !important;
-  width: auto;
-  transform: translateX(-50%);
-}
-
-.live-fx-panel.is-docked .live-fx-panel-handle {
-  border-radius: 8px 8px 0 0;
-}
-
-.live-fx-panel.is-docked .live-fx-panel-body {
-  display: none;
-}
-
-.live-fx-row {
+/* Bouton activer/désactiver les cues : porte le libellé « Cues » (plus d'icône).
+   Inactif = atténué ; actif = mis en avant (règle .is-active partagée ~598). */
+.cue-editor-button {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--color_ui_frame_background);
-  overflow: hidden;
-}
-
-.live-fx-row-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* .random-group-section-toggle est réutilisé tel quel (repli/dépli, pastille,
-   chevron) mais sans padding propre — on l'ajoute ici, scopé à ce contexte.
-   Bouton compact (pas seulement le chevron) : la rangée reste dense même
-   avec plusieurs pads actifs en même temps. */
-.live-fx-row .random-group-section-toggle {
-  flex: 1;
-  min-width: 0;
-  padding: 1px 3px;
-}
-
-.live-fx-row .filter-section-chevron {
-  width: 7px !important;
-  height: 7px !important;
-}
-
-.live-fx-row-title {
+  background: var(--color_ui_panel_secondary);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-/* Sélecteur à 2 classes (pas juste .live-fx-row-bypass) : nécessaire pour
-   battre .icon-button (42px, définie plus loin dans le fichier) à spécificité
-   égale sans recourir à !important — sinon la règle la plus tardive du
-   fichier gagne et le bouton reste à sa taille .icon-button par défaut. */
-.live-fx-row-head .live-fx-row-bypass {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  margin-right: 4px;
-  padding: 0;
+/* Bouton lancer / pause en cours de lecture d'enchaînement : mis en avant. */
+.cue-run-button.is-playing {
+  border-color: var(--color_status_progress);
+  color: var(--color_status_progress);
+  background: color-mix(in srgb, var(--color_status_progress) 16%, var(--color_ui_panel_secondary));
 }
 
-.live-fx-row-head .live-fx-row-bypass svg {
-  width: 13px;
-  height: 13px;
-}
-
+/* Effets live des pads : plus de panneau flottant — les curseurs (4 effets +
+   Pan/Volume + bypass) vivent uniquement au verso du pad (.pad-fx-back-body,
+   cf. setPadFxOverlayOpen). Les classes .live-fx-row-body / .live-fx-control /
+   .live-fx-row-bypass ci-dessous sont partagées avec ce verso. */
 .live-fx-row-bypass[aria-pressed="true"] {
   border-color: var(--danger);
   color: var(--danger);
@@ -1578,12 +1436,42 @@ body.board-edit-mode .live-tools {
   display: none;
 }
 
-.xfade-live-row .cue-stop-all-button {
+.xfade-live-row .cue-stop-all-button,
+.xfade-live-row .cue-mute-all-button,
+.xfade-live-row .cue-stop-group {
   display: none;
 }
 
-body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
+/* Stop global + stop groupé + mute global : toujours dans l'îlot (studio ET
+   scène), que les cues soient activées ou non — sécurités de régie. Chacun est
+   masquable via sa case master (body.stopall-hidden / .stopgroup-hidden /
+   .mute-hidden, cf. fin de fichier). */
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-stop-all-button,
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-mute-all-button {
   display: grid;
+}
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-stop-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Stop groupé dans l'îlot : bouton à la taille des autres (42px), sélecteur de
+   tag compact. Sélecteurs #id-préfixés pour battre les anciennes règles
+   `#stopGroup { width: var(--master-stop-size) }` (~70px, master strip retiré),
+   qui subsistent à plusieurs breakpoints. */
+.topbar > .live-tools #stopGroup {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  aspect-ratio: auto;
+}
+.topbar > .live-tools .cue-stop-group #stopGroupSelect {
+  height: 42px;
+  max-width: 11ch;
+  min-width: 5ch;
+  font-size: 0.8rem;
 }
 
 body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
@@ -1601,7 +1489,9 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
 .cue-window-button svg,
 .show-cables-button svg,
 .cues-help-button svg,
-.cue-stop-all-button svg {
+.cue-stop-all-button svg,
+.cue-mute-all-button svg,
+.cue-stop-group-button svg {
   display: block;
   justify-self: center;
   align-self: center;
@@ -2380,23 +2270,6 @@ body.guest-mode .random-group-row-minmax #randomGroupToggle {
   background: var(--color_ui_frame_background);
 }
 
-#stopGroup {
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-  align-self: end;
-}
-
-#masterMute {
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-}
-
 input[type="range"] {
   width: 100%;
   accent-color: var(--color_status_success);
@@ -2490,6 +2363,15 @@ button.is-pressed {
   position: relative;
   width: min(var(--board-extent, 1280px), 100%);
   margin: 0 auto;
+  /* Bande basse réservée pour l'îlot Cues fixe (position:fixed en bas) : la
+     dernière rangée de pads ne doit pas rester cachée dessous. ~2 rangées de
+     boutons + volet + marges ; masqué en garage/invité où .live-tools est
+     absent (padding inoffensif mais on l'annule pour ne pas laisser un vide). */
+  padding-bottom: calc(var(--cable-extra-bottom) + 132px);
+}
+
+body.board-edit-mode .deck,
+body.guest-mode .deck {
   padding-bottom: var(--cable-extra-bottom);
 }
 
@@ -2755,8 +2637,7 @@ body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
   color: var(--color_ui_text);
 }
 
-/* Même gabarit que le bouton bypass du panneau flottant (.live-fx-row-head
-   .live-fx-row-bypass) : ancestor différent ici, donc règle séparée. */
+/* Bouton « couper les effets » au verso du pad. */
 .pad-fx-back-head .live-fx-row-bypass {
   flex: 0 0 auto;
   width: 22px;
@@ -5075,6 +4956,11 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   text-align: center;
 }
 
+#remoteResendBoard {
+  display: block;
+  margin: 12px auto 0;
+}
+
 .remote-control-field {
   display: grid;
   gap: 6px;
@@ -5425,21 +5311,10 @@ body.no-cue-output .pad-live-row .pad-cue-button,
 /* Boutons stop globaux (master, groupe, cues) : icône en plein --color_status_stop
    comme le bouton stop du pad / le cercle du mute (color pilote currentColor =
    rect rempli + ligne au trait). Ne touche pas aux autres .danger-button. */
-#stopAll svg,
-#stopGroup svg,
 #cueStopAll svg,
-#masterMute svg {
+#masterMute svg,
+#stopGroup svg {
   color: var(--color_status_stop);
-}
-
-/* Icône plus grande dans les boutons stop global / stop groupé / mute master,
-   sans changer la taille des boutons (% de --master-stop-size → suit studio,
-   scène et mobile). */
-#stopAll svg,
-#stopGroup svg,
-#masterMute svg {
-  width: 58%;
-  height: 58%;
 }
 
 .pad-live-row .pad-mute-button.is-active {
@@ -5515,6 +5390,15 @@ body[data-skin="print"] .pad.is-missing-audio::after {
 /* Skin "print" : même fond noir en dur que le badge « manquant » ci-dessus. */
 body[data-skin="print"] .pad.is-empty:not(.is-missing-audio)::after {
   background: rgba(0, 0, 0, 0.05);
+}
+
+/* Régie (contrôle à distance) : le board miroir n'a jamais de média par
+   construction (voir applyRemoteMirrorBoard) — tous ses pads sont "vides" au
+   sens du code, mais rien n'y est réellement manquant. Le badge [?] serait un
+   faux signal sur chaque pad. */
+body.remote-controller-active .pad.is-empty::after,
+body.remote-controller-active .pad.is-missing-audio::after {
+  display: none;
 }
 
 .pad-live-check:has(input:checked) {
@@ -7266,39 +7150,9 @@ body.stage-mode .live-tools {
   justify-self: stretch;
 }
 
-body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  min-height: 84px;
-}
-
-
-body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) svg {
-  width: 42px;
-  height: 42px;
-}
-
-body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-}
-
-/* Bouton stop global (danger) : même grande taille que les boutons de cue (84px)
-   quand les cues sont activées en scène — collé au scroll ou non. */
-body.stage-mode.cues-enabled .cue-stop-all-button {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  min-height: 84px;
-}
-
-body.stage-mode.cues-enabled .cue-stop-all-button svg {
-  width: 42px;
-  height: 42px;
-}
+/* Cues actives en scène : les boutons de cue / stop global gardent la taille
+   studio (42px, cf. .cue-live-row .icon-button ~1420). L'îlot Cues étant
+   désormais fixe et facile d'accès, plus besoin de les agrandir en scène. */
 
 body.stage-mode .versions-section-toggle,
 body.stage-mode .board-manage-section-toggle,
@@ -7385,13 +7239,6 @@ body.stage-mode .master-mute-control .group-stop-row {
    sur --master-stop-size, seule leur rangée de grille suit --master-stop-btn-size
    (voir .stop-all-control/.group-stop-row plus haut) — pas de vide sous le
    bouton, et les 3 boutons restent alignés horizontalement entre eux. */
-body.stage-mode #stopAll,
-body.stage-mode #stopGroup,
-body.stage-mode #masterMute {
-  width: var(--master-stop-btn-size);
-  height: var(--master-stop-btn-size);
-  min-height: var(--master-stop-btn-size);
-}
 
 /* Même largeur que le studio (et que la .topbar, centrée) : un deck plus large
    décalait les pads à gauche/droite par rapport au bloc logo/textes et au bloc
@@ -8724,13 +8571,6 @@ body.stage-mode .secondary-live-group {
     overflow: visible !important;
   }
 
-  body.stage-mode #stopAll,
-  body.stage-mode #stopGroup,
-  body.stage-mode #masterMute {
-    width: var(--master-stop-size) !important;
-    height: var(--master-stop-size) !important;
-    min-height: var(--master-stop-size) !important;
-  }
 
   body.stage-mode .cue-live-row {
     grid-column: 1 !important;
@@ -12071,8 +11911,7 @@ body.guest-locked { overflow: hidden; }
    égale, sans !important. À revoir visuellement (pas de preview sur ce projet). */
 
 body.guest-mode .remote-control-button,
-body.guest-mode .live-tools,
-body.guest-mode #liveFxPanel {
+body.guest-mode .live-tools {
   display: none;
 }
 
@@ -12314,5 +12153,235 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   }
   body.stage-mode .master-stop-cluster {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── Îlot Cues fixe : garde-fou final ──────────────────────────────────────
+   .live-tools est maintenant un îlot position:fixed centré en bas (cf. la
+   règle de base ~1256). De nombreux overrides historiques posaient encore sa
+   position/largeur en grille (topbar) ou en plein écran (mode scène), dont
+   plusieurs en !important, plus quelques blocs `body.cues-stuck` désormais
+   morts (la classe n'est plus jamais posée — JS syncFloatingCueFrame retiré).
+   Ce bloc, le plus tardif du fichier, réaffirme le modèle d'îlot dans tous les
+   modes (studio + scène ; garage exclu, Cues y est masqué). !important assumé :
+   il neutralise des !important existants (cf. [[feedback_no_important]] — dette
+   à résorber avec le nettoyage des règles cues-stuck mortes). */
+body:not(.board-edit-mode) .topbar > .live-tools {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  width: max-content !important;
+  max-width: calc(100vw - 20px) !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  align-self: auto !important;
+  justify-self: auto !important;
+}
+
+/* Cases master « Contrôle des cues » / « Contrôle du crossfade » décochées :
+   masquer le sous-groupe correspondant dans l'îlot. Le stop global
+   (#cueStopAll) et l'aide restent toujours visibles. */
+body.cue-panel-hidden .topbar > .live-tools .live-tools-title,
+body.cue-panel-hidden .topbar > .live-tools .cue-editor-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-reset-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-run-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-next-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-status {
+  display: none !important;
+}
+
+/* Cases master « Bouton stop global / groupé / mute global » décochées :
+   masquer le bouton correspondant dans l'îlot. */
+body.stopall-hidden .topbar > .live-tools .cue-stop-all-button {
+  display: none !important;
+}
+body.stopgroup-hidden .topbar > .live-tools .cue-stop-group {
+  display: none !important;
+}
+body.mute-hidden .topbar > .live-tools .cue-mute-all-button {
+  display: none !important;
+}
+
+/* Cues inactives (bouton « Cues » éteint) OU board sans cues → on ne montre que
+   le bouton « Cues » lui-même : pas de navigation (revenir/lancer/suivante) ni
+   d'info. `body.cue-nav` = cues actives ET au moins une cue (cf. syncCueControls). */
+body:not(.cue-nav) .topbar > .live-tools .cue-reset-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-run-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-next-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-status {
+  display: none !important;
+}
+
+/* Board sans cues : bouton « Cues » grisé (mais cliquable → message + flash du
+   bouton « Réglage des cues »). */
+.cue-editor-button.is-empty {
+  opacity: 0.5;
+}
+
+@keyframes cueDialogFlash {
+  0%, 100% { }
+  50% {
+    border-color: var(--color_status_progress);
+    color: var(--color_status_progress);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color_status_progress) 30%, transparent);
+  }
+}
+.cue-window-button.flash-attention {
+  animation: cueDialogFlash 0.42s ease 3;
+}
+
+/* Réglages master — groupe « Contrôles à l'écran » : 2 colonnes remplies EN
+   COLONNE. Gauche = stops (stop global / groupé / mute) ; droite = panneaux
+   (effets live / cues / crossfade). L'ordre du DOM suit : 3 stops puis 3
+   panneaux. Titre sur toute la largeur, cases resserrées dessous. */
+.master-toggles-section {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto repeat(3, auto);
+  grid-auto-flow: column;
+  gap: 3px 14px;
+  padding-bottom: 12px;
+}
+.master-toggles-section h3 {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 1px;
+}
+/* Icône · libellé · case, packés à gauche (justify-content:start hérité) : la
+   case colle à SON libellé au lieu d'être poussée au bord droit de la demi-
+   colonne (où elle paraissait appartenir au libellé voisin). */
+.master-toggles-section .master-audio-control {
+  grid-template-columns: 18px auto max-content !important;
+  gap: 6px;
+  align-self: start;
+}
+.master-toggles-section .master-audio-control.live-fx-panel-toggle > span:not(.field-unit) {
+  grid-column: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.62rem;
+}
+.master-toggles-section .master-audio-control.live-fx-panel-toggle input[type="checkbox"] {
+  grid-column: 3;
+  margin-left: 0;
+}
+
+/* Cues désactivées → #cueStatus est vide (cf. syncCueControls) : ne pas
+   réserver d'espace pour un libellé absent. */
+.topbar > .live-tools .cue-status:empty {
+  display: none !important;
+}
+
+/* Portable / tactile : l'îlot se colle au bas de l'écran (pleine largeur) et sa
+   hauteur est fortement réduite — une seule rangée compacte, défilable
+   horizontalement si besoin. Il occupait beaucoup trop de place autrement. */
+@media (max-width: 950px), (pointer: coarse) {
+  body:not(.board-edit-mode) .topbar > .live-tools {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom)) !important;
+    border-radius: 10px 10px 0 0 !important;
+    border-bottom: none !important;
+    overflow-x: auto !important;
+  }
+  /* Le bloc portrait (~8189) repose un modèle flex 3-lignes sur .live-tools
+     (order 0-4, #cueStopAll{margin-left:auto}, ::after et .cue-status en
+     flex-basis:100%) — incompatible avec l'îlot 1-rangée. On l'aplatit :
+     tous les items en order:0, ordre DOM, sans marge auto ni flex-basis:100%. */
+  body:not(.board-edit-mode) .topbar > .live-tools::after {
+    display: none !important;
+  }
+  /* Portable : pas de libellés texte dans l'îlot (« Cues », « Crossfade »). */
+  body:not(.board-edit-mode) .topbar > .live-tools .live-tools-title,
+  body:not(.board-edit-mode) .topbar > .live-tools .xfade-live-title {
+    display: none !important;
+  }
+  body:not(.board-edit-mode) .topbar > .live-tools > *,
+  body:not(.board-edit-mode) .topbar > .live-tools .cue-live-row > *,
+  body:not(.board-edit-mode) .topbar > .live-tools .xfade-live-row > * {
+    order: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    flex-basis: auto !important;
+  }
+  .topbar > .live-tools .cue-live-row .icon-button,
+  .topbar > .live-tools .xfade-live-row .icon-button,
+  .topbar > .live-tools .cue-stop-all-button,
+  .topbar > .live-tools .cue-mute-all-button,
+  .topbar > .live-tools .cue-stop-group-button,
+  .topbar > .live-tools .show-cables-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-live-row .icon-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-stop-all-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-mute-all-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-stop-group-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .show-cables-button,
+  .topbar > .live-tools #stopGroup {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    flex: 0 0 auto !important;
+  }
+  .topbar > .live-tools .cue-stop-group #stopGroupSelect {
+    height: 30px !important;
+    max-width: 9ch !important;
+    font-size: 0.72rem !important;
+  }
+  .topbar > .live-tools .cue-editor-button {
+    height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 0.7rem !important;
+  }
+  .topbar > .live-tools .cue-live-row .icon-button svg,
+  .topbar > .live-tools .xfade-live-row .icon-button svg,
+  .topbar > .live-tools .cue-stop-all-button svg,
+  .topbar > .live-tools .cue-mute-all-button svg,
+  .topbar > .live-tools .cue-stop-group-button svg,
+  .topbar > .live-tools .show-cables-button svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  /* Pad : centrer la rangée d'options (numéro/type · durée/note/œil) au lieu
+     de la coller aux deux bords — un 1fr de chaque côté du groupe. */
+  .pad:not(.is-editing) .pad-play-row,
+  body.stage-mode .pad:not(.is-editing) .pad-play-row {
+    grid-template-columns: minmax(0, 1fr) 22px 22px 14px auto 24px 24px minmax(0, 1fr) !important;
+    grid-template-areas:
+      ". shortcut type flash time note eye ."
+      "title title title title title title title title"
+      "progress progress progress progress progress progress vu vu"
+      "alerts alerts alerts alerts alerts alerts alerts alerts" !important;
+  }
+  /* Info de cue (« lance pad X si… ») : sur 2 lignes si elle ne tient pas sur
+     une, plutôt que tronquée. */
+  .topbar > .live-tools .cue-status {
+    flex: 0 1 auto !important;
+    max-width: 55vw !important;
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    max-height: calc(1.15em * 2) !important;
+    overflow: hidden !important;
+    overflow-wrap: anywhere !important;
+  }
+  .topbar > .live-tools .xfade-live-title {
+    font-size: 0.68rem !important;
+  }
+  body:not(.board-edit-mode):not(.guest-mode) .deck {
+    padding-bottom: calc(var(--cable-extra-bottom) + 52px);
   }
 }

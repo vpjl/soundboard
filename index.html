@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=923">
+    <link rel="stylesheet" href="styles.css?v=936">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -471,41 +471,12 @@
               </button>
             </div>
           </div>
-          <div class="master-stop-cluster">
-            <div class="stop-all-control" data-skin-variable="--color_ui_frame_background">
-              <span>Stop global</span>
-              <button id="stopAll" class="danger-button icon-button" type="button" aria-label="Tout arrêter">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
-              </button>
-            </div>
-            <label class="master-control group-stop-control">
-              <span>Stop groupé</span>
-              <span class="group-stop-row">
-                <select id="stopGroupSelect" aria-label="Groupe à arrêter">
-                  <option value="">Tags</option>
-                </select>
-                <button id="stopGroup" class="danger-button icon-button" type="button" aria-label="Arrêter le groupe">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c3a70c54" xlink:href="#ic-c3a70c54"></use></svg>
-                </button>
-              </span>
-            </label>
-            <label class="master-control group-stop-control master-mute-control">
-              <span>Mute global</span>
-              <span class="group-stop-row">
-                <button id="masterMute" class="danger-button icon-button" type="button" aria-label="Couper le son master" aria-pressed="false">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-80649e34" xlink:href="#ic-80649e34"></use></svg>
-                </button>
-              </span>
-            </label>
-          </div>
         </div>
 
         <section class="live-tools" aria-label="Cues et crossfade live">
           <h2 class="live-tools-title">Cues</h2>
           <div class="cue-live-row" aria-label="Cues">
-            <button id="cueEditor" class="icon-button cue-editor-button" type="button" aria-label="Activer les cues" aria-pressed="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
-            </button>
+            <button id="cueEditor" class="cue-editor-button" type="button" aria-label="Activer les cues" aria-pressed="false">Cues</button>
             <button id="resetCuePosition" class="icon-button cue-reset-button" type="button" aria-label="Revenir au début des cues">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-05c167af" xlink:href="#ic-05c167af"></use></svg>
             </button>
@@ -522,13 +493,19 @@
             <button id="showCables" class="icon-button show-cables-button" type="button" aria-label="Xfade armé">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
             </button>
-            <button id="cuesHelp" class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade">
-              <svg viewBox="6 5 12 15" aria-hidden="true">
-                <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
             <button id="cueStopAll" class="danger-button icon-button cue-stop-all-button" type="button" aria-label="Stop global">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
+            </button>
+            <span class="cue-stop-group" aria-label="Stop groupé">
+              <select id="stopGroupSelect" aria-label="Groupe à arrêter">
+                <option value="">Tags</option>
+              </select>
+              <button id="stopGroup" class="danger-button icon-button cue-stop-group-button" type="button" aria-label="Arrêter le groupe">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c3a70c54" xlink:href="#ic-c3a70c54"></use></svg>
+              </button>
+            </span>
+            <button id="masterMute" class="danger-button icon-button cue-mute-all-button" type="button" aria-label="Couper le son master" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-80649e34" xlink:href="#ic-80649e34"></use></svg>
             </button>
           </div>
         </section>
@@ -1482,12 +1459,37 @@
               <span class="field-unit">%</span>
             </label>
           </section>
-          <section class="audio-section" aria-label="Panneau d'effets live">
-            <h3>Effets live</h3>
-            <label class="master-audio-control live-fx-panel-toggle" aria-label="Autoriser le panneau d'effets live des pads">
+          <section class="audio-section master-toggles-section" aria-label="Affichage des contrôles à l'écran">
+            <h3>Contrôles à l'écran</h3>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Afficher le bouton stop global">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-4e4061f5" xlink:href="#ic-4e4061f5"></use></svg>
+              <span>Bouton stop global</span>
+              <input id="masterStopAllVisible" type="checkbox" checked>
+            </label>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Afficher le bouton stop groupé">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-c3a70c54" xlink:href="#ic-c3a70c54"></use></svg>
+              <span>Bouton stop groupé</span>
+              <input id="masterStopGroupVisible" type="checkbox" checked>
+            </label>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Afficher le bouton mute global">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-80649e34" xlink:href="#ic-80649e34"></use></svg>
+              <span>Bouton mute global</span>
+              <input id="masterMuteVisible" type="checkbox" checked>
+            </label>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Activer les effets live des pads">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-13b98930" xlink:href="#ic-13b98930"></use></svg>
-              <span>Afficher le panneau</span>
+              <span>Effets live des pads</span>
               <input id="masterLiveFxPanelEnabled" type="checkbox" checked>
+            </label>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Afficher le contrôle des cues">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
+              <span>Contrôle des cues</span>
+              <input id="masterCuePanelVisible" type="checkbox" checked>
+            </label>
+            <label class="master-audio-control live-fx-panel-toggle" aria-label="Afficher le contrôle du crossfade">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-36e4c7fc" xlink:href="#ic-36e4c7fc"></use></svg>
+              <span>Contrôle du crossfade</span>
+              <input id="masterXfadePanelVisible" type="checkbox" checked>
             </label>
           </section>
           <section class="audio-section" aria-label="Reverb master">
@@ -1974,6 +1976,8 @@
         <div id="remoteFacadeFields" class="remote-control-role-panel" hidden>
           <p class="remote-control-hint">Code à saisir sur l'appareil régie :</p>
           <p id="remoteControlCode" class="remote-control-code">— — —</p>
+          <button id="remoteResendBoard" class="small-button" type="button" disabled>Renvoyer le board à la régie</button>
+          <p class="remote-control-hint">La régie reçoit le board de la façade automatiquement à la connexion et à chaque changement de board. Ce bouton force un renvoi après des modifications.</p>
         </div>
         <div id="remoteControllerFields" class="remote-control-role-panel" hidden>
           <label class="remote-control-field">
@@ -2376,16 +2380,6 @@
       </div>
     </dialog>
 
-    <div id="liveFxPanel" class="live-fx-panel" aria-label="Filtres live des pads en cours">
-      <div class="live-fx-panel-handle" id="liveFxPanelHandle">
-        <span class="live-fx-panel-grip" aria-hidden="true">⠿</span>
-        <span class="live-fx-panel-title">Effets live</span>
-        <button type="button" id="liveFxPanelDock" class="icon-button" aria-label="Rabattre le panneau">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-9e12ff76" xlink:href="#ic-9e12ff76"></use></svg>
-        </button>
-      </div>
-      <div class="live-fx-panel-body" id="liveFxPanelBody"></div>
-    </div>
 
     <!-- Mode invité : fenêtre de mot de passe pour un board partagé par lien (#g=…). -->
     <div id="guestGate" class="guest-gate" hidden>
@@ -2411,7 +2405,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=923"></script>
+    <script src="app.js?v=936"></script>
 
 
   </body>

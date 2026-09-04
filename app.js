@@ -43,6 +43,11 @@ const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const MASTER_COMPRESSOR_STORAGE = "soundboard-live-master-compressor";
 const MASTER_LIVE_FX_PANEL_ENABLED_STORAGE = "soundboard-live-master-fx-panel-enabled";
+const MASTER_CUE_PANEL_VISIBLE_STORAGE = "soundboard-cue-panel-visible";
+const MASTER_XFADE_PANEL_VISIBLE_STORAGE = "soundboard-xfade-panel-visible";
+const MASTER_STOPALL_VISIBLE_STORAGE = "soundboard-stopall-visible";
+const MASTER_STOPGROUP_VISIBLE_STORAGE = "soundboard-stopgroup-visible";
+const MASTER_MUTE_VISIBLE_STORAGE = "soundboard-mute-visible";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
 const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
@@ -144,6 +149,13 @@ const PAD_COMPACTNESS_MAX = 260;
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
+// Board « miroir » reconstruit côté régie à partir du board poussé par la
+// façade (contrôle à distance). Jamais persisté sur disque (voir saveBoards) :
+// il est réémis par la façade à chaque connexion.
+const REMOTE_MIRROR_BOARD_ID = "__remote_mirror__";
+// Taille max d'une tranche de board sur le fil : le relais WebSocket coupe la
+// socket au-delà de 1 Mo par frame (remote-relay.js), on reste très en dessous.
+const REMOTE_BOARD_CHUNK_SIZE = 64 * 1024;
 const DEFAULT_MASTER_VOLUME = 0.6;
 const DEFAULT_CUE_VOLUME = 0.6;
 const DEFAULT_TEXT_RATE = 0.85;
@@ -217,7 +229,6 @@ const state = {
   masterEqHigh: null,
   masterCompressor: null,
   masterCompressorMakeup: null,
-  liveFxPanelDocked: false,
   liveFxPanelAllowed: true,
   liveFxPadSettings: {},
   masterOutputDestination: null,
@@ -233,6 +244,10 @@ const state = {
   remoteConnected: false,
   remoteReconnectTimer: null,
   remoteReconnectDelay: 1000,
+  remoteBoardRev: 0, // façade : révision du board poussé (monotone, repart de 0 par connexion)
+  remoteBoardRxRev: -1, // régie : dernière révision de board appliquée
+  remoteBoardRxBuffer: null, // régie : { rev, total, parts:Map<seq,string>, startedAt }
+  remoteBoardRxTimer: null,
   boards: [],
   currentBoardId: DEFAULT_BOARD_ID,
   pads: [],
@@ -306,6 +321,7 @@ const state = {
   cueDragIndex: -1,
   cueWaitTimer: null,
   cueRunning: false,
+  cuePlaying: false,   // enchaînement auto des cues armé (bouton lancer/pause)
   cuePreviewAudio: null,
   cuePreviewUtterance: null,
   cuePreviewAnalyser: null,
@@ -340,7 +356,6 @@ const state = {
   audioLibraryUsedEntries: [],
   audioLibraryOrphanGroups: [],
   audioLibrarySort: null,
-  cueFloatAnchorTop: null,
   skinEditorVariables: {},
 };
 
@@ -391,11 +406,12 @@ const els = {
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
-  liveFxPanel: document.querySelector("#liveFxPanel"),
   masterLiveFxPanelEnabled: document.querySelector("#masterLiveFxPanelEnabled"),
-  liveFxPanelHandle: document.querySelector("#liveFxPanelHandle"),
-  liveFxPanelDock: document.querySelector("#liveFxPanelDock"),
-  liveFxPanelBody: document.querySelector("#liveFxPanelBody"),
+  masterCuePanelVisible: document.querySelector("#masterCuePanelVisible"),
+  masterXfadePanelVisible: document.querySelector("#masterXfadePanelVisible"),
+  masterStopAllVisible: document.querySelector("#masterStopAllVisible"),
+  masterStopGroupVisible: document.querySelector("#masterStopGroupVisible"),
+  masterMuteVisible: document.querySelector("#masterMuteVisible"),
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterMicrophoneSelect: document.querySelector("#masterMicrophoneSelect"),
@@ -433,6 +449,7 @@ const els = {
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
   guestGate: document.querySelector("#guestGate"),
+  remoteResendBoard: document.querySelector("#remoteResendBoard"),
   remoteControlButton: document.querySelector("#remoteControlButton"),
   remoteControlIndicator: document.querySelector("#remoteControlIndicator"),
   remoteControlDialog: document.querySelector("#remoteControlDialog"),
@@ -2363,10 +2380,6 @@ function applyPadLiveDelay(pad, value) {
   unit.wet.gain.setTargetAtTime(amount * LIVE_DELAY_MAX_WET, state.audioContext.currentTime, 0.03);
 }
 
-function liveFxRowId(pad) {
-  return `live-fx-row-${pad.uid}`;
-}
-
 const LIVE_FX_PAD_SETTINGS_STORAGE = "soundboard-live-fx-pad-settings";
 
 // Mémorisation légère, indépendante des métadonnées du pad (pas d'export/
@@ -2608,17 +2621,8 @@ function setPadFxOverlayOpen(pad, open) {
     pad.fxBackBodyEl = freshBody;
   }
   syncPadFxOverlayBypass(pad);
-  // Le pad joue déjà (ligne présente dans le panneau flottant) : on ramène ce
-  // panneau en bas d'écran, qu'il ait été rabattu ou déplacé, pour garder le
-  // rack (mêmes réglages, vue globale) visible à côté.
-  if (document.getElementById(liveFxRowId(pad))) {
-    if (state.liveFxPanelDocked) setLiveFxPanelDocked(false, true, true);
-    else resetLiveFxPanelPositionToBottom();
-  }
-  // Le panneau flottant s'ouvre toujours coupé (sécurité). Ici, ouverture par
-  // un geste délibéré : on rétablit les effets. pad.liveFxBypassed est partagé
-  // avec le panneau flottant (un seul graphe audio) — le rétablissement vaut
-  // pour lui aussi.
+  // Ouverture par un geste délibéré : on rétablit les effets (les nœuds audio
+  // repartent toujours coupés à chaque lecture, cf. démarrage du pad).
   setLiveFxBypassed(pad, false);
 }
 
@@ -2629,7 +2633,7 @@ function syncPadFxOverlayBypass(pad) {
   const head = pad.fxBackHeadEl;
   if (!head) return;
   head.querySelector(".live-fx-row-bypass")?.remove();
-  if (pad.fxOverlayOpen && document.getElementById(liveFxRowId(pad))) {
+  if (pad.fxOverlayOpen && pad.node.classList.contains("is-playing")) {
     head.appendChild(createLiveFxBypassButton(pad));
   }
 }
@@ -2659,7 +2663,9 @@ function handlePadEyeButton(pad) {
   const isBasicSkin = document.body.dataset.skin === "basic";
   const hasIllustration = Boolean(pad.visualImage || pad.color);
   // Pads texte / vidéo : pas d'effets live — le bouton ne gère que l'illustration.
-  const fxAllowed = padType(pad) === "audio";
+  // Case master « Activer les effets live » décochée : idem, l'œil ne pilote plus
+  // que l'illustration.
+  const fxAllowed = padType(pad) === "audio" && state.liveFxPanelAllowed;
   const illustrationShown = isBasicSkin && hasIllustration
     && !pad.node.classList.contains("is-visual-hidden");
   if (illustrationShown) {
@@ -2686,205 +2692,96 @@ function handlePadEyeButton(pad) {
   window.setTimeout(() => syncAllPadMinHeightsSoon(), 400);
 }
 
-function addLiveFxRow(pad) {
-  if (!els.liveFxPanelBody || !pad.gain || !pad.liveFilterNode) return;
-  if (document.getElementById(liveFxRowId(pad))) return;
-  pad.liveFxBypassed = false;
-  const row = document.createElement("div");
-  row.className = "live-fx-row";
-  row.id = liveFxRowId(pad);
-
-  const head = document.createElement("div");
-  head.className = "live-fx-row-head";
-
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "random-group-section-toggle is-active";
-  toggle.setAttribute("aria-expanded", "true");
-  toggle.title = `Déplier/replier les effets — ${pad.title}`;
-  const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  chevron.setAttribute("viewBox", "0 0 24 24");
-  chevron.setAttribute("aria-hidden", "true");
-  chevron.setAttribute("class", "filter-section-chevron");
-  chevron.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-  const dot = document.createElement("span");
-  dot.className = "random-group-playing-dot";
-  const label = document.createElement("span");
-  label.className = "live-fx-row-title";
-  label.textContent = pad.title;
-  toggle.append(chevron, dot, label);
-
-  const bypassBtn = createLiveFxBypassButton(pad);
-
-  head.append(toggle, bypassBtn);
-
-  const body = buildLiveFxControlsBody(pad);
-  body.append(...createLiveFxPanVolumeControls(pad));
-  body.hidden = false;
-
-  toggle.addEventListener("click", () => {
-    const expanded = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!expanded));
-    body.hidden = expanded;
-  });
-
-  row.append(head, body);
-  els.liveFxPanelBody.appendChild(row);
-  // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
-  // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
-  // pas explicitement les effets (pas de surprise sonore à l'ouverture) —
-  // SAUF si le panneau effets plein pad est déjà ouvert : l'utilisateur vient
-  // alors de rétablir les effets explicitement en l'ouvrant (cf.
-  // setPadFxOverlayOpen), lancer le pad ne doit pas annuler ce choix. On
-  // passe par setLiveFxBypassed(pad, false) plutôt que de simplement sauter
-  // l'appel : les nœuds audio effets sont recréés à zéro à chaque lecture
-  // (juste avant addLiveFxRow), donc sans repasser par son branche
-  // "non coupé" (reapplyLiveFxRow), les valeurs mémorisées des curseurs
-  // n'étaient jamais réappliquées aux nouveaux nœuds — le bouton affichait
-  // le bon état mais le son restait sec.
-  setLiveFxBypassed(pad, !pad.fxOverlayOpen);
-  syncPadFxOverlayBypass(pad);
-}
-
-function removeLiveFxRow(pad) {
-  document.getElementById(liveFxRowId(pad))?.remove();
-  syncPadFxOverlayBypass(pad);
-}
-
-const LIVE_FX_PANEL_POSITION_STORAGE = "soundboard-live-fx-panel-position";
-const LIVE_FX_PANEL_DOCKED_STORAGE = "soundboard-live-fx-panel-docked";
-
-function clampLiveFxPanelPosition() {
-  const panel = els.liveFxPanel;
-  if (!panel || panel.classList.contains("is-docked") || panel.style.left === "") return;
-  const rect = panel.getBoundingClientRect();
-  const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
-  const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
-  const left = Math.min(maxLeft, Math.max(8, rect.left));
-  const top = Math.min(maxTop, Math.max(8, rect.top));
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-}
-
-function saveLiveFxPanelPosition(left, top) {
-  localStorage.setItem(LIVE_FX_PANEL_POSITION_STORAGE, JSON.stringify({ left, top }));
-}
-
-function applyStoredLiveFxPanelPosition() {
-  const panel = els.liveFxPanel;
-  if (!panel) return;
-  let saved = null;
-  try {
-    saved = JSON.parse(localStorage.getItem(LIVE_FX_PANEL_POSITION_STORAGE));
-  } catch {
-    saved = null;
-  }
-  if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    panel.style.left = `${saved.left}px`;
-    panel.style.top = `${saved.top}px`;
-    clampLiveFxPanelPosition();
-  }
-}
-
-// Déplier le panneau (bouton chevron) le fait toujours réapparaître en bas
-// de l'écran (position CSS par défaut), quelle que soit la position où il
-// avait été déplacé avant d'être rabattu — on peut ensuite le redéplacer à
-// volonté via sa poignée (setupLiveFxPanelDrag).
-function resetLiveFxPanelPositionToBottom() {
-  const panel = els.liveFxPanel;
-  if (!panel) return;
-  panel.style.left = "";
-  panel.style.top = "";
-  panel.style.right = "";
-  panel.style.bottom = "";
-  localStorage.removeItem(LIVE_FX_PANEL_POSITION_STORAGE);
-}
-
-function setLiveFxPanelDocked(docked, persist = true, resetPosition = false) {
-  state.liveFxPanelDocked = docked;
-  els.liveFxPanel?.classList.toggle("is-docked", docked);
-  if (els.liveFxPanelDock) {
-    els.liveFxPanelDock.setAttribute("aria-label", docked ? "Déplier le panneau" : "Rabattre le panneau");
-    els.liveFxPanelDock.classList.toggle("is-flipped", docked);
-  }
-  if (persist) localStorage.setItem(LIVE_FX_PANEL_DOCKED_STORAGE, docked ? "on" : "off");
-  if (!docked) {
-    if (resetPosition) resetLiveFxPanelPositionToBottom();
-    else applyStoredLiveFxPanelPosition();
-  }
-}
-
-function setupLiveFxPanelDrag() {
-  const handle = els.liveFxPanelHandle;
-  const panel = els.liveFxPanel;
-  if (!handle || !panel) return;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-  let dragging = false;
-
-  handle.addEventListener("pointerdown", (event) => {
-    if (state.liveFxPanelDocked || event.target.closest("#liveFxPanelDock")) return;
-    const rect = panel.getBoundingClientRect();
-    panel.style.left = `${rect.left}px`;
-    panel.style.top = `${rect.top}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    dragOffsetX = event.clientX - rect.left;
-    dragOffsetY = event.clientY - rect.top;
-    dragging = true;
-    handle.classList.add("is-dragging");
-    handle.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }, { passive: false });
-
-  handle.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
-    const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
-    const left = Math.min(maxLeft, Math.max(8, event.clientX - dragOffsetX));
-    const top = Math.min(maxTop, Math.max(8, event.clientY - dragOffsetY));
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
-    event.preventDefault();
-  }, { passive: false });
-
-  const endDrag = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove("is-dragging");
-    try { handle.releasePointerCapture(event.pointerId); } catch {
-      // Déjà relâché.
-    }
-    const rect = panel.getBoundingClientRect();
-    saveLiveFxPanelPosition(rect.left, rect.top);
-  };
-  handle.addEventListener("pointerup", endDrag);
-  handle.addEventListener("pointercancel", endDrag);
-}
-
+// Case master « Activer les effets live » : quand elle est décochée, l'overlay
+// effets des pads (bouton œil) est neutralisé. Aucun panneau flottant : les
+// effets live se règlent uniquement au verso du pad (setPadFxOverlayOpen).
 function setLiveFxPanelAllowed(allowed, persist = true) {
   state.liveFxPanelAllowed = allowed;
   document.body.classList.toggle("live-fx-panel-disabled", !allowed);
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = allowed;
   if (persist) localStorage.setItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE, allowed ? "on" : "off");
   updateMasterOptionBadges();
+  if (!allowed) {
+    state.pads?.forEach((pad) => {
+      if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false);
+    });
+  }
+}
+
+// Contrôle des cues (bouton activer + navigation + statut) dans l'îlot Cues :
+// masquable via la case master, pour qui n'utilise pas les cues.
+// body.cue-panel-hidden pilote la visibilité en CSS.
+function setCuePanelVisible(visible, persist = true) {
+  document.body.classList.toggle("cue-panel-hidden", !visible);
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_CUE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+  // Contrôle des cues masqué → l'enchaînement auto s'arrête aussi. Resync de
+  // l'état (body.cues-enabled, boutons). Pas au boot (persist=false, boards pas
+  // encore chargés) — l'init appelle syncCueControls plus tard.
+  if (!visible) pauseCuePlayback();
+  if (persist && typeof syncCueControls === "function") syncCueControls();
+}
+
+// Contrôle crossfade armé (titre « Crossfade » + bouton showCables) dans l'îlot
+// Cues : masquable via la case master, pour qui n'utilise pas le crossfade
+// manuel. body.xfade-panel-hidden pilote la visibilité en CSS.
+function setXfadePanelVisible(visible, persist = true) {
+  document.body.classList.toggle("xfade-panel-hidden", !visible);
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_XFADE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+// Boutons stop global / stop groupé / mute global dans l'îlot Cues : chacun
+// masquable via sa case master. body.stopall-hidden / .stopgroup-hidden /
+// .mute-hidden pilotent la visibilité en CSS.
+function setStopAllVisible(visible, persist = true) {
+  document.body.classList.toggle("stopall-hidden", !visible);
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_STOPALL_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+function setStopGroupVisible(visible, persist = true) {
+  document.body.classList.toggle("stopgroup-hidden", !visible);
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_STOPGROUP_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+function setMuteVisible(visible, persist = true) {
+  document.body.classList.toggle("mute-hidden", !visible);
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_MUTE_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 function initLiveFxPanelChrome() {
-  applyStoredLiveFxPanelPosition();
-  setLiveFxPanelDocked(localStorage.getItem(LIVE_FX_PANEL_DOCKED_STORAGE) === "on", false);
-  setupLiveFxPanelDrag();
-  els.liveFxPanelDock?.addEventListener("click", () => {
-    const opening = state.liveFxPanelDocked;
-    setLiveFxPanelDocked(!opening, true, opening);
-  });
-  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   const storedAllowed = localStorage.getItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE);
   setLiveFxPanelAllowed(storedAllowed == null ? true : storedAllowed === "on", false);
   els.masterLiveFxPanelEnabled?.addEventListener("change", () => {
     setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled.checked));
+  });
+  const storedStopAll = localStorage.getItem(MASTER_STOPALL_VISIBLE_STORAGE);
+  setStopAllVisible(storedStopAll == null ? true : storedStopAll === "on", false);
+  els.masterStopAllVisible?.addEventListener("change", () => {
+    setStopAllVisible(Boolean(els.masterStopAllVisible.checked));
+  });
+  const storedStopGroup = localStorage.getItem(MASTER_STOPGROUP_VISIBLE_STORAGE);
+  setStopGroupVisible(storedStopGroup == null ? true : storedStopGroup === "on", false);
+  els.masterStopGroupVisible?.addEventListener("change", () => {
+    setStopGroupVisible(Boolean(els.masterStopGroupVisible.checked));
+  });
+  const storedMute = localStorage.getItem(MASTER_MUTE_VISIBLE_STORAGE);
+  setMuteVisible(storedMute == null ? true : storedMute === "on", false);
+  els.masterMuteVisible?.addEventListener("change", () => {
+    setMuteVisible(Boolean(els.masterMuteVisible.checked));
+  });
+  const storedCue = localStorage.getItem(MASTER_CUE_PANEL_VISIBLE_STORAGE);
+  setCuePanelVisible(storedCue == null ? true : storedCue === "on", false);
+  els.masterCuePanelVisible?.addEventListener("change", () => {
+    setCuePanelVisible(Boolean(els.masterCuePanelVisible.checked));
+  });
+  const storedXfade = localStorage.getItem(MASTER_XFADE_PANEL_VISIBLE_STORAGE);
+  setXfadePanelVisible(storedXfade == null ? true : storedXfade === "on", false);
+  els.masterXfadePanelVisible?.addEventListener("change", () => {
+    setXfadePanelVisible(Boolean(els.masterXfadePanelVisible.checked));
   });
 }
 
@@ -3601,7 +3498,11 @@ function loadBoards() {
 }
 
 function saveBoards() {
-  localStorage.setItem(BOARDS_STORAGE, JSON.stringify(state.boards));
+  // Le board miroir de la régie (contrôle à distance) ne va jamais sur disque :
+  // il est reconstruit depuis la façade à chaque connexion. Au reboot, le garde
+  // de init() ramène currentBoardId sur un board réel s'il pointait le miroir.
+  const persistable = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  localStorage.setItem(BOARDS_STORAGE, JSON.stringify(persistable));
   localStorage.setItem(CURRENT_BOARD_STORAGE, state.currentBoardId);
 }
 
@@ -3882,23 +3783,67 @@ function clearCueWaitTimer() {
   if (els.cueRun) els.cueRun.disabled = false;
 }
 
+// Fait clignoter 3× le bouton « Réglage des cues » (coin master) — appelé quand
+// l'utilisateur tente d'activer/lancer des cues sur un board qui n'en a pas.
+function flashCueDialogButton() {
+  const btn = els.openCueDialog;
+  if (!btn) return;
+  btn.classList.remove("flash-attention");
+  void btn.offsetWidth; // reflow : redémarre l'animation même si déjà en cours
+  btn.classList.add("flash-attention");
+  btn.addEventListener(
+    "animationend",
+    () => btn.classList.remove("flash-attention"),
+    { once: true },
+  );
+}
+
+// Arrête l'enchaînement automatique des cues (bouton pause, stop global,
+// désactivation des cues) sans toucher aux sons en cours.
+function pauseCuePlayback() {
+  state.cuePlaying = false;
+  state.cueRunning = false;
+  clearCueWaitTimer();
+}
+
 function syncCueControls() {
   const board = currentBoard();
   const cues = normalizeCues(board?.cues);
+  const hasCues = cues.length > 0;
   if (board) {
     board.cues = cues;
     board.cueIndex = cueIndexForBoard(board);
     if (board.cuesEnabled == null) board.cuesEnabled = false;
   }
-  const hasCues = cues.length > 0;
-  const cuesEnabled = board?.cuesEnabled === true;
-  document.body.classList.toggle("cues-enabled", Boolean(cuesEnabled));
+  // Cues actives = contrôle affiché (case master « Contrôle des cues ») ET
+  // bouton « Cues » de l'îlot enclenché (board.cuesEnabled, par board).
+  const panelShown = !document.body.classList.contains("cue-panel-hidden");
+  const cuesEnabled = panelShown && board?.cuesEnabled === true;
+  document.body.classList.toggle("cues-enabled", cuesEnabled);
+  document.body.classList.toggle("has-cues", hasCues);
+  // Boutons navigation + info : visibles seulement si les cues sont actives ET
+  // qu'il y en a. Sinon on ne montre que le bouton « Cues ».
+  document.body.classList.toggle("cue-nav", cuesEnabled && hasCues);
+  document.body.classList.toggle("cues-playing", cuesEnabled && Boolean(state.cuePlaying));
   els.cueEditor?.classList.toggle("is-active", cuesEnabled);
+  els.cueEditor?.classList.toggle("is-empty", !hasCues);
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   els.cueEditor?.setAttribute("title", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   const cueActionDisabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
-  if (els.cueRun) els.cueRun.disabled = cueActionDisabled;
+  if (els.cueRun) {
+    els.cueRun.disabled = cueActionDisabled;
+    const playing = cuesEnabled && Boolean(state.cuePlaying);
+    els.cueRun.classList.toggle("is-playing", playing);
+    els.cueRun.setAttribute("aria-label", playing ? "Mettre les cues en pause" : "Lancer le cue courant");
+    els.cueRun.setAttribute("title", playing ? "Pause (n'arrête pas les sons en cours)" : "Lancer le cue courant");
+    const runUse = els.cueRun.querySelector("use");
+    if (runUse) {
+      const icon = playing ? "#ic-rndpause" : "#ic-417557d6";
+      runUse.setAttribute("href", icon);
+      runUse.setAttribute("xlink:href", icon);
+    }
+  }
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
   const hasCrossfade = patchBayRows().length > 0;
@@ -3913,120 +3858,13 @@ function syncCueControls() {
   if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
   if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
   if (els.cueStatus) {
-    els.cueStatus.textContent = !cuesEnabled
-      ? "Cues désactivées"
-      : hasCues
+    // Info affichée seulement quand les cues sont actives et qu'il y en a.
+    els.cueStatus.textContent = cuesEnabled && hasCues
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
-      : "Pas de cues";
+      : "";
   }
   renderCueTimeline(cues);
-  requestAnimationFrame(() => syncFloatingCueFrame(true));
   broadcastRemoteCueState(board);
-}
-
-// Aligne le bord gauche du titre "Crossfade" sur celui du bouton "armer
-// crossfade manuel" (#showCables) — utile uniquement quand ils sont empilés
-// sur deux lignes séparées (bloc cues portable) : le flex seul ne peut pas
-// garantir cet alignement entre deux lignes différentes (contrairement à une
-// grille, mais une grille ici redistribuait l'espace de façon incohérente au
-// collage/décollage du bloc, cf. commentaire CSS de .live-tools en portrait).
-// No-op si les deux sont déjà sur la même ligne (desktop : title juste avant
-// le bouton, sur une seule ligne — un margin-left calculé les ferait alors
-// se chevaucher).
-function alignXfadeTitle() {
-  const title = document.querySelector(".xfade-live-title");
-  const btn = document.getElementById("showCables");
-  if (!title || !btn) return;
-  title.style.removeProperty("margin-left");
-  const btnRect = btn.getBoundingClientRect();
-  const titleRect = title.getBoundingClientRect();
-  if (Math.round(titleRect.top) === Math.round(btnRect.top)) return;
-  const delta = Math.round(btnRect.left - titleRect.left);
-  if (delta > 0) title.style.marginLeft = `${delta}px`;
-}
-
-function syncFloatingCueFrame(resetAnchor = false) {
-  if (!els.liveTools) return;
-  alignXfadeTitle();
-  const mainEl = document.querySelector("main");
-  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
-  if (!shouldFloat) {
-    document.body.classList.remove("cues-stuck");
-    state.cueFloatAnchorTop = null;
-    mainEl?.style.removeProperty("padding-top");
-    els.liveTools.style.removeProperty("width");
-    els.liveTools.style.removeProperty("margin-left");
-    els.liveTools.style.removeProperty("left");
-    els.liveTools.style.removeProperty("right");
-    return;
-  }
-  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
-  const wasStuck = document.body.classList.contains("cues-stuck");
-  if (resetAnchor || state.cueFloatAnchorTop == null) {
-    if (wasStuck) document.body.classList.remove("cues-stuck");
-    state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
-  }
-  // Le collage (position:fixed) ne se déclenche qu'au scroll, quand le bloc
-  // sortirait sinon de l'écran — jamais à la simple activation des cues.
-  const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
-  document.body.classList.toggle("cues-stuck", shouldStick);
-
-  // Bloc cues activé aligné sur le bord GAUCHE de la zone des pads (.deck) —
-  // plus sur sa largeur entière depuis le 2026-08-20 (le bloc épouse son
-  // contenu, cf. width:fit-content sur .live-tools). .deck fait
-  // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne
-  // coïncide pas avec le conteneur du bloc, donc on mesure sa géométrie et on
-  // y cale le bord gauche (studio ET scène). setProperty(..., "important")
-  // car des règles .live-tools posent left/transform en !important. Fait
-  // AVANT la mesure de hauteur ci-dessous (pour padding-top) : sinon cette
-  // mesure lit une géométrie encore partiellement stale (position:fixed déjà
-  // actif via la classe, mais left/transform pas encore réappliqués pour ce
-  // tick).
-  const deck = document.querySelector(".deck");
-  if (deck) {
-    const deckRect = deck.getBoundingClientRect();
-    if (shouldStick) {
-      // Collé (position:fixed) : caler left sur le bord gauche des pads, mais
-      // PAS la largeur — le bloc épouse son contenu (width:fit-content côté
-      // CSS, cf. .live-tools ci-dessus), demandé le 2026-08-20 (la bordure
-      // s'étirait jusqu'au bord droit des pads sans que le contenu suive).
-      els.liveTools.style.removeProperty("width");
-      els.liveTools.style.setProperty("left", `${Math.round(deckRect.left)}px`, "important");
-      els.liveTools.style.setProperty("right", "auto", "important");
-      els.liveTools.style.setProperty("transform", "none", "important");
-      els.liveTools.style.setProperty("margin-left", "0px", "important");
-    } else {
-      // Dans le flux : PAS de largeur forcée (le bloc épouse son contenu,
-      // width:fit-content côté CSS, demandé le 2026-08-20 — un vide à droite
-      // apparaissait quand le contenu de Cues était plus étroit que la zone
-      // des pads). Seule la marge est compensée pour aligner le bord GAUCHE
-      // du bloc sur celui des pads (le blocLeft mesuré inclut un éventuel
-      // transform d'épinglage studio, donc la compensation reste correcte).
-      els.liveTools.style.setProperty("margin-left", "0px", "important");
-      els.liveTools.style.removeProperty("width");
-      const blocLeft = els.liveTools.getBoundingClientRect().left;
-      els.liveTools.style.setProperty("margin-left", `${Math.round(deckRect.left - blocLeft)}px`, "important");
-      els.liveTools.style.removeProperty("left");
-      els.liveTools.style.removeProperty("right");
-    }
-  }
-
-  // La compensation CSS (main{padding-top:92px}) suppose la taille studio des
-  // boutons de cues : en scène ils sont bien plus grands (cf. "boutons plus
-  // gros" quand les cues sont actives), donc 92px est insuffisant et les pads
-  // remontent pour combler l'espace laissé par .live-tools sorti du flux
-  // (position:fixed). On mesure la vraie hauteur (largeur/position déjà à jour
-  // ci-dessus) au lieu d'une valeur fixe.
-  if (mainEl) {
-    if (shouldStick) {
-      const liveToolsHeight = els.liveTools.getBoundingClientRect().height;
-      mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
-    } else {
-      mainEl.style.removeProperty("padding-top");
-    }
-  }
-
-  document.getElementById("cueDebugBadge")?.remove();
 }
 
 function cueSelectablePads() {
@@ -4484,6 +4322,10 @@ function cueConditionWaitLabel(step) {
 
 function checkCueConditions(endedPad = null) {
   const board = currentBoard();
+  // Enchaînement auto suspendu tant que les cues ne sont pas « en lecture »
+  // (bouton lancer/pause de l'îlot) — sinon un board en boucle (ex. « gamme
+  // chromatique ») est impossible à arrêter sans stop global.
+  if (!state.cuePlaying) return;
   if (board?.cuesEnabled === false || !board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
   const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
   if (!cueConditionMet(step, endedPad)) return;
@@ -5816,7 +5658,7 @@ async function switchBoard(boardId) {
     return;
   }
   const wasEditing = state.boardEditMode;
-  clearCueWaitTimer();
+  pauseCuePlayback();
   setBoardPadEditing(false);
   if (wasEditing) {
     state.boardEditMode = true;
@@ -5831,6 +5673,8 @@ async function switchBoard(boardId) {
   renderBoardOptions();
   await renderPads({ preserveEditMode: wasEditing });
   if (wasEditing) setBoardPadEditing(true);
+  // Façade : la régie suit le board courant sans import manuel.
+  if (state.remoteRole === "display") pushBoardToRemote();
 }
 
 // Dernier nombre de pads choisi à la création d'un board (sert de valeur pré-remplie).
@@ -8776,13 +8620,17 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
   const exportMode = normalizeExportMode(modeOrIncludeAudio);
   const includeAudio = exportMode !== "settings";
   const includeVideo = exportMode === "full";
-  if (!confirmExportWithoutVideos(includeVideo)) {
+  // forRemote : sérialisation en mémoire pour le contrôle à distance (push du
+  // board façade → régie). Pas de confirmation ni de statuts d'avance : le geste
+  // est automatique, pas une action explicite de l'utilisateur.
+  const forRemote = Boolean(opts.forRemote);
+  if (!forRemote && !confirmExportWithoutVideos(includeVideo)) {
     setStatus("Export annulé");
     return;
   }
   const board = currentBoard();
   // Immediate feedback: the prep step (persist) can take a moment with no UI.
-  setStatus("Préparation de l'export…", "progress");
+  if (!forRemote) setStatus("Préparation de l'export…", "progress");
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const pads = [];
   syncPadIndexesFromDom();
@@ -8797,7 +8645,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const hasVideoPad = Boolean(saved?.video || saved?.videoName || meta?.videoName || meta?.videoPath);
-    setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
+    if (!forRemote) setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
     const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
@@ -8879,6 +8727,19 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     });
   }
 
+  if (forRemote) {
+    // Un pad façade sans média (pas de son, pas de vidéo, pas de texte à lire)
+    // n'a rien à piloter à distance : ne pas envoyer son titre/couleur/tags/
+    // vignette à la régie, sinon elle affiche un pad qui a l'air actif mais ne
+    // fait rien au clic. On garde l'index (obligatoire pour l'alignement
+    // façade/régie, voir remotePadTarget) mais on vide le contenu.
+    for (let i = 0; i < pads.length; i += 1) {
+      const item = pads[i];
+      const hasMedia = Boolean(item.audio || item.video || item.textMode || String(item.textContent || "").trim());
+      if (!hasMedia) pads[i] = { index: item.index };
+    }
+  }
+
   const versionsForExport = (await Promise.all(pruneVersionHistory(history)
     .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
     .filter(Boolean);
@@ -8926,6 +8787,16 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     // Périmètre des skins offert à l'invité (radio de la console) : "all" = tous
     // les skins intégrés, sinon il reste bloqué sur le skin du board.
     payload.guestSkinChoice = opts.guestSkinChoice === "all" ? "all" : "current";
+  }
+
+  if (forRemote) {
+    // Pas de blob ni de fichier : l'historique undo n'a aucun intérêt côté
+    // régie et pèse lourd, on le retire. L'audio/vidéo sont déjà absents
+    // (exportMode "settings"), les vignettes de pad (visualImage) restent.
+    payload.board.versions = [];
+    payload.versions = [];
+    await opts.deliver(payload);
+    return;
   }
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -12470,7 +12341,18 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
     syncBoardModeSelector();
     syncStagePending();
-    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = await prepareBoardForStage(options);
+    // Régie : le board miroir n'a jamais de média par construction (voir
+    // applyRemoteMirrorBoard) — elle ne joue jamais de son localement, elle
+    // affiche seulement les pads et envoie des commandes. La façade, seule
+    // autorité, a déjà validé la présence de média avant d'entrer en scène ;
+    // refaire cette vérification ici bloquerait systématiquement le mode scène
+    // en régie avec « aucun média sur ce board ». On saute donc directement à
+    // un résultat « prêt, rien à précharger » et on laisse la suite (commune
+    // façade/régie) dérouler normalement.
+    const stageResult = state.remoteRole === "controller"
+      ? { ok: true, failures: [], emptyPads: [], validPads: [], skipPreload: true }
+      : await prepareBoardForStage(options);
+    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = stageResult;
     if (noMedia) {
       state.stageMode = false;
       syncBoardModeSelector();
@@ -12520,11 +12402,6 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   applyPadLayout(currentBoard());
 
   if (state.stageMode) {
-    // Le bloc cues est ancré via syncCueControls() (ligne ~10184), avant le
-    // basculement body.stage-mode. L'ancre capturée trop tôt reste calée sur la
-    // géométrie studio → bloc mal positionné jusqu'au prochain rescan (ex:
-    // refresh). On recalibre ici, deux rAF après le basculement de classe.
-    requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
     // Re-mesure des hauteurs de pad une fois la transition + le layout
     // stabilisés : sur mobile, le 1er passage tombe trop tôt et fige des
     // hauteurs gonflées (pads allongés à l'entrée en scène en skin basic).
@@ -12918,33 +12795,23 @@ function updateStopGroupButtonState() {
 }
 
 function refreshStopGroupOptions() {
-  if (!els.stopGroupSelect) return;
-  const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
-  const currentValue = els.stopGroupSelect.value || savedValue;
   const tags = [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
-  els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
-  tags.forEach((tag) => {
-    const option = document.createElement("option");
-    option.value = tag;
-    option.textContent = tag;
-    els.stopGroupSelect.append(option);
-  });
-  els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
-  updateStopGroupButtonState();
-  const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
-  const maxChars = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches ? 16 : 34;
-  const width = `${Math.min(maxChars, longestLength + 3)}ch`;
-  els.stopGroupSelect.style.setProperty("--stop-group-width", width);
-  els.stopGroupSelect.style.width = width;
-  els.stopGroupSelect.style.minWidth = width;
-  els.stopGroupSelect.closest(".group-stop-row")?.style.setProperty("--stop-group-width", width);
-  els.stopGroupSelect.closest(".group-stop-control")?.style.setProperty("--stop-group-width", width);
-  // Pas de propagation jusqu'à .master-strip : cette variable y pilotait la
-  // largeur de la 4e colonne de la grille (zones "stop"/"group", plus
-  // utilisées depuis le regroupement en .master-stop-cluster pleine largeur),
-  // et comme le cluster couvre justement toutes les colonnes (grid-column:1/-1),
-  // l'élargissement de cette colonne élargissait toute la ligne — d'où les
-  // blocs qui grossissaient 1-2s après le chargement des tags des pads.
+  // Le sélecteur « Stop groupé » a été retiré du bloc master ; on garde la
+  // liste de tags à jour uniquement si l'élément existe encore (compat).
+  if (els.stopGroupSelect) {
+    const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
+    const currentValue = els.stopGroupSelect.value || savedValue;
+    els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
+    tags.forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = tag;
+      option.textContent = tag;
+      els.stopGroupSelect.append(option);
+    });
+    els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
+    updateStopGroupButtonState();
+  }
+  // Random playlist : même liste de tags.
   refreshRandomGroupOptions(tags);
 }
 
@@ -14896,6 +14763,11 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = "off";
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = true;
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = true;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = true;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = true;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = true;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = true;
   if (els.masterEqLow) els.masterEqLow.value = "0";
   if (els.masterEqMid) els.masterEqMid.value = "0";
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
@@ -14917,6 +14789,11 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   saveMasterEqSettings();
   saveMasterCompressorSettings();
   setLiveFxPanelAllowed(true);
+  setCuePanelVisible(true);
+  setXfadePanelVisible(true);
+  setStopAllVisible(true);
+  setStopGroupVisible(true);
+  setMuteVisible(true);
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -14946,6 +14823,11 @@ function masterAudioDraftFromControls() {
     reverbWet: els.masterReverbWet?.value ?? "0.5",
     compressorPreset: els.masterCompressorPreset?.value || "off",
     liveFxPanelEnabled: Boolean(els.masterLiveFxPanelEnabled?.checked),
+    cuePanelVisible: Boolean(els.masterCuePanelVisible?.checked),
+    xfadePanelVisible: Boolean(els.masterXfadePanelVisible?.checked),
+    stopAllVisible: Boolean(els.masterStopAllVisible?.checked),
+    stopGroupVisible: Boolean(els.masterStopGroupVisible?.checked),
+    muteVisible: Boolean(els.masterMuteVisible?.checked),
     eqLow: els.masterEqLow?.value ?? "0",
     eqMid: els.masterEqMid?.value ?? "0",
     eqHigh: els.masterEqHigh?.value ?? "0",
@@ -14974,6 +14856,11 @@ function persistMasterAudioControls() {
   saveMasterEqSettings();
   saveMasterCompressorSettings();
   setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled?.checked));
+  setCuePanelVisible(Boolean(els.masterCuePanelVisible?.checked));
+  setXfadePanelVisible(Boolean(els.masterXfadePanelVisible?.checked));
+  setStopAllVisible(Boolean(els.masterStopAllVisible?.checked));
+  setStopGroupVisible(Boolean(els.masterStopGroupVisible?.checked));
+  setMuteVisible(Boolean(els.masterMuteVisible?.checked));
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -15000,6 +14887,11 @@ function restoreMasterAudioDraft() {
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = draft.compressorPreset;
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = draft.liveFxPanelEnabled;
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = draft.cuePanelVisible;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = draft.xfadePanelVisible;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = draft.stopAllVisible;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = draft.stopGroupVisible;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = draft.muteVisible;
   if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
@@ -15025,6 +14917,11 @@ function applyRemoteMasterAudioSettings(settings) {
   if (els.masterReverbWet) els.masterReverbWet.value = settings.reverbWet;
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = settings.compressorPreset;
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = Boolean(settings.liveFxPanelEnabled);
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = settings.cuePanelVisible !== false;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = settings.xfadePanelVisible !== false;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = settings.stopAllVisible !== false;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = settings.stopGroupVisible !== false;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = settings.muteVisible !== false;
   if (els.masterEqLow) els.masterEqLow.value = settings.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = settings.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = settings.eqHigh;
@@ -16836,7 +16733,9 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing", "is-stop-flash");
   broadcastRemotePadState(pad, false);
-  removeLiveFxRow(pad);
+  // Plus de graphe audio → le bouton « couper les effets » du verso du pad
+  // n'a plus lieu d'être (syncPadFxOverlayBypass le retire).
+  syncPadFxOverlayBypass(pad);
   hidePadNoteOverlay(pad);
   if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
   updatePadModeButtons(pad);
@@ -17056,6 +16955,18 @@ function updateRemoteControlUi() {
       }
     }
   }
+  // En rôle régie, le board affiché est le miroir de la façade : on verrouille
+  // le sélecteur de boards (comme en mode scène) — impossible d'ouvrir un autre
+  // board et de se désaligner de la façade.
+  if (els.boardSelect) {
+    const lockBoard = state.stageMode || state.remoteRole === "controller";
+    els.boardSelect.disabled = lockBoard;
+    els.boardSelect.setAttribute("aria-disabled", String(lockBoard));
+  }
+  if (els.remoteResendBoard) {
+    els.remoteResendBoard.disabled = !(state.remoteRole === "display" && state.remoteConnected);
+  }
+
   const active = state.remoteRole !== "off";
   els.remoteControlButton?.classList.toggle("is-active", active);
   els.remoteControlButton?.classList.toggle("is-connected", active && state.remoteConnected);
@@ -17074,6 +16985,11 @@ function scheduleRemoteReconnect() {
 }
 
 function connectRemoteControl() {
+  // Hors rôle régie (off / façade), le board miroir n'a plus lieu d'être : on
+  // le retire pour ne pas polluer la liste des vrais boards. En rôle régie il
+  // est conservé entre deux reconnexions (la façade le rafraîchit via
+  // requestBoard au prochain onopen).
+  if (state.remoteRole !== "controller") purgeRemoteMirrorBoard();
   // Repart d'un crossfade-armé désarmé à chaque (re)connexion/changement de
   // rôle côté régie/off : sinon un miroir "armé" reçu pendant un test
   // resterait bloqué à true après un changement de rôle ou une coupure
@@ -17152,6 +17068,9 @@ function connectRemoteControl() {
     // d'attendre un changement qui peut ne jamais arriver.
     if (state.remoteRole === "controller") {
       sendRemoteCommand("requestBoardMode", "");
+      // Même logique pour le contenu du board : la régie réclame le board
+      // courant de la façade, qui répond par un push en tranches (boardChunk).
+      sendRemoteCommand("requestBoard", "");
     }
   };
   socket.onmessage = (event) => handleRemoteMessage(event.data);
@@ -17216,6 +17135,209 @@ function broadcastRemotePadState(pad, playing) {
   state.remoteSocket.send(JSON.stringify({ type: "state", target: remotePadTarget(pad), playing: Boolean(playing) }));
 }
 
+// ---- Contrôle à distance : push du board façade → régie ----
+// La façade est autorité pour le CONTENU du board comme elle l'est déjà pour le
+// mode studio/scène. La régie ne pousse jamais rien ; elle demande le board à la
+// connexion (requestBoard), le reçoit en tranches, le reconstruit dans un board
+// miroir dédié et bascule dessus. Effet de bord voulu : remotePadTarget (par
+// index) tombe juste tout seul → fin des désalignements régie/façade.
+
+async function pushBoardToRemote() {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  const rev = ++state.remoteBoardRev;
+  await exportCurrentBoard("settings", {
+    forRemote: true,
+    deliver: (payload) => sendRemoteBoardChunks(rev, payload),
+  });
+}
+
+function sendRemoteBoardChunks(rev, payload) {
+  const socket = state.remoteSocket;
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  const json = JSON.stringify(payload);
+  const chunks = splitStringForRemote(json, REMOTE_BOARD_CHUNK_SIZE);
+  chunks.forEach((data, seq) => {
+    socket.send(JSON.stringify({ type: "boardChunk", rev, seq, total: chunks.length, data }));
+  });
+  setStatus(`Board envoyé à la régie (rev ${rev}, ${chunks.length} tranche${chunks.length > 1 ? "s" : ""})`);
+}
+
+// Découpe en tranches <= size SANS jamais couper une paire de surrogates (emoji
+// dans un titre de pad → séquence UTF-8 invalide, corrompue à l'envoi). La
+// reconstitution par parts.join("") restaure la chaîne à l'identique.
+function splitStringForRemote(str, size) {
+  const parts = [];
+  let i = 0;
+  while (i < str.length) {
+    let end = Math.min(i + size, str.length);
+    if (end < str.length) {
+      const code = str.charCodeAt(end - 1);
+      if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+    }
+    parts.push(str.slice(i, end));
+    i = end;
+  }
+  return parts.length ? parts : [""];
+}
+
+function receiveRemoteBoardChunk(msg) {
+  const rev = Number(msg.rev);
+  const seq = Number(msg.seq);
+  const total = Number(msg.total);
+  if (!Number.isInteger(rev) || !Number.isInteger(seq) || !Number.isInteger(total) || total < 1) return;
+  if (rev <= state.remoteBoardRxRev) return; // board déjà appliqué (ou plus récent en cours)
+
+  let buffer = state.remoteBoardRxBuffer;
+  if (!buffer || buffer.rev !== rev) {
+    buffer = { rev, total, parts: new Map(), startedAt: Date.now() };
+    state.remoteBoardRxBuffer = buffer;
+  }
+  buffer.parts.set(seq, String(msg.data ?? ""));
+
+  window.clearTimeout(state.remoteBoardRxTimer);
+  state.remoteBoardRxTimer = window.setTimeout(() => {
+    // Tranches manquantes après 10 s : on jette. La façade re-pousse à la
+    // prochaine reconnexion (requestBoard) ou au bouton « renvoyer le board ».
+    if (state.remoteBoardRxBuffer === buffer) state.remoteBoardRxBuffer = null;
+  }, 10000);
+
+  if (buffer.parts.size < buffer.total) return;
+  window.clearTimeout(state.remoteBoardRxTimer);
+  state.remoteBoardRxBuffer = null;
+
+  let json = "";
+  for (let i = 0; i < buffer.total; i += 1) json += buffer.parts.get(i) || "";
+  let payload;
+  try {
+    payload = JSON.parse(json);
+  } catch {
+    setStatus("Board régie illisible", "stop");
+    return;
+  }
+  state.remoteBoardRxRev = rev;
+  applyRemoteMirrorBoard(payload).catch(() => setStatus("Board régie : import impossible", "stop"));
+}
+
+async function applyRemoteMirrorBoard(payload) {
+  if (payload?.format !== "soundboard-live-board" || !payload.board) return;
+  const src = payload.board;
+  const pads = Array.isArray(src.pads) ? src.pads : [];
+  const maxIndex = pads.reduce((max, item) => {
+    const index = Number(item?.index);
+    return Number.isInteger(index) && index >= 0 ? Math.max(max, index) : max;
+  }, -1);
+
+  state.boards = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  const board = normalizeBoard({
+    id: REMOTE_MIRROR_BOARD_ID,
+    name: `${src.name || "Board"} (régie)`,
+    padCount: Math.max(1, Number(src.padCount) || DEFAULT_PAD_COUNT, maxIndex + 1),
+    masterVolume: clamp01(src.masterVolume),
+    layoutMode: src.layoutMode,
+    padColumns: src.padColumns,
+    padRows: src.padRows,
+    cuesEnabled: src.cuesEnabled !== false,
+    cues: src.cues,
+    cueIndex: src.cueIndex,
+  });
+  const restoredSkin = registerImportedCustomSkins(src);
+  if (restoredSkin) board.skin = restoredSkin;
+  state.boards.push(board);
+  state.currentBoardId = board.id;
+
+  for (let index = 0; index < board.padCount; index += 1) {
+    const item = pads.find((padItem) => Number(padItem?.index) === index) || {};
+    const transientPad = { index };
+    // Métadonnées d'affichage et de ciblage seulement — aucun audio/vidéo côté
+    // régie (elle ne joue jamais un son, elle envoie des commandes par index).
+    const meta = {
+      uid: item.uid || createId(),
+      title: item.title || `Pad ${index + 1}`,
+      volume: item.volume ?? 0.85,
+      panValue: item.panValue ?? 0,
+      loop: Boolean(item.loop),
+      duckMode: item.duckMode || (item.duckTrigger ? "global" : "none"),
+      duckPercent: item.duckPercent ?? duckPercentValue(),
+      tags: item.tags || "",
+      color: item.color || "",
+      playMode: item.playMode || "oneshot",
+      visualImage: item.visualImage || "",
+      visualImageHidden: Boolean(item.visualImageHidden),
+      visualKind: item.visualKind || "",
+      visualPositionX: item.visualPositionX ?? 50,
+      visualPositionY: item.visualPositionY ?? 50,
+      visualZoom: item.visualZoom ?? 1,
+      textMode: Boolean(item.textMode || item.textContent),
+      textContent: item.textContent || "",
+    };
+    await dbSet(padMetaKey(transientPad), meta);
+    await dbDelete(padAudioKey(transientPad));
+  }
+
+  // Un push de board se traite comme une reconnexion pour l'état miroir : tout
+  // flag reçu de la façade (crossfade armé, random playlist) peut être périmé.
+  // La façade rebroadcast l'état réel juste après.
+  state.crossfadeArm.active = false;
+  state.crossfadeArm.phase = "target";
+  document.body.classList.remove("crossfade-armed");
+  document.body.dataset.crossfadePrompt = "";
+  state.remoteRandomGroupRunning = false;
+  syncRandomGroupButton(false);
+  document.querySelectorAll(".pad.is-remote-playing").forEach((node) => node.classList.remove("is-remote-playing"));
+
+  saveBoards();
+  renderBoardOptions();
+  if (board.skin) applySkin(board.skin);
+  await renderPads();
+
+  // renderPads() classe par défaut TOUT pad régie comme "vide" (is-empty) : côté
+  // façade un pad audio/vidéo a de vrais octets en base, côté régie jamais (voir
+  // le commentaire plus haut) — le code de restauration ne voit donc aucune
+  // différence entre "pas de média" et "média réel mais pas encore reçu". On
+  // corrige après coup, pad par pad, uniquement pour ceux dont l'item source a
+  // un audio/vidéo réel (le texte, lui, est déjà géré correctement par
+  // meta.textMode/textContent). Sans ça, syncStageVisiblePads() ci-dessous
+  // masquerait aussi les pads qui JOUENT vraiment quelque chose en façade.
+  for (const pad of state.pads) {
+    const item = pads.find((padItem) => Number(padItem?.index) === pad.index);
+    if (item?.video) {
+      pad.videoName = item.video.name || item.video.path || pad.title || `Vidéo ${pad.index + 1}`;
+      pad.videoPath = pad.videoName;
+      pad.node?.classList.remove("is-empty", "is-missing-audio");
+      updatePadType(pad);
+    } else if (item?.audio) {
+      pad.audioName = item.audio.name || item.audio.path || pad.title || `Pad ${pad.index + 1}`;
+      pad.audioPath = pad.audioName;
+      pad.node?.classList.remove("is-empty", "is-missing-audio");
+      updatePadType(pad);
+    }
+  }
+  // Pads sans média façade → masqués en scène, comme sur la façade elle-même
+  // (cuePlayablePad() exclut is-empty ; no-op hors mode scène).
+  syncStageVisiblePads();
+
+  updateRemoteControlUi();
+  sendRemoteCommand("boardAck", "", { rev: state.remoteBoardRxRev });
+  setStatus(`Board reçu de la façade : ${board.name}`);
+}
+
+// Retire le board miroir quand la régie se désactive ou change de rôle : il n'a
+// aucun sens hors connexion et ne doit pas polluer la liste des vrais boards.
+function purgeRemoteMirrorBoard() {
+  state.remoteBoardRxRev = -1;
+  state.remoteBoardRxBuffer = null;
+  window.clearTimeout(state.remoteBoardRxTimer);
+  if (!state.boards.some((board) => board.id === REMOTE_MIRROR_BOARD_ID)) return;
+  state.boards = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  if (state.currentBoardId === REMOTE_MIRROR_BOARD_ID) {
+    state.currentBoardId = state.boards[0]?.id || DEFAULT_BOARD_ID;
+  }
+  saveBoards();
+  renderBoardOptions();
+  renderPads().catch(() => {});
+}
+
 function handleRemoteMessage(raw) {
   let msg;
   try {
@@ -17225,13 +17347,26 @@ function handleRemoteMessage(raw) {
   }
   if (!msg || typeof msg !== "object") return;
 
+  if (msg.type === "boardChunk" && state.remoteRole === "controller") {
+    receiveRemoteBoardChunk(msg);
+    return;
+  }
+
   if (msg.type === "cmd" && state.remoteRole === "display") {
     if (msg.action === "stopAll") {
       stopAll();
       return;
     }
     if (msg.action === "cueRun") {
+      state.cuePlaying = true;
+      syncCueControls();
       runCurrentCue().catch(() => setStatus("Cue impossible", "stop"));
+      return;
+    }
+    if (msg.action === "cuePause") {
+      pauseCuePlayback();
+      syncCueControls();
+      setStatus("Cues en pause");
       return;
     }
     if (msg.action === "cueNext") {
@@ -17268,6 +17403,14 @@ function handleRemoteMessage(raw) {
     }
     if (msg.action === "requestBoardMode") {
       broadcastRemoteBoardMode();
+      return;
+    }
+    if (msg.action === "requestBoard") {
+      pushBoardToRemote();
+      return;
+    }
+    if (msg.action === "boardAck") {
+      setStatus(`Régie synchronisée (rev ${Number(msg.rev) || "?"})`);
       return;
     }
     if (msg.action === "masterAudio") {
@@ -17553,7 +17696,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   applyPadLiveDistortion(pad, 0);
   applyPadLiveFlanger(pad, 0);
   applyPadLiveDelay(pad, 0);
-  addLiveFxRow(pad);
+  // Nœuds effets recréés à zéro à chaque lecture : on part coupé, sauf si
+  // l'overlay effets du pad est déjà ouvert (geste délibéré de l'utilisateur —
+  // setLiveFxBypassed relit alors la valeur affichée des curseurs).
+  pad.liveFxBypassed = false;
+  setLiveFxBypassed(pad, !pad.fxOverlayOpen);
+  syncPadFxOverlayBypass(pad);
   showPadNoteOverlay(pad);
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -17857,9 +18005,13 @@ function stopAll() {
 
 function stopAllLocal() {
   stopRandomGroup();
+  // Stop global coupe aussi l'enchaînement des cues (sinon un board en boucle
+  // relance un pad juste après).
+  pauseCuePlayback();
   const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
   state.pads.forEach((pad) => stopPadLocal(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
   setStatus("Tout est stoppé");
+  syncCueControls();
 }
 
 function stopGroup(tag = els.stopGroupSelect?.value) {
@@ -18583,21 +18735,6 @@ async function init() {
     updateShortcutIndicators();
   });
   // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
-  // rAF-throttlé : un scroll listener synchrone qui lit/écrit du layout (comme
-  // syncFloatingCueFrame, avec ses getBoundingClientRect + setProperty) est un
-  // "scroll-linked effect" que Firefox signale explicitement comme instable en
-  // défilement asynchrone (mobile, inertie) — les mesures peuvent être prises
-  // entre deux frames réelles, donc désynchronisées de la position affichée.
-  // On aligne l'exécution sur le rendu (1 appel par frame max) au lieu d'un
-  // appel par évènement scroll brut.
-  let scrollSyncFrame = null;
-  window.addEventListener("scroll", () => {
-    if (scrollSyncFrame != null) return;
-    scrollSyncFrame = requestAnimationFrame(() => {
-      scrollSyncFrame = null;
-      syncFloatingCueFrame(false);
-    });
-  }, { passive: true });
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
@@ -18724,14 +18861,41 @@ async function init() {
   bindSafeActionButton(els.cueEditor, () => {
     const board = currentBoard();
     if (!board) return;
-    const nextEnabled = board.cuesEnabled === false;
-    board.cuesEnabled = nextEnabled;
+    if (!board.cues?.length) {
+      // Board sans cues : rien à activer — on pointe vers « Réglage des cues ».
+      setStatus("Pas de cues");
+      flashCueDialogButton();
+      return;
+    }
+    board.cuesEnabled = board.cuesEnabled !== true;
+    if (!board.cuesEnabled) pauseCuePlayback();
     saveBoards();
     syncCueControls();
     setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
   });
   bindSafeActionButton(els.openCueDialog, () => openCueDialog());
+  // Bouton lancer / pause : un clic arme l'enchaînement (et lance le cue
+  // courant) ; le clic suivant met en pause (arrête l'enchaînement auto, PAS
+  // les sons en cours).
   bindSafeActionButton(els.cueRun, () => {
+    if (state.cuePlaying) {
+      pauseCuePlayback();
+      if (state.remoteRole === "controller") sendRemoteCommand("cuePause", "");
+      syncCueControls();
+      setStatus("Cues en pause");
+      return;
+    }
+    // On n'arme le mode lecture/pause que pour une étape à condition
+    // (enchaînement automatique) ; une étape manuelle se lance simplement, clic
+    // par clic, sans bascule pause.
+    const board = currentBoard();
+    const step = board?.cues?.length
+      ? normalizeCueStep(board.cues[cueIndexForBoard(board)])
+      : null;
+    if (step && step.condition && step.condition !== "manual") {
+      state.cuePlaying = true;
+    }
+    syncCueControls();
     runCurrentCue().catch(() => {
       clearCueWaitTimer();
       setStatus("Cue impossible");
@@ -19108,6 +19272,17 @@ async function init() {
     }
     els.remoteControlDialog?.close();
   });
+  els.remoteResendBoard?.addEventListener("click", () => {
+    if (state.remoteRole !== "display") {
+      setStatus("Activez d'abord le rôle Façade");
+      return;
+    }
+    if (!state.remoteConnected) {
+      setStatus("Régie non connectée");
+      return;
+    }
+    pushBoardToRemote();
+  });
   const openContextHelp = (sectionKeys, title = "Aide") => {
     if (!els.helpDialog) return;
     const allowed = new Set(sectionKeys);
@@ -19139,8 +19314,10 @@ async function init() {
   });
   els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));
   document.querySelector("#audioHelp")?.addEventListener("click", () => openContextHelp(["audio-pad"], "Aide Réglages audio du pad"));
-  els.masterHelp?.addEventListener("click", () => openContextHelp(["master"], "Aide Master"));
-  els.cuesHelp?.addEventListener("click", () => openContextHelp(["cues-crossfade"], "Aide Cues / Crossfade"));
+  // L'aide « Cues / Crossfade » a été fusionnée dans l'aide Master (bouton d'aide
+  // dédié retiré de l'îlot).
+  els.masterHelp?.addEventListener("click", () => openContextHelp(["master", "cues-crossfade"], "Aide Master"));
+  els.cuesHelp?.addEventListener("click", () => openContextHelp(["master", "cues-crossfade"], "Aide Master"));
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
   els.helpDialog?.addEventListener("click", (event) => {
     if (event.target === els.helpDialog) els.helpDialog.close();
@@ -20295,23 +20472,13 @@ window.addEventListener("load", () => window.setTimeout(syncBoardModeSelectorSoo
 // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
 
 
-/* Alignement Studio ↔ Scène : entièrement en CSS depuis le retrait de la couche
-   d'épinglage JS (S3). Ne restent ici que les resynchronisations du bloc Cues
-   flottant (largeur/ancre de collage), qui dépendent de la fenêtre. */
+/* Alignement Studio ↔ Scène : entièrement en CSS (retrait de la couche
+   d'épinglage JS en S3, puis de la mécanique sticky du bloc Cues — celui-ci
+   est maintenant un îlot position:fixed permanent, cf. styles.css .live-tools). */
 
-let stageCueResizeFrame = 0;
-function refreshFloatingCueFrameSoon() {
-  // La géométrie Studio↔Scène est figée en CSS ; seul le bloc Cues flottant
-  // (largeur = zone des pads, ancre de collage) dépend de la fenêtre.
-  if (stageCueResizeFrame) cancelAnimationFrame(stageCueResizeFrame);
-  stageCueResizeFrame = requestAnimationFrame(() => {
-    stageCueResizeFrame = 0;
-    syncFloatingCueFrame(true);
-  });
-}
 // ── Gestionnaire "resize" unique et coalisé ───────────────────────────────
-// Il y avait 6 listeners "resize" indépendants (3 appelaient syncFloatingCueFrame,
-// 2 drawCableOverlay, aucun coordonné). Sur un drag de fenêtre en scène :
+// Il y avait 6 listeners "resize" indépendants (dont plusieurs pour le bloc
+// Cues, désormais fixe en CSS), aucun coordonné. Sur un drag de fenêtre en scène :
 // ~5000 lectures de layout forcées, ~9 ms/frame de jank (mesuré 09/2026).
 // Ici : tout le travail géométrique tourne 1×/frame max (rAF), et le travail
 // lourd par pad (waveforms, ajustement des titres) est repoussé à la fin du
@@ -20330,9 +20497,6 @@ function onWindowResizeFrame() {
     drawCableOverlay();
     positionCableLegend();
   }
-  clampLiveFxPanelPosition();
-  // Le bloc cues flottant suit la largeur de la zone des pads → resync par frame.
-  if (document.body.classList.contains("stage-mode")) syncFloatingCueFrame();
   syncBoardModeSelectorSoon();
 }
 
@@ -20340,7 +20504,6 @@ function onWindowResizeSettle() {
   windowResizeSettleTimer = 0;
   state.pads.forEach(renderWaveform);
   state.pads.forEach(fitPadTitle);
-  syncFloatingCueFrame(true);
 }
 
 window.addEventListener("resize", () => {
@@ -20361,7 +20524,6 @@ function applyBoardExtent(value, save = true) {
   document.documentElement.style.setProperty("--board-extent", `${px}px`);
   if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
   if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
-  refreshFloatingCueFrameSoon();
   requestAnimationFrame(refreshPadCompactnessRange);
 }
 
