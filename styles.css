@@ -2768,9 +2768,14 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label 
   text-align: left;
 }
 
+/* Exception au défaut `center` (règle de base .pad-title) : icône + titre côte
+   à côte (grille 44px 1fr ci-dessus) → texte aligné à gauche. Gagne par
+   spécificité seule (attr[data-skin] + 4 classes > .pad-title/.pad-tags de
+   base, 1 seule classe) ; plus besoin de !important depuis la consolidation
+   S1 des 5 règles text-align concurrentes. */
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-title,
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags {
-  text-align: left !important;
+  text-align: left;
 }
 
 .pad.is-empty {
@@ -3589,6 +3594,11 @@ body[data-skin="print"] .patch-bay-node {
   overflow: hidden;
   font-weight: 800;
   font-size: var(--pad-title-size);
+  /* S1 : valeur unique de base (avant, 5 règles éparses reposaient toutes
+     `center`, dont 2 devenues redondantes). Seule vraie exception : skin basic
+     + garage + édition → left (règle dédiée plus bas, gagne par spécificité
+     seule, sans !important). */
+  text-align: center;
   /* `.pad-label` est une grille (2 colonnes en studio/scène, la 1ʳᵉ à 0px) : le
      titre occupe toute la largeur. Valeur unique — avant, 6 règles éparses
      (grid-column 1 / 3 !important / 1/-1 !important) toutes ramenées ici. */
@@ -4039,7 +4049,6 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 .pad.is-editing .pad-title,
 .pad.is-editing .pad-tags {
   width: 100%;
-  text-align: center;
 }
 
 .pad.is-editing .pad-shortcut.is-number {
@@ -8402,11 +8411,6 @@ body.board-edit-mode .pad.is-editing .pad-label {
   grid-template-columns: minmax(0, 1fr);
 }
 
-body.board-edit-mode .pad.is-editing .pad-title,
-body.board-edit-mode .pad.is-editing .pad-tags {
-  text-align: center;
-}
-
 body.board-edit-mode .pad.is-editing .pad-shortcut,
 body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
   position: absolute !important;
@@ -8607,7 +8611,6 @@ body.stage-mode .pad:not(.is-editing) .pad-title {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-align: center;
 }
 
 .pad-tags:empty {
@@ -11209,7 +11212,6 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   bottom: 8px;
   width: auto;
   margin: 0;
-  text-align: center;
   z-index: 2;
   align-self: auto;
   /* Limite 2 lignes. `-webkit-line-clamp` ne prend pas sous Firefox ici (élément
