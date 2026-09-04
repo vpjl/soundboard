@@ -197,8 +197,14 @@ body[data-skin="candy"] {
   --danger: var(--color_status_danger);
 }
 
+/* S2 — lot 2 (.pad-trigger, propriétés isolées uniquement, cf. commentaire
+   d'ordre des couches en tête de fichier). `filter` sur .pad-ducked n'est posé
+   que par ces 2 règles (candy + générique) dans tout le fichier → migration
+   sûre, même schéma skin>mode déjà vérifié sur le titre. */
+@layer skin {
 body[data-skin="candy"] .pad.is-ducked .pad-trigger {
   filter: saturate(0.78) brightness(0.82);
+}
 }
 
 body[data-skin="candy"] .pad-alert {
@@ -2557,8 +2563,10 @@ body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
   border-color: rgba(97, 168, 255, 0.9);
 }
 
+@layer mode {
 .pad.is-ducked .pad-trigger {
   filter: saturate(0.72) brightness(0.82);
+}
 }
 
 .pad.has-color {
@@ -2588,8 +2596,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hid
   background-color: var(--pad-color);
 }
 
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
   overflow: hidden;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
@@ -3574,9 +3584,11 @@ body[data-skin="print"] .patch-bay-node {
   background: #ffffff;
 }
 
+@layer mode {
 .pad-trigger:active {
   color: var(--color_ui_text);
   transform: none;
+}
 }
 
 /* ── S1 — taille de police du titre de pad, en token ─────────────────────────
