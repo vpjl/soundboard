@@ -137,18 +137,18 @@ Le panneau du board présente les mêmes volets qu'en garage (Infos board, Versi
 - ![action:visual-image] **Image du pad** : affecte une image, un dessin ou une couleur au pad (selon le skin actif).
 - ![action:duplicate-pad|action:transfer-pad|action:drag] **Dupliquer / Transférer / Déplacer** : duplique le pad, le copie/déplace vers un autre board, ou réordonne les pads par glisser-déposer.
 
-### Cues
+### Cues / Crossfade — barre fixe
 
-- ![#cueEditor] **Activer les cues** : active ou désactive le mode cue pour le board. En mode cue, les pads se déclenchent selon la séquence programmée.
+Cues, Crossfade et les boutons Stop/Mute globaux vivent dans une même barre, fixée en bas de l'écran, identique en Studio et en Scène.
+
+- **Cues** : bouton qui active ou désactive le mode cue pour le board. En mode cue, les pads se déclenchent selon la séquence programmée.
 - ![#cueNext] **Cue suivant** : affiche le prochain cue sans le lancer (anticipation).
 - ![#cueRun] **Lancer le cue courant** : exécute le cue en attente (déclenchement principal en régie).
 - ![#resetCuePosition] **Revenir au début des cues** : réinitialise la séquence au premier cue.
 - ![#addCueStep] **Ajouter une étape cue** : insère une nouvelle étape dans la ligne de temps des cues.
-
-### Crossfade
-
 - ![#showCables] **Xfade armé** : prépare un fondu enchaîné manuel entre deux pads, indépendamment de l'activation des cues. Si un seul pad audio joue, il devient la source. S'il y en a plusieurs, choisir la source puis le pad cible — le pad cible démarre en fondu entrant pendant que la source baisse puis s'arrête. La durée utilisée est celle réglée dans l'Audio Master. Annulation : touche Échap ou second clic sur Xfade.
 - ![#patchBay] **Patch bay crossfade** : vue dédiée du câblage crossfade pour configurer les enchaînements complexes entre pads et groupes.
+- Chacun de ces contrôles (Cues, Crossfade, Stop global, Stop groupé, Mute global) peut être masqué individuellement dans **Audio Master → Contrôles à l'écran**, pour ne garder à l'écran que ce dont on a besoin en représentation.
 
 ![Patch bay crossfade — câblage entre pads](docs/notice-captures/dialog-patch-bay.png)
 
@@ -156,11 +156,9 @@ Le panneau du board présente les mêmes volets qu'en garage (Infos board, Versi
 
 ## Master — tous modes
 
-Le bloc Master est présent dans tous les modes. Il se lit en volets : **Stop / Mute**, **Random playlist**, **Boutons** (accès aux fenêtres), puis la fenêtre **Audio Master**.
+Le bloc Master est présent dans tous les modes. Il se lit en volets : **Random playlist**, **Boutons** (accès aux fenêtres), puis la fenêtre **Audio Master**. Les commandes Stop/Mute (Tout arrêter, Arrêter un groupe, Mute global) vivent, elles, dans la barre Cues/Crossfade fixe en bas de l'écran — voir *Cues / Crossfade — barre fixe*.
 
-### Stop / Mute
-
-- ![#stopAll] **Tout arrêter** : arrête immédiatement tous les pads en cours de lecture.
+- ![#cueStopAll] **Tout arrêter** : arrête immédiatement tous les pads en cours de lecture.
 - ![#stopGroup] **Arrêter un groupe** : stop groupé — arrête uniquement les pads du tag choisi dans le menu (le bouton reste désactivé tant qu'aucun tag n'est sélectionné).
 - ![#masterMute] **Mute global** : coupe ou rétablit le son en sortie sans arrêter les pads.
 - **Volume sono / Volume Cue** : niveaux de sortie principale et de pré-écoute, avec VU-mètres et rappel des périphériques de sortie.
@@ -180,7 +178,7 @@ Le bloc Master est présent dans tous les modes. Il se lit en volets : **Stop / 
 
 - **Fade in / Fade out global** : durée de fondu entrant et sortant appliquée par défaut à tous les pads (sauf réglage individuel).
 - **Ducking global** : atténuation automatique des autres pads lorsqu'un pad prioritaire se déclenche.
-- **Panneau d'effets live** : active ou désactive le panneau flottant d'effets par pad — voir le chapitre Effets live par pad.
+- **Contrôles à l'écran** : 6 cases indépendantes pour afficher ou masquer, dans la barre Cues/Crossfade fixe, chacun de : bouton stop global, bouton stop groupé, bouton mute global, effets live des pads (voir chapitre dédié), contrôle des cues, contrôle du crossfade — pour ne garder à l'écran que ce dont on a besoin en représentation.
 - **Reverb globale** : réverbération appliquée globalement à l'ensemble des sorties audio.
 - **Compresseur / limiteur global** : preset de compression appliqué en sortie master (Doux, Punchy, Broadcast — ce dernier agissant comme un vrai limiteur), avec compensation de gain automatique.
 - **Égalisation globale** : égaliseur appliqué en sortie master.
@@ -190,13 +188,12 @@ Le bloc Master est présent dans tous les modes. Il se lit en volets : **Stop / 
 
 ## Effets live par pad
 
-Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distorsion, filtre, flanger, delay. Deux points d'accès pour les mêmes réglages :
+Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distorsion, filtre, flanger, delay.
 
-- ![#liveFxPanelDock] **Panneau flottant** : déplaçable et rabattable, une rangée apparaît automatiquement pour chaque pad en cours de lecture. Par sécurité, les effets sont coupés (bypass _(voir glossaire)_) à chaque nouvelle lecture — il faut les réactiver explicitement.
-- **Panneau plein pad, en modes Scène et Studio** (pads audio uniquement) : le bouton œil du pad fait glisser sur le pad un panneau reprenant les mêmes 4 curseurs plus Volume et Pan, prêts d'emblée (pas de bypass automatique ici) — pratique pour préparer un effet sur un son trop court pour le manipuler en direct via le panneau flottant. Un 2ᵉ clic sur le bouton œil referme le panneau. En skin Basic, si le pad affiche une illustration, le bouton œil la masque d'abord (le panneau s'ouvre au clic suivant).
+- **Panneau au verso du pad, en modes Scène et Studio** (pads audio uniquement) : le bouton œil du pad fait glisser sur le pad un panneau reprenant les 4 curseurs d'effets plus Volume et Pan. Un 2ᵉ clic sur le bouton œil referme le panneau. En skin Basic, si le pad affiche une illustration, le bouton œil la masque d'abord (le panneau s'ouvre au clic suivant).
 - **Remise à zéro** : double-clic (ou double-tap) sur un curseur pour le ramener à sa valeur neutre.
 - Les réglages sont mémorisés par pad d'une session à l'autre.
-- Le panneau flottant peut être désactivé globalement dans **Audio Master → Effets live → Afficher le panneau**.
+- Le bouton œil peut être désactivé globalement dans **Audio Master → Contrôles à l'écran → Effets live des pads** — décoché, il ne pilote plus que l'illustration du pad (skin Basic).
 - Ces 4 curseurs sont aussi pilotables à distance depuis la régie — voir Contrôle à distance.
 
 ## Mode Scène — live
@@ -213,7 +210,7 @@ Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distors
 
 ### Bloc Cues/Crossfade
 
-- **Comportement** : quand les cues sont activées, le bloc s'étire à la largeur des pads (aligné sur eux) avec de gros boutons ; au défilement, il se fixe en haut de l'écran pour rester accessible. Inactif, il reste compact.
+- **Comportement** : la barre Cues/Crossfade est fixe en bas de l'écran, identique à celle du mode Studio — voir *Cues / Crossfade — barre fixe*.
 
 ![Mode Scène — **1** Board (verrouillable) · **2** Master (commandes globales) · **3** Bloc Cues/Crossfade · **4** Pads de déclenchement](docs/notice-captures/mode-scene.png)
 
@@ -233,6 +230,7 @@ Permet de piloter le board depuis un second appareil (téléphone, tablette) pen
 
 La régie n'exécute jamais l'audio elle-même : elle envoie des commandes, la façade reste seule autorité sur le son réel.
 
+- **Board affiché côté régie** : la façade envoie automatiquement son board (noms, agencement) à la régie dès la connexion et à chaque changement de board, pour que les deux appareils affichent les mêmes pads sous les mêmes noms. Ce board miroir est en lecture seule côté régie — aucun média n'y est chargé. Un bouton **Renvoyer le board à la régie** permet de forcer un renvoi manuel après des modifications côté façade.
 - Déclenchement, arrêt, volume et pan des pads, loop, duck trigger, mute par pad
 - Stop tout, Stop groupé par tag, Mute global, Volume master, Volume cue
 - Cues : Suivant, Lancer, Retour au début
