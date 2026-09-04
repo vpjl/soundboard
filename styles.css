@@ -8700,11 +8700,6 @@ body.stage-mode .secondary-live-group {
     width: 34px !important;
     min-width: 34px !important;
   }
-
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
 }
 
 @media (max-width: 950px), (pointer: coarse) {
@@ -8748,31 +8743,6 @@ body.stage-mode .secondary-live-group {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    position: fixed;
-    top: max(6px, env(safe-area-inset-top));
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 70;
-    width: min(1280px, calc(100vw - 16px));
-    grid-template-columns: minmax(0, 1fr) max-content;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
-    backdrop-filter: blur(10px);
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
-    display: none !important;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
-    display: grid;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
-    grid-template-columns: repeat(2, minmax(36px, 42px)) !important;
-  }
-
   /* 1re colonne bornée (170-220px, pas 1fr) : cette règle suppose une .topbar
      à 1 seule colonne pleine largeur (mobile), où max-width:100% se résout
      contre une largeur finie. Mais html body.stage-mode .topbar (styles.css
@@ -8798,81 +8768,6 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-  position: fixed;
-  top: max(8px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 70;
-  /* fit-content (pas une largeur fixe calée sur --board-extent) : le bloc
-     collé doit épouser son contenu, pas s'étirer jusqu'à la largeur des pads
-     — demandé le 2026-08-20. max-width en garde-fou (petits écrans). En
-     pratique, JS (syncFloatingCueFrame) réaligne left/transform sur le bord
-     gauche des pads dès qu'il tourne (couplé au même toggle de classe) ; ce
-     left:50%/transform ci-dessus ne sert que de repli si jamais il ne
-     tournait pas. */
-  width: fit-content;
-  max-width: calc(100vw - 28px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(10px);
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
-  padding-top: 92px;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
-  display: none !important;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
-  display: grid;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
-  position: static;
-  top: auto;
-  right: auto;
-  z-index: auto;
-  grid-template-columns: repeat(2, 42px);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
-    padding-top: 76px;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: min(100vw - 14px, 100%);
-  }
-}
-
-/* Scène + bloc cues collé au scroll : le bloc reste étiré sur TOUTE la largeur de
-   la fenêtre (left/right:0) et conserve ses GROS boutons de cue (84px), comme hors
-   scroll — on ne les rétrécit plus. Le padding-top de compensation est recalculé
-   dynamiquement sur la hauteur réelle du bloc (JS, syncFloatingCueFrame), donc la
-   plus grande hauteur est absorbée automatiquement. */
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-  left: 0 !important;
-  right: 0 !important;
-  width: auto !important;
-  transform: none !important;
-}
-
-/* Bloc cues activé mais PAS encore collé : étiré pleine largeur de la fenêtre
-   dans le flux. La largeur/décalage exacts sont posés en JS (syncFloatingCueFrame)
-   car le bloc n'est pas centré dans la fenêtre — un 100vw CSS déborderait à
-   droite. box-sizing pour que la largeur inline inclue bordures/padding. */
-body.stage-mode.cues-enabled:not(.cues-stuck):not(.board-edit-mode) .live-tools {
-  box-sizing: border-box;
-}
-
 /* Bloc cues INACTIF (studio ET scène, hors garage) : compact, largeur de la
    rangée de boutons, calé à gauche — pas de marge à droite. max-content (pas
    fit-content, cf. .live-tools de base ~1105) : même raison, résultat
@@ -8893,29 +8788,6 @@ body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
    puis l'espace extensible (1fr) qui porte le titre du cue au centre. */
 body.stage-mode.cues-enabled:not(.board-edit-mode) .cue-live-row {
   grid-template-columns: 42px repeat(3, 84px) minmax(0, 1fr) !important;
-}
-
-/* Les boutons de cue (.cue-live-row .icon-button) et le stop global gardent leur
-   taille scène (84px, hérités) dans la barre collée. Seule la rangée crossfade
-   reste compacte. */
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button:not(.cue-stop-all-button) {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: calc(100vw - 14px) !important;
-  }
-}
-
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    left: 0 !important;
-    transform: none !important;
-  }
 }
 
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
@@ -11458,9 +11330,7 @@ body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-
   }
 }
 
-/* Mode Scène : ces blocs restent dans le flux, sans transform. (`transform: none`
-   conservé pour .live-tools, qui reçoit un translateX de repli via cues-stuck
-   avant que syncFloatingCueFrame ne recale sa position au scroll.) */
+/* Mode Scène : ces blocs restent dans le flux, sans transform. */
 body.stage-mode .board-strip,
 body.stage-mode .board-main,
 body.stage-mode .master-strip,
@@ -11537,16 +11407,8 @@ body.stage-mode .live-tools {
   }
 }
 
-/* Scène, bloc cues pas encore "stuck" : ~568px seulement (largeur de la
-   colonne board+master), pas assez pour les 9 boutons → on ne garde que
-   l'essentiel jouable et on masque les réglages secondaires (déjà masqués
-   sur mobile / une fois stuck sur desktop pour cue-window et aide). */
-/* Le patch bay n'est plus masqué avant collage : le bloc cues doit avoir le même
-   rendu (mêmes boutons) dès l'activation qu'une fois collé, sinon le layout change
-   entre les deux états. Seuls la fenêtre de réglage des cues et l'aide restent
-   masquées (elles le sont aussi en collé). */
-body.stage-mode:not(.cues-stuck) .live-tools .cue-window-button,
-body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
+body.stage-mode .live-tools .cue-window-button,
+body.stage-mode .live-tools .cues-help-button {
   display: none !important;
 }
 
@@ -12160,12 +12022,12 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
    .live-tools est maintenant un îlot position:fixed centré en bas (cf. la
    règle de base ~1256). De nombreux overrides historiques posaient encore sa
    position/largeur en grille (topbar) ou en plein écran (mode scène), dont
-   plusieurs en !important, plus quelques blocs `body.cues-stuck` désormais
-   morts (la classe n'est plus jamais posée — JS syncFloatingCueFrame retiré).
+   plusieurs en !important (les blocs `body.cues-stuck`, eux, ont été retirés —
+   la classe n'est plus jamais posée, JS syncFloatingCueFrame supprimé).
    Ce bloc, le plus tardif du fichier, réaffirme le modèle d'îlot dans tous les
    modes (studio + scène ; garage exclu, Cues y est masqué). !important assumé :
    il neutralise des !important existants (cf. [[feedback_no_important]] — dette
-   à résorber avec le nettoyage des règles cues-stuck mortes). */
+   encore à résorber, mais indépendante des règles cues-stuck désormais retirées). */
 body:not(.board-edit-mode) .topbar > .live-tools {
   position: fixed !important;
   left: 50% !important;
