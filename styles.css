@@ -782,7 +782,6 @@ body.board-edit-mode .board-edit-actions {
 
 .master-strip {
   --master-stop-size: 70px;
-  --master-stop-panel-height: 112px;
   /* Taille des boutons absolus du coin bas-droite (aide / audio master). Sert à réserver
      leur bande via .master-option-badges — à garder synchronisé si on change leur taille
      (cf. media query portrait qui les passe à 54px). */
@@ -1883,10 +1882,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   height: 42px;
 }
 
-/* grid-area:group (et align-self:start) : obsolète depuis le regroupement en
-   .master-stop-cluster — supprimé (le 2e align-self:start bloquait le
-   align-items:stretch du cluster parent, empêchant ce bloc de s'étirer). */
-
 /* Hasard groupé : pas de grid-area dédiée dans le layout du master-strip (très
    finement calé sur de nombreux breakpoints) — placé en 5e ligne implicite,
    pleine largeur, pour ne rien perturber de l'existant. */
@@ -2039,7 +2034,7 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   color: var(--color_ui_text);
 }
 
-/* Bouton lancer/arrêter : même gabarit que le bouton stop global (#stopAll).
+/* Bouton lancer/arrêter : même gabarit que le bouton stop global (#cueStopAll).
    Contenu du volet Random playlist (déjà en flux), donc n'affecte pas les
    dimensions repliées du bloc master. */
 .random-group-row-minmax #randomGroupToggle {
@@ -2113,70 +2108,6 @@ body.guest-mode .random-group-row-minmax #randomGroupToggle {
   align-items: flex-start;
 }
 
-/* Regroupe Stop global, Stop groupé et Mute master sur une seule ligne pleine
-   largeur, sur desktop comme mobile (au lieu des zones nommées "stop"/"group"
-   du grid .master-strip — étroites, confinées à la dernière colonne, ce qui
-   provoquait débordement/chevauchement sur téléphone). grid-column:1/-1 sans
-   grid-row explicite : auto-placé par la grille dans une nouvelle ligne après
-   les zones nommées existantes (title/master/stop/group/audio, inchangées,
-   simplement plus utilisées par ces trois contrôles). Les enfants perdent
-   leur propre grid-area (ignoré, plus des enfants directs de la grille) mais
-   gardent leur CSS interne telle quelle. */
-.master-stop-cluster {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  /* stretch (pas start) : les 3 blocs prennent la hauteur du plus grand
-     (group-stop-control, avec son select en plus) — chaque bloc a déjà
-     align-content:start en interne, donc titre+bouton restent calés en haut,
-     l'espace en trop va sous le bouton plutôt que de désaligner quoi que ce
-     soit. */
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
-}
-
-.master-stop-cluster > * {
-  flex: 1 1 0;
-  min-width: max-content;
-}
-
-/* grid-area:stop (et align-self:start) : obsolète depuis le regroupement en
-   .master-stop-cluster — supprimé (même raison que group-stop-control
-   ci-dessus, l'align-self bloquait le stretch du cluster parent). */
-.stop-all-control {
-  display: grid;
-  grid-template-rows: auto var(--master-stop-size);
-  gap: 3px;
-  /* space-between (pas start) : ancre le bouton en bas du bloc — les 3 blocs
-     du cluster ont la même hauteur (align-items:stretch du parent), donc ça
-     aligne les boutons entre eux même quand group-stop-control a un select
-     en plus entre son titre et son bouton. */
-  align-content: space-between;
-  justify-items: stretch;
-  /* Plus lié à --stop-group-width (longueur des tags) : depuis que ce bloc
-     est côte à côte avec group-stop-control (master-stop-cluster) plutôt
-     qu'empilé dans la même colonne de grille, il n'a plus besoin de suivre
-     cette largeur — juste assez pour son propre bouton + libellé. */
-  min-width: calc(var(--master-stop-size) + 24px);
-  /* min-height (pas height) : laisse align-items:stretch du cluster parent
-     l'étirer à la hauteur du plus grand voisin (group-stop-control). */
-  min-height: var(--master-stop-panel-height);
-  padding: 3px 6px 5px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--color_ui_frame_background);
-}
-
-.group-stop-control > span:first-child,
-.stop-all-control > span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .master-control.small {
   justify-items: start;
 }
@@ -2188,22 +2119,12 @@ body.guest-mode .random-group-row-minmax #randomGroupToggle {
   text-transform: uppercase;
 }
 
-.master-control.group-stop-control > span:first-child,
-.stop-all-control > span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .master-control output {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
-.master-control.small input,
-.group-stop-row select {
+.master-control.small input {
   width: 100%;
   min-width: var(--stop-group-width, 8ch);
   height: 28px;
@@ -2223,51 +2144,6 @@ body.guest-mode .random-group-row-minmax #randomGroupToggle {
   width: 72px;
   min-width: 72px;
   text-align: center;
-}
-
-.group-stop-row {
-  display: grid;
-  grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-  /* Select des tags d'abord, bouton en dessous (ordre "naturel" titre→select→
-     bouton). L'alignement horizontal des boutons entre les 3 blocs vient
-     désormais de align-content:space-between sur .group-stop-control /
-     .stop-all-control (bouton ancré en bas), pas de cet ordre de lignes. */
-  grid-template-rows: 28px var(--master-stop-size);
-  gap: 3px;
-  min-width: 0;
-  justify-items: center;
-}
-
-/* .master-mute-control n'a qu'un bouton (pas de select) : une seule ligne à
-   la taille du bouton, sinon l'auto-placement grid le coince dans la
-   première ligne (28px, prévue pour le select). */
-.master-mute-control .group-stop-row {
-  grid-template-rows: var(--master-stop-size);
-}
-
-/* Idem : pas de select à accueillir, donc pas besoin de suivre
-   --stop-group-width (longueur des tags) pour la largeur du bloc. */
-.master-mute-control {
-  min-width: calc(var(--master-stop-size) + 24px);
-}
-
-.group-stop-control {
-  /* +16px = juste la bordure/le padding du bloc, pas de marge supplémentaire
-     (le +54px précédent datait d'avant le regroupement en cluster pleine
-     largeur, où ce bloc avait besoin d'être plus large pour rester visuellement
-     cohérent avec stop-all-control voisin — plus la peine maintenant). */
-  min-width: calc(var(--stop-group-width, 8ch) + 16px);
-  min-height: var(--master-stop-panel-height);
-  display: grid;
-  gap: 3px;
-  /* space-between : voir commentaire sur .stop-all-control (styles.css ~2005) —
-     même principe, s'applique aussi à .master-mute-control via cette classe
-     partagée. */
-  align-content: space-between;
-  padding: 3px 6px 5px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--color_ui_frame_background);
 }
 
 input[type="range"] {
@@ -2340,22 +2216,6 @@ button.is-pressed {
   /* Pas de fond « stop » propre : la bordure rouge + l'icône rouge suffisent (et restent
      lisibles quand l'environnement est rouge). Le fond reste celui d'un bouton normal. */
   color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
-}
-
-#stopAll {
-  grid-row: 2;
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-  align-self: center;
-}
-
-#stopGroup {
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
 }
 
 .deck {
@@ -7140,14 +7000,6 @@ body.stage-mode .board-skin-select select {
 
 body.stage-mode .live-tools {
   gap: 12px;
-  /* Neutralise le margin-top:-6px et le justify-self:start de la règle de
-     base (.live-tools, styles.css ~1099 — Cues ajusté à son contenu, en
-     largeur pleine sous Board+Master, uniquement demandé pour Studio/Garage) :
-     sans ça, ils fuitaient ici aussi malgré grid-column:1 (non pleine
-     largeur) posé plus bas pour la scène — stretch restaure le comportement
-     scène d'origine (implicite avant l'ajout de justify-self:start ici). */
-  margin-top: 0;
-  justify-self: stretch;
 }
 
 /* Cues actives en scène : les boutons de cue / stop global gardent la taille
@@ -7168,8 +7020,6 @@ body.stage-mode .master-strip {
      agrandis « live » d'avant sont abandonnés (peu accessibles une fois la
      grille scrollée — repositionnement à revoir séparément). */
   --master-stop-size: 70px;
-  --master-stop-btn-size: var(--master-stop-size);
-  --master-stop-panel-height: 112px;
   gap: 10px;
   grid-column: 2;
   grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
@@ -7184,61 +7034,6 @@ body.stage-mode .master-strip {
   box-sizing: border-box;
   overflow: visible;
 }
-
-body.stage-mode .live-tools {
-  grid-column: 1;
-  /* Pas de align-self ici : styles.css ~11083 ("Ne pas réduire/repositionner
-     Master et Cues en mode Scène") impose align-self:stretch !important sans
-     media query, donc gagne systématiquement — toute valeur posée ici serait
-     morte. Optimisation du 2026-08-20 : la précédente valeur (end) ne
-     s'appliquait jamais, retirée. */
-}
-
-body.stage-mode .group-stop-control,
-body.stage-mode .stop-all-control {
-  /* Pas de min-width:0 / width:100% ici : les blocs gardent leur gabarit
-     Studio, dont l'élargissement du bloc « stop groupé » selon la longueur des
-     tags (--stop-group-width). Aligné sur le Studio (choix : Scène comme
-     Studio), donc largeur du master identique entre les deux modes. */
-  min-height: var(--master-stop-panel-height);
-  height: auto;
-  box-sizing: border-box;
-  padding: 3px;
-  align-content: space-between;
-}
-
-/* .stop-all-control n'a pas de .group-stop-row (pas de select) : sa 2e ligne
-   de grille vient directement de la règle de base (styles.css ~2009), à
-   recaler ici sur --master-stop-btn-size comme les deux autres blocs. */
-body.stage-mode .stop-all-control {
-  grid-template-rows: auto var(--master-stop-btn-size);
-}
-
-body.stage-mode .group-stop-row {
-  /* Colonne calée sur --stop-group-width comme en Studio (cf. .group-stop-row
-     de base) : c'est ce qui élargit le bloc « stop groupé » selon la longueur
-     des tags. Rangée du select à 28px, également comme en Studio. */
-  grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-  grid-template-rows: 28px var(--master-stop-btn-size);
-}
-
-/* Spécificité : body.stage-mode .group-stop-row (type+classe) bat
-   .master-mute-control .group-stop-row (2 classes) — sans ce contre-poids,
-   le bouton mute (une seule ligne, pas de select) hérite du gabarit à 2
-   lignes ci-dessus et déborde de sa case en mode scène. */
-body.stage-mode .master-mute-control .group-stop-row {
-  grid-template-rows: var(--master-stop-btn-size);
-}
-
-/* Select « stop groupé » : entièrement au gabarit Studio en Scène
-   (cf. .group-stop-row select de base) — plus aucun override ici. */
-
-/* Boutons stop (global/groupé) et mute suivent --master-stop-btn-size (posée sur
-   .master-strip ci-dessus, égale à --master-stop-size sauf sur grand écran à
-   pointeur fin où elle vaut 2/3) : la largeur des blocs qui les entourent reste
-   sur --master-stop-size, seule leur rangée de grille suit --master-stop-btn-size
-   (voir .stop-all-control/.group-stop-row plus haut) — pas de vide sous le
-   bouton, et les 3 boutons restent alignés horizontalement entre eux. */
 
 /* Même largeur que le studio (et que la .topbar, centrée) : un deck plus large
    décalait les pads à gauche/droite par rapport au bloc logo/textes et au bloc
@@ -7328,13 +7123,7 @@ body.stage-mode .pad-alerts {
     grid-row: 3;
   }
 
-  .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
   }
 
@@ -7366,17 +7155,11 @@ body.stage-mode .pad-alerts {
     grid-row: 2;
   }
 
-  .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
   .master-strip {
     grid-row: 3;
   }
 
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
   }
 
@@ -7387,7 +7170,6 @@ body.stage-mode .pad-alerts {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -7397,12 +7179,6 @@ body.stage-mode .pad-alerts {
     align-items: stretch;
     gap: 5px;
     padding: 6px;
-  }
-
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). */
-  .live-tools {
-    --master-stop-size: 56px;
   }
 
   #fadeInSeconds,
@@ -7479,27 +7255,10 @@ body.stage-mode .pad-alerts {
     padding-bottom: 32px;
   }
 
-  .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: 32px var(--master-stop-size);
-    gap: 4px;
-  }
-
-  .master-control.small input,
-  .group-stop-row select {
+  .master-control.small input {
     height: 32px;
     padding: 0 7px;
     font-size: 0.72rem;
-  }
-
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  .group-stop-control {
-    grid-area: group;
   }
 
   .icon-button {
@@ -7535,18 +7294,6 @@ body.stage-mode .pad-alerts {
     grid-row: 2;
   }
 
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  /* grid-row:2 (pas 2/4) : Master ne doit plus s'étendre sur la ligne 3, qui
-     appartient maintenant à Cues pleine largeur (cf. .live-tools, styles.css
-     ~1131) — l'ancien span évitait le partage de ligne Board/Master en
-     étirant Master par-dessus, mais rentrait en collision avec Cues une fois
-     celui-ci passé pleine largeur sur cette même ligne 3. Repéré le
-     2026-08-20. */
   .master-strip,
   body.stage-mode .master-strip {
     grid-column: 2;
@@ -7644,7 +7391,6 @@ body.stage-mode .pad-alerts {
   .board-name input,
   .small-button,
   .master-control.small input,
-  .group-stop-row select,
   .danger-button {
     height: 32px;
     min-height: 32px;
@@ -7655,7 +7401,6 @@ body.stage-mode .pad-alerts {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -7665,33 +7410,11 @@ body.stage-mode .pad-alerts {
     align-items: stretch;
   }
 
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). */
-  .live-tools {
-    --master-stop-size: 56px;
-  }
-
   #fadeInSeconds,
   #fadeSeconds,
   #duckPercent {
     width: 72px;
     min-width: 72px;
-  }
-
-  .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: 32px var(--master-stop-size);
-    gap: 4px;
-  }
-
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  .group-stop-control {
-    grid-area: group;
   }
 
   .pads {
@@ -7847,33 +7570,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .deck,
   body.stage-mode .deck {
     width: 100%;
-  }
-
-  .live-tools {
-    grid-template-columns: minmax(0, 1fr) max-content;
-    gap: 7px 8px;
-    grid-column: 1;
-    grid-row: 3;
-    align-self: start;
-  }
-
-  .cue-live-row {
-    grid-column: 1;
-    grid-row: 2;
-    grid-template-columns: repeat(4, 32px) minmax(60px, 1fr);
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .cue-status {
-    grid-column: 5;
-    min-width: 0;
-  }
-
-  .xfade-live-row {
-    grid-column: 2;
-    grid-row: 2;
-    gap: 5px;
   }
 
   .cue-panel .dialog-close-button {
@@ -8054,7 +7750,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(138px, 170px) 36px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -8063,14 +7758,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
       "audio badges badges badges";
     gap: 6px;
     overflow: hidden;
-  }
-
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). C'est cette valeur (54px)
-     que .cue-stop-all-button doit reprendre via .xfade-live-row .cue-stop-all-button
-     plus bas dans ce même bloc. */
-  .live-tools {
-    --master-stop-size: 54px;
   }
 
   .master-volume-control,
@@ -8082,47 +7769,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .cue-volume-control input[type="range"] {
     width: 100%;
     min-height: 34px;
-  }
-
-  .group-stop-control {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .stop-all-control {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .group-stop-row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 30px var(--master-stop-size);
-    width: 100%;
-  }
-
-  .group-stop-row select {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  #stopAll,
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  /* min-width en plus (contrairement à #stopAll/#stopGroup ci-dessus) : ce
-     bouton est un item parmi beaucoup d'autres dans une rangée flex-wrap
-     serrée (.live-tools) — sans min-width égal à width, flex-shrink l'écrase
-     en dessous de la taille visée dès que la rangée manque de place. */
-  .xfade-live-row .cue-stop-all-button {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-width: var(--master-stop-size);
-    min-height: var(--master-stop-size);
   }
 
   .pads,
@@ -8179,15 +7825,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 }
 
-/* 561–900px : `@media (max-width: 900px)` a déjà repassé la topbar à UNE colonne (1fr),
-   mais `@media (min-width: 561px) and (max-width: 950px)`, plus bas dans le fichier,
-   continue d'envoyer le master en `grid-column: 2` (avec width:100% / min-width:0). Cette
-   2e colonne n'étant plus qu'implicite, elle s'écrase à ~0 dès que les cues sont actives :
-   syncFloatingCueFrame impose alors au bloc cues la largeur des pads, qui remplit à elle
-   seule la colonne 1fr. Résultat mesuré à 800px : master réduit à 14px et rejeté à x=810,
-   donc hors de l'écran. On rétablit ici l'empilement une colonne board(2)/master(3)/cues(4),
-   celui déjà utilisé sous 560px. La ligne 4 doit être réaffirmée car le bloc
-   `@media (max-width: 950px), (pointer: coarse)` ci-dessus remet .live-tools en ligne 3. */
 @media (min-width: 561px) and (max-width: 900px) {
   .master-strip,
   body.stage-mode .master-strip {
@@ -8196,119 +7833,9 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     width: fit-content;
     justify-self: end;
   }
-
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-row: 4;
-  }
-}
-
-/* Même correctif que ci-dessus, pour en dessous de 561px : la restriction
-   min-width:561px de la règle précédente laissait passer le même conflit
-   Cues/Master (tous deux ligne 3) en dessous de ce seuil — repéré le
-   2026-08-20 (chevauchement mesuré à 400px). Bug préexistant à cette
-   session, simplement jamais couvert sous 561px. */
-@media (max-width: 560px) {
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-row: 4;
-  }
-}
-
-/* Réaffirme le design pleine largeur (studio/garage, styles.css ~1131) pour
-   901-950px : la plage historique "561-950px" ci-dessus (widerange que le
-   vrai seuil d'empilement 1 colonne de .topbar, ≤900px) repose grid-column:1
-   après la règle de ~1131, l'écrasant dans cette fourchette précise — repéré
-   le 2026-08-20 (Cues resté à la largeur de la colonne 1 au lieu de pleine
-   largeur, entre 901 et 950px). */
-@media (min-width: 901px) {
-  .live-tools {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  /* Cues/Crossfade en portrait, sur 3 lignes : 1re les deux titres, 2e tous les
-     boutons, 3e le statut du cue. Grille (et non plus flex) pour que le titre
-     « Crossfade » et son groupe de boutons (armer crossfade manuel + aide/stop
-     global, toujours l'un OU l'autre visible) partagent EXACTEMENT les mêmes
-     colonnes que les boutons en ligne 2 : le titre s'aligne ainsi pile sur le
-     bord gauche du bouton « armer crossfade manuel », et la colonne 1fr pousse
-     tout ce sous-groupe à droite du bloc. Les rangées (.cue-live-row /
-     .xfade-live-row) étant en display:contents, chaque bouton/titre reste un
-     enfant direct de la grille .live-tools et se positionne individuellement. */
-  /* Retour au flex (pas grid) après diagnostic sur téléphone réel : dès que le
-     titre "CUES" (ligne 1, span colonnes 1-5) ET le statut (ligne 3, span
-     colonnes 1-7) traversaient tous les deux la même colonne flexible (1fr,
-     colonne 5), CSS Grid redistribuait l'espace de façon incohérente entre
-     collé/décollé (colonne 1 mesurée à 123.8px collé contre 42px décollé,
-     confirmé par le badge de debug) — d'où le décalage des boutons de
-     navigation. Le flex n'a pas cet algorithme de "distribution d'espace aux
-     items qui traversent une piste flexible", donc pas ce risque. L'alignement
-     précis du titre "Crossfade" sur le bord gauche du bouton "armer crossfade
-     manuel" (que le flex seul ne peut pas garantir entre deux lignes
-     différentes) est calculé en JS, cf. alignXfadeTitle(). */
-  /* width:100% (pas max-content, cf. règle de base ~1105) : .cue-status plus
-     bas se pose en flex-basis:100% pour occuper sa propre ligne pleine
-     largeur (design 3 lignes titre/boutons/statut) — ça suppose que .live-tools
-     a une largeur bien définie (100% de sa cellule de grille). Avec
-     width:max-content, la largeur du parent dépend de ses enfants ET un
-     enfant (.cue-status) veut être 100% du parent : boucle que les
-     navigateurs résolvent de façon incohérente (largeur mesurée entre 660 et
-     707px pour un même contenu visuel, uniquement selon des détails de rendu
-     — repéré le 2026-08-20 en cherchant pourquoi Cues "s'étirait" sans cause
-     identifiable). */
-  .live-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    row-gap: 7px;
-    column-gap: 6px;
-    min-width: 0;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  .live-tools-title {
-    flex-basis: auto;
-    order: 0;
-  }
-
-  .live-tools .xfade-live-title {
-    order: 1;
-    margin-left: 0;
-  }
-
-  .live-tools::after {
-    content: "";
-    order: 2;
-    flex-basis: 100%;
-    height: 0;
-  }
-
-  #cueEditor,
-  #resetCuePosition,
-  #cueRun,
-  #cueNext,
-  #showCables,
-  #cuesHelp,
-  #cueStopAll {
-    order: 3;
-  }
-
-  /* Même rangée (order:3 ci-dessus) que les autres boutons, mais poussé à
-     l'extrémité droite de cette rangée flex (margin-left:auto), plutôt que
-     simplement adjacent au dernier bouton crossfade. */
-  #cueStopAll {
-    margin-left: auto;
-  }
-
-  .live-tools .cue-status {
-    order: 4;
-    flex-basis: 100%;
-  }
-
   .pads,
   .pads.has-pad-layout,
   body.stage-mode .pads,
@@ -8536,31 +8063,14 @@ body.stage-mode .secondary-live-group {
 
 @media (max-width: 950px), (pointer: coarse) {
 
-  /* grid-column/grid-row/justify-self/align-self de ce bloc (Board/Master/Cues
-     en scène) SANS !important depuis l'optimisation du 2026-08-20 : un doublon
-     mort de ces mêmes propriétés traînait en toute fin de fichier (ajouté pour
-     une tout autre raison en 2026-06, rendu obsolète depuis sans être retiré)
-     et forçait à passer en !important pour continuer à l'emporter. Le doublon
-     supprimé, l'ordre naturel de la cascade suffit — vérifié par simulation
-     sur largeur/pointeur (aucune valeur finale ne change). --master-stop-size
-     et consorts restent en !important : non vérifiés dans cette passe. */
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
     align-self: start;
-  }
-
-  body.stage-mode .board-area {
     grid-row: 2;
-  }
-
-  body.stage-mode .live-tools {
-    grid-row: 3;
   }
 
   body.stage-mode .master-strip {
     --master-stop-size: clamp(52px, 8vw, 72px) !important;
-    --master-stop-panel-height: calc(var(--master-stop-size) + 34px) !important;
     grid-template-columns: minmax(54px, 68px) 24px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
     grid-column: 2;
     grid-row: 2;
@@ -8569,43 +8079,6 @@ body.stage-mode .secondary-live-group {
        spécificité) — une valeur posée ici serait de toute façon morte. */
     justify-self: end;
     overflow: visible !important;
-  }
-
-
-  body.stage-mode .cue-live-row {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(4, 46px) minmax(0, 1fr) !important;
-    gap: 9px !important;
-  }
-
-  body.stage-mode .cue-status {
-    grid-column: 1 / -1 !important;
-  }
-
-  body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button,
-  body.stage-mode.cues-enabled .show-cables-button {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-  }
-
-  body.stage-mode .xfade-live-row {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(2, 34px) !important;
-    gap: 5px !important;
-  }
-
-  /* Aide exclue : même taille réduite qu'avant (34px), seuls stop global et
-     crossfade armé suivent désormais la taille des boutons de cue ci-dessus. */
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
-    width: 34px !important;
-    height: 34px !important;
-    min-width: 34px !important;
-    min-height: 34px !important;
   }
 
   body.stage-mode .pad-live-row {
@@ -8643,62 +8116,6 @@ body.stage-mode .secondary-live-group {
        paysage/large (justify-self:end, cf. styles.css ~8171) — pas collé au
        bord gauche de l'écran. Erreur du 2026-08-20 corrigée le même jour. */
     justify-self: end !important;
-  }
-
-  /* width:100% (pas fit-content) : même raison qu'en studio (cf. .live-tools
-     ~1105 et le bloc portrait de base ~8009) — .cue-status se pose en
-     flex-basis:100% dans ce même contexte portrait, ce qui suppose une
-     largeur de parent bien définie plutôt que calculée sur son contenu. */
-  body.stage-mode .live-tools {
-    grid-column: 1 !important;
-    grid-row: 4 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    justify-self: start !important;
-    align-self: start !important;
-  }
-
-  body.stage-mode .cue-live-row {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(4, 36px) minmax(48px, 1fr) !important;
-    width: 100% !important;
-    gap: 5px !important;
-  }
-
-  /* grid-column:auto (pas 1/-1) : la pleine largeur chevauchait les 4 boutons
-     de .cue-live-row (repère.template-columns juste au-dessus : 4×36px +
-     1×1fr), donc l'auto-placement CSS Grid rejetait le statut sur une
-     nouvelle ligne pour éviter le chevauchement — au lieu de tenir la 5e
-     colonne (1fr) prévue pour lui, à côté des boutons. Repéré le 2026-08-20 :
-     "Cues désactivées" isolé sur sa propre ligne sous les boutons. */
-  body.stage-mode .cue-status {
-    grid-column: auto;
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-  }
-
-  body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button,
-  body.stage-mode.cues-enabled .show-cables-button {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-
-  body.stage-mode .xfade-live-row {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(2, 34px) !important;
-    justify-self: end !important;
-    gap: 5px !important;
-  }
-
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
-    width: 34px !important;
-    min-width: 34px !important;
   }
 }
 
@@ -8768,42 +8185,7 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-/* Bloc cues INACTIF (studio ET scène, hors garage) : compact, largeur de la
-   rangée de boutons, calé à gauche — pas de marge à droite. max-content (pas
-   fit-content, cf. .live-tools de base ~1105) : même raison, résultat
-   incohérent selon la hauteur de la fenêtre sur un élément qui span 2
-   colonnes de grille. max-width:680px (pas 100%) : cette règle étant
-   !important, elle gagnait sur le plafond posé dans la règle de base — sans
-   la répéter ici, le calcul max-content bugué (mesuré jusqu'à 707px alors
-   que le contenu réel ne dépasse pas ~670px) n'était pas contenu du tout
-   dans l'état "cues désactivées" (repéré le 2026-08-20). */
-body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
-  width: max-content !important;
-  max-width: min(100%, 680px) !important;
-  justify-self: start !important;
-}
-
-/* Grille dès l'activation (collé ou non) : 1re colonne compacte pour le bouton
-   activer/désactiver les cues (reste petit), puis 3 gros boutons de cue (84px),
-   puis l'espace extensible (1fr) qui porte le titre du cue au centre. */
-body.stage-mode.cues-enabled:not(.board-edit-mode) .cue-live-row {
-  grid-template-columns: 42px repeat(3, 84px) minmax(0, 1fr) !important;
-}
-
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
-  .cue-live-row,
-  body.stage-mode .cue-live-row {
-    grid-template-columns: repeat(4, minmax(44px, 1fr)) minmax(140px, 1.6fr) !important;
-  }
-
-  .cue-live-row .icon-button,
-  body.stage-mode .cue-live-row .icon-button {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-
   .pad-live-row button,
   body.stage-mode .pad-live-row button {
     min-height: 44px;
@@ -9662,10 +9044,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background: var(--color_ui_help_background);
   color: var(--color_ui_help);
   z-index: 3;
-}
-
-.xfade-live-row {
-  grid-template-columns: repeat(2, 42px);
 }
 
 .cues-help-button {
@@ -11334,7 +10712,6 @@ body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-
 body.stage-mode .board-strip,
 body.stage-mode .board-main,
 body.stage-mode .master-strip,
-body.stage-mode .live-tools,
 body.stage-mode .cue-strip,
 body.stage-mode .cues-strip,
 body.stage-mode .crossfade-strip,
@@ -11361,12 +10738,11 @@ body.stage-mode .board-main > .board-mode-selector .board-mode-button {
   white-space: nowrap !important;
 }
 
-/* Ne pas réduire/repositionner Master et Cues en mode Scène. Sans !important
+/* Ne pas réduire/repositionner Master en mode Scène. Sans !important
    depuis l'optimisation du 2026-08-20 (vérifié par simulation de cascade,
    cf. commentaire styles.css ~8171) : rien de plus tardif/spécifique ne
-   redéclare ces propriétés pour Master/Cues, donc l'ordre naturel suffit. */
-body.stage-mode .master-strip,
-body.stage-mode .live-tools {
+   redéclare ces propriétés pour Master, donc l'ordre naturel suffit. */
+body.stage-mode .master-strip {
   width: auto;
   max-width: none;
   min-width: 0;
@@ -11404,29 +10780,6 @@ body.stage-mode .live-tools {
        atténuation partielle, déjà en place avant l'essai (retiré puis
        reposé) du regroupement Board+Cues du 2026-08-20. */
     grid-row: 2 / 4;
-  }
-}
-
-body.stage-mode .live-tools .cue-window-button,
-body.stage-mode .live-tools .cues-help-button {
-  display: none !important;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg,
-  body.stage-mode .show-cables-button svg {
-    width: 26px !important;
-    height: 26px !important;
-  }
-}
-
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg,
-  body.stage-mode .show-cables-button svg {
-    width: 22px !important;
-    height: 22px !important;
   }
 }
 
@@ -11644,28 +10997,6 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
     width: 100%;
     max-width: 460px;
   }
-
-  /* Cues désactivées : la règle dédiée (~8842, body:not(.cues-enabled)
-     .live-tools, !important) impose width:max-content — sujette au calcul
-     max-content peu fiable déjà documenté dans ce fichier (mesuré jusqu'à
-     707px pour un besoin réel de ~670px) — d'où le bloc élargi débordant à
-     droite en portrait, et Board/Master entraînés avec lui (cf. commentaire
-     ci-dessus). Même sélecteur exact (même spécificité) + !important, plus
-     tardif dans la cascade, pour la battre proprement sur mobile plutôt que
-     dupliquer un !important générique moins ciblé. */
-  body .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-    justify-self: center;
-    width: 100%;
-    max-width: 460px;
-  }
-
-  body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
-    width: 100% !important;
-    max-width: 460px !important;
-    justify-self: center !important;
-  }
 }
 
 /* Survol consolidé, net et uniforme sur tous les boutons de l'éditeur audio
@@ -11797,8 +11128,7 @@ body.guest-mode .master-title,
 body.guest-mode .master-strip .cue-output-group,
 body.guest-mode .master-strip .master-input-group,
 body.guest-mode .master-option-badges,
-body.guest-mode .master-corner-row,
-body.guest-mode .master-stop-cluster {
+body.guest-mode .master-corner-row {
   display: none;
 }
 body.guest-mode .master-volume-stack {
@@ -11961,9 +11291,7 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
    on borne leur largeur au conteneur, quoi qu'il arrive. */
 @media (max-width: 950px), (pointer: coarse) {
   body .master-strip,
-  body.stage-mode .master-strip,
-  body .live-tools,
-  body.stage-mode .live-tools {
+  body.stage-mode .master-strip {
     width: auto;
     max-width: 100%;
     min-width: 0;
@@ -11993,8 +11321,7 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     grid-template-columns: minmax(0, 1fr) !important;
   }
   html body.stage-mode .board-area,
-  html body.stage-mode .master-strip,
-  html body.stage-mode .live-tools {
+  html body.stage-mode .master-strip {
     grid-column: 1 !important;
     width: auto !important;
     max-width: 100% !important;
@@ -12007,14 +11334,9 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     grid-template-columns: minmax(0, 1fr) !important;
     --master-stop-size: clamp(48px, 20vw, 110px);
   }
-  body.stage-mode .master-strip > *,
-  body.stage-mode .master-stop-cluster,
-  body.stage-mode .master-stop-cluster > * {
+  body.stage-mode .master-strip > * {
     min-width: 0;
     max-width: 100%;
-  }
-  body.stage-mode .master-stop-cluster {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
 
