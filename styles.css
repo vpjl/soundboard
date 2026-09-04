@@ -268,9 +268,19 @@ body[data-skin="minimal"] .pad-actions {
   gap: 5px;
 }
 
+/* S2 — lot 3 (.pad-play-row/.pad-vu/.pad-progress). `grid-template-columns` et
+   `gap` de .pad-play-row sont ici du code mort : la règle inconditionnelle
+   styles.css ~8304 (`.pad-play-row { display:grid !important; grid-template-
+   columns:… !important; gap:… !important }`) s'applique TOUJOURS (aucune
+   condition de skin/mode) et l'emporte quoi qu'il arrive — cette règle reste
+   volontairement hors couche (mélange de propriétés importantes et non
+   importantes, cf. mémoire du chantier). Migration sans risque : la valeur
+   ci-dessous n'a de toute façon jamais d'effet visuel. */
+@layer skin {
 body[data-skin="minimal"] .pad-play-row {
   grid-template-columns: 1fr;
   gap: 5px;
+}
 }
 
 body[data-skin="minimal"] .pad-trigger {
@@ -2639,6 +2649,12 @@ body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
+/* opacity/pointer-events : seule règle du fichier à les poser sur ce quatuor
+   (pad-actions/.controls/.pad-progress/.pad-vu, illustré basic non-édition) —
+   les concurrentes (styles.css ~7157/~8010, stage-mode) sont en !important et
+   restent hors couche, elles gagnent déjà sans condition quand elles
+   s'appliquent, migration ici sans risque. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
@@ -2649,6 +2665,7 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hi
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0;
   pointer-events: none;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
@@ -3219,10 +3236,14 @@ body.stage-mode .tag-filter-section-header {
   gap: 8px;
 }
 
+/* display/grid-template-columns/gap : code mort, cf. commentaire ~ligne 271
+   (règle inconditionnelle ~8304, hors couche, gagne toujours). */
+@layer base {
 .pad-play-row {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
 }
 
 .pad-trigger {
@@ -3284,6 +3305,14 @@ body.stage-mode .tag-filter-section-header {
   transform-origin: left center;
 }
 
+/* position : gagne toujours face aux règles ~8405/~8414 (hors couche, leur
+   position est en !important). height : ~8405/~8414 (hors couche) posent
+   aussi une valeur non importante, mais une règle plus spécifique encore
+   (~8669 pour .pad-vu, hors couche) l'emporte déjà aujourd'hui en dehors de
+   l'édition — elle continue de gagner (hors couche bat toujours couche),
+   vérifié navigateur. right/bottom/left/overflow/border/… : isolées, aucune
+   autre règle ne les pose sur .pad-vu/.pad-progress. */
+@layer base {
 .pad-vu {
   position: absolute;
   right: 8px;
@@ -3305,6 +3334,7 @@ body.stage-mode .tag-filter-section-header {
   background: var(--color_pad_progress_background);
   cursor: pointer;
   touch-action: none;
+}
 }
 
 .pad-progress-fill {
@@ -4062,10 +4092,14 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   display: contents;
 }
 
+/* display : code mort (~8435, hors couche, display:contents !important gagne
+   déjà) — order/grid-column : isolées, migration sans risque. */
+@layer mode {
 .pad.is-editing .pad-play-row {
   display: contents;
   order: 0;
   grid-column: 1 / -1;
+}
 }
 
 .pad.is-editing .pad-trigger {
@@ -4120,9 +4154,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   transform: translateX(-50%);
 }
 
+@layer mode {
 .pad.is-editing .pad-progress,
 .pad.is-editing .pad-vu {
   display: none;
+}
 }
 
 .pad.is-editing .pad-note-button {
@@ -7484,9 +7520,11 @@ body.stage-mode .pad-alerts {
     gap: 5px;
   }
 
+  @layer responsive {
   .pad-play-row {
     grid-template-columns: 1fr;
     gap: 5px;
+  }
   }
 
   .pad-trigger {
@@ -9015,9 +9053,12 @@ body[data-skin="basic"] .pad:not(.is-editing) .pad-play-row {
   grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
 }
 
+/* padding : isolée, aucune autre règle ne pose padding sur .pad-play-row. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
   padding: 8px;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
