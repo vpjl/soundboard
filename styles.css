@@ -8416,6 +8416,12 @@ body:not(.board-edit-mode) .help-section[aria-label="Pad edit"] {
   display: none !important;
 }
 
+/* S2 — lot 2c (.pad-play-row/.pad-vu/.pad-progress). display/grid-template-
+   columns/grid-template-areas/align-items/gap : concurrentes de ~8721/~9186/
+   ~11759/~8556 (toutes !important) — groupées dans la même couche pour
+   préserver l'arbitrage par spécificité/ordre exact. min-height : non
+   important, concurrente de ~8721/~8556 pour la même raison. */
+@layer skin {
 .pad-play-row,
 body.stage-mode .pad-play-row {
   display: grid !important;
@@ -8431,6 +8437,7 @@ body.stage-mode .pad-play-row {
   align-items: center !important;
   gap: 5px 6px !important;
   min-height: 104px;
+}
 }
 
 /* S2 — lot 2b (.pad-trigger, cluster taille). min-height/padding : code mort,
@@ -8452,6 +8459,11 @@ body.stage-mode .pad-trigger {
 }
 }
 
+/* S2 — lot 2c : NON migrée — concurrente de la règle de base `.pad-label`
+   (~3755, hors couche, gap différent) sur gap/min-width ; passer celle-ci en
+   couche seule inverserait le gagnant (hors couche bat couche pour le non
+   important), détecté par la vérif double-snapshot. `.pad-label` de base est
+   hors périmètre de ce lot (partagée par de nombreux autres contextes). */
 .pad-play-row .pad-label {
   display: grid;
   grid-template-columns: 22px 22px minmax(0, 1fr);
@@ -8525,6 +8537,11 @@ body.stage-mode .pad-time {
   align-self: center;
 }
 
+/* S2 — lot 2c : position isolée (aucune autre règle importante ne la pose sur
+   .pad-progress). grid-area/width/height/min-height : isolées aussi, sauf
+   height qui a une concurrente non importante plus spécifique pour .pad-vu
+   (~8807) — groupée avec elle. */
+@layer skin {
 .pad-progress,
 body.stage-mode .pad-progress {
   grid-area: progress;
@@ -8541,6 +8558,7 @@ body.stage-mode .pad-vu {
   width: 100%;
   height: 4px;
 }
+}
 
 .pad-alerts,
 body.stage-mode .pad-alerts {
@@ -8555,9 +8573,14 @@ body.stage-mode .pad-alerts {
   max-width: 100%;
 }
 
+/* S2 — lot 2c : display concurrente de ~8419 (importance tranche déjà, quelle
+   que soit la couche) ; min-height concurrente de ~8419/~8721 (non important,
+   groupée avec eux). */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-play-row {
   display: contents !important;
   min-height: 0;
+}
 }
 
 /* S2 — lot 2b (.pad-trigger, cluster taille). min-height : vivant hors skin
@@ -8701,9 +8724,14 @@ body.board-edit-mode .pad.is-editing .pad-alerts {
   pointer-events: none;
 }
 
+/* S2 — lot 2c : isolée, aucune autre règle importante ne pose display sur
+   .pad-progress/.pad-vu dans ce contexte (édition garage — mutuellement
+   exclusif avec les sélecteurs :not(.is-editing) de ~8201/~8807). */
+@layer mode {
 body.board-edit-mode .pad.is-editing .pad-progress,
 body.board-edit-mode .pad.is-editing .pad-vu {
   display: none !important;
+}
 }
 
 .pad:not(.is-editing) .pad-head {
@@ -8718,6 +8746,12 @@ body.board-edit-mode .pad.is-editing .pad-vu {
   order: 3;
 }
 
+/* S2 — lot 2c : grid-template-columns/areas concurrentes de ~8419/~9186/
+   ~11759 (le même sélecteur est dupliqué à ~9186 et ~11759 dans des @media
+   identiques — c'est la version la plus basse dans le fichier qui gagne à
+   spécificité égale, groupée avec elles pour préserver cet ordre). min-height
+   concurrente de ~8419/~8556 (non important). */
+@layer skin {
 .pad:not(.is-editing) .pad-play-row,
 body.stage-mode .pad:not(.is-editing) .pad-play-row {
   grid-template-columns: 22px 22px 16px minmax(0, 1fr) auto 28px 28px !important;
@@ -8727,6 +8761,7 @@ body.stage-mode .pad:not(.is-editing) .pad-play-row {
     "progress progress progress progress progress vu vu"
     "alerts alerts alerts alerts alerts alerts alerts" !important;
   min-height: 112px;
+}
 }
 
 .pad:not(.is-editing) .pad-shortcut {
@@ -8804,10 +8839,14 @@ body.stage-mode .pad:not(.is-editing) .pad-title {
 }
 }
 
+/* S2 — lot 2c : height concurrente de ~8537 (non importante) — groupée dans
+   la même couche pour préserver l'ordre de spécificité. align-self : isolée. */
+@layer skin {
 .pad:not(.is-editing) .pad-vu,
 body.stage-mode .pad:not(.is-editing) .pad-vu {
   align-self: center;
   height: 9px;
+}
 }
 
 .pad:not(.is-editing) .controls,
@@ -8976,10 +9015,15 @@ body.stage-mode .pad:not(.is-editing) .controls {
   display: none !important;
 }
 
+/* S2 — lot 2c : isolées (aucune autre règle non importante ne pose max-width/
+   overflow sur .pad-play-row ; ~11458, importante et illustrée-scène, gagne
+   déjà sans condition quand elle s'applique, quelle que soit la couche ici). */
+@layer mode {
 .pad:not(.is-editing) .pad-play-row,
 body.stage-mode .pad:not(.is-editing) .pad-play-row {
   max-width: 100%;
   overflow: hidden;
+}
 }
 
 .pad:not(.is-editing) .pad-alerts,
@@ -8991,6 +9035,10 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
   overflow: hidden;
 }
 
+/* S2 — lot 2c : isolées pour .pad-vu/.pad-progress (aucune autre règle ne pose
+   max-width/min-width sur ces deux-là) ; pad-live-row/.control-group/pad-actions/
+   .controls hors périmètre de ce lot, non auditées séparément. */
+@layer mode {
 .pad-live-row,
 .pad-live-row .control-group,
 .pad:not(.is-editing) .pad-actions,
@@ -8999,6 +9047,7 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
 .pad:not(.is-editing) .pad-progress {
   max-width: 100%;
   min-width: 0;
+}
 }
 
 .visual-toggle-button {
@@ -9149,8 +9198,12 @@ body.board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
   grid-column: 3;
 }
 
+/* S2 — lot 2c : isolée, aucune autre règle ne pose grid-template-rows sur
+   .pad-play-row. */
+@layer skin {
 body[data-skin="basic"] .pad:not(.is-editing) .pad-play-row {
   grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
+}
 }
 
 /* padding : isolée, aucune autre règle ne pose padding sur .pad-play-row. */
@@ -9184,10 +9237,16 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 
 @media (max-width: 950px), (pointer: coarse) {
+  /* S2 — lot 2c : grid-template-columns rendue morte par le doublon ~11759
+     (même sélecteur, même @media, plus bas dans le fichier) — groupée avec
+     lui pour préserver ce résultat. gap : vivante, aucune autre règle @media
+     identique ne la redéclare. */
+  @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
     grid-template-columns: 22px 22px 14px minmax(0, 1fr) auto 24px 24px !important;
     gap: 4px !important;
+  }
   }
 
   .pad:not(.is-editing) .pad-actions {
@@ -11756,6 +11815,9 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   }
   /* Pad : centrer la rangée d'options (numéro/type · durée/note/œil) au lieu
      de la coller aux deux bords — un 1fr de chaque côté du groupe. */
+  /* S2 — lot 2c : gagne sur le doublon ~9186 (même sélecteur, même @media,
+     plus haut dans le fichier) — groupée avec lui pour préserver ce résultat. */
+  @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
     grid-template-columns: minmax(0, 1fr) 22px 22px 14px auto 24px 24px minmax(0, 1fr) !important;
@@ -11764,6 +11826,7 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
       "title title title title title title title title"
       "progress progress progress progress progress progress vu vu"
       "alerts alerts alerts alerts alerts alerts alerts alerts" !important;
+  }
   }
   /* Info de cue (« lance pad X si… ») : sur 2 lignes si elle ne tient pas sur
      une, plutôt que tronquée. */
