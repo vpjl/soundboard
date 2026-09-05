@@ -10105,21 +10105,11 @@ body.stage-mode #boardName:focus {
 /* Apply font overrides to both preview and real board */
 @layer base {
 .pad-title,
-.pad-trigger,
-.skin-editor-preview .pad-title,
-.skin-editor-preview .pad-trigger {
+.pad-trigger {
   font-family: var(--skin_font_family, inherit);
 }
-
-/* `.pad-title` (vrai board) : font-size via le token --pad-title-size (bloc S1).
-   L'aperçu éditeur de skin garde son override direct au cas où son `.pad-title`
-   ne serait pas dans un `.pads`. */
-.skin-editor-preview .pad-title {
-  font-size: var(--skin_font_size_title, inherit);
-}
 }
 
-.skin-editor-preview .skin-hue-match,
 .skin-hue-match {
   outline: 2px solid rgba(255, 214, 60, 0.9) !important;
   outline-offset: 2px;
@@ -10372,18 +10362,6 @@ body.stage-mode #boardName:focus {
   background: transparent;
 }
 
-.skin-editor-preview [data-skin-variable] {
-  cursor: pointer;
-}
-
-.skin-editor-preview [data-skin-variable]:focus-visible,
-.skin-editor-preview [data-skin-variable]:hover {
-  outline: 2px solid color-mix(in srgb, var(--color_status_progress) 72%, transparent);
-  outline-offset: 2px;
-}
-
-
-.skin-editor-preview .skin-variable-highlight,
 .skin-variable-highlight {
   position: relative;
   outline: 2px solid var(--color_status_progress);
@@ -10397,135 +10375,13 @@ body.stage-mode #boardName:focus {
   padding: 8px;
 }
 
-.skin-editor-preview .skin-preview-board-shell {
-  display: grid;
-  min-height: 0; /* override .app { min-height: 100vh } */
-  color: var(--color_ui_text);
-  background: var(--color_ui_background);
-}
-
-.skin-editor-preview .board-area,
-.skin-editor-preview .board-strip,
-.skin-editor-preview .master-strip,
-.skin-editor-preview .live-tools {
-  width: 100%;
-  min-width: 0;
-}
-
-.skin-editor-preview .board-area {
-  display: block;
-  grid-row: 1; /* force row 1 — prevent empty implicit row from global grid-row:2 */
-  grid-column: 1;
-}
-
-.skin-editor-preview .board-strip {
-  margin: 0;
-}
-
-.skin-editor-preview .board-main {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.4fr);
-  gap: 10px;
-}
-
-.skin-editor-preview .skin-preview-top-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 8px;
-}
-
-.skin-editor-preview .skin-preview-top-tools .live-tools {
-  grid-column: auto;
-  grid-row: auto;
-}
-
-.skin-editor-preview .master-strip,
-.skin-editor-preview .live-tools {
-  margin: 0;
-}
-
-.skin-editor-preview .skin-preview-top-tools {
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
-}
-
-.skin-editor-preview .master-strip {
-  grid-column: auto;
-  grid-row: auto;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: auto;
-  grid-template-areas: "title master stop";
-  gap: 6px;
-  padding: 8px;
-  width: 100%;
-  max-width: none;
-  justify-self: stretch;
-}
-
-.skin-editor-preview .master-audio-button,
-.skin-editor-preview .master-help-button,
-.skin-editor-preview .patch-bay-button,
-.skin-editor-preview .master-output-name,
-.skin-editor-preview .master-vu {
-  display: none;
-}
-
-/* Aperçu : le bouton d'aide y est masqué, pas besoin de réserver sa bande basse.
-   (Spécificité alignée sur `.master-strip .master-option-badges` pour l'emporter.) */
-.skin-editor-preview .master-strip .master-option-badges {
-  min-height: 0;
-}
-
-.skin-editor-preview .master-output-group {
-  gap: 3px;
-  padding: 4px;
-}
-
-.skin-editor-preview .master-volume-stack {
-  min-width: 0;
-}
-
-/* Cues block in editor preview: all buttons flow on a single line.
-   The id-prefixed rule below wins (overrides board-edit-mode display:none). */
-.skin-editor-preview .live-tools,
-#skinEditorDialog .skin-editor-preview .live-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--color_ui_border);
-  border-radius: 10px;
-  background: var(--color_ui_panel);
-}
-
-.skin-editor-preview .live-tools-title {
-  flex: 1 0 100%; /* title alone on its own line */
-  font-size: 0.68rem;
-  margin: 0 0 2px;
-}
-
-/* Let the rows' buttons flow directly into the single flex line */
-.skin-editor-preview .cue-live-row,
-.skin-editor-preview .xfade-live-row {
-  display: contents;
-}
-
-.skin-editor-preview .cue-status {
-  flex: 0 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.skin-editor-preview .help-button {
-  border-color: var(--color_ui_help_border);
-  background: var(--color_ui_help_background);
-  color: var(--color_ui_help);
-}
+/* NB : l'aperçu de l'éditeur de skin est rendu dans une <iframe>
+   (#skinPreviewFrame) dont la racine est `.skin-preview-board-shell`, sans
+   classe `.skin-editor-preview`. Tous les anciens overrides de mise en page
+   `.skin-editor-preview .<élément du board>` (master-strip, board-area, barre
+   Cues…) ne matchaient donc plus rien et ont été supprimés — l'iframe utilise
+   directement le CSS desktop réel du board. Ne styler l'aperçu que par les
+   classes propres `.skin-preview-*` (sans préfixe `.skin-editor-preview`). */
 
 .skin-preview-board {
   grid-template-columns: repeat(2, minmax(250px, 1fr));
@@ -10671,34 +10527,12 @@ body.stage-mode #boardName:focus {
   background: #242633;
 }
 
-/* Éditeur de skins : correspondance explicite des variables dans l’aperçu */
-#skinEditorDialog .skin-editor-preview [data-skin-variable="--color_ui_text"] {
-  color: var(--color_ui_text);
-}
-
-#skinEditorDialog .skin-editor-preview [data-skin-variable="--color_pad_title_text"] {
-  color: var(--color_pad_title_text);
-}
-
-#skinEditorDialog .skin-editor-preview [data-skin-variable="--color_ui_text_muted"] {
-  color: var(--color_ui_text_muted);
-}
-
-#skinEditorDialog .skin-editor-preview [data-skin-variable="--color_ui_panel_secondary"] {
-  background: var(--color_ui_panel_secondary);
-  color: var(--color_ui_text);
-  border-color: var(--color_ui_border);
-}
-
-#skinEditorDialog .skin-editor-preview .master-strip > button:not(.help-button),
-#skinEditorDialog .skin-editor-preview .live-tools button:not(.help-button),
-#skinEditorDialog .skin-editor-preview .board-layout-controls,
-#skinEditorDialog .skin-editor-preview .board-select select,
-#skinEditorDialog .skin-editor-preview .board-name input {
-  background: var(--color_ui_panel_secondary);
-  color: var(--color_ui_text);
-  border-color: var(--color_ui_border);
-}
+/* (Anciennes règles `#skinEditorDialog .skin-editor-preview [data-skin-variable]`
+   / `.master-strip > button` supprimées : l'aperçu est une iframe sans ancêtre
+   `.skin-editor-preview` — voir la note plus haut. Dans l'iframe, les couleurs
+   viennent du CSS normal du board qui lit les variables custom du skin posées
+   sur la racine de l'iframe ; `[data-skin-variable]` n'y sert que de cible de
+   clic pour l'éditeur.) */
 
 
 /* Sélecteur Garage / Studio / Scène */
