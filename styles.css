@@ -11738,9 +11738,15 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
     height: 16px;
   }
   /* Pad : centrer la rangée d'options (numéro/type · durée/note/œil) au lieu
-     de la coller aux deux bords — un 1fr de chaque côté du groupe. */
+     de la coller aux deux bords — un 1fr de chaque côté du groupe.
+     #1 (2026-09-05) : restreint à (pointer: coarse). Le `max-width: 950px` du
+     bloc parent attrapait aussi les fenêtres d'ordinateur redimensionnées
+     (pointeur fin) — la rangée s'y tassait au centre au passage 4→3 colonnes,
+     signalé comme un bug. Sur pointeur fin la rangée garde le gabarit bord-à-
+     bord de base (styles.css ~8783). */
   /* S2 — lot 2c : gagne sur le doublon ~9186 (même sélecteur, même @media,
      plus haut dans le fichier) — groupée avec lui pour préserver ce résultat. */
+  @media (pointer: coarse) {
   @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
@@ -11750,6 +11756,7 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
       "title title title title title title title title"
       "progress progress progress progress progress progress vu vu"
       "alerts alerts alerts alerts alerts alerts alerts alerts" !important;
+  }
   }
   }
   /* Info de cue (« lance pad X si… ») : sur 2 lignes si elle ne tient pas sur
