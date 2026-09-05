@@ -7190,7 +7190,9 @@ body.stage-mode .deck {
 }
 
 body.stage-mode .pads {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* grid-template-columns retiré le 2026-09-05 (#3) : la scène suit désormais
+     `--pad-columns` (JS, comme le studio) via `.pads.has-pad-layout` — plus de
+     `auto-fit minmax(220px)` qui imposait un minimum de colonne différent. */
   gap: 10px;
 }
 
@@ -7391,10 +7393,11 @@ body.stage-mode .pad-alerts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  body.board-edit-mode .pads,
-  body.board-edit-mode .pads.has-pad-layout {
-    grid-template-columns: 1fr !important;
-  }
+  /* (Retiré le 2026-09-05, #3 : `body.board-edit-mode .pads[.has-pad-layout] {
+     grid-template-columns: 1fr !important }` forçait le garage à 1 colonne sous
+     560px. Demande utilisateur : autoriser 2 colonnes → le garage suit
+     `--pad-columns` comme les autres modes. Le champ "Nom" du pad devra
+     s'accommoder d'une colonne plus étroite.) */
 
   /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
      toujours masqués par une règle plus spécifique). */
@@ -7914,17 +7917,25 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     min-height: 34px;
   }
 
+  /* `body.stage-mode .pads` retiré de ces deux listes le 2026-09-05 (#3) : la
+     scène (skin par défaut) suit `--pad-columns` via `.pads.has-pad-layout`
+     comme le studio. Les variantes skin "minimal" restent (studio et scène y
+     sont déjà alignés entre eux). Le `.pads` nu couvre le repli sans layout. */
   .pads,
-  body.stage-mode .pads,
   body[data-skin="minimal"] .pads,
   body[data-skin="minimal"].stage-mode .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
+  /* gap mobile conservé pour la scène (l'ancienne règle qui le posait portait
+     aussi grid-template-columns, retirée ci-dessus). */
+  body.stage-mode .pads {
+    gap: 6px;
+  }
+
   @media (orientation: landscape) {
     .pads,
-    body.stage-mode .pads,
     body[data-skin="minimal"] .pads,
     body[data-skin="minimal"].stage-mode .pads {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7981,23 +7992,13 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  .pads,
-  .pads.has-pad-layout,
-  body.stage-mode .pads,
-  body.stage-mode .pads.has-pad-layout,
-  body[data-skin="minimal"] .pads,
-  body[data-skin="minimal"] .pads.has-pad-layout,
-  body[data-skin="minimal"].stage-mode .pads,
-  body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  /* Garage : 1 seule colonne en portrait (tous skins) pour laisser toute la
-     largeur de l'écran au champ "Nom" du pad, sinon le titre est tronqué. */
-  body.board-edit-mode .pads,
-  body.board-edit-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
-  }
+  /* Colonnes de pads en portrait portable : retiré le 2026-09-05 (#3) les
+     forçages `repeat(2) !important` (studio/scène) et `repeat(1) !important`
+     (garage). `effectiveLayoutForBoard` renvoie déjà 2 colonnes pour tous les
+     modes en portrait portable (stagePortablePortraitLayoutForBoard) et
+     `applyPadLayout` ne rabaisse plus cette valeur ici → `.pads.has-pad-layout`
+     rend `repeat(var(--pad-columns))` de façon cohérente dans les 3 modes.
+     Garage passe donc de 1 à 2 colonnes (demande utilisateur). */
 
   /* S2 — nettoyage code mort : règle supprimée, doublon exact de la règle
      ~8608 (même sélecteur/media, plus bas dans le fichier → elle seule
@@ -8088,9 +8089,11 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     display: none !important;
   }
 
-  body.stage-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
+  /* (Retiré le 2026-09-05, #3 : `body.stage-mode .pads.has-pad-layout {
+     grid-template-columns: repeat(2) !important }` — la scène suit désormais
+     `--pad-columns` comme les autres modes, via le bloc `@media (max-width:950px),
+     (pointer:coarse)` juste au-dessus. En portrait portable la valeur vaut de
+     toute façon 2 (stagePortablePortraitLayoutForBoard).) */
 }
 
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,

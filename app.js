@@ -3604,7 +3604,15 @@ function applyPadLayout(board = currentBoard()) {
   if (enabled) {
     // Plafonne à ce que la largeur d'écran permet (cf. maxPadColumnsForWidth) —
     // pads "grignotés" à droite sinon. board.padColumns n'est pas modifié.
-    const cols = Math.min(layout.columns, maxPadColumnsForWidth());
+    // En portrait portable, `effectiveLayoutForBoard` renvoie déjà le nombre de
+    // colonnes voulu pour téléphone (stagePortablePortraitLayoutForBoard → 2) ;
+    // le plafond largeur (base 185px) le rabaissait à 1 sur un écran étroit,
+    // alors que le CSS forçait quand même l'affichage à 2 (studio) ou 1 (garage)
+    // via des règles !important divergentes selon le mode. On laisse désormais
+    // --pad-columns faire foi dans tous les modes (cf. retrait de ces règles CSS).
+    const cols = shouldForcePortablePortraitLayout()
+      ? layout.columns
+      : Math.min(layout.columns, maxPadColumnsForWidth());
     const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
     els.pads.style.setProperty("--pad-columns", String(cols));
     els.pads.style.setProperty("--pad-rows", String(Math.max(1, Math.ceil(padCount / cols))));
@@ -5352,8 +5360,10 @@ function renderBoardLayoutControls() {
   // Colonnes choisies > ce que la largeur d'écran permet : le rendu est plafonné
   // (applyPadLayout) et on l'annonce. `board.padColumns` reste inchangé → dès que
   // l'écran s'élargit, on retrouve la valeur voulue.
+  // En portrait portable, applyPadLayout ne plafonne plus (2 colonnes fixes,
+  // tous modes) → pas de message de limitation.
   const chosenCols = portraitLocked ? 2 : (layout.mode === "auto" ? 0 : (layout.columns || 4));
-  const widthLimited = chosenCols > maxCols;
+  const widthLimited = !portraitLocked && chosenCols > maxCols;
   if (els.padColumnsLimitHint) {
     els.padColumnsLimitHint.hidden = !widthLimited;
     els.padColumnsLimitHint.textContent = widthLimited
