@@ -2692,11 +2692,11 @@ function handlePadEyeButton(pad) {
       //   via is-visual-hidden)
       // - retrait de is-visual-hidden 2 frames plus tard → la remontée se joue
       // - une fois l'illustration en place (panneau masqué), on ferme vraiment
-      // .pad-fx-reveal-illustration : couche illustration en z-index 7 (visible,
-      // au-dessus du panneau) + transition du panneau coupée (il disparaîtra
-      // net à la fin, hors-champ, déjà masqué par l'illustration).
+      // .pad-fx-reveal-illustration : couche illustration en z-index 7, visible,
+      // au-dessus du panneau resté en place.
       pad.node.classList.add("pad-fx-reveal-illustration");
       const img = pad.node.querySelector(".pad-visual-slide-img");
+      const panel = pad.node.querySelector(".pad-fx-panel");
       requestAnimationFrame(() => requestAnimationFrame(() => {
         pad.node.classList.remove("is-visual-hidden"); // → l'illustration remonte 100%→0
       }));
@@ -2706,7 +2706,14 @@ function handlePadEyeButton(pad) {
         finished = true;
         img?.removeEventListener("transitionend", onEnd);
         setPadVisualImage(pad, pad.visualImage, false);
+        // Fermer le panneau SANS qu'il glisse (« animation de trop ») : on coupe
+        // sa transition en inline, on retire is-fx-open (→ il saute à
+        // translateY 100%), on force un reflow pour verrouiller cette position,
+        // puis on rend sa transition. Tout synchrone → marche même onglet en
+        // arrière-plan (pas de rAF/timeout à attendre).
+        if (panel) panel.style.transition = "none";
         setPadFxOverlayOpen(pad, false);
+        if (panel) { void panel.offsetHeight; panel.style.transition = ""; }
         pad.node.classList.remove("pad-fx-reveal-illustration");
         savePadMeta(pad);
         syncAllPadMinHeightsSoon();

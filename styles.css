@@ -2430,12 +2430,6 @@ body[data-skin="basic"] .pad.is-video-pad.has-color:not(.is-editing) .visual-tog
   z-index: 7 !important;
 }
 
-/* Panneau effets : pas de glissement quand l'illustration le recouvre — il
-   disparaît d'un coup à la fin, hors-champ et déjà masqué. */
-.pad.pad-fx-reveal-illustration .pad-fx-overlay .pad-fx-panel {
-  transition: none !important;
-}
-
 /* Bouton œil ramené en haut à droite, au-dessus du panneau ouvert, pour
    permettre la fermeture au 2e clic. On neutralise explicitement le
    placement de grille du bloc skin basic (grid-area:eye / align-self /
