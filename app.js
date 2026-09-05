@@ -2681,28 +2681,45 @@ function handlePadEyeButton(pad) {
       savePadMeta(pad);
     }
   } else if (pad.fxOverlayOpen) {
-    // #2 (2026-09-05) : escamoter l'illustration (translateY 100%) AVANT de
-    // fermer le panneau, puis la faire remonter deux frames plus tard — sinon
-    // le retrait simultané de `is-fx-open` (qui rend .pad-visual-slide visible)
-    // et de `is-visual-hidden` dans le même tick saute la transition et
-    // l'illustration apparaît d'un coup, découverte de haut en bas par le
-    // panneau qui descend.
-    if (isBasicSkin && hasIllustration) pad.node.classList.add("is-visual-hidden");
-    setPadFxOverlayOpen(pad, false);
-    if (isBasicSkin && hasIllustration) {
-      let revealed = false;
-      const revealIllustration = () => {
-        if (revealed) return;
-        revealed = true;
+    const revealBySlide = isBasicSkin && hasIllustration
+      && pad.node.classList.contains("is-visual-hidden");
+    if (revealBySlide) {
+      // #2 : le panneau effets NE BOUGE PAS ; l'illustration remonte
+      // (translateY 100%→0) par-dessus lui et le masque progressivement.
+      // - is-fx-open reste posé pendant la remontée (panneau visible, en place)
+      // - .pad-fx-reveal-illustration élève la couche illustration au-dessus du
+      //   panneau (z-index) et la rend visible (elle est déjà à translateY 100%
+      //   via is-visual-hidden)
+      // - retrait de is-visual-hidden 2 frames plus tard → la remontée se joue
+      // - une fois l'illustration en place (panneau masqué), on ferme vraiment
+      // .pad-fx-reveal-illustration : couche illustration en z-index 7 (visible,
+      // au-dessus du panneau) + transition du panneau coupée (il disparaîtra
+      // net à la fin, hors-champ, déjà masqué par l'illustration).
+      pad.node.classList.add("pad-fx-reveal-illustration");
+      const img = pad.node.querySelector(".pad-visual-slide-img");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        pad.node.classList.remove("is-visual-hidden"); // → l'illustration remonte 100%→0
+      }));
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        img?.removeEventListener("transitionend", onEnd);
+        setPadVisualImage(pad, pad.visualImage, false);
+        setPadFxOverlayOpen(pad, false);
+        pad.node.classList.remove("pad-fx-reveal-illustration");
+        savePadMeta(pad);
+        syncAllPadMinHeightsSoon();
+      };
+      const onEnd = (e) => { if (e.propertyName === "transform") finish(); };
+      img?.addEventListener("transitionend", onEnd);
+      window.setTimeout(finish, 480); // filet (onglet en arrière-plan : transitionend ne se déclenche pas)
+    } else {
+      setPadFxOverlayOpen(pad, false);
+      if (isBasicSkin && hasIllustration) {
         setPadVisualImage(pad, pad.visualImage, false);
         savePadMeta(pad);
-      };
-      // Deux frames pour que .pad-visual-slide peigne l'illustration escamotée
-      // (translateY 100%) avant de retirer is-visual-hidden → la transition
-      // « remonte » se joue. setTimeout = filet si l'onglet passe en arrière-
-      // plan entre-temps (rAF gelé), sinon l'illustration resterait masquée.
-      requestAnimationFrame(() => requestAnimationFrame(revealIllustration));
-      window.setTimeout(revealIllustration, 120);
+      }
     }
   } else {
     setPadFxOverlayOpen(pad, true);
