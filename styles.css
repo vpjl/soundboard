@@ -10865,7 +10865,17 @@ body.board-edit-mode .board-mode-selector-extra {
   }
 }
 
-/* Sélecteur de modes : sous le nom du board, aligné à gauche */
+/* Couleur distincte du mode Scène courant (Studio/Garage : voir le bloc
+   groupé plus bas ; Scène : voir aussi l'escalade #36c66a puis logo-green). */
+body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
+  border-color: #36c66a !important;
+  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel_secondary)) !important;
+}
+
+/* Correctif final sélecteur modes : position stable et couleur Scène verte.
+   (Ce bloc était précédé de 2 copies strictement identiques — supprimées le
+   2026-09-05, lot 1 du nettoyage du sélecteur de mode : seul le dernier
+   comptait.) */
 .board-main > .board-mode-selector {
   grid-column: 1 / -1 !important;
   display: inline-flex !important;
@@ -10883,62 +10893,6 @@ body.board-edit-mode .board-mode-selector-extra {
   flex: 0 0 auto !important;
   min-width: 72px !important;
   max-width: none !important;
-  white-space: nowrap !important;
-}
-
-/* Sélecteur de modes : position stable entre Board et Nom */
-.board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
-
-.board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
-  white-space: nowrap !important;
-}
-
-/* Couleurs distinctes du mode courant */
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: #36c66a !important;
-  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel_secondary)) !important;
-}
-
-body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
-  border-color: #62b7ff !important;
-  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
-}
-
-body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
-  border-color: #ffd36e !important;
-  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
-}
-
-/* Correctif final sélecteur modes : position stable et couleur Scène verte */
-.board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
-
-.board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
   white-space: nowrap !important;
 }
 
@@ -11007,24 +10961,10 @@ body.stage-mode .cues-crossfade-strip {
   transform: none !important;
 }
 
-body.stage-mode .board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
-
-body.stage-mode .board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
-  white-space: nowrap !important;
-}
+/* (Supprimé le 2026-09-05, lot 1 : body.stage-mode .board-main > .board-mode-selector
+   [+ .board-mode-button] étaient des copies strictement identiques — mêmes valeurs,
+   juste plus spécifiques — des règles .board-main > .board-mode-selector ci-dessus,
+   qui s'appliquent déjà en Scène. Aucun effet sur le rendu.) */
 
 /* Ne pas réduire/repositionner Master en mode Scène. Sans !important
    depuis l'optimisation du 2026-08-20 (vérifié par simulation de cascade,
