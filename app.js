@@ -43,6 +43,11 @@ const MASTER_REVERB_STORAGE = "soundboard-live-master-reverb";
 const MASTER_EQ_STORAGE = "soundboard-live-master-eq";
 const MASTER_COMPRESSOR_STORAGE = "soundboard-live-master-compressor";
 const MASTER_LIVE_FX_PANEL_ENABLED_STORAGE = "soundboard-live-master-fx-panel-enabled";
+const MASTER_CUE_PANEL_VISIBLE_STORAGE = "soundboard-cue-panel-visible";
+const MASTER_XFADE_PANEL_VISIBLE_STORAGE = "soundboard-xfade-panel-visible";
+const MASTER_STOPALL_VISIBLE_STORAGE = "soundboard-stopall-visible";
+const MASTER_STOPGROUP_VISIBLE_STORAGE = "soundboard-stopgroup-visible";
+const MASTER_MUTE_VISIBLE_STORAGE = "soundboard-mute-visible";
 const STOP_GROUP_STORAGE = "soundboard-live-stop-group";
 const RANDOM_GROUP_STORAGE = "soundboard-live-random-group";
 const RANDOM_GROUP_COUNT_STORAGE = "soundboard-live-random-group-count";
@@ -141,9 +146,26 @@ const BOARD_EXTENT_DEFAULT = 1280;
 const PAD_COMPACTNESS_STORAGE = "soundboard-live-pad-compactness";
 const AUDIO_LIB_SORT_STORAGE = "soundboard-live-audio-lib-sort"; // fenêtre « Sons stockés »
 const PAD_COMPACTNESS_MAX = 260;
+// Repli haut de la cible de hauteur de rangée, utilisé UNIQUEMENT tant que la
+// vraie valeur n'a pas pu être mesurée (pads pas encore dans le DOM). Doit
+// rester ≥ à toute hauteur de pad plausible : il vaut mieux une rangée un peu
+// haute qu'un pad écrasé. Même valeur que le repli du CSS
+// (`grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px))`, styles.css).
+const PAD_ROW_MAX_FALLBACK = 340;
+// Hauteur imposée à --pad-compact-height le temps d'une mesure : on comprime la
+// grille au maximum pour lire via scrollHeight la hauteur INCOMPRESSIBLE de
+// chaque pad (cf. syncAllPadMinHeights).
+const PAD_MEASURE_HEIGHT = "1px";
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
+// Board « miroir » reconstruit côté régie à partir du board poussé par la
+// façade (contrôle à distance). Jamais persisté sur disque (voir saveBoards) :
+// il est réémis par la façade à chaque connexion.
+const REMOTE_MIRROR_BOARD_ID = "__remote_mirror__";
+// Taille max d'une tranche de board sur le fil : le relais WebSocket coupe la
+// socket au-delà de 1 Mo par frame (remote-relay.js), on reste très en dessous.
+const REMOTE_BOARD_CHUNK_SIZE = 64 * 1024;
 const DEFAULT_MASTER_VOLUME = 0.6;
 const DEFAULT_CUE_VOLUME = 0.6;
 const DEFAULT_TEXT_RATE = 0.85;
@@ -196,7 +218,11 @@ const COMPRESSOR_PRESETS = {
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
 const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
-const VIDEO_FILE_RE = /\.(mp4|mov|m4v|webm)$/i;
+const VIDEO_FILE_RE = /\.(mp4|mov|m4v)$/i;
+// .webm est ambigu (conteneur audio OU vidéo) : c'est le format des sons
+// enregistrés par l'app elle-même (voir recordingExtension), donc traité
+// comme audio par défaut, sauf si le type MIME dit explicitement "video/".
+const WEBM_FILE_RE = /\.webm$/i;
 
 const state = {
   // Mode invité : identifiant du partage (#g=…) quand la page est ouverte via un
@@ -217,7 +243,6 @@ const state = {
   masterEqHigh: null,
   masterCompressor: null,
   masterCompressorMakeup: null,
-  liveFxPanelDocked: false,
   liveFxPanelAllowed: true,
   liveFxPadSettings: {},
   masterOutputDestination: null,
@@ -233,6 +258,10 @@ const state = {
   remoteConnected: false,
   remoteReconnectTimer: null,
   remoteReconnectDelay: 1000,
+  remoteBoardRev: 0, // façade : révision du board poussé (monotone, repart de 0 par connexion)
+  remoteBoardRxRev: -1, // régie : dernière révision de board appliquée
+  remoteBoardRxBuffer: null, // régie : { rev, total, parts:Map<seq,string>, startedAt }
+  remoteBoardRxTimer: null,
   boards: [],
   currentBoardId: DEFAULT_BOARD_ID,
   pads: [],
@@ -266,7 +295,6 @@ const state = {
   audioMediaDraft: null,
   audioCrossfadeDraft: null,
   masterAudioDraft: null,
-  audioTrimDrag: null,
   reverbBuffers: {},
   imagePad: null,
   imageDraft: null,
@@ -307,6 +335,7 @@ const state = {
   cueDragIndex: -1,
   cueWaitTimer: null,
   cueRunning: false,
+  cuePlaying: false,   // enchaînement auto des cues armé (bouton lancer/pause)
   cuePreviewAudio: null,
   cuePreviewUtterance: null,
   cuePreviewAnalyser: null,
@@ -341,7 +370,6 @@ const state = {
   audioLibraryUsedEntries: [],
   audioLibraryOrphanGroups: [],
   audioLibrarySort: null,
-  cueFloatAnchorTop: null,
   skinEditorVariables: {},
 };
 
@@ -392,11 +420,12 @@ const els = {
   applyMasterAudio: document.querySelector("#applyMasterAudio"),
   cancelMasterAudio: document.querySelector("#cancelMasterAudio"),
   masterOptionBadges: document.querySelector("#masterOptionBadges"),
-  liveFxPanel: document.querySelector("#liveFxPanel"),
   masterLiveFxPanelEnabled: document.querySelector("#masterLiveFxPanelEnabled"),
-  liveFxPanelHandle: document.querySelector("#liveFxPanelHandle"),
-  liveFxPanelDock: document.querySelector("#liveFxPanelDock"),
-  liveFxPanelBody: document.querySelector("#liveFxPanelBody"),
+  masterCuePanelVisible: document.querySelector("#masterCuePanelVisible"),
+  masterXfadePanelVisible: document.querySelector("#masterXfadePanelVisible"),
+  masterStopAllVisible: document.querySelector("#masterStopAllVisible"),
+  masterStopGroupVisible: document.querySelector("#masterStopGroupVisible"),
+  masterMuteVisible: document.querySelector("#masterMuteVisible"),
   masterOutputSelect: document.querySelector("#masterOutputSelect"),
   masterCueOutputSelect: document.querySelector("#masterCueOutputSelect"),
   masterMicrophoneSelect: document.querySelector("#masterMicrophoneSelect"),
@@ -434,6 +463,7 @@ const els = {
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
   guestGate: document.querySelector("#guestGate"),
+  remoteResendBoard: document.querySelector("#remoteResendBoard"),
   remoteControlButton: document.querySelector("#remoteControlButton"),
   remoteControlIndicator: document.querySelector("#remoteControlIndicator"),
   remoteControlDialog: document.querySelector("#remoteControlDialog"),
@@ -739,6 +769,7 @@ const els = {
   padLayoutMode: document.querySelector("#padLayoutMode"),
   padColumns: document.querySelector("#padColumns"),
   padColumnsComputed: document.querySelector("#padColumnsComputed"),
+  padColumnsLimitHint: document.querySelector("#padColumnsLimitHint"),
   padRows: document.querySelector("#padRows"),
   cueEditor: document.querySelector("#cueEditor"),
   openCueDialog: document.querySelector("#openCueDialog"),
@@ -1197,6 +1228,32 @@ function effectiveLayoutForBoard(board) {
   return layout;
 }
 
+// Nombre max de colonnes de pads qui tiennent dans la largeur courante sans
+// écraser les pads : leur rangée de contrôles du haut (en scène surtout) a un
+// plancher d'environ 150px, en dessous les pads sont "grignotés" à droite.
+// Recalculé à chaque render/resize → gère le portable automatiquement (écran
+// étroit ⇒ maxCols bas, cohérent avec les media queries mobiles), sans cas
+// spécial. Renvoie une valeur large si la zone n'est pas encore mesurable.
+// Largeur mini d'un pad avant qu'il ne soit trop serré. 185px : réglé sur retour
+// utilisateur — plafond une colonne plus strict que le premier essai (150px).
+const MIN_PAD_COLUMN_WIDTH = 185;
+function maxPadColumnsForWidth() {
+  // Largeur dispo pour la grille de pads. On mesure `.deck` (le conteneur) si sa
+  // valeur est plausible ; sinon (layout pas encore stabilisé au render initial)
+  // on l'estime : min(étendue du board, fenêtre) − chrome horizontal de `.app`.
+  const measured = document.querySelector(".deck")?.getBoundingClientRect().width || 0;
+  let area = measured;
+  if (measured < 300) {
+    const extent = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--board-extent")
+    ) || 1280;
+    area = Math.min(extent, window.innerWidth) - 48;
+  }
+  if (area < MIN_PAD_COLUMN_WIDTH) return 12;
+  const gap = 12; // .pads { gap: 12px }
+  return Math.max(1, Math.floor((area + gap) / (MIN_PAD_COLUMN_WIDTH + gap)));
+}
+
 function normalizeCueAction(action) {
   return CUE_ACTIONS.includes(action) ? action : "playPad";
 }
@@ -1314,6 +1371,8 @@ function updatePadType(pad) {
   pad.node?.classList.toggle("is-text-pad", type === "text");
   pad.node?.classList.toggle("is-video-pad", type === "video");
   pad.node?.classList.toggle("is-audio-pad", type === "audio");
+  // Devenu texte/vidéo : pas d'effets live, refermer le panneau s'il était ouvert.
+  if (type !== "audio" && pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false);
 }
 
 function normalizedTextRate(value, fallback = DEFAULT_TEXT_RATE) {
@@ -1770,6 +1829,8 @@ function setBoardPadEditing(editing) {
     resetUndoStack();
   }
   state.filterSectionOpen = false;
+  // Le panneau effets plein pad n'existe pas en garage : refermer ceux restés ouverts.
+  if (state.boardEditMode) state.pads.forEach((pad) => { if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false); });
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
@@ -2333,10 +2394,6 @@ function applyPadLiveDelay(pad, value) {
   unit.wet.gain.setTargetAtTime(amount * LIVE_DELAY_MAX_WET, state.audioContext.currentTime, 0.03);
 }
 
-function liveFxRowId(pad) {
-  return `live-fx-row-${pad.uid}`;
-}
-
 const LIVE_FX_PAD_SETTINGS_STORAGE = "soundboard-live-fx-pad-settings";
 
 // Mémorisation légère, indépendante des métadonnées du pad (pas d'export/
@@ -2489,17 +2546,15 @@ function createLiveFxBypassButton(pad) {
 }
 
 // Les 4 curseurs d'effets (distortion/filtre/flanger/delay), partagés entre
-// la rangée du panneau flottant (créée à la lecture) et le verso du pad en
-// scène (créé une seule fois, sans dépendre de la lecture — cf. point 1 de la
-// demande : pouvoir préparer les réglages d'un son trop court pour manipuler
-// la fenêtre flottante pendant qu'il joue). applyPadLiveXxx sort en no-op
-// tant que les nœuds live du pad n'existent pas (pad à l'arrêt) ; seule la
-// valeur mémorisée (saveLiveFxPadSetting) compte alors. Pan/Volume ne sont
-// PAS inclus ici : ce sont les vrais curseurs du pad (.controls), en dehors
-// de .pad-flip désormais — seule la moitié supérieure du pad bascule (cf.
-// setupPadFxFlipTrigger) ; Volume/Pan et les boutons restent inchangés sur
-// les deux faces. createLiveFxPanVolumeControls fournit juste au panneau
-// flottant sa propre présentation compacte de Pan/Volume (existante).
+// la rangée du panneau flottant (créée à la lecture) et le panneau effets
+// plein pad (setPadFxOverlayOpen, reconstruit à chaque ouverture — sans
+// dépendre de la lecture : on peut préparer les réglages d'un son trop court
+// pour manipuler la fenêtre flottante pendant qu'il joue). applyPadLiveXxx
+// sort en no-op tant que les nœuds live du pad n'existent pas (pad à
+// l'arrêt) ; seule la valeur mémorisée (saveLiveFxPadSetting) compte alors.
+// Pan/Volume ne sont pas inclus ici : les deux appelants les ajoutent au
+// besoin via createLiveFxPanVolumeControls (leur applyFn pilote les vrais
+// curseurs .controls du pad).
 function buildLiveFxControlsBody(pad) {
   const remembered = getLiveFxPadSettings(pad);
   const body = document.createElement("div");
@@ -2553,326 +2608,236 @@ function createLiveFxPanVolumeControls(pad) {
   ];
 }
 
-// Bascule recto (pad habituel) / verso (effets live) en mode Scène — double-
-// clic sur la moitié supérieure du pad (.pad-flip), cf. setupPadFxFlipTrigger.
-// Seule cette moitié bascule : .pad-actions et .controls (boutons live,
-// Volume/Pan) restent en place, inchangés, sur les deux faces — donc pas de
-// double Volume/Pan à garder synchronisé/aligné. Le verso est reconstruit à
-// chaque ouverture (au lieu d'être tenu à jour en continu) : plus simple, et
-// ça garantit des valeurs toujours à jour (mémorisées pendant que le pad ne
-// jouait pas, ou modifiées depuis le panneau flottant pendant qu'il jouait)
-// sans mécanisme de synchronisation permanent.
-// .pad-flip est un item de la grille de .pad, donc soumis au même étirement
-// que .pad-head avant cette évolution (ex. rangée de pads dont un voisin est
-// plus grand). Avant, .pad-head (display:contents autour) absorbait cet
-// étirement en silence. Maintenant .pad-flip doit aussi accueillir
-// .pad-face-back en grid-area partagée : le laisser "auto" rouvre la
-// question de combien d'espace supplémentaire revient à .pad-flip vs
-// .pad-actions/.controls (répartition peu prévisible, constatée : décalage
-// vers le bas qui persistait même après être revenu au recto). On fixe donc
-// sa hauteur en dur sur la hauteur naturelle de .pad-head (mesurable même
-// masqué par visibility:hidden), ce qui la sort du calcul d'étirement de la
-// grille de .pad. Idempotent — peut être rappelée à tout moment (bascule,
-// entrée en scène) sans dépendre de l'état courant de .pad-flip.
-function syncPadFxFlipHeight(pad) {
-  if (!pad.fxFlipEl || !pad.headEl) return;
-  // On LIBÈRE d'abord la hauteur figée : .pad-head est en `height:100%` de
-  // .pad-flip (skin basic illustré), donc sans ça on remesurerait la hauteur
-  // qu'on a soi-même posée au coup d'avant → valeur figée jamais corrigée
-  // (constaté : pads allongés jusqu'à un changement de skin qui reconstruit
-  // les pads). En libérant, .pad-flip retombe sur sa taille de contenu réelle.
-  pad.fxFlipEl.style.height = "";
-  // Face effets retournée : on ne fige plus la hauteur. .pad-flip devient la
-  // rangée souple de la grille de .pad (cf. CSS body.stage-mode
-  // .pad.is-fx-flipped { grid-template-rows: minmax(0,1fr) auto auto }) pour
-  // que l'espace libre du pad revienne aux réglages FX au lieu de rester en
-  // vide sous les boutons transport. Au retour sur le recto, la hauteur est
-  // refigée par le rappel de cette fonction (fxFaceFlipped repassé à false).
-  if (pad.fxFaceFlipped) return;
-  // Pad qui affiche son illustration / sa couleur (aucun contrôle visible) :
-  // `.pad-flip` doit REMPLIR tout le pad (carré), pas se caler sur la hauteur
-  // du `.pad-head` — sinon la boîte titre, épinglée au bas de `.pad-flip`,
-  // flotte au milieu du pad.
-  const showsVisual = (pad.node.classList.contains("has-visual-image")
-    || pad.node.classList.contains("has-color"))
+// Panneau effets live plein pad (scène + studio). Déclenché par le bouton œil
+// du pad (handlePadEyeButton). Le panneau .pad-fx-panel glisse verticalement
+// sur le pad (CSS translateY) ; ici on se contente de poser la classe et de
+// (re)construire le contenu à chaque ouverture — valeurs toujours à jour,
+// qu'elles aient été mémorisées à l'arrêt ou changées depuis le panneau
+// flottant pendant la lecture. Contenu : 4 effets + Pan + Volume + bypass.
+function setPadFxOverlayOpen(pad, open) {
+  if (!pad.fxOverlayEl) return;
+  pad.fxOverlayOpen = open;
+  pad.node.classList.toggle("is-fx-open", open);
+  pad.fxOverlayEl.setAttribute("aria-hidden", String(!open));
+  pad.visualToggleEl?.setAttribute("aria-pressed", String(open));
+  syncPadEyeButtonLabel(pad);
+  if (!open) return;
+  if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
+  if (pad.fxBackBodyEl) {
+    const freshBody = buildLiveFxControlsBody(pad);
+    // buildLiveFxControlsBody ne pose que "live-fx-row-body" (classe du
+    // panneau flottant) : sans cet ajout le corps reconstruit perd
+    // "pad-fx-back-body" (flex:1 en CSS) et n'occupe plus que sa hauteur
+    // naturelle. Pan/Volume ajoutés comme dans le panneau flottant.
+    freshBody.classList.add("pad-fx-back-body");
+    freshBody.append(...createLiveFxPanVolumeControls(pad));
+    pad.fxBackBodyEl.replaceWith(freshBody);
+    pad.fxBackBodyEl = freshBody;
+  }
+  syncPadFxOverlayBypass(pad);
+  // Ouverture par un geste délibéré : on rétablit les effets (les nœuds audio
+  // repartent toujours coupés à chaque lecture, cf. démarrage du pad).
+  setLiveFxBypassed(pad, false);
+}
+
+// Le bouton « couper les effets » n'a de sens que quand un graphe audio existe
+// (pad en lecture) — sinon il n'y a rien à couper. On l'ajoute/retire donc du
+// bandeau du panneau plein pad selon l'état de lecture.
+function syncPadFxOverlayBypass(pad) {
+  const head = pad.fxBackHeadEl;
+  if (!head) return;
+  head.querySelector(".live-fx-row-bypass")?.remove();
+  if (pad.fxOverlayOpen && pad.node.classList.contains("is-playing")) {
+    head.appendChild(createLiveFxBypassButton(pad));
+  }
+}
+
+// Bouton œil du pad. Rôle selon le skin et l'état :
+//  - skin basic, illustration/couleur affichée : la masque (dévoile le pad nu,
+//    comportement historique) ;
+//  - panneau effets ouvert : le ferme (+ ré-affiche l'illustration en basic) ;
+//  - sinon : ouvre le panneau effets.
+// (Les skins perso sont rendus comme "classic" — pas d'illustration plein pad —
+// donc seul "basic" a la branche illustration.)
+// Libellé du bouton œil selon ce que fera le prochain clic.
+function syncPadEyeButtonLabel(pad) {
+  if (!pad.visualToggleEl) return;
+  let label = "Afficher les effets live du pad";
+  if (pad.fxOverlayOpen) {
+    label = "Masquer les effets live du pad";
+  } else if (document.body.dataset.skin === "basic"
+    && (pad.visualImage || pad.color)
+    && !pad.node.classList.contains("is-visual-hidden")) {
+    label = "Masquer l’image du pad";
+  }
+  pad.visualToggleEl.setAttribute("aria-label", label);
+}
+
+function handlePadEyeButton(pad) {
+  const isBasicSkin = document.body.dataset.skin === "basic";
+  const hasIllustration = Boolean(pad.visualImage || pad.color);
+  // Pads texte / vidéo : pas d'effets live — le bouton ne gère que l'illustration.
+  // Case master « Activer les effets live » décochée : idem, l'œil ne pilote plus
+  // que l'illustration.
+  const fxAllowed = padType(pad) === "audio" && state.liveFxPanelAllowed;
+  const illustrationShown = isBasicSkin && hasIllustration
     && !pad.node.classList.contains("is-visual-hidden");
-  if (showsVisual) return;
-  const naturalHeight = pad.headEl.getBoundingClientRect().height;
-  if (naturalHeight > 0) pad.fxFlipEl.style.height = `${naturalHeight}px`;
-}
-
-function setPadFxFaceFlipped(pad, flipped) {
-  if (!pad.fxFlipEl) return;
-  // fxFaceFlipped / classe posés AVANT la synchro de hauteur : syncPadFxFlipHeight
-  // s'appuie dessus pour décider de figer (recto) ou de libérer (verso) la
-  // hauteur de .pad-flip.
-  pad.fxFaceFlipped = flipped;
-  pad.node.classList.toggle("is-fx-flipped", flipped);
-  syncPadFxFlipHeight(pad);
-  if (flipped) {
-    if (pad.fxBackTitleEl) pad.fxBackTitleEl.textContent = pad.title;
-    if (pad.fxBackBodyEl) {
-      const freshBody = buildLiveFxControlsBody(pad);
-      // buildLiveFxControlsBody ne pose que "live-fx-row-body" (classe du
-      // panneau flottant, l'autre appelant) : sans cet ajout, le corps
-      // reconstruit perd "pad-fx-back-body" (flex:1 en CSS) dès la première
-      // bascule et n'occupe plus que sa hauteur naturelle.
-      freshBody.classList.add("pad-fx-back-body");
-      pad.fxBackBodyEl.replaceWith(freshBody);
-      pad.fxBackBodyEl = freshBody;
+  if (illustrationShown) {
+    setPadVisualImage(pad, pad.visualImage, true);
+    savePadMeta(pad);
+  } else if (!fxAllowed) {
+    if (isBasicSkin && hasIllustration) {
+      setPadVisualImage(pad, pad.visualImage, false);
+      savePadMeta(pad);
     }
-    pad.fxBackHeadEl?.querySelector(".live-fx-row-bypass")?.remove();
-    pad.fxBackHeadEl?.appendChild(createLiveFxBypassButton(pad));
-    // Le pad joue déjà (ligne présente dans le panneau flottant) : on
-    // ramène ce panneau en bas d'écran, qu'il ait été rabattu ou déplacé
-    // ailleurs par l'utilisateur — sinon le verso s'ouvre sur le pad sans
-    // que le rack (mêmes réglages, vue globale) soit visible à côté.
-    if (document.getElementById(liveFxRowId(pad))) {
-      if (state.liveFxPanelDocked) setLiveFxPanelDocked(false, true, true);
-      else resetLiveFxPanelPositionToBottom();
-    }
-    // Le panneau flottant s'ouvre toujours coupé (par sécurité, à chaque
-    // lecture — comportement existant avant cette évolution). Le verso,
-    // ouvert par un geste délibéré, l'ignore et rétablit les effets : sinon
-    // il apparaît systématiquement "coupé" (bouton rouge) dès qu'un pad a
-    // déjà joué une fois, ce qui va à l'encontre du but recherché (préparer
-    // les effets d'un son trop court). pad.liveFxBypassed est partagé avec
-    // le panneau flottant s'il est affiché en même temps (un seul graphe
-    // audio réel) : ce rétablissement s'applique donc aussi à lui.
-    setLiveFxBypassed(pad, false);
-  }
-}
-
-// Double-clic sur une zone vide de la moitié supérieure du pad (.pad-flip :
-// fond, espaces entre les blocs) en mode Scène : bascule recto/verso. Pas de
-// bouton dédié (plus de place sur le pad) — on exclut tout ce qui est déjà
-// interactif ou fait partie des curseurs d'effets pour ne détecter qu'un
-// vrai double-clic « dans le vide ». Le reste du pad (.pad-actions,
-// .controls) n'écoute pas ce double-clic : il reste inchangé sur les deux
-// faces, donc pas concerné par la bascule.
-function setupPadFxFlipTrigger(pad) {
-  // Double-clic plutôt que simple clic (retour utilisateur : la zone vide
-  // disponible entre boutons/curseurs est trop fine pour un clic fiable) —
-  // un geste délibéré tolère une zone fine sans provoquer de bascules
-  // accidentelles, et laisse le simple clic intact pour jouer/interagir.
-  //
-  // Détection manuelle via deux "click" rapprochés plutôt que l'événement
-  // "dblclick" natif : sur mobile, même avec touch-action:manipulation,
-  // certains navigateurs ne synthétisent pas dblclick de façon fiable à
-  // partir de deux taps (constaté : double-tap sans effet). "click" est
-  // le seul événement garanti à la fois pour souris et tactile.
-  let lastFlipClickAt = 0;
-  pad.fxFlipEl?.addEventListener("click", (event) => {
-    if (!document.body.classList.contains("stage-mode")) return;
-    if (state.guest) return; // pas de face effets pour un board partagé
-    if (event.target.closest("button, input, select, textarea, a, [data-action], .live-fx-control, .pad-tags-chips")) return;
-    const now = event.timeStamp || Date.now();
-    if (now - lastFlipClickAt < 400) {
-      lastFlipClickAt = 0;
-      setPadFxFaceFlipped(pad, !pad.fxFaceFlipped);
+  } else if (pad.fxOverlayOpen) {
+    const revealBySlide = isBasicSkin && hasIllustration
+      && pad.node.classList.contains("is-visual-hidden");
+    if (revealBySlide) {
+      // #2 : le panneau effets NE BOUGE PAS ; l'illustration remonte
+      // (translateY 100%→0) par-dessus lui et le masque progressivement.
+      // - is-fx-open reste posé pendant la remontée (panneau visible, en place)
+      // - .pad-fx-reveal-illustration élève la couche illustration au-dessus du
+      //   panneau (z-index) et la rend visible (elle est déjà à translateY 100%
+      //   via is-visual-hidden)
+      // - retrait de is-visual-hidden 2 frames plus tard → la remontée se joue
+      // - une fois l'illustration en place (panneau masqué), on ferme vraiment
+      // .pad-fx-reveal-illustration : couche illustration en z-index 7, visible,
+      // au-dessus du panneau resté en place.
+      pad.node.classList.add("pad-fx-reveal-illustration");
+      const img = pad.node.querySelector(".pad-visual-slide-img");
+      const panel = pad.node.querySelector(".pad-fx-panel");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        pad.node.classList.remove("is-visual-hidden"); // → l'illustration remonte 100%→0
+      }));
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        img?.removeEventListener("transitionend", onEnd);
+        setPadVisualImage(pad, pad.visualImage, false);
+        // Fermer le panneau SANS qu'il glisse (« animation de trop ») : on coupe
+        // sa transition en inline, on retire is-fx-open (→ il saute à
+        // translateY 100%), on force un reflow pour verrouiller cette position,
+        // puis on rend sa transition. Tout synchrone → marche même onglet en
+        // arrière-plan (pas de rAF/timeout à attendre).
+        if (panel) panel.style.transition = "none";
+        setPadFxOverlayOpen(pad, false);
+        if (panel) { void panel.offsetHeight; panel.style.transition = ""; }
+        pad.node.classList.remove("pad-fx-reveal-illustration");
+        savePadMeta(pad);
+        syncAllPadMinHeightsSoon();
+      };
+      const onEnd = (e) => { if (e.propertyName === "transform") finish(); };
+      img?.addEventListener("transitionend", onEnd);
+      window.setTimeout(finish, 480); // filet (onglet en arrière-plan : transitionend ne se déclenche pas)
     } else {
-      lastFlipClickAt = now;
+      setPadFxOverlayOpen(pad, false);
+      if (isBasicSkin && hasIllustration) {
+        setPadVisualImage(pad, pad.visualImage, false);
+        savePadMeta(pad);
+      }
     }
-  });
-}
-
-function addLiveFxRow(pad) {
-  if (!els.liveFxPanelBody || !pad.gain || !pad.liveFilterNode) return;
-  if (document.getElementById(liveFxRowId(pad))) return;
-  pad.liveFxBypassed = false;
-  const row = document.createElement("div");
-  row.className = "live-fx-row";
-  row.id = liveFxRowId(pad);
-
-  const head = document.createElement("div");
-  head.className = "live-fx-row-head";
-
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "random-group-section-toggle is-active";
-  toggle.setAttribute("aria-expanded", "true");
-  toggle.title = `Déplier/replier les effets — ${pad.title}`;
-  const chevron = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  chevron.setAttribute("viewBox", "0 0 24 24");
-  chevron.setAttribute("aria-hidden", "true");
-  chevron.setAttribute("class", "filter-section-chevron");
-  chevron.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-  const dot = document.createElement("span");
-  dot.className = "random-group-playing-dot";
-  const label = document.createElement("span");
-  label.className = "live-fx-row-title";
-  label.textContent = pad.title;
-  toggle.append(chevron, dot, label);
-
-  const bypassBtn = createLiveFxBypassButton(pad);
-
-  head.append(toggle, bypassBtn);
-
-  const body = buildLiveFxControlsBody(pad);
-  body.append(...createLiveFxPanVolumeControls(pad));
-  body.hidden = false;
-
-  toggle.addEventListener("click", () => {
-    const expanded = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!expanded));
-    body.hidden = expanded;
-  });
-
-  row.append(head, body);
-  els.liveFxPanelBody.appendChild(row);
-  // Ouverture toujours en mode "coupé" : même si des réglages sont mémorisés
-  // pour ce pad, on ne les réapplique pas tant que l'utilisateur ne réactive
-  // pas explicitement les effets (pas de surprise sonore à l'ouverture) —
-  // SAUF si le verso du pad est déjà déplié : l'utilisateur vient alors de
-  // rétablir les effets explicitement en le dépliant (cf.
-  // setPadFxFaceFlipped), lancer le pad ne doit pas annuler ce choix. On
-  // passe par setLiveFxBypassed(pad, false) plutôt que de simplement sauter
-  // l'appel : les nœuds audio effets sont recréés à zéro à chaque lecture
-  // (juste avant addLiveFxRow), donc sans repasser par son branche
-  // "non coupé" (reapplyLiveFxRow), les valeurs mémorisées des curseurs
-  // n'étaient jamais réappliquées aux nouveaux nœuds — le bouton affichait
-  // le bon état mais le son restait sec.
-  setLiveFxBypassed(pad, !pad.fxFaceFlipped);
-}
-
-function removeLiveFxRow(pad) {
-  document.getElementById(liveFxRowId(pad))?.remove();
-}
-
-const LIVE_FX_PANEL_POSITION_STORAGE = "soundboard-live-fx-panel-position";
-const LIVE_FX_PANEL_DOCKED_STORAGE = "soundboard-live-fx-panel-docked";
-
-function clampLiveFxPanelPosition() {
-  const panel = els.liveFxPanel;
-  if (!panel || panel.classList.contains("is-docked") || panel.style.left === "") return;
-  const rect = panel.getBoundingClientRect();
-  const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
-  const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
-  const left = Math.min(maxLeft, Math.max(8, rect.left));
-  const top = Math.min(maxTop, Math.max(8, rect.top));
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-}
-
-function saveLiveFxPanelPosition(left, top) {
-  localStorage.setItem(LIVE_FX_PANEL_POSITION_STORAGE, JSON.stringify({ left, top }));
-}
-
-function applyStoredLiveFxPanelPosition() {
-  const panel = els.liveFxPanel;
-  if (!panel) return;
-  let saved = null;
-  try {
-    saved = JSON.parse(localStorage.getItem(LIVE_FX_PANEL_POSITION_STORAGE));
-  } catch {
-    saved = null;
+  } else {
+    setPadFxOverlayOpen(pad, true);
   }
-  if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    panel.style.left = `${saved.left}px`;
-    panel.style.top = `${saved.top}px`;
-    clampLiveFxPanelPosition();
-  }
+  // Les transitions (panneau qui glisse, illustration qui remonte) durent
+  // ~0,32 s : une seule mesure en rAF tombe en plein milieu et fige un
+  // min-height gonflé sur le pad (skin basic surtout). On remesure une fois
+  // les transitions retombées.
+  window.setTimeout(() => syncAllPadMinHeightsSoon(), 400);
 }
 
-// Déplier le panneau (bouton chevron) le fait toujours réapparaître en bas
-// de l'écran (position CSS par défaut), quelle que soit la position où il
-// avait été déplacé avant d'être rabattu — on peut ensuite le redéplacer à
-// volonté via sa poignée (setupLiveFxPanelDrag).
-function resetLiveFxPanelPositionToBottom() {
-  const panel = els.liveFxPanel;
-  if (!panel) return;
-  panel.style.left = "";
-  panel.style.top = "";
-  panel.style.right = "";
-  panel.style.bottom = "";
-  localStorage.removeItem(LIVE_FX_PANEL_POSITION_STORAGE);
-}
-
-function setLiveFxPanelDocked(docked, persist = true, resetPosition = false) {
-  state.liveFxPanelDocked = docked;
-  els.liveFxPanel?.classList.toggle("is-docked", docked);
-  if (els.liveFxPanelDock) {
-    els.liveFxPanelDock.setAttribute("aria-label", docked ? "Déplier le panneau" : "Rabattre le panneau");
-    els.liveFxPanelDock.classList.toggle("is-flipped", docked);
-  }
-  if (persist) localStorage.setItem(LIVE_FX_PANEL_DOCKED_STORAGE, docked ? "on" : "off");
-  if (!docked) {
-    if (resetPosition) resetLiveFxPanelPositionToBottom();
-    else applyStoredLiveFxPanelPosition();
-  }
-}
-
-function setupLiveFxPanelDrag() {
-  const handle = els.liveFxPanelHandle;
-  const panel = els.liveFxPanel;
-  if (!handle || !panel) return;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-  let dragging = false;
-
-  handle.addEventListener("pointerdown", (event) => {
-    if (state.liveFxPanelDocked || event.target.closest("#liveFxPanelDock")) return;
-    const rect = panel.getBoundingClientRect();
-    panel.style.left = `${rect.left}px`;
-    panel.style.top = `${rect.top}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    dragOffsetX = event.clientX - rect.left;
-    dragOffsetY = event.clientY - rect.top;
-    dragging = true;
-    handle.classList.add("is-dragging");
-    handle.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }, { passive: false });
-
-  handle.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
-    const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
-    const left = Math.min(maxLeft, Math.max(8, event.clientX - dragOffsetX));
-    const top = Math.min(maxTop, Math.max(8, event.clientY - dragOffsetY));
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
-    event.preventDefault();
-  }, { passive: false });
-
-  const endDrag = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove("is-dragging");
-    try { handle.releasePointerCapture(event.pointerId); } catch {
-      // Déjà relâché.
-    }
-    const rect = panel.getBoundingClientRect();
-    saveLiveFxPanelPosition(rect.left, rect.top);
-  };
-  handle.addEventListener("pointerup", endDrag);
-  handle.addEventListener("pointercancel", endDrag);
-}
-
+// Case master « Activer les effets live » : quand elle est décochée, l'overlay
+// effets des pads (bouton œil) est neutralisé. Aucun panneau flottant : les
+// effets live se règlent uniquement au verso du pad (setPadFxOverlayOpen).
 function setLiveFxPanelAllowed(allowed, persist = true) {
   state.liveFxPanelAllowed = allowed;
   document.body.classList.toggle("live-fx-panel-disabled", !allowed);
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = allowed;
   if (persist) localStorage.setItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE, allowed ? "on" : "off");
   updateMasterOptionBadges();
+  if (!allowed) {
+    state.pads?.forEach((pad) => {
+      if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false);
+    });
+  }
+}
+
+// Contrôle des cues (bouton activer + navigation + statut) dans l'îlot Cues :
+// masquable via la case master, pour qui n'utilise pas les cues.
+// body.cue-panel-hidden pilote la visibilité en CSS.
+function setCuePanelVisible(visible, persist = true) {
+  document.body.classList.toggle("cue-panel-hidden", !visible);
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_CUE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+  // Contrôle des cues masqué → l'enchaînement auto s'arrête aussi. Resync de
+  // l'état (body.cues-enabled, boutons). Pas au boot (persist=false, boards pas
+  // encore chargés) — l'init appelle syncCueControls plus tard.
+  if (!visible) pauseCuePlayback();
+  if (persist && typeof syncCueControls === "function") syncCueControls();
+}
+
+// Contrôle crossfade armé (titre « Crossfade » + bouton showCables) dans l'îlot
+// Cues : masquable via la case master, pour qui n'utilise pas le crossfade
+// manuel. body.xfade-panel-hidden pilote la visibilité en CSS.
+function setXfadePanelVisible(visible, persist = true) {
+  document.body.classList.toggle("xfade-panel-hidden", !visible);
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_XFADE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+// Boutons stop global / stop groupé / mute global dans l'îlot Cues : chacun
+// masquable via sa case master. body.stopall-hidden / .stopgroup-hidden /
+// .mute-hidden pilotent la visibilité en CSS.
+function setStopAllVisible(visible, persist = true) {
+  document.body.classList.toggle("stopall-hidden", !visible);
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_STOPALL_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+function setStopGroupVisible(visible, persist = true) {
+  document.body.classList.toggle("stopgroup-hidden", !visible);
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_STOPGROUP_VISIBLE_STORAGE, visible ? "on" : "off");
+}
+
+function setMuteVisible(visible, persist = true) {
+  document.body.classList.toggle("mute-hidden", !visible);
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = visible;
+  if (persist) localStorage.setItem(MASTER_MUTE_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 function initLiveFxPanelChrome() {
-  applyStoredLiveFxPanelPosition();
-  setLiveFxPanelDocked(localStorage.getItem(LIVE_FX_PANEL_DOCKED_STORAGE) === "on", false);
-  setupLiveFxPanelDrag();
-  els.liveFxPanelDock?.addEventListener("click", () => {
-    const opening = state.liveFxPanelDocked;
-    setLiveFxPanelDocked(!opening, true, opening);
-  });
-  window.addEventListener("resize", () => clampLiveFxPanelPosition());
   const storedAllowed = localStorage.getItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE);
   setLiveFxPanelAllowed(storedAllowed == null ? true : storedAllowed === "on", false);
   els.masterLiveFxPanelEnabled?.addEventListener("change", () => {
     setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled.checked));
+  });
+  const storedStopAll = localStorage.getItem(MASTER_STOPALL_VISIBLE_STORAGE);
+  setStopAllVisible(storedStopAll == null ? true : storedStopAll === "on", false);
+  els.masterStopAllVisible?.addEventListener("change", () => {
+    setStopAllVisible(Boolean(els.masterStopAllVisible.checked));
+  });
+  const storedStopGroup = localStorage.getItem(MASTER_STOPGROUP_VISIBLE_STORAGE);
+  setStopGroupVisible(storedStopGroup == null ? true : storedStopGroup === "on", false);
+  els.masterStopGroupVisible?.addEventListener("change", () => {
+    setStopGroupVisible(Boolean(els.masterStopGroupVisible.checked));
+  });
+  const storedMute = localStorage.getItem(MASTER_MUTE_VISIBLE_STORAGE);
+  setMuteVisible(storedMute == null ? true : storedMute === "on", false);
+  els.masterMuteVisible?.addEventListener("change", () => {
+    setMuteVisible(Boolean(els.masterMuteVisible.checked));
+  });
+  const storedCue = localStorage.getItem(MASTER_CUE_PANEL_VISIBLE_STORAGE);
+  setCuePanelVisible(storedCue == null ? true : storedCue === "on", false);
+  els.masterCuePanelVisible?.addEventListener("change", () => {
+    setCuePanelVisible(Boolean(els.masterCuePanelVisible.checked));
+  });
+  const storedXfade = localStorage.getItem(MASTER_XFADE_PANEL_VISIBLE_STORAGE);
+  setXfadePanelVisible(storedXfade == null ? true : storedXfade === "on", false);
+  els.masterXfadePanelVisible?.addEventListener("change", () => {
+    setXfadePanelVisible(Boolean(els.masterXfadePanelVisible.checked));
   });
 }
 
@@ -3098,6 +3063,7 @@ function makePad(index) {
     waveformPeaks: [],
     visualImage: "",
     visualImageHidden: false,
+    fxOverlayOpen: false,
     visualKind: "",
     visualPositionX: 50,
     visualPositionY: 50,
@@ -3160,7 +3126,7 @@ function makePad(index) {
   pad.startStopTagEl = node.querySelector("[data-start-stop-tag]");
   pad.endStartModeEl = node.querySelector("[data-end-start-mode]");
   pad.endStartTargetEl = node.querySelector("[data-end-start-target]");
-  pad.fxFlipEl = node.querySelector("[data-pad-flip]");
+  pad.fxOverlayEl = node.querySelector("[data-pad-fx-overlay]");
   pad.headEl = node.querySelector(".pad-head");
   pad.fxBackTitleEl = node.querySelector("[data-pad-fx-back-title]");
   pad.fxBackHeadEl = node.querySelector(".pad-fx-back-head");
@@ -3301,8 +3267,6 @@ function makePad(index) {
     }
   });
 
-  setupPadFxFlipTrigger(pad);
-
   const trigger = node.querySelector('[data-action="play"]');
   node.addEventListener("click", (event) => {
     // Mode sélection manuelle d'abord : il doit primer sur lecture/édition.
@@ -3370,14 +3334,12 @@ function makePad(index) {
   pad.visualToggleEl?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    setPadVisualImage(pad, pad.visualImage, !pad.visualImageHidden);
-    savePadMeta(pad);
+    handlePadEyeButton(pad);
   });
   pad.visualToggleEl?.addEventListener("keydown", (event) => {
     if (!["Enter", " "].includes(event.key)) return;
     event.preventDefault();
-    setPadVisualImage(pad, pad.visualImage, !pad.visualImageHidden);
-    savePadMeta(pad);
+    handlePadEyeButton(pad);
   });
 
   pad.nameEl.addEventListener("input", () => {
@@ -3387,27 +3349,18 @@ function makePad(index) {
     syncCueControls();
     savePadMeta(pad);
   });
-  pad.tagsEl.addEventListener("input", () => {
-    setPadTags(pad, pad.tagsEl.value);
-    refreshStopGroupOptions();
-    refreshBoardTagFilterOptions();
-    refreshCrossfadeTargetOptions();
-    syncCueControls();
-    savePadMeta(pad);
-  });
   pad.tagsEl.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const sorted = padTagList(pad).sort((a, b) => a.localeCompare(b)).join(", ");
-      setPadTags(pad, sorted);
-      const field = pad.tagsEl.closest(".tag-field");
-      if (field) {
-        field.classList.remove("tags-input-open");
-        field.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
-      }
-      pad.tagsEl.blur();
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitPadTagDraft(pad);
+    const field = pad.tagsEl.closest(".tag-field");
+    if (field) {
+      field.classList.remove("tags-input-open");
+      field.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
     }
+    pad.tagsEl.blur();
   });
+  pad.tagsEl.addEventListener("blur", () => commitPadTagDraft(pad));
   pad.fadeEl.addEventListener("input", () => {
     setPadFade(pad, pad.fadeEl.value, false);
     savePadMeta(pad);
@@ -3601,7 +3554,11 @@ function loadBoards() {
 }
 
 function saveBoards() {
-  localStorage.setItem(BOARDS_STORAGE, JSON.stringify(state.boards));
+  // Le board miroir de la régie (contrôle à distance) ne va jamais sur disque :
+  // il est reconstruit depuis la façade à chaque connexion. Au reboot, le garde
+  // de init() ramène currentBoardId sur un board réel s'il pointait le miroir.
+  const persistable = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  localStorage.setItem(BOARDS_STORAGE, JSON.stringify(persistable));
   localStorage.setItem(CURRENT_BOARD_STORAGE, state.currentBoardId);
 }
 
@@ -3701,9 +3658,21 @@ function applyPadLayout(board = currentBoard()) {
   const enabled = layout.columns > 0 && layout.rows > 0;
   els.pads.classList.toggle("has-pad-layout", enabled);
   if (enabled) {
-    els.pads.style.setProperty("--pad-columns", String(layout.columns));
-    els.pads.style.setProperty("--pad-rows", String(layout.rows));
-    els.pads.dataset.columns = String(layout.columns);
+    // Plafonne à ce que la largeur d'écran permet (cf. maxPadColumnsForWidth) —
+    // pads "grignotés" à droite sinon. board.padColumns n'est pas modifié.
+    // En portrait portable, `effectiveLayoutForBoard` renvoie déjà le nombre de
+    // colonnes voulu pour téléphone (stagePortablePortraitLayoutForBoard → 2) ;
+    // le plafond largeur (base 185px) le rabaissait à 1 sur un écran étroit,
+    // alors que le CSS forçait quand même l'affichage à 2 (studio) ou 1 (garage)
+    // via des règles !important divergentes selon le mode. On laisse désormais
+    // --pad-columns faire foi dans tous les modes (cf. retrait de ces règles CSS).
+    const cols = shouldForcePortablePortraitLayout()
+      ? layout.columns
+      : Math.min(layout.columns, maxPadColumnsForWidth());
+    const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
+    els.pads.style.setProperty("--pad-columns", String(cols));
+    els.pads.style.setProperty("--pad-rows", String(Math.max(1, Math.ceil(padCount / cols))));
+    els.pads.dataset.columns = String(cols);
   } else {
     els.pads.style.removeProperty("--pad-columns");
     els.pads.style.removeProperty("--pad-rows");
@@ -3878,23 +3847,67 @@ function clearCueWaitTimer() {
   if (els.cueRun) els.cueRun.disabled = false;
 }
 
+// Fait clignoter 3× le bouton « Réglage des cues » (coin master) — appelé quand
+// l'utilisateur tente d'activer/lancer des cues sur un board qui n'en a pas.
+function flashCueDialogButton() {
+  const btn = els.openCueDialog;
+  if (!btn) return;
+  btn.classList.remove("flash-attention");
+  void btn.offsetWidth; // reflow : redémarre l'animation même si déjà en cours
+  btn.classList.add("flash-attention");
+  btn.addEventListener(
+    "animationend",
+    () => btn.classList.remove("flash-attention"),
+    { once: true },
+  );
+}
+
+// Arrête l'enchaînement automatique des cues (bouton pause, stop global,
+// désactivation des cues) sans toucher aux sons en cours.
+function pauseCuePlayback() {
+  state.cuePlaying = false;
+  state.cueRunning = false;
+  clearCueWaitTimer();
+}
+
 function syncCueControls() {
   const board = currentBoard();
   const cues = normalizeCues(board?.cues);
+  const hasCues = cues.length > 0;
   if (board) {
     board.cues = cues;
     board.cueIndex = cueIndexForBoard(board);
     if (board.cuesEnabled == null) board.cuesEnabled = false;
   }
-  const hasCues = cues.length > 0;
-  const cuesEnabled = board?.cuesEnabled === true;
-  document.body.classList.toggle("cues-enabled", Boolean(cuesEnabled));
+  // Cues actives = contrôle affiché (case master « Contrôle des cues ») ET
+  // bouton « Cues » de l'îlot enclenché (board.cuesEnabled, par board).
+  const panelShown = !document.body.classList.contains("cue-panel-hidden");
+  const cuesEnabled = panelShown && board?.cuesEnabled === true;
+  document.body.classList.toggle("cues-enabled", cuesEnabled);
+  document.body.classList.toggle("has-cues", hasCues);
+  // Boutons navigation + info : visibles seulement si les cues sont actives ET
+  // qu'il y en a. Sinon on ne montre que le bouton « Cues ».
+  document.body.classList.toggle("cue-nav", cuesEnabled && hasCues);
+  document.body.classList.toggle("cues-playing", cuesEnabled && Boolean(state.cuePlaying));
   els.cueEditor?.classList.toggle("is-active", cuesEnabled);
+  els.cueEditor?.classList.toggle("is-empty", !hasCues);
   els.cueEditor?.setAttribute("aria-pressed", String(cuesEnabled));
   els.cueEditor?.setAttribute("aria-label", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   els.cueEditor?.setAttribute("title", cuesEnabled ? "Désactiver les cues" : "Activer les cues");
   const cueActionDisabled = !hasCues || !cuesEnabled || Boolean(state.cueWaitTimer);
-  if (els.cueRun) els.cueRun.disabled = cueActionDisabled;
+  if (els.cueRun) {
+    els.cueRun.disabled = cueActionDisabled;
+    const playing = cuesEnabled && Boolean(state.cuePlaying);
+    els.cueRun.classList.toggle("is-playing", playing);
+    els.cueRun.setAttribute("aria-label", playing ? "Mettre les cues en pause" : "Lancer le cue courant");
+    els.cueRun.setAttribute("title", playing ? "Pause (n'arrête pas les sons en cours)" : "Lancer le cue courant");
+    const runUse = els.cueRun.querySelector("use");
+    if (runUse) {
+      const icon = playing ? "#ic-rndpause" : "#ic-417557d6";
+      runUse.setAttribute("href", icon);
+      runUse.setAttribute("xlink:href", icon);
+    }
+  }
   if (els.cueNext) els.cueNext.disabled = cueActionDisabled;
   if (els.resetCuePosition) els.resetCuePosition.disabled = !hasCues || !cuesEnabled;
   const hasCrossfade = patchBayRows().length > 0;
@@ -3909,159 +3922,13 @@ function syncCueControls() {
   if (els.patchBay) els.patchBay.disabled = !hasCrossfade;
   if (!hasCrossfade && document.body.classList.contains("show-cables")) setCableOverlayVisible(false);
   if (els.cueStatus) {
-    els.cueStatus.textContent = !cuesEnabled
-      ? "Cues désactivées"
-      : hasCues
+    // Info affichée seulement quand les cues sont actives et qu'il y en a.
+    els.cueStatus.textContent = cuesEnabled && hasCues
       ? `${board.cueIndex + 1}/${cues.length} · ${cueStepLabel(cues[board.cueIndex])}`
-      : "Pas de cues";
+      : "";
   }
   renderCueTimeline(cues);
-  requestAnimationFrame(() => syncFloatingCueFrame(true));
   broadcastRemoteCueState(board);
-}
-
-// Aligne le bord gauche du titre "Crossfade" sur celui du bouton "armer
-// crossfade manuel" (#showCables) — utile uniquement quand ils sont empilés
-// sur deux lignes séparées (bloc cues portable) : le flex seul ne peut pas
-// garantir cet alignement entre deux lignes différentes (contrairement à une
-// grille, mais une grille ici redistribuait l'espace de façon incohérente au
-// collage/décollage du bloc, cf. commentaire CSS de .live-tools en portrait).
-// No-op si les deux sont déjà sur la même ligne (desktop : title juste avant
-// le bouton, sur une seule ligne — un margin-left calculé les ferait alors
-// se chevaucher).
-function alignXfadeTitle() {
-  const title = document.querySelector(".xfade-live-title");
-  const btn = document.getElementById("showCables");
-  if (!title || !btn) return;
-  title.style.removeProperty("margin-left");
-  const btnRect = btn.getBoundingClientRect();
-  const titleRect = title.getBoundingClientRect();
-  if (Math.round(titleRect.top) === Math.round(btnRect.top)) return;
-  const delta = Math.round(btnRect.left - titleRect.left);
-  if (delta > 0) title.style.marginLeft = `${delta}px`;
-}
-
-function syncFloatingCueFrame(resetAnchor = false) {
-  if (!els.liveTools) return;
-  alignXfadeTitle();
-  const mainEl = document.querySelector("main");
-  const shouldFloat = currentBoard()?.cuesEnabled === true && !state.boardEditMode;
-  if (!shouldFloat) {
-    document.body.classList.remove("cues-stuck");
-    state.cueFloatAnchorTop = null;
-    mainEl?.style.removeProperty("padding-top");
-    els.liveTools.style.removeProperty("width");
-    els.liveTools.style.removeProperty("margin-left");
-    els.liveTools.style.removeProperty("left");
-    els.liveTools.style.removeProperty("right");
-    return;
-  }
-  const topOffset = Math.max(8, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-top")) || 8);
-  const wasStuck = document.body.classList.contains("cues-stuck");
-  if (resetAnchor || state.cueFloatAnchorTop == null) {
-    if (wasStuck) document.body.classList.remove("cues-stuck");
-    state.cueFloatAnchorTop = els.liveTools.getBoundingClientRect().top + window.scrollY;
-  }
-  // Le collage (position:fixed) ne se déclenche qu'au scroll, quand le bloc
-  // sortirait sinon de l'écran — jamais à la simple activation des cues.
-  const shouldStick = window.scrollY + topOffset >= state.cueFloatAnchorTop;
-  document.body.classList.toggle("cues-stuck", shouldStick);
-  // En scène, .live-tools est un descendant de <header class="topbar">, qui a
-  // un transform permanent (cf. applyStageStudioLayout/pinPanelToStudioPosition,
-  // pour stabiliser sa position studio). Un transform sur un ancêtre devient le
-  // nouveau bloc de référence pour un descendant en position:fixed (même bug
-  // que celui déjà résolu sur #openAppNotice) : le bloc cues collé ne suivait
-  // donc pas le vrai scroll de la page, mais restait "fixé" par rapport au
-  // topbar, qui lui défile normalement. On sort .live-tools du topbar pendant
-  // qu'il est collé (hors de portée de ce transform), et on le replace à sa
-  // position d'origine au décollage.
-  // Auto-correctif plutôt que déclenché sur stickChanged uniquement : un
-  // diagnostic sur téléphone réel a montré .live-tools parfois coincé dans
-  // .app (parent:app) alors que stuck:0 — le bloc tombait alors en flux normal
-  // TOUT EN BAS de .app (après tous les pads), le déplacement de retour vers
-  // .topbar n'ayant pas abouti (course entre évènements scroll rapprochés).
-  // On vérifie donc le parent RÉEL à chaque appel et on corrige si besoin, au
-  // lieu de ne réagir qu'au changement détecté d'un appel à l'autre.
-  if (document.body.classList.contains("stage-mode")) {
-    const appEl = document.querySelector(".app");
-    const topbarEl = document.querySelector(".topbar");
-    if (shouldStick) {
-      if (appEl && els.liveTools.parentElement !== appEl) {
-        state.liveToolsOriginalNextSibling = els.liveTools.nextElementSibling;
-        // Rattaché à .app (comme #openAppNotice), pas body : reste dans la
-        // portée des styles .app/.app * (user-select, etc.) tout en échappant
-        // au transform du topbar.
-        appEl.appendChild(els.liveTools);
-        els.liveTools.style.removeProperty("position");
-        els.liveTools.style.removeProperty("transform");
-      }
-    } else if (topbarEl && els.liveTools.parentElement !== topbarEl) {
-      if (state.liveToolsOriginalNextSibling && state.liveToolsOriginalNextSibling.parentElement === topbarEl) {
-        topbarEl.insertBefore(els.liveTools, state.liveToolsOriginalNextSibling);
-      } else {
-        topbarEl.appendChild(els.liveTools);
-      }
-      state.liveToolsOriginalNextSibling = null;
-      applyStageStudioLayoutSoon();
-    }
-  }
-
-  // Bloc cues activé aligné sur le bord GAUCHE de la zone des pads (.deck) —
-  // plus sur sa largeur entière depuis le 2026-08-20 (le bloc épouse son
-  // contenu, cf. width:fit-content sur .live-tools). .deck fait
-  // min(1280px,100%) en studio, min(1680px,100%) en scène, centré — il ne
-  // coïncide pas avec le conteneur du bloc, donc on mesure sa géométrie et on
-  // y cale le bord gauche (studio ET scène). setProperty(..., "important")
-  // car des règles .live-tools posent left/transform en !important. Fait
-  // AVANT la mesure de hauteur ci-dessous (pour padding-top) : sinon cette
-  // mesure lit une géométrie encore partiellement stale (position:fixed déjà
-  // actif via la classe, mais left/transform pas encore réappliqués pour ce
-  // tick).
-  const deck = document.querySelector(".deck");
-  if (deck) {
-    const deckRect = deck.getBoundingClientRect();
-    if (shouldStick) {
-      // Collé (position:fixed) : caler left sur le bord gauche des pads, mais
-      // PAS la largeur — le bloc épouse son contenu (width:fit-content côté
-      // CSS, cf. .live-tools ci-dessus), demandé le 2026-08-20 (la bordure
-      // s'étirait jusqu'au bord droit des pads sans que le contenu suive).
-      els.liveTools.style.removeProperty("width");
-      els.liveTools.style.setProperty("left", `${Math.round(deckRect.left)}px`, "important");
-      els.liveTools.style.setProperty("right", "auto", "important");
-      els.liveTools.style.setProperty("transform", "none", "important");
-      els.liveTools.style.setProperty("margin-left", "0px", "important");
-    } else {
-      // Dans le flux : PAS de largeur forcée (le bloc épouse son contenu,
-      // width:fit-content côté CSS, demandé le 2026-08-20 — un vide à droite
-      // apparaissait quand le contenu de Cues était plus étroit que la zone
-      // des pads). Seule la marge est compensée pour aligner le bord GAUCHE
-      // du bloc sur celui des pads (le blocLeft mesuré inclut un éventuel
-      // transform d'épinglage studio, donc la compensation reste correcte).
-      els.liveTools.style.setProperty("margin-left", "0px", "important");
-      els.liveTools.style.removeProperty("width");
-      const blocLeft = els.liveTools.getBoundingClientRect().left;
-      els.liveTools.style.setProperty("margin-left", `${Math.round(deckRect.left - blocLeft)}px`, "important");
-      els.liveTools.style.removeProperty("left");
-      els.liveTools.style.removeProperty("right");
-    }
-  }
-
-  // La compensation CSS (main{padding-top:92px}) suppose la taille studio des
-  // boutons de cues : en scène ils sont bien plus grands (cf. "boutons plus
-  // gros" quand les cues sont actives), donc 92px est insuffisant et les pads
-  // remontent pour combler l'espace laissé par .live-tools sorti du flux
-  // (position:fixed). On mesure la vraie hauteur (largeur/position déjà à jour
-  // ci-dessus) au lieu d'une valeur fixe.
-  if (mainEl) {
-    if (shouldStick) {
-      const liveToolsHeight = els.liveTools.getBoundingClientRect().height;
-      mainEl.style.paddingTop = `${Math.ceil(liveToolsHeight + topOffset + 12)}px`;
-    } else {
-      mainEl.style.removeProperty("padding-top");
-    }
-  }
-
-  document.getElementById("cueDebugBadge")?.remove();
 }
 
 function cueSelectablePads() {
@@ -4519,6 +4386,10 @@ function cueConditionWaitLabel(step) {
 
 function checkCueConditions(endedPad = null) {
   const board = currentBoard();
+  // Enchaînement auto suspendu tant que les cues ne sont pas « en lecture »
+  // (bouton lancer/pause de l'îlot) — sinon un board en boucle (ex. « gamme
+  // chromatique ») est impossible à arrêter sans stop global.
+  if (!state.cuePlaying) return;
   if (board?.cuesEnabled === false || !board?.cues?.length || state.cueRunning || state.cueWaitTimer) return;
   const step = normalizeCueStep(board.cues[cueIndexForBoard(board)]);
   if (!cueConditionMet(step, endedPad)) return;
@@ -4952,7 +4823,10 @@ function syncBulkTemplateFields(pad) {
   state.bulkTemplatePadObj = pad;
   if (els.bulkVolume) els.bulkVolume.value = String(pad.volume);
   if (els.bulkPan) els.bulkPan.value = String(pad.panValue);
-  if (els.bulkTags) els.bulkTags.value = pad.tags;
+  if (els.bulkTags) {
+    els.bulkTags.dataset.tags = pad.tags;
+    els.bulkTags.value = "";
+  }
   renderBulkTagChips();
   updateBulkRangeValues();
   setBulkColorValue(pad.color || "");
@@ -5202,14 +5076,15 @@ function updateBulkRangeValues() {
   }
 }
 
-// Tags en chips (même principe que le pad) : le champ #bulkTags porte la chaîne
-// « a, b, c », les chips en sont le rendu (avec × pour retirer).
+// Tags en chips (même principe que le pad) : la chaîne committée « a, b, c » vit
+// dans dataset.tags, les chips en sont le rendu (avec × pour retirer). Le champ
+// texte lui-même ne sert qu'à saisir un nouveau tag et reste vide au repos.
 function renderBulkTagChips() {
   const chips = els.bulkTagsChips;
   if (!chips || !els.bulkTags) return;
   chips.innerHTML = "";
   const list = [...new Set(
-    els.bulkTags.value.split(/[#,;]+|\s+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
+    (els.bulkTags.dataset.tags || "").split(/[#,;]+|\s+/).map((t) => t.trim().toLowerCase()).filter(Boolean)
   )];
   list.forEach((tag) => {
     const chip = document.createElement("span");
@@ -5222,13 +5097,24 @@ function renderBulkTagChips() {
     rm.textContent = "×";
     rm.addEventListener("click", (e) => {
       e.stopPropagation();
-      els.bulkTags.value = list.filter((t) => t !== tag).join(", ");
+      els.bulkTags.dataset.tags = list.filter((t) => t !== tag).join(", ");
       renderBulkTagChips();
       markBulkFieldChanged(els.bulkApplyTags);
     });
     chip.append(rm);
     chips.append(chip);
   });
+}
+
+// Fusionne le tag en cours de saisie dans dataset.tags, puis vide le champ.
+function commitBulkTagDraft() {
+  if (!els.bulkTags) return;
+  const draft = els.bulkTags.value;
+  els.bulkTags.value = "";
+  if (!draft.trim()) return;
+  els.bulkTags.dataset.tags = mergeTagStrings(els.bulkTags.dataset.tags, draft);
+  renderBulkTagChips();
+  markBulkFieldChanged(els.bulkApplyTags);
 }
 
 // Modifier un réglage coche automatiquement sa case « appliquer ».
@@ -5253,7 +5139,7 @@ function bulkFieldGroups() {
     { apply: els.bulkApplyPan, controls: [els.bulkPan],
       restore: (pad) => { if (els.bulkPan) els.bulkPan.value = String(pad.panValue); updateBulkRangeValues(); } },
     { apply: els.bulkApplyTags, controls: [els.bulkTags],
-      restore: (pad) => { if (els.bulkTags) els.bulkTags.value = pad.tags; renderBulkTagChips(); } },
+      restore: (pad) => { if (els.bulkTags) { els.bulkTags.dataset.tags = pad.tags; els.bulkTags.value = ""; } renderBulkTagChips(); } },
     { apply: els.bulkApplyLiveFade, controls: [els.bulkFadeInEnabled, els.bulkFadeOutEnabled],
       restore: (pad) => {
         if (els.bulkFadeInEnabled) els.bulkFadeInEnabled.checked = pad.fadeInEnabled;
@@ -5367,50 +5253,53 @@ async function confirmDeletePads(pads, { requireEmpty = false } = {}) {
     window.alert(requireEmpty ? "Aucun pad vide sélectionné" : "Aucun pad sélectionné");
     return false;
   }
+  if (!state.boardEditMode) return false;
   const count = uniquePads.length;
   const label = `${count} pad${count > 1 ? "s" : ""}${requireEmpty ? ` vide${count > 1 ? "s" : ""}` : ""}`;
-  const remainingCount = Math.max(1, currentBoard().padCount - count);
   const suffix = count >= currentBoard().padCount
     ? "\n\nLe dernier pad du board sera conservé."
     : "";
   if (!window.confirm(`Supprimer ${label} ?${suffix}`)) return false;
 
-  const indexes = uniquePads
-    .map((pad) => pad.index)
-    .filter((index) => Number.isInteger(index))
-    .sort((a, b) => b - a);
-  let deletedCount = 0;
-  for (const index of indexes) {
-    if (currentBoard().padCount <= 1) break;
-    const pad = state.pads[index];
-    if (!pad || (requireEmpty && !isEmptyPad(pad))) continue;
-    const removed = await removePadFromCurrentBoard(pad, { confirm: false, render: false, status: false });
-    if (removed) deletedCount += 1;
-  }
+  // La suppression groupée réécrit toute la grille en IndexedDB : sur un gros
+  // board ça prend ~1 s pendant laquelle rien ne bouge. Retour visuel immédiat
+  // (bouton grisé + statut) pour ne pas donner l'impression d'un blocage.
+  const deleteBtn = els.deleteBulkEditPads;
+  const prevLabel = deleteBtn?.textContent;
+  if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.textContent = "Suppression…"; }
+  if (els.applyBulkEdit) els.applyBulkEdit.disabled = true;
+  setStatus(`Suppression de ${label}…`);
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
-  if (deletedCount) {
-    await renderPads({ preserveEditMode: true });
-    setBoardPadEditing(true);
+  try {
+    const { deletedCount, keptLast } = await removePadsCompact(uniquePads, { requireEmpty });
+    state.activeStructuralFilters = [];
+    state.activeTagFilters = [];
+    // Les pads sélectionnés viennent de disparaître (leurs uid ne correspondent
+    // plus à rien après le renderPads) : on quitte le mode sélection au lieu de
+    // laisser le curseur "+" armé sur une sélection fantôme.
+    clearManualSelection();
+    state.manualSelectMode = false;
+    syncManualSelectMode();
+    refreshBoardTagFilterOptions();
+    applyBoardTagFilter();
+    const emptyWord = requireEmpty ? ` vide${deletedCount > 1 ? "s" : ""}` : "";
+    setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""}${emptyWord} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
+    return true;
+  } catch (error) {
+    console.warn("Suppression groupée impossible", error);
+    setStatus("Suppression impossible", "stop");
+    return false;
+  } finally {
+    if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.textContent = prevLabel || "Supprimer"; }
   }
-  state.activeStructuralFilters = [];
-  state.activeTagFilters = [];
-  // Les pads sélectionnés viennent de disparaître (leurs uid ne correspondent
-  // plus à rien après le renderPads ci-dessus) : on quitte le mode sélection
-  // au lieu de laisser le curseur "+" armé sur une sélection fantôme.
-  clearManualSelection();
-  state.manualSelectMode = false;
-  syncManualSelectMode();
-  refreshBoardTagFilterOptions();
-  applyBoardTagFilter();
-  const keptLast = count > deletedCount && remainingCount === 1;
-  const emptyWord = requireEmpty ? ` vide${deletedCount > 1 ? "s" : ""}` : "";
-  setStatus(`${deletedCount} pad${deletedCount > 1 ? "s" : ""}${emptyWord} supprimé${deletedCount > 1 ? "s" : ""}${keptLast ? " · dernier pad conservé" : ""}`);
-  return true;
 }
 
 async function applyBulkEdit() {
   const pads = state.bulkEditPads.filter(Boolean);
   if (!pads.length) return;
+  // Un tag saisi mais pas encore validé (ni Entrée ni blur) doit compter.
+  commitBulkTagDraft();
   for (const pad of pads) {
     if (els.bulkApplyVolume?.checked) {
       pad.volume = Number(els.bulkVolume?.value) || 0;
@@ -5425,7 +5314,7 @@ async function applyBulkEdit() {
       if (pad.pan && state.audioContext) pad.pan.pan.setTargetAtTime(pad.panValue, state.audioContext.currentTime, 0.015);
     }
     if (els.bulkApplyTags?.checked) {
-      setPadTags(pad, els.bulkTags?.value || "");
+      setPadTags(pad, els.bulkTags?.dataset.tags || "");
     }
     if (els.bulkApplyVisual?.checked) {
       if (state.bulkVisualMode === "color") {
@@ -5515,14 +5404,30 @@ function renderBoardLayoutControls() {
   const portraitLocked = shouldForcePortablePortraitLayout();
   const landscapeLimited = shouldLimitPortableLandscapeColumns();
 
+  const maxCols = maxPadColumnsForWidth();
+
   if (els.padColumns) {
-    renderPadColumnOptions(landscapeLimited ? 5 : 10);
+    renderPadColumnOptions(landscapeLimited ? 5 : 10, portraitLocked ? Infinity : maxCols);
     els.padColumns.value = portraitLocked ? "2" : (layout.mode === "auto" ? "auto" : String(layout.columns || 4));
     els.padColumns.disabled = portraitLocked;
     els.padColumns.setAttribute("aria-disabled", String(portraitLocked));
   }
 
-  const displayedColumns = portraitLocked ? 2 : layout.columns || 4;
+  // Colonnes choisies > ce que la largeur d'écran permet : le rendu est plafonné
+  // (applyPadLayout) et on l'annonce. `board.padColumns` reste inchangé → dès que
+  // l'écran s'élargit, on retrouve la valeur voulue.
+  // En portrait portable, applyPadLayout ne plafonne plus (2 colonnes fixes,
+  // tous modes) → pas de message de limitation.
+  const chosenCols = portraitLocked ? 2 : (layout.mode === "auto" ? 0 : (layout.columns || 4));
+  const widthLimited = !portraitLocked && chosenCols > maxCols;
+  if (els.padColumnsLimitHint) {
+    els.padColumnsLimitHint.hidden = !widthLimited;
+    els.padColumnsLimitHint.textContent = widthLimited
+      ? `Écran trop étroit pour ${chosenCols} colonnes — affichage limité à ${maxCols}`
+      : "";
+  }
+
+  const displayedColumns = portraitLocked ? 2 : Math.min(layout.columns || 4, maxCols);
   if (els.padColumnsComputed) {
     els.padColumnsComputed.textContent = String(displayedColumns);
   }
@@ -5819,7 +5724,7 @@ async function switchBoard(boardId) {
     return;
   }
   const wasEditing = state.boardEditMode;
-  clearCueWaitTimer();
+  pauseCuePlayback();
   setBoardPadEditing(false);
   if (wasEditing) {
     state.boardEditMode = true;
@@ -5834,6 +5739,8 @@ async function switchBoard(boardId) {
   renderBoardOptions();
   await renderPads({ preserveEditMode: wasEditing });
   if (wasEditing) setBoardPadEditing(true);
+  // Façade : la régie suit le board courant sans import manuel.
+  if (state.remoteRole === "display") pushBoardToRemote();
 }
 
 // Dernier nombre de pads choisi à la création d'un board (sert de valeur pré-remplie).
@@ -6384,7 +6291,7 @@ function shouldLimitPortableLandscapeColumns() {
   return isPortableLandscape();
 }
 
-function renderPadColumnOptions(limit = 10) {
+function renderPadColumnOptions(limit = 10, maxEnabled = Infinity) {
   if (!els.padColumns) return;
   const currentValue = els.padColumns.value || "auto";
   els.padColumns.innerHTML = "";
@@ -6398,6 +6305,10 @@ function renderPadColumnOptions(limit = 10) {
     const option = document.createElement("option");
     option.value = String(columns);
     option.textContent = String(columns);
+    // Colonnes qui ne tiennent pas dans la largeur d'écran : grisées (on garde
+    // la valeur choisie active si elle dépasse, pour la restaurer si l'écran
+    // s'élargit — le rendu, lui, est plafonné dans applyPadLayout).
+    if (columns > maxEnabled && String(columns) !== currentValue) option.disabled = true;
     els.padColumns.append(option);
   }
 
@@ -8071,7 +7982,7 @@ function applySkin(skin) {
 
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
-  state.pads.forEach(fitPadTitle);
+  state.pads.forEach((pad) => { fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
 }
 
 function revealGalleryPads(save = true) {
@@ -8385,11 +8296,21 @@ async function undoLastGarageChange() {
   if (entry.type === "delete") {
     await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
     const board = currentBoard();
-    const orphanRecord = entry.orphanKey ? await dbGet(entry.orphanKey) : null;
-    if (orphanRecord && entry.index < board.padCount) {
-      const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
-      await dbSet(padAudioKeyFor(board.id, entry.index), restored);
-      if (entry.orphanKey) await dbDelete(entry.orphanKey);
+    // Suppression unitaire : entry.orphanKey/index. Suppression groupée : entry.orphanKeys[].
+    const orphans = Array.isArray(entry.orphanKeys) && entry.orphanKeys.length
+      ? entry.orphanKeys
+      : (entry.orphanKey ? [{ key: entry.orphanKey, index: entry.index }] : []);
+    let restoredAny = false;
+    for (const { key, index } of orphans) {
+      const orphanRecord = key ? await dbGet(key) : null;
+      if (orphanRecord && index < board.padCount) {
+        const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
+        await dbSet(padAudioKeyFor(board.id, index), restored);
+        await dbDelete(key);
+        restoredAny = true;
+      }
+    }
+    if (restoredAny) {
       await renderPads({ preserveEditMode: true });
       updateAudioLibraryBadge().catch(() => {});
     }
@@ -8765,13 +8686,17 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
   const exportMode = normalizeExportMode(modeOrIncludeAudio);
   const includeAudio = exportMode !== "settings";
   const includeVideo = exportMode === "full";
-  if (!confirmExportWithoutVideos(includeVideo)) {
+  // forRemote : sérialisation en mémoire pour le contrôle à distance (push du
+  // board façade → régie). Pas de confirmation ni de statuts d'avance : le geste
+  // est automatique, pas une action explicite de l'utilisateur.
+  const forRemote = Boolean(opts.forRemote);
+  if (!forRemote && !confirmExportWithoutVideos(includeVideo)) {
     setStatus("Export annulé");
     return;
   }
   const board = currentBoard();
   // Immediate feedback: the prep step (persist) can take a moment with no UI.
-  setStatus("Préparation de l'export…", "progress");
+  if (!forRemote) setStatus("Préparation de l'export…", "progress");
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const pads = [];
   syncPadIndexesFromDom();
@@ -8786,7 +8711,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const hasVideoPad = Boolean(saved?.video || saved?.videoName || meta?.videoName || meta?.videoPath);
-    setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
+    if (!forRemote) setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
     const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
@@ -8868,6 +8793,19 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     });
   }
 
+  if (forRemote) {
+    // Un pad façade sans média (pas de son, pas de vidéo, pas de texte à lire)
+    // n'a rien à piloter à distance : ne pas envoyer son titre/couleur/tags/
+    // vignette à la régie, sinon elle affiche un pad qui a l'air actif mais ne
+    // fait rien au clic. On garde l'index (obligatoire pour l'alignement
+    // façade/régie, voir remotePadTarget) mais on vide le contenu.
+    for (let i = 0; i < pads.length; i += 1) {
+      const item = pads[i];
+      const hasMedia = Boolean(item.audio || item.video || item.textMode || String(item.textContent || "").trim());
+      if (!hasMedia) pads[i] = { index: item.index };
+    }
+  }
+
   const versionsForExport = (await Promise.all(pruneVersionHistory(history)
     .map((snapshot) => serializeBoardSnapshotForExport(snapshot, false))))
     .filter(Boolean);
@@ -8915,6 +8853,16 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     // Périmètre des skins offert à l'invité (radio de la console) : "all" = tous
     // les skins intégrés, sinon il reste bloqué sur le skin du board.
     payload.guestSkinChoice = opts.guestSkinChoice === "all" ? "all" : "current";
+  }
+
+  if (forRemote) {
+    // Pas de blob ni de fichier : l'historique undo n'a aucun intérêt côté
+    // régie et pèse lourd, on le retire. L'audio/vidéo sont déjà absents
+    // (exportMode "settings"), les vignettes de pad (visualImage) restent.
+    payload.board.versions = [];
+    payload.versions = [];
+    await opts.deliver(payload);
+    return;
   }
 
   const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -9604,6 +9552,99 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
   refreshUndoButton();
   return true;
+}
+
+// Suppression groupée en une seule passe. Appeler removePadFromCurrentBoard une
+// fois par pad relit/réécrit TOUS les pads restants à chaque itération (O(K×N),
+// plusieurs secondes de gel sur un gros board). Ici on lit la grille une fois, on
+// applique en mémoire — index par index, en ordre décroissant — le même décalage
+// des références audio et des cibles de crossfade que la version unitaire, puis
+// on réécrit la grille compactée une seule fois. Un seul point d'annulation.
+async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
+  if (!state.boardEditMode) return { deletedCount: 0, keptLast: false };
+  const board = currentBoard();
+  const boardId = state.currentBoardId;
+  const originalCount = board.padCount;
+
+  const targets = [...new Set(padsToDelete)]
+    .filter(Boolean)
+    .filter((pad) => Number.isInteger(pad.index))
+    .filter((pad) => !requireEmpty || isEmptyPad(pad));
+  if (!targets.length || originalCount <= 1) return { deletedCount: 0, keptLast: false };
+
+  commitPendingUndoCheckpoint();
+  const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
+
+  stopAllLocal();
+  if (targets.some((pad) => state.recordingPad === pad)) resetRecordingState();
+
+  // Lecture unique de toute la grille.
+  const rows = [];
+  for (let index = 0; index < originalCount; index += 1) {
+    rows.push({
+      index,
+      audio: await dbGet(padAudioKeyFor(boardId, index)),
+      meta: await dbGet(padMetaKeyFor(boardId, index)),
+    });
+  }
+
+  const orphanKeys = [];
+  let deletedCount = 0;
+  // Ordre décroissant : retirer un index haut ne décale pas les index plus bas
+  // encore présents dans `rows`.
+  const descending = [...targets].sort((a, b) => b.index - a.index);
+  for (const pad of descending) {
+    if (originalCount - deletedCount <= 1) break; // toujours conserver un pad
+    const rowPos = rows.findIndex((row) => row.index === pad.index);
+    if (rowPos < 0) continue;
+    const [removed] = rows.splice(rowPos, 1);
+    const deletedAudio = removed.audio;
+    for (const row of rows) {
+      row.audio = adjustAudioRefAfterDelete(row.audio, pad.index, deletedAudio);
+      row.meta = adjustAudioRefAfterDelete(row.meta, pad.index);
+      row.audio = resetDeletedPadCrossfadeRefs(row.audio, pad);
+      row.meta = resetDeletedPadCrossfadeRefs(row.meta, pad);
+    }
+    if (deletedAudio?.audio && !snapshotsReferenceAudio(rows.map((row) => ({ audio: row.audio })), deletedAudio)) {
+      const key = await preserveAudioForCleanup(deletedAudio, `${board.name} / ${pad.title}`);
+      if (key) orphanKeys.push({ key, index: pad.index });
+    }
+    deletedCount += 1;
+  }
+  if (!deletedCount) return { deletedCount: 0, keptLast: false };
+
+  // Réécriture compactée unique.
+  for (let index = 0; index < rows.length; index += 1) {
+    const snap = { audio: rows[index].audio, meta: rows[index].meta };
+    renumberDefaultPadSnapshot(snap, index);
+    if (snap.meta) await dbSet(padMetaKeyFor(boardId, index), snap.meta);
+    else await dbDelete(padMetaKeyFor(boardId, index));
+    if (snap.audio) await dbSet(padAudioKeyFor(boardId, index), snap.audio);
+    else await dbDelete(padAudioKeyFor(boardId, index));
+  }
+  for (let index = rows.length; index < originalCount; index += 1) {
+    await dbDelete(padMetaKeyFor(boardId, index));
+    await dbDelete(padAudioKeyFor(boardId, index));
+  }
+
+  board.padCount = rows.length;
+  saveBoards();
+  await renderPads({ preserveEditMode: true });
+  setBoardPadEditing(true);
+  updateAudioLibraryBadge().catch(() => {});
+
+  state.undoStack.push({
+    type: "delete",
+    boardId,
+    snapshot: preDeleteSnapshot,
+    orphanKeys,
+    title: deletedCount > 1 ? `${deletedCount} pads` : (targets[0]?.title || "Pad"),
+  });
+  if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  refreshUndoButton();
+
+  const keptLast = deletedCount < targets.length && rows.length === 1;
+  return { deletedCount, keptLast };
 }
 
 function isDefaultPadTitle(title) {
@@ -10464,6 +10505,7 @@ function contentFileKind(file) {
   // mal le type de fichiers audio (ex. .wav identifié comme video/*).
   if (AUDIO_FILE_RE.test(name)) return "audio";
   if (VIDEO_FILE_RE.test(name)) return "video";
+  if (WEBM_FILE_RE.test(name)) return /^video\//.test(file.type) ? "video" : "audio";
   if (isTextDocFile(file)) return "text";
   if (/^video\//.test(file.type)) return "video";
   if (/^audio\//.test(file.type)) return "audio";
@@ -10744,10 +10786,13 @@ async function loadVideoIntoPad(pad, file) {
 }
 
 function audioFilesFromSelection(files) {
-  return [...(files || [])].filter((file) => (
-    file?.type?.startsWith("audio/")
-    || AUDIO_FILE_RE.test(file?.name || "")
-  )).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
+  return [...(files || [])].filter((file) => {
+    const name = file?.name || "";
+    if (file?.type?.startsWith("audio/")) return true;
+    if (AUDIO_FILE_RE.test(name)) return true;
+    if (WEBM_FILE_RE.test(name)) return !file?.type?.startsWith("video/");
+    return false;
+  }).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
 }
 
 function audioFileIdentity(file) {
@@ -10840,6 +10885,11 @@ async function boardHasAnyMedia(board = currentBoard()) {
     const meta = await dbGet(padMetaKeyFor(board.id, index));
     const saved = await dbGet(padAudioKeyFor(board.id, index));
     if (pad.buffer || pad.videoName || saved?.audio || saved?.video || meta?.audioName || meta?.videoName) return true;
+    // Un pad renommé (titre non défaut) trahit un board déjà configuré, même
+    // si son média a été perdu entre-temps : il ne faut pas le confondre
+    // avec un board vierge (voir fillBlankBoardFromAudioFiles, destructif).
+    const title = meta?.title ?? pad.title;
+    if (title && !isDefaultTitleForPad({ title, index })) return true;
   }
   return false;
 }
@@ -12237,18 +12287,32 @@ async function preloadStagePads(pads) {
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
     return;
   }
-  for (let i = 0; i < total; i += 1) {
-    const pad = pads[i];
-    setStatus(`Préchargement : ${i + 1} / ${total} — ${pad.title}`, "progress");
-    try {
-      pad.buffer = await ensurePadAudioDecoded(pad);
-      applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
-      renderWaveform(pad);
-    } catch (error) {
-      console.error(error);
-      pad.node?.classList.add("is-missing-audio");
+  // Préchargement parallèle borné : ~6 pads décodés de front au lieu d'un par un.
+  // Séquentiel, 25 pads = ~4 s à l'entrée en scène (mesuré 09/2026, ~158 ms/pad).
+  // decodeAudioData tourne hors thread principal ; la limite évite seulement de
+  // lancer 25 fetch/décodages simultanés sur une machine modeste.
+  const PRELOAD_CONCURRENCY = 6;
+  let done = 0;
+  let next = 0;
+  const decodeNextPad = async () => {
+    while (next < total) {
+      const pad = pads[next];
+      next += 1;
+      try {
+        pad.buffer = await ensurePadAudioDecoded(pad);
+        applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
+        renderWaveform(pad);
+      } catch (error) {
+        console.error(error);
+        pad.node?.classList.add("is-missing-audio");
+      }
+      done += 1;
+      setStatus(`Préchargement : ${done} / ${total}`, "progress");
     }
-  }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(PRELOAD_CONCURRENCY, total) }, decodeNextPad)
+  );
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
 }
 
@@ -12352,7 +12416,18 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
     syncBoardModeSelector();
     syncStagePending();
-    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = await prepareBoardForStage(options);
+    // Régie : le board miroir n'a jamais de média par construction (voir
+    // applyRemoteMirrorBoard) — elle ne joue jamais de son localement, elle
+    // affiche seulement les pads et envoie des commandes. La façade, seule
+    // autorité, a déjà validé la présence de média avant d'entrer en scène ;
+    // refaire cette vérification ici bloquerait systématiquement le mode scène
+    // en régie avec « aucun média sur ce board ». On saute donc directement à
+    // un résultat « prêt, rien à précharger » et on laisse la suite (commune
+    // façade/régie) dérouler normalement.
+    const stageResult = state.remoteRole === "controller"
+      ? { ok: true, failures: [], emptyPads: [], validPads: [], skipPreload: true }
+      : await prepareBoardForStage(options);
+    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = stageResult;
     if (noMedia) {
       state.stageMode = false;
       syncBoardModeSelector();
@@ -12390,14 +12465,6 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
 
   state.stageMode = Boolean(enabled);
   document.body.classList.toggle("stage-mode", state.stageMode);
-  // Démarrage direct en scène (restauration au rafraîchissement) : aucun clic
-  // sur "Scène" n'a eu lieu, donc captureStudioLayoutForStage() n'a jamais
-  // tourné (voir son propre commentaire) — on la déclenche ici une seule fois
-  // (tant qu'aucune capture n'existe) pour que board/master/live-tools soient
-  // épinglés dès la première frame, comme lors d'une transition Studio→Scène.
-  if (state.stageMode && !stageStudioLayoutSnapshot.selectorRect) {
-    captureStudioLayoutForStage();
-  }
   els.stageMode?.classList.toggle("is-active", state.stageMode);
   els.stageMode?.setAttribute("aria-pressed", String(state.stageMode));
   if (els.boardSelect) {
@@ -12410,33 +12477,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   applyPadLayout(currentBoard());
 
   if (state.stageMode) {
-    // Le bloc cues est ancré via syncCueControls() (ligne ~10184), avant le
-    // basculement body.stage-mode et la compensation desktop
-    // (applyStageStudioLayout, appliquée en rAF via le MutationObserver sur la
-    // classe body). L'ancre capturée trop tôt reste calée sur la géométrie
-    // studio → bloc mal positionné jusqu'au prochain rescan (ex: refresh). On
-    // recalibre ici, un rAF après la compensation de layout pour être sûr
-    // qu'elle a déjà tourné.
-    requestAnimationFrame(() => requestAnimationFrame(() => syncFloatingCueFrame(true)));
-    // Fige la hauteur de .pad-flip (cf. syncPadFxFlipHeight) dès l'entrée en
-    // scène plutôt que d'attendre la première bascule d'un pad : sans ça, le
-    // tout premier rendu (avant tout double-clic) reste soumis à
-    // l'étirement de grille peu prévisible que cette fonction évite.
-    requestAnimationFrame(() => state.pads.forEach((pad) => syncPadFxFlipHeight(pad)));
-    // Relâche le gel de mise en page studio (voir stageStudioLayoutReleased)
-    // une fois la transition visuelle passée, pour que .live-tools retrouve
-    // la largeur réelle de la scène au lieu de rester bridé par les
-    // dimensions studio figées.
+    // Re-mesure des hauteurs de pad une fois la transition + le layout
+    // stabilisés : sur mobile, le 1er passage tombe trop tôt et fige des
+    // hauteurs gonflées (pads allongés à l'entrée en scène en skin basic).
     window.setTimeout(() => {
-      if (state.stageMode) {
-        stageStudioLayoutReleased = true;
-        applyStageStudioLayoutSoon();
-        // Re-mesure une fois la transition + le layout stabilisés : sur mobile,
-        // le 1er passage (rAF ci-dessus) tombe trop tôt et fige des hauteurs
-        // gonflées (pads allongés à l'entrée en scène en skin basic).
-        state.pads.forEach((pad) => syncPadFxFlipHeight(pad));
-        syncAllPadMinHeightsSoon();
-      }
+      if (state.stageMode) syncAllPadMinHeightsSoon();
     }, 500);
     setBoardPadEditing(false);
     const activeCount = syncStageVisiblePads();
@@ -12451,9 +12496,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   } else {
     state.stageSkipPreload = false;
     syncStageVisiblePads();
-    // Sortie de scène : ne pas laisser un pad affiché côté verso (effets) au
-    // retour en scène — la bascule recto/verso n'a de sens qu'en scène.
-    state.pads.forEach((pad) => { if (pad.fxFaceFlipped) setPadFxFaceFlipped(pad, false); });
+    // Sortie de scène : refermer tout panneau effets plein pad resté ouvert.
+    state.pads.forEach((pad) => { if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false); });
     // Sortie de scène : effacer le message « Board prêt pour la scène… »
     if (/^(Board prêt pour la scène|Mode scène)/.test(els.status.textContent || "")) {
       setStatus("");
@@ -12756,10 +12800,35 @@ function setPadDuckMode(pad, mode = "global", percent = pad?.duckPercent ?? 60) 
 
 function setPadTags(pad, tags) {
   pad.tags = tags.trim();
-  pad.tagsEl.value = pad.tags;
   pad.tagsDisplayEl.textContent = pad.tags;
   pad.tagsDisplayEl.hidden = !pad.tags;
   renderPadTagChips(pad);
+}
+
+// Fusionne une chaîne de tags de base avec des tags saisis : sans doublon, triés.
+function mergeTagStrings(base, extra) {
+  const parse = (value) => String(value || "")
+    .split(/[#,;]+|\s+/)
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set([...parse(base), ...parse(extra)])]
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
+}
+
+// Le champ [+] d'un pad ne sert qu'à AJOUTER : il s'ouvre vide, les tags déjà
+// posés restent affichés en chips. On fusionne la saisie à l'existant à la
+// validation (Entrée) ou à la perte de focus, jamais frappe par frappe.
+function commitPadTagDraft(pad) {
+  const draft = pad.tagsEl.value;
+  pad.tagsEl.value = "";
+  if (!draft.trim()) return;
+  setPadTags(pad, mergeTagStrings(pad.tags, draft));
+  refreshStopGroupOptions();
+  refreshBoardTagFilterOptions();
+  refreshCrossfadeTargetOptions();
+  syncCueControls();
+  savePadMeta(pad);
 }
 
 function renderPadTagChips(pad) {
@@ -12801,33 +12870,23 @@ function updateStopGroupButtonState() {
 }
 
 function refreshStopGroupOptions() {
-  if (!els.stopGroupSelect) return;
-  const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
-  const currentValue = els.stopGroupSelect.value || savedValue;
   const tags = [...new Set(state.pads.flatMap(padTagList))].sort((a, b) => a.localeCompare(b));
-  els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
-  tags.forEach((tag) => {
-    const option = document.createElement("option");
-    option.value = tag;
-    option.textContent = tag;
-    els.stopGroupSelect.append(option);
-  });
-  els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
-  updateStopGroupButtonState();
-  const longestLength = Math.max(4, ...tags.map((tag) => tag.length));
-  const maxChars = window.matchMedia("(max-width: 950px), (pointer: coarse)").matches ? 16 : 34;
-  const width = `${Math.min(maxChars, longestLength + 3)}ch`;
-  els.stopGroupSelect.style.setProperty("--stop-group-width", width);
-  els.stopGroupSelect.style.width = width;
-  els.stopGroupSelect.style.minWidth = width;
-  els.stopGroupSelect.closest(".group-stop-row")?.style.setProperty("--stop-group-width", width);
-  els.stopGroupSelect.closest(".group-stop-control")?.style.setProperty("--stop-group-width", width);
-  // Pas de propagation jusqu'à .master-strip : cette variable y pilotait la
-  // largeur de la 4e colonne de la grille (zones "stop"/"group", plus
-  // utilisées depuis le regroupement en .master-stop-cluster pleine largeur),
-  // et comme le cluster couvre justement toutes les colonnes (grid-column:1/-1),
-  // l'élargissement de cette colonne élargissait toute la ligne — d'où les
-  // blocs qui grossissaient 1-2s après le chargement des tags des pads.
+  // Le sélecteur « Stop groupé » a été retiré du bloc master ; on garde la
+  // liste de tags à jour uniquement si l'élément existe encore (compat).
+  if (els.stopGroupSelect) {
+    const savedValue = localStorage.getItem(STOP_GROUP_STORAGE) || "";
+    const currentValue = els.stopGroupSelect.value || savedValue;
+    els.stopGroupSelect.innerHTML = '<option value="">Tags</option>';
+    tags.forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = tag;
+      option.textContent = tag;
+      els.stopGroupSelect.append(option);
+    });
+    els.stopGroupSelect.value = tags.includes(currentValue) ? currentValue : "";
+    updateStopGroupButtonState();
+  }
+  // Random playlist : même liste de tags.
   refreshRandomGroupOptions(tags);
 }
 
@@ -13045,6 +13104,7 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.node.classList.toggle("has-visual-image", Boolean(pad.visualImage));
   pad.node.classList.toggle("is-visual-hidden", pad.visualImageHidden);
   pad.visualToggleEl?.setAttribute("aria-pressed", String(pad.visualImageHidden));
+  syncPadEyeButtonLabel(pad);
   pad.node.style.setProperty("--pad-image-position", `${pad.visualPositionX}% ${pad.visualPositionY}%`);
   pad.node.style.setProperty("--pad-image-size", pad.visualKind === "sketch" ? "contain" : (pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`));
   if (pad.visualImage) {
@@ -13055,15 +13115,10 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
     pad.visualPreviewEl?.style.removeProperty("background-image");
   }
   fitPadTitle(pad);
-  // Masquer/afficher l'illustration change la hauteur naturelle de .pad-head
-  // (skin basic surtout) : .pad-flip est figé en dur par syncPadFxFlipHeight()
-  // — jusqu'ici recalculé seulement à l'entrée en scène et au flip FX, d'où un
-  // .pad-flip resté à la hauteur de l'état illustré (titre géant, boutons
-  // Volume/Pan poussés hors du pad, jusqu'au 1er flip FX). On le recalcule ici,
-  // maintenant (avant le measure de syncAllPadMinHeights) ET au rAF suivant
-  // (une fois le nouveau style de .pad-head totalement appliqué).
-  syncPadFxFlipHeight(pad);
-  requestAnimationFrame(() => { syncPadFxFlipHeight(pad); syncAllPadMinHeightsSoon(); });
+  // Masquer/afficher l'illustration change la hauteur naturelle du pad (skin
+  // basic surtout) : on remesure les hauteurs mini maintenant et au rAF
+  // suivant (une fois le nouveau style de .pad-head totalement appliqué).
+  requestAnimationFrame(() => syncAllPadMinHeightsSoon());
   syncAllPadMinHeightsSoon();
 }
 
@@ -13617,62 +13672,6 @@ function renderAudioDialogWaveform(pad = state.audioPad) {
   if (els.audioTrimStartValue) els.audioTrimStartValue.textContent = formatSecondsTenths(trimStart(pad));
   if (els.audioTrimEndValue) els.audioTrimEndValue.textContent = formatSecondsTenths(trimDisplayEnd(pad));
   updateAudioPlayhead(pad);
-}
-
-function audioTrimPositionFromPointer(event) {
-  const pad = state.audioPad;
-  if (!pad?.duration || !els.audioWaveform) return 0;
-  const rect = els.audioWaveform.getBoundingClientRect();
-  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  return ratio * pad.duration;
-}
-
-function setAudioTrimFromPointer(handle, event) {
-  const pad = state.audioPad;
-  if (!pad) return;
-  const seconds = audioTrimPositionFromPointer(event);
-  if (handle === "start") {
-    setPadTrim(pad, seconds, pad.trimEnd);
-  } else {
-    setPadTrim(pad, pad.trimStart, seconds);
-  }
-  updatePadTime(pad);
-  renderAudioDialogWaveform(pad);
-}
-
-function bindAudioDialogTrim() {
-  // Le trim n'est plus éditable depuis les Réglages (barres retirées) : il se règle
-  // dans l'éditeur audio (Trim auto). La waveform des Réglages reste un affichage.
-  return; // eslint-disable-line no-unreachable
-  if (!els.audioWaveform) return;
-  els.audioWaveform.addEventListener("pointerdown", (event) => {
-    const pad = state.audioPad;
-    if (pad?.videoName) return;
-    if (!pad?.duration) return;
-    event.preventDefault();
-    const pointerSeconds = audioTrimPositionFromPointer(event);
-    const startDistance = Math.abs(pointerSeconds - trimStart(pad));
-    const endDistance = Math.abs(pointerSeconds - trimDisplayEnd(pad));
-    const handle = event.target.id === "audioTrimStartHandle" ? "start"
-      : event.target.id === "audioTrimEndHandle" ? "end"
-        : startDistance <= endDistance ? "start" : "end";
-    state.audioTrimDrag = { pointerId: event.pointerId, handle };
-    els.audioWaveform.setPointerCapture?.(event.pointerId);
-    setAudioTrimFromPointer(handle, event);
-  });
-  els.audioWaveform.addEventListener("pointermove", (event) => {
-    if (!state.audioTrimDrag || state.audioTrimDrag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    setAudioTrimFromPointer(state.audioTrimDrag.handle, event);
-  });
-  const stopDrag = (event) => {
-    if (!state.audioTrimDrag || state.audioTrimDrag.pointerId !== event.pointerId) return;
-    state.audioTrimDrag = null;
-    els.audioWaveform.releasePointerCapture?.(event.pointerId);
-    if (state.audioPad) savePadMeta(state.audioPad);
-  };
-  els.audioWaveform.addEventListener("pointerup", stopDrag);
-  els.audioWaveform.addEventListener("pointercancel", stopDrag);
 }
 
 function syncAudioDialog(pad = state.audioPad, options = {}) {
@@ -14839,6 +14838,11 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterReverbWet) els.masterReverbWet.value = "0.5";
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = "off";
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = true;
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = true;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = true;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = true;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = true;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = true;
   if (els.masterEqLow) els.masterEqLow.value = "0";
   if (els.masterEqMid) els.masterEqMid.value = "0";
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
@@ -14860,6 +14864,11 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   saveMasterEqSettings();
   saveMasterCompressorSettings();
   setLiveFxPanelAllowed(true);
+  setCuePanelVisible(true);
+  setXfadePanelVisible(true);
+  setStopAllVisible(true);
+  setStopGroupVisible(true);
+  setMuteVisible(true);
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -14889,6 +14898,11 @@ function masterAudioDraftFromControls() {
     reverbWet: els.masterReverbWet?.value ?? "0.5",
     compressorPreset: els.masterCompressorPreset?.value || "off",
     liveFxPanelEnabled: Boolean(els.masterLiveFxPanelEnabled?.checked),
+    cuePanelVisible: Boolean(els.masterCuePanelVisible?.checked),
+    xfadePanelVisible: Boolean(els.masterXfadePanelVisible?.checked),
+    stopAllVisible: Boolean(els.masterStopAllVisible?.checked),
+    stopGroupVisible: Boolean(els.masterStopGroupVisible?.checked),
+    muteVisible: Boolean(els.masterMuteVisible?.checked),
     eqLow: els.masterEqLow?.value ?? "0",
     eqMid: els.masterEqMid?.value ?? "0",
     eqHigh: els.masterEqHigh?.value ?? "0",
@@ -14917,6 +14931,11 @@ function persistMasterAudioControls() {
   saveMasterEqSettings();
   saveMasterCompressorSettings();
   setLiveFxPanelAllowed(Boolean(els.masterLiveFxPanelEnabled?.checked));
+  setCuePanelVisible(Boolean(els.masterCuePanelVisible?.checked));
+  setXfadePanelVisible(Boolean(els.masterXfadePanelVisible?.checked));
+  setStopAllVisible(Boolean(els.masterStopAllVisible?.checked));
+  setStopGroupVisible(Boolean(els.masterStopGroupVisible?.checked));
+  setMuteVisible(Boolean(els.masterMuteVisible?.checked));
   updateMasterReverbValue();
   applyMasterReverb();
   applyMasterEq();
@@ -14943,6 +14962,11 @@ function restoreMasterAudioDraft() {
   if (els.masterReverbWet) els.masterReverbWet.value = draft.reverbWet;
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = draft.compressorPreset;
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = draft.liveFxPanelEnabled;
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = draft.cuePanelVisible;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = draft.xfadePanelVisible;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = draft.stopAllVisible;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = draft.stopGroupVisible;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = draft.muteVisible;
   if (els.masterEqLow) els.masterEqLow.value = draft.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = draft.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = draft.eqHigh;
@@ -14968,6 +14992,11 @@ function applyRemoteMasterAudioSettings(settings) {
   if (els.masterReverbWet) els.masterReverbWet.value = settings.reverbWet;
   if (els.masterCompressorPreset) els.masterCompressorPreset.value = settings.compressorPreset;
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = Boolean(settings.liveFxPanelEnabled);
+  if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = settings.cuePanelVisible !== false;
+  if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = settings.xfadePanelVisible !== false;
+  if (els.masterStopAllVisible) els.masterStopAllVisible.checked = settings.stopAllVisible !== false;
+  if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = settings.stopGroupVisible !== false;
+  if (els.masterMuteVisible) els.masterMuteVisible.checked = settings.muteVisible !== false;
   if (els.masterEqLow) els.masterEqLow.value = settings.eqLow;
   if (els.masterEqMid) els.masterEqMid.value = settings.eqMid;
   if (els.masterEqHigh) els.masterEqHigh.value = settings.eqHigh;
@@ -16779,7 +16808,9 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   clearCrossfadeDuck(pad, false);
   pad.node.classList.remove("is-playing", "is-stop-flash");
   broadcastRemotePadState(pad, false);
-  removeLiveFxRow(pad);
+  // Plus de graphe audio → le bouton « couper les effets » du verso du pad
+  // n'a plus lieu d'être (syncPadFxOverlayBypass le retire).
+  syncPadFxOverlayBypass(pad);
   hidePadNoteOverlay(pad);
   if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
   updatePadModeButtons(pad);
@@ -16999,6 +17030,18 @@ function updateRemoteControlUi() {
       }
     }
   }
+  // En rôle régie, le board affiché est le miroir de la façade : on verrouille
+  // le sélecteur de boards (comme en mode scène) — impossible d'ouvrir un autre
+  // board et de se désaligner de la façade.
+  if (els.boardSelect) {
+    const lockBoard = state.stageMode || state.remoteRole === "controller";
+    els.boardSelect.disabled = lockBoard;
+    els.boardSelect.setAttribute("aria-disabled", String(lockBoard));
+  }
+  if (els.remoteResendBoard) {
+    els.remoteResendBoard.disabled = !(state.remoteRole === "display" && state.remoteConnected);
+  }
+
   const active = state.remoteRole !== "off";
   els.remoteControlButton?.classList.toggle("is-active", active);
   els.remoteControlButton?.classList.toggle("is-connected", active && state.remoteConnected);
@@ -17017,6 +17060,11 @@ function scheduleRemoteReconnect() {
 }
 
 function connectRemoteControl() {
+  // Hors rôle régie (off / façade), le board miroir n'a plus lieu d'être : on
+  // le retire pour ne pas polluer la liste des vrais boards. En rôle régie il
+  // est conservé entre deux reconnexions (la façade le rafraîchit via
+  // requestBoard au prochain onopen).
+  if (state.remoteRole !== "controller") purgeRemoteMirrorBoard();
   // Repart d'un crossfade-armé désarmé à chaque (re)connexion/changement de
   // rôle côté régie/off : sinon un miroir "armé" reçu pendant un test
   // resterait bloqué à true après un changement de rôle ou une coupure
@@ -17041,9 +17089,7 @@ function connectRemoteControl() {
   // stopRandomGroup), donc rien à préserver ici contrairement au rôle "display".
   if (state.remoteRole === "controller") {
     state.remoteRandomGroupRunning = false;
-    els.randomGroupToggle?.classList.remove("is-active");
-    els.randomGroupToggle?.setAttribute("aria-pressed", "false");
-    els.randomGroupSectionToggle?.classList.remove("is-active");
+    syncRandomGroupButton(false);
   }
   window.clearTimeout(state.remoteReconnectTimer);
   state.remoteReconnectTimer = null;
@@ -17097,6 +17143,9 @@ function connectRemoteControl() {
     // d'attendre un changement qui peut ne jamais arriver.
     if (state.remoteRole === "controller") {
       sendRemoteCommand("requestBoardMode", "");
+      // Même logique pour le contenu du board : la régie réclame le board
+      // courant de la façade, qui répond par un push en tranches (boardChunk).
+      sendRemoteCommand("requestBoard", "");
     }
   };
   socket.onmessage = (event) => handleRemoteMessage(event.data);
@@ -17161,6 +17210,209 @@ function broadcastRemotePadState(pad, playing) {
   state.remoteSocket.send(JSON.stringify({ type: "state", target: remotePadTarget(pad), playing: Boolean(playing) }));
 }
 
+// ---- Contrôle à distance : push du board façade → régie ----
+// La façade est autorité pour le CONTENU du board comme elle l'est déjà pour le
+// mode studio/scène. La régie ne pousse jamais rien ; elle demande le board à la
+// connexion (requestBoard), le reçoit en tranches, le reconstruit dans un board
+// miroir dédié et bascule dessus. Effet de bord voulu : remotePadTarget (par
+// index) tombe juste tout seul → fin des désalignements régie/façade.
+
+async function pushBoardToRemote() {
+  if (state.remoteRole !== "display") return;
+  if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
+  const rev = ++state.remoteBoardRev;
+  await exportCurrentBoard("settings", {
+    forRemote: true,
+    deliver: (payload) => sendRemoteBoardChunks(rev, payload),
+  });
+}
+
+function sendRemoteBoardChunks(rev, payload) {
+  const socket = state.remoteSocket;
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  const json = JSON.stringify(payload);
+  const chunks = splitStringForRemote(json, REMOTE_BOARD_CHUNK_SIZE);
+  chunks.forEach((data, seq) => {
+    socket.send(JSON.stringify({ type: "boardChunk", rev, seq, total: chunks.length, data }));
+  });
+  setStatus(`Board envoyé à la régie (rev ${rev}, ${chunks.length} tranche${chunks.length > 1 ? "s" : ""})`);
+}
+
+// Découpe en tranches <= size SANS jamais couper une paire de surrogates (emoji
+// dans un titre de pad → séquence UTF-8 invalide, corrompue à l'envoi). La
+// reconstitution par parts.join("") restaure la chaîne à l'identique.
+function splitStringForRemote(str, size) {
+  const parts = [];
+  let i = 0;
+  while (i < str.length) {
+    let end = Math.min(i + size, str.length);
+    if (end < str.length) {
+      const code = str.charCodeAt(end - 1);
+      if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+    }
+    parts.push(str.slice(i, end));
+    i = end;
+  }
+  return parts.length ? parts : [""];
+}
+
+function receiveRemoteBoardChunk(msg) {
+  const rev = Number(msg.rev);
+  const seq = Number(msg.seq);
+  const total = Number(msg.total);
+  if (!Number.isInteger(rev) || !Number.isInteger(seq) || !Number.isInteger(total) || total < 1) return;
+  if (rev <= state.remoteBoardRxRev) return; // board déjà appliqué (ou plus récent en cours)
+
+  let buffer = state.remoteBoardRxBuffer;
+  if (!buffer || buffer.rev !== rev) {
+    buffer = { rev, total, parts: new Map(), startedAt: Date.now() };
+    state.remoteBoardRxBuffer = buffer;
+  }
+  buffer.parts.set(seq, String(msg.data ?? ""));
+
+  window.clearTimeout(state.remoteBoardRxTimer);
+  state.remoteBoardRxTimer = window.setTimeout(() => {
+    // Tranches manquantes après 10 s : on jette. La façade re-pousse à la
+    // prochaine reconnexion (requestBoard) ou au bouton « renvoyer le board ».
+    if (state.remoteBoardRxBuffer === buffer) state.remoteBoardRxBuffer = null;
+  }, 10000);
+
+  if (buffer.parts.size < buffer.total) return;
+  window.clearTimeout(state.remoteBoardRxTimer);
+  state.remoteBoardRxBuffer = null;
+
+  let json = "";
+  for (let i = 0; i < buffer.total; i += 1) json += buffer.parts.get(i) || "";
+  let payload;
+  try {
+    payload = JSON.parse(json);
+  } catch {
+    setStatus("Board régie illisible", "stop");
+    return;
+  }
+  state.remoteBoardRxRev = rev;
+  applyRemoteMirrorBoard(payload).catch(() => setStatus("Board régie : import impossible", "stop"));
+}
+
+async function applyRemoteMirrorBoard(payload) {
+  if (payload?.format !== "soundboard-live-board" || !payload.board) return;
+  const src = payload.board;
+  const pads = Array.isArray(src.pads) ? src.pads : [];
+  const maxIndex = pads.reduce((max, item) => {
+    const index = Number(item?.index);
+    return Number.isInteger(index) && index >= 0 ? Math.max(max, index) : max;
+  }, -1);
+
+  state.boards = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  const board = normalizeBoard({
+    id: REMOTE_MIRROR_BOARD_ID,
+    name: `${src.name || "Board"} (régie)`,
+    padCount: Math.max(1, Number(src.padCount) || DEFAULT_PAD_COUNT, maxIndex + 1),
+    masterVolume: clamp01(src.masterVolume),
+    layoutMode: src.layoutMode,
+    padColumns: src.padColumns,
+    padRows: src.padRows,
+    cuesEnabled: src.cuesEnabled !== false,
+    cues: src.cues,
+    cueIndex: src.cueIndex,
+  });
+  const restoredSkin = registerImportedCustomSkins(src);
+  if (restoredSkin) board.skin = restoredSkin;
+  state.boards.push(board);
+  state.currentBoardId = board.id;
+
+  for (let index = 0; index < board.padCount; index += 1) {
+    const item = pads.find((padItem) => Number(padItem?.index) === index) || {};
+    const transientPad = { index };
+    // Métadonnées d'affichage et de ciblage seulement — aucun audio/vidéo côté
+    // régie (elle ne joue jamais un son, elle envoie des commandes par index).
+    const meta = {
+      uid: item.uid || createId(),
+      title: item.title || `Pad ${index + 1}`,
+      volume: item.volume ?? 0.85,
+      panValue: item.panValue ?? 0,
+      loop: Boolean(item.loop),
+      duckMode: item.duckMode || (item.duckTrigger ? "global" : "none"),
+      duckPercent: item.duckPercent ?? duckPercentValue(),
+      tags: item.tags || "",
+      color: item.color || "",
+      playMode: item.playMode || "oneshot",
+      visualImage: item.visualImage || "",
+      visualImageHidden: Boolean(item.visualImageHidden),
+      visualKind: item.visualKind || "",
+      visualPositionX: item.visualPositionX ?? 50,
+      visualPositionY: item.visualPositionY ?? 50,
+      visualZoom: item.visualZoom ?? 1,
+      textMode: Boolean(item.textMode || item.textContent),
+      textContent: item.textContent || "",
+    };
+    await dbSet(padMetaKey(transientPad), meta);
+    await dbDelete(padAudioKey(transientPad));
+  }
+
+  // Un push de board se traite comme une reconnexion pour l'état miroir : tout
+  // flag reçu de la façade (crossfade armé, random playlist) peut être périmé.
+  // La façade rebroadcast l'état réel juste après.
+  state.crossfadeArm.active = false;
+  state.crossfadeArm.phase = "target";
+  document.body.classList.remove("crossfade-armed");
+  document.body.dataset.crossfadePrompt = "";
+  state.remoteRandomGroupRunning = false;
+  syncRandomGroupButton(false);
+  document.querySelectorAll(".pad.is-remote-playing").forEach((node) => node.classList.remove("is-remote-playing"));
+
+  saveBoards();
+  renderBoardOptions();
+  if (board.skin) applySkin(board.skin);
+  await renderPads();
+
+  // renderPads() classe par défaut TOUT pad régie comme "vide" (is-empty) : côté
+  // façade un pad audio/vidéo a de vrais octets en base, côté régie jamais (voir
+  // le commentaire plus haut) — le code de restauration ne voit donc aucune
+  // différence entre "pas de média" et "média réel mais pas encore reçu". On
+  // corrige après coup, pad par pad, uniquement pour ceux dont l'item source a
+  // un audio/vidéo réel (le texte, lui, est déjà géré correctement par
+  // meta.textMode/textContent). Sans ça, syncStageVisiblePads() ci-dessous
+  // masquerait aussi les pads qui JOUENT vraiment quelque chose en façade.
+  for (const pad of state.pads) {
+    const item = pads.find((padItem) => Number(padItem?.index) === pad.index);
+    if (item?.video) {
+      pad.videoName = item.video.name || item.video.path || pad.title || `Vidéo ${pad.index + 1}`;
+      pad.videoPath = pad.videoName;
+      pad.node?.classList.remove("is-empty", "is-missing-audio");
+      updatePadType(pad);
+    } else if (item?.audio) {
+      pad.audioName = item.audio.name || item.audio.path || pad.title || `Pad ${pad.index + 1}`;
+      pad.audioPath = pad.audioName;
+      pad.node?.classList.remove("is-empty", "is-missing-audio");
+      updatePadType(pad);
+    }
+  }
+  // Pads sans média façade → masqués en scène, comme sur la façade elle-même
+  // (cuePlayablePad() exclut is-empty ; no-op hors mode scène).
+  syncStageVisiblePads();
+
+  updateRemoteControlUi();
+  sendRemoteCommand("boardAck", "", { rev: state.remoteBoardRxRev });
+  setStatus(`Board reçu de la façade : ${board.name}`);
+}
+
+// Retire le board miroir quand la régie se désactive ou change de rôle : il n'a
+// aucun sens hors connexion et ne doit pas polluer la liste des vrais boards.
+function purgeRemoteMirrorBoard() {
+  state.remoteBoardRxRev = -1;
+  state.remoteBoardRxBuffer = null;
+  window.clearTimeout(state.remoteBoardRxTimer);
+  if (!state.boards.some((board) => board.id === REMOTE_MIRROR_BOARD_ID)) return;
+  state.boards = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
+  if (state.currentBoardId === REMOTE_MIRROR_BOARD_ID) {
+    state.currentBoardId = state.boards[0]?.id || DEFAULT_BOARD_ID;
+  }
+  saveBoards();
+  renderBoardOptions();
+  renderPads().catch(() => {});
+}
+
 function handleRemoteMessage(raw) {
   let msg;
   try {
@@ -17170,13 +17422,26 @@ function handleRemoteMessage(raw) {
   }
   if (!msg || typeof msg !== "object") return;
 
+  if (msg.type === "boardChunk" && state.remoteRole === "controller") {
+    receiveRemoteBoardChunk(msg);
+    return;
+  }
+
   if (msg.type === "cmd" && state.remoteRole === "display") {
     if (msg.action === "stopAll") {
       stopAll();
       return;
     }
     if (msg.action === "cueRun") {
+      state.cuePlaying = true;
+      syncCueControls();
       runCurrentCue().catch(() => setStatus("Cue impossible", "stop"));
+      return;
+    }
+    if (msg.action === "cuePause") {
+      pauseCuePlayback();
+      syncCueControls();
+      setStatus("Cues en pause");
       return;
     }
     if (msg.action === "cueNext") {
@@ -17213,6 +17478,14 @@ function handleRemoteMessage(raw) {
     }
     if (msg.action === "requestBoardMode") {
       broadcastRemoteBoardMode();
+      return;
+    }
+    if (msg.action === "requestBoard") {
+      pushBoardToRemote();
+      return;
+    }
+    if (msg.action === "boardAck") {
+      setStatus(`Régie synchronisée (rev ${Number(msg.rev) || "?"})`);
       return;
     }
     if (msg.action === "masterAudio") {
@@ -17498,7 +17771,12 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   applyPadLiveDistortion(pad, 0);
   applyPadLiveFlanger(pad, 0);
   applyPadLiveDelay(pad, 0);
-  addLiveFxRow(pad);
+  // Nœuds effets recréés à zéro à chaque lecture : on part coupé, sauf si
+  // l'overlay effets du pad est déjà ouvert (geste délibéré de l'utilisateur —
+  // setLiveFxBypassed relit alors la valeur affichée des curseurs).
+  pad.liveFxBypassed = false;
+  setLiveFxBypassed(pad, !pad.fxOverlayOpen);
+  syncPadFxOverlayBypass(pad);
   showPadNoteOverlay(pad);
   updatePadModeButtons(pad);
   updatePadTime(pad);
@@ -17802,9 +18080,13 @@ function stopAll() {
 
 function stopAllLocal() {
   stopRandomGroup();
+  // Stop global coupe aussi l'enchaînement des cues (sinon un board en boucle
+  // relance un pad juste après).
+  pauseCuePlayback();
   const fadeSeconds = Math.max(0, Number(els.fadeSeconds?.value) || 0);
   state.pads.forEach((pad) => stopPadLocal(pad, true, false, { triggerEnd: false, fadeOutSecondsOverride: fadeSeconds }));
   setStatus("Tout est stoppé");
+  syncCueControls();
 }
 
 function stopGroup(tag = els.stopGroupSelect?.value) {
@@ -17887,6 +18169,12 @@ function syncRandomGroupButton(running = Boolean(state.randomEngine)) {
   els.randomGroupToggle?.setAttribute("aria-pressed", String(running));
   els.randomGroupToggle?.setAttribute("aria-label", running ? "Arrêter la random playlist" : "Lancer la random playlist");
   els.randomGroupToggle?.setAttribute("title", running ? "Arrêter la random playlist" : "Lancer la random playlist");
+  // Icône : dés (Lucide « dices ») au repos, pause (Lucide « pause ») quand la playlist tourne.
+  const rgIconRef = running ? "#ic-rndpause" : "#ic-dices";
+  els.randomGroupToggle?.querySelectorAll("svg use").forEach((use) => {
+    use.setAttribute("href", rgIconRef);
+    use.setAttribute("xlink:href", rgIconRef);
+  });
   // Reflet visible même volet replié : sinon rien n'indique que la playlist tourne.
   els.randomGroupSectionToggle?.classList.toggle("is-active", running);
   broadcastRemoteRandomGroupState(running);
@@ -18396,20 +18684,45 @@ async function init() {
   els.skinEditorFields?.addEventListener("click", handleSkinVariablePointerOver);
   els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
+  // Volets du bloc board : un seul ouvert à la fois. Referme tous les autres
+  // quand on en déplie un (INFOS, VERSIONS, GESTION, ASPECT, SÉLECTION/MODIF,
+  // RANDOM PLAYLIST).
+  function collapseBoardSections(except) {
+    const sections = [
+      { id: "boardInfo", key: "boardInfoSectionOpen", toggle: els.boardInfoSectionToggle, body: els.boardInfoSectionBody },
+      { id: "versions", key: "versionsSectionOpen", toggle: els.versionsSectionToggle, body: els.boardVersionRow },
+      { id: "boardManage", key: "boardManageSectionOpen", toggle: els.boardManageSectionToggle, body: els.boardManageSectionBody },
+      { id: "aspect", key: "aspectSectionOpen", toggle: els.aspectSectionToggle, body: els.aspectSectionBody },
+      { id: "randomGroup", key: "randomGroupSectionOpen", toggle: els.randomGroupSectionToggle, body: els.randomGroupSectionBody },
+    ];
+    for (const s of sections) {
+      if (s.id === except) continue;
+      state[s.key] = false;
+      s.toggle?.setAttribute("aria-expanded", "false");
+      if (s.body) s.body.hidden = true;
+    }
+    if (except !== "filter" && state.filterSectionOpen) {
+      state.filterSectionOpen = false;
+      refreshTagFilterChips();
+    }
+  }
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("#filterSectionToggle")) {
       state.filterSectionOpen = !state.filterSectionOpen;
+      if (state.filterSectionOpen) collapseBoardSections("filter");
       refreshTagFilterChips();
       return;
     }
     if (e.target.closest?.("#versionsSectionToggle")) {
       state.versionsSectionOpen = !state.versionsSectionOpen;
+      if (state.versionsSectionOpen) collapseBoardSections("versions");
       els.versionsSectionToggle?.setAttribute("aria-expanded", String(state.versionsSectionOpen));
       if (els.boardVersionRow) els.boardVersionRow.hidden = !state.versionsSectionOpen;
       return;
     }
     if (e.target.closest?.("#aspectSectionToggle")) {
       state.aspectSectionOpen = !state.aspectSectionOpen;
+      if (state.aspectSectionOpen) collapseBoardSections("aspect");
       els.aspectSectionToggle?.setAttribute("aria-expanded", String(state.aspectSectionOpen));
       if (els.aspectSectionBody) els.aspectSectionBody.hidden = !state.aspectSectionOpen;
       // Rafraîchit le minimum du curseur de compacité (largeur courante d'un
@@ -18419,12 +18732,14 @@ async function init() {
     }
     if (e.target.closest?.("#boardManageSectionToggle")) {
       state.boardManageSectionOpen = !state.boardManageSectionOpen;
+      if (state.boardManageSectionOpen) collapseBoardSections("boardManage");
       els.boardManageSectionToggle?.setAttribute("aria-expanded", String(state.boardManageSectionOpen));
       if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = !state.boardManageSectionOpen;
       return;
     }
     if (e.target.closest?.("#boardInfoSectionToggle")) {
       state.boardInfoSectionOpen = !state.boardInfoSectionOpen;
+      if (state.boardInfoSectionOpen) collapseBoardSections("boardInfo");
       els.boardInfoSectionToggle?.setAttribute("aria-expanded", String(state.boardInfoSectionOpen));
       if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = !state.boardInfoSectionOpen;
       if (state.boardInfoSectionOpen) renderBoardInfoSection();
@@ -18432,6 +18747,7 @@ async function init() {
     }
     if (e.target.closest?.("#randomGroupSectionToggle")) {
       state.randomGroupSectionOpen = !state.randomGroupSectionOpen;
+      if (state.randomGroupSectionOpen) collapseBoardSections("randomGroup");
       els.randomGroupSectionToggle?.setAttribute("aria-expanded", String(state.randomGroupSectionOpen));
       if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = !state.randomGroupSectionOpen;
       return;
@@ -18443,7 +18759,13 @@ async function init() {
         field.classList.toggle("tags-input-open");
         tagsAddBtn.setAttribute("aria-expanded", String(field.classList.contains("tags-input-open")));
         if (field.classList.contains("tags-input-open")) {
-          field.querySelector("[data-tags]")?.focus();
+          // Ouverture pour ajouter un tag : champ vide, les tags déjà posés
+          // restent visibles en chips.
+          const input = field.querySelector("[data-tags]");
+          if (input) {
+            input.value = "";
+            input.focus();
+          }
         }
       }
       return;
@@ -18515,29 +18837,7 @@ async function init() {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
     updateShortcutIndicators();
   });
-  window.addEventListener("resize", () => {
-    renderBoardLayoutControls();
-    applyPadLayout(currentBoard());
-    state.pads.forEach(renderWaveform);
-    if (document.body.classList.contains("show-cables")) drawCableOverlay();
-    syncFloatingCueFrame(true);
-    window.setTimeout(() => state.pads.forEach(fitPadTitle), 0);
-  });
-  // rAF-throttlé : un scroll listener synchrone qui lit/écrit du layout (comme
-  // syncFloatingCueFrame, avec ses getBoundingClientRect + setProperty) est un
-  // "scroll-linked effect" que Firefox signale explicitement comme instable en
-  // défilement asynchrone (mobile, inertie) — les mesures peuvent être prises
-  // entre deux frames réelles, donc désynchronisées de la position affichée.
-  // On aligne l'exécution sur le rendu (1 appel par frame max) au lieu d'un
-  // appel par évènement scroll brut.
-  let scrollSyncFrame = null;
-  window.addEventListener("scroll", () => {
-    if (scrollSyncFrame != null) return;
-    scrollSyncFrame = requestAnimationFrame(() => {
-      scrollSyncFrame = null;
-      syncFloatingCueFrame(false);
-    });
-  }, { passive: true });
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
     localStorage.setItem(DUCKING_STORAGE, String(value));
@@ -18664,14 +18964,41 @@ async function init() {
   bindSafeActionButton(els.cueEditor, () => {
     const board = currentBoard();
     if (!board) return;
-    const nextEnabled = board.cuesEnabled === false;
-    board.cuesEnabled = nextEnabled;
+    if (!board.cues?.length) {
+      // Board sans cues : rien à activer — on pointe vers « Réglage des cues ».
+      setStatus("Pas de cues");
+      flashCueDialogButton();
+      return;
+    }
+    board.cuesEnabled = board.cuesEnabled !== true;
+    if (!board.cuesEnabled) pauseCuePlayback();
     saveBoards();
     syncCueControls();
     setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
   });
   bindSafeActionButton(els.openCueDialog, () => openCueDialog());
+  // Bouton lancer / pause : un clic arme l'enchaînement (et lance le cue
+  // courant) ; le clic suivant met en pause (arrête l'enchaînement auto, PAS
+  // les sons en cours).
   bindSafeActionButton(els.cueRun, () => {
+    if (state.cuePlaying) {
+      pauseCuePlayback();
+      if (state.remoteRole === "controller") sendRemoteCommand("cuePause", "");
+      syncCueControls();
+      setStatus("Cues en pause");
+      return;
+    }
+    // On n'arme le mode lecture/pause que pour une étape à condition
+    // (enchaînement automatique) ; une étape manuelle se lance simplement, clic
+    // par clic, sans bascule pause.
+    const board = currentBoard();
+    const step = board?.cues?.length
+      ? normalizeCueStep(board.cues[cueIndexForBoard(board)])
+      : null;
+    if (step && step.condition && step.condition !== "manual") {
+      state.cuePlaying = true;
+    }
+    syncCueControls();
     runCurrentCue().catch(() => {
       clearCueWaitTimer();
       setStatus("Cue impossible");
@@ -18705,14 +19032,7 @@ async function init() {
       els.cueDialog.close();
     }
   });
-  window.addEventListener("resize", () => {
-    if (els.patchBayDialog?.open) drawPatchBayOverlay();
-    if (document.body.classList.contains("show-cables")) {
-      drawCableOverlay();
-      positionCableLegend();
-    }
-    syncFloatingCueFrame(true);
-  });
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   els.bulkEditPads?.addEventListener("click", openBulkEditDialog);
   els.closeBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
   els.cancelBulkEdit?.addEventListener("click", () => els.bulkEditDialog?.close());
@@ -18730,10 +19050,20 @@ async function init() {
   // Valeur chiffrée volume/pan qui suit les curseurs.
   els.bulkVolume?.addEventListener("input", updateBulkRangeValues);
   els.bulkPan?.addEventListener("input", updateBulkRangeValues);
-  // Tags en chips (comme le pad) : le champ pilote les chips, le bouton + le révèle
-  // (bascule gérée par le listener délégué global sur ".tags-add-btn" — un second
-  // listener dédié ici ferait basculer la classe deux fois par clic et s'annulerait).
-  els.bulkTags?.addEventListener("input", renderBulkTagChips);
+  // Tags en chips (comme le pad) : le champ [+] ne sert qu'à AJOUTER, il s'ouvre
+  // vide (chips = tags déjà posés, dans dataset.tags). La saisie est fusionnée à
+  // l'existant sur Entrée ou perte de focus. La bascule d'ouverture est gérée par
+  // le listener délégué global sur ".tags-add-btn".
+  els.bulkTags?.addEventListener("blur", commitBulkTagDraft);
+  els.bulkTags?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitBulkTagDraft();
+    const field = els.bulkTags.closest(".tag-field");
+    field?.classList.remove("tags-input-open");
+    field?.querySelector(".tags-add-btn")?.setAttribute("aria-expanded", "false");
+    els.bulkTags.blur();
+  });
   // Modifier un réglage coche sa case ; décocher la case restaure la valeur initiale.
   bindBulkFieldGroups();
   els.bulkEditDialog?.addEventListener("click", (event) => {
@@ -19045,6 +19375,17 @@ async function init() {
     }
     els.remoteControlDialog?.close();
   });
+  els.remoteResendBoard?.addEventListener("click", () => {
+    if (state.remoteRole !== "display") {
+      setStatus("Activez d'abord le rôle Façade");
+      return;
+    }
+    if (!state.remoteConnected) {
+      setStatus("Régie non connectée");
+      return;
+    }
+    pushBoardToRemote();
+  });
   const openContextHelp = (sectionKeys, title = "Aide") => {
     if (!els.helpDialog) return;
     const allowed = new Set(sectionKeys);
@@ -19076,8 +19417,10 @@ async function init() {
   });
   els.masterAudioHelp?.addEventListener("click", () => openContextHelp(["audio-master"], "Aide Audio (Master)"));
   document.querySelector("#audioHelp")?.addEventListener("click", () => openContextHelp(["audio-pad"], "Aide Réglages audio du pad"));
-  els.masterHelp?.addEventListener("click", () => openContextHelp(["master"], "Aide Master"));
-  els.cuesHelp?.addEventListener("click", () => openContextHelp(["cues-crossfade"], "Aide Cues / Crossfade"));
+  // L'aide « Cues / Crossfade » a été fusionnée dans l'aide Master (bouton d'aide
+  // dédié retiré de l'îlot).
+  els.masterHelp?.addEventListener("click", () => openContextHelp(["master", "cues-crossfade"], "Aide Master"));
+  els.cuesHelp?.addEventListener("click", () => openContextHelp(["master", "cues-crossfade"], "Aide Master"));
   els.closeHelp?.addEventListener("click", () => els.helpDialog?.close());
   els.helpDialog?.addEventListener("click", (event) => {
     if (event.target === els.helpDialog) els.helpDialog.close();
@@ -19279,7 +19622,6 @@ async function init() {
         });
     }
   });
-  bindAudioDialogTrim();
   els.audioAutoTrim?.addEventListener("click", () => {
     applyAutoTrimToAudioDialog().catch(() => setStatus("Trim auto impossible"));
   });
@@ -19931,6 +20273,10 @@ function finishGuestUnlock() {
   els.aspectSectionToggle?.setAttribute("aria-expanded", "true");
   if (els.aspectSectionBody) els.aspectSectionBody.hidden = false;
   if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = false;
+  // Volet « Random playlist » également déplié d'office pour l'invité.
+  state.randomGroupSectionOpen = true;
+  els.randomGroupSectionToggle?.setAttribute("aria-expanded", "true");
+  if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = false;
 }
 
 async function refreshGuestLabel(shareId) {
@@ -20226,319 +20572,48 @@ boardModeBodyObserver.observe(document.body, {
 });
 
 window.addEventListener("load", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
-window.addEventListener("resize", () => window.setTimeout(syncBoardModeSelectorSoon, 0));
+// (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
 
 
-/* Alignement dynamique Studio vers Scène */
-const stageStudioLayoutSnapshot = {
-  selectorRect: null,
-  topbarRect: null,
-  masterStripRect: null,
-  liveToolsRect: null,
-  inlineStyles: [],
-};
-// Le gel évite un saut visuel du logo au clic sur "Scène", mais bride ensuite
-// la largeur dispo pour .live-tools (ex. bouton crossfade armé qui passe à la
-// ligne). On le relâche après la transition ; tant qu'il n'est pas relâché,
-// toute mutation de classe (cues-enabled, etc.) le regèlerait sinon.
-let stageStudioLayoutReleased = false;
+/* Alignement Studio ↔ Scène : entièrement en CSS (retrait de la couche
+   d'épinglage JS en S3, puis de la mécanique sticky du bloc Cues — celui-ci
+   est maintenant un îlot position:fixed permanent, cf. styles.css .live-tools). */
 
-function stageStudioLayoutElements() {
-  return [
-    [document.querySelector(".topbar"), ["grid-template-columns", "align-items", "gap"]],
-    [document.querySelector(".brand"), ["display", "align-items", "gap", "min-height"]],
-    [document.querySelector(".mark"), ["width", "height", "min-width", "min-height"]],
-    [document.querySelector(".mark svg"), ["width", "height"]],
-    [document.querySelector(".brand h1"), ["font-size", "line-height", "margin", "font-weight"]],
-    [document.querySelector(".brand p"), ["font-size", "line-height", "margin", "display"]],
-    [document.querySelector("#audioStatus"), ["font-size", "line-height", "margin", "display"]],
-    [document.querySelector(".brand-tools"), ["display", "align-self", "grid-template-columns", "gap"]],
-  ].filter(([element]) => Boolean(element));
+// ── Gestionnaire "resize" unique et coalisé ───────────────────────────────
+// Il y avait 6 listeners "resize" indépendants (dont plusieurs pour le bloc
+// Cues, désormais fixe en CSS), aucun coordonné. Sur un drag de fenêtre en scène :
+// ~5000 lectures de layout forcées, ~9 ms/frame de jank (mesuré 09/2026).
+// Ici : tout le travail géométrique tourne 1×/frame max (rAF), et le travail
+// lourd par pad (waveforms, ajustement des titres) est repoussé à la fin du
+// redimensionnement (debounce ~180 ms) — il n'a pas besoin d'être exact pendant
+// le drag.
+let windowResizeFrame = 0;
+let windowResizeSettleTimer = 0;
+
+function onWindowResizeFrame() {
+  windowResizeFrame = 0;
+  renderBoardLayoutControls();
+  applyPadLayout(currentBoard());
+  refreshPadCompactnessRange();            // → applyPadCompactness + syncAllPadMinHeightsSoon (rAF)
+  if (els.patchBayDialog?.open) drawPatchBayOverlay();
+  if (document.body.classList.contains("show-cables")) {
+    drawCableOverlay();
+    positionCableLegend();
+  }
+  syncBoardModeSelectorSoon();
 }
 
-function captureStudioLayoutForStage() {
-  const selector = document.querySelector(".board-mode-selector");
-  if (!selector) return;
-
-  stageStudioLayoutReleased = false;
-
-  // Flush any pending stage transforms so positions are measured clean
-  clearStageStudioLayout();
-
-  // Clic sur "Scène" depuis Studio : capture appelée AVANT le basculement de
-  // mode, la géométrie Studio est donc déjà directement mesurable. Mais au
-  // démarrage direct en Scène (rafraîchissement de page, cf. init() qui
-  // restaure stageMode sans jamais passer par ce clic), la classe stage-mode
-  // est déjà posée et aucune transition Studio→Scène n'a eu lieu : il n'existe
-  // aucune géométrie Studio à mesurer. On bascule alors brièvement (synchrone,
-  // avant toute peinture) hors du mode scène pour obtenir cette référence —
-  // sans quoi board/master/live-tools restent non épinglés (position naturelle
-  // de Scène, différente de celle de Studio) jusqu'à la prochaine transition.
-  const needsToggle = document.body.classList.contains("stage-mode");
-  if (needsToggle) document.body.classList.remove("stage-mode");
-
-  stageStudioLayoutSnapshot.selectorRect = selector.getBoundingClientRect();
-
-  const topbar = document.querySelector(".topbar");
-  stageStudioLayoutSnapshot.topbarRect = topbar ? topbar.getBoundingClientRect() : null;
-
-  const masterStrip = document.querySelector(".master-strip");
-  stageStudioLayoutSnapshot.masterStripRect = masterStrip ? masterStrip.getBoundingClientRect() : null;
-
-  const liveTools = document.querySelector(".live-tools");
-  stageStudioLayoutSnapshot.liveToolsRect = liveTools ? liveTools.getBoundingClientRect() : null;
-
-  stageStudioLayoutSnapshot.inlineStyles = stageStudioLayoutElements().map(([element, props]) => {
-    const computed = window.getComputedStyle(element);
-    return {
-      element,
-      props: props.map((prop) => [prop, computed.getPropertyValue(prop)]),
-    };
-  });
-
-  if (needsToggle) document.body.classList.add("stage-mode");
+function onWindowResizeSettle() {
+  windowResizeSettleTimer = 0;
+  state.pads.forEach(renderWaveform);
+  state.pads.forEach(fitPadTitle);
 }
 
-// Relâche uniquement le gel topbar/brand/live-tools (cf. beabd2c, "fix bloc
-// cues en scène") : la géométrie studio figée sur ces éléments bridait la
-// largeur du bloc Cues/Crossfade indéfiniment. Le bloc board (board-strip) ET
-// le bloc master (master-strip) NE SONT PAS concernés — leur épinglage vient
-// d'un fix distinct et antérieur (4e98ec9 "Stabilize board mode selector
-// layout") dont le but est qu'aucun des deux ne bouge visuellement pendant
-// toute la session scène, pas seulement le temps de la transition. Les deux
-// doivent rester épinglés ENSEMBLE (ce sont deux colonnes de la même ligne) :
-// épingler l'un sans l'autre les désaligne dès que la topbar change de
-// hauteur au relâchement.
-function clearTopbarStudioLayout() {
-  stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
-    props.forEach(([prop]) => element.style.removeProperty(prop));
-  });
-
-  const topbar = document.querySelector(".topbar");
-  if (topbar) {
-    topbar.style.removeProperty("position");
-    topbar.style.removeProperty("transform");
-    topbar.style.removeProperty("top");
-    topbar.style.removeProperty("left");
-  }
-}
-
-function clearPinnedPanelsStudioLayout() {
-  [".board-strip", ".master-strip", ".live-tools"].forEach((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    el.style.removeProperty("position");
-    el.style.removeProperty("transform");
-    el.style.removeProperty("left");
-    el.style.removeProperty("top");
-  });
-  // Largeur studio imposée au master en scène (cf. applyStageStudioLayout) : à
-  // retirer avec l'épinglage, sinon elle fausse la mesure du snapshot et reste
-  // collée au retour en studio. Ciblé master uniquement — la largeur inline de
-  // .live-tools appartient à syncFloatingCueFrame, qui gère son propre cycle.
-  document.querySelector(".master-strip")?.style.removeProperty("width");
-}
-
-function clearStageStudioLayout() {
-  clearTopbarStudioLayout();
-  clearPinnedPanelsStudioLayout();
-}
-
-function applyStageStudioLayout() {
-  // Mode invité : layout scène entièrement redéfini en CSS (flex, blocs réduits).
-  // L'épinglage basé sur la géométrie studio n'a aucun sens ici et fige des
-  // hauteurs/largeurs parasites → on nettoie tout et on sort.
-  if (state.guest) {
-    clearStageStudioLayout();
-    return;
-  }
-  if (!document.body.classList.contains("stage-mode")) {
-    clearStageStudioLayout();
-    // Si .live-tools avait été sorti du topbar (bloc cues collé pendant le
-    // scroll, cf. syncFloatingCueFrame) et qu'on quitte la scène entre-temps
-    // (ex. retour en studio pendant que le bloc était collé), le remettre à
-    // sa place : cette relocalisation ne concerne que la scène.
-    const liveTools = document.querySelector(".live-tools");
-    const topbar = document.querySelector(".topbar");
-    if (liveTools && topbar && liveTools.parentElement !== topbar) {
-      topbar.appendChild(liveTools);
-    }
-    return;
-  }
-
-  // Mobile/tactile : la grille CSS positionne déjà la scène correctement. Toute
-  // compensation JS (styles inline hérités du studio + transform de la topbar) se
-  // bat avec la cascade → marge haute anormale, bloc cues/crossfade sous les pads,
-  // trou entre master et pads au scroll. On NETTOIE et on sort AVANT d'appliquer
-  // quoi que ce soit (le garde était placé trop tard : la topbar était déjà décalée).
-  if (window.matchMedia("(max-width: 950px), (pointer: coarse)").matches) {
-    clearStageStudioLayout();
-    return;
-  }
-
-  // Partie brand/live-tools : gel temporaire des propriétés internes (tailles
-  // de police, gap...), relâché après 500ms (cf. beabd2c) — sert uniquement à
-  // lisser la transition visuelle, ces valeurs sont désormais identiques entre
-  // Studio et Scène (cf. fix align-items .brand-tools) donc le relâchement n'a
-  // plus d'effet visible sur elles.
-  if (stageStudioLayoutReleased) {
-    clearTopbarStudioLayout();
-  } else {
-    stageStudioLayoutSnapshot.inlineStyles.forEach(({ element, props }) => {
-      props.forEach(([prop, value]) => {
-        element.style.setProperty(prop, value, "important");
-      });
-    });
-  }
-
-  // Position de la topbar : épinglage permanent (comme board/master/live-
-  // tools ci-dessous), indépendant du gel/relâchement ci-dessus. .app a un
-  // padding plus petit en Scène (cf. body.stage-mode .app) : sans cet
-  // épinglage propre, tout l'en-tête (logo + texte) se décale en haut à
-  // gauche dès que le gel des propriétés internes se relâche, même une fois
-  // celles-ci équivalentes entre les deux modes.
-  pinPanelToStudioPosition(document.querySelector(".topbar"), stageStudioLayoutSnapshot.topbarRect);
-
-  // Partie board-strip + master-strip : épinglage permanent tant qu'on est en
-  // scène (voir commentaire de clearTopbarStudioLayout) — recalculé à chaque
-  // appel, y compris après le relâchement ci-dessus, pour rester exact quelle
-  // que soit la hauteur courante de la topbar. Les deux blocs sont traités de
-  // façon identique et indépendante (chacun avec son propre point de
-  // référence) pour qu'ils bougent ensemble, sans se désaligner l'un de
-  // l'autre.
-  const boardStrip = document.querySelector(".board-strip");
-  const selector = document.querySelector(".board-mode-selector");
-  const studioRect = stageStudioLayoutSnapshot.selectorRect;
-
-  if (boardStrip && selector && studioRect && !state.guest) {
-    boardStrip.style.setProperty("position", "relative", "important");
-    boardStrip.style.setProperty("transform", "none", "important");
-
-    const stageRect = selector.getBoundingClientRect();
-    const dx = Math.round(studioRect.left - stageRect.left);
-    // Voir commentaire de pinPanelToStudioPosition : + window.scrollY rend le
-    // calcul indépendant d'un éventuel scroll au moment du réappel.
-    const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
-
-    boardStrip.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
-  }
-
-  // Même largeur qu'en studio (mesurée dans le snapshot) : en scène le master a
-  // ses propres tailles (gros boutons stop) et son fit-content diffère — or
-  // l'épinglage ne cale que le bord GAUCHE sur la position studio, le bord
-  // droit se retrouvait donc décalé du bord droit des pads. À largeur égale,
-  // les deux bords coïncident avec le studio (la colonne 1fr interne absorbe
-  // la différence). Posée AVANT l'épinglage, qui mesure la géométrie résultante.
-  const masterStripEl = document.querySelector(".master-strip");
-  if (masterStripEl && stageStudioLayoutSnapshot.masterStripRect) {
-    masterStripEl.style.setProperty("width", `${Math.round(stageStudioLayoutSnapshot.masterStripRect.width)}px`, "important");
-  }
-  pinPanelToStudioPosition(masterStripEl, stageStudioLayoutSnapshot.masterStripRect);
-  // .live-tools (bloc Cues/Crossfade) : sa position naturelle dépend de la
-  // hauteur réelle (non transformée) de la ligne board+master au-dessus —
-  // un transform sur board/master ne change pas leur encombrement dans le
-  // flux, donc .live-tools doit être épinglé indépendamment lui aussi, sinon
-  // il reste décalé même quand board/master sont bien alignés entre eux.
-  // Sauf pendant qu'il est "collé" (cues-stuck) : il est alors sorti du
-  // topbar (cf. syncFloatingCueFrame) pour échapper au transform ci-dessus,
-  // et géré entièrement par le CSS de cues-stuck — l'épingler ici le
-  // ramènerait à tort dans le référentiel studio.
-  // Et sauf quand les cues sont ACTIVÉES : le bloc est alors aligné sur la
-  // zone des pads par syncFloatingCueFrame (largeur + marge), pas sur sa
-  // position studio — le snapshot correspond au bloc compact (cues
-  // désactivées) et l'épinglage le décalait/débordait à droite jusqu'au
-  // premier scroll. On retire un éventuel épinglage résiduel puis on
-  // resynchronise l'alignement sur les pads (la topbar vient d'être épinglée,
-  // la marge doit être recalculée dans ce référentiel).
-  const liveToolsEl = document.querySelector(".live-tools");
-  if (document.body.classList.contains("cues-enabled")) {
-    if (liveToolsEl && !document.body.classList.contains("cues-stuck")) {
-      liveToolsEl.style.removeProperty("position");
-      liveToolsEl.style.removeProperty("transform");
-    }
-    syncFloatingCueFrame();
-  } else if (!document.body.classList.contains("cues-stuck")) {
-    pinPanelToStudioPosition(liveToolsEl, stageStudioLayoutSnapshot.liveToolsRect);
-  }
-}
-
-function pinPanelToStudioPosition(el, studioRect) {
-  if (!el || !studioRect) return;
-  el.style.setProperty("position", "relative", "important");
-  el.style.setProperty("transform", "none", "important");
-
-  const stageRect = el.getBoundingClientRect();
-  const dx = Math.round(studioRect.left - stageRect.left);
-  // studioRect est capturé au repos (scrollY≈0, entrée en scène ou boot) donc
-  // document-relative de fait ; stageRect.top est viewport-relative et donc
-  // faussé si cette fonction est réappelée pendant que la page est scrollée
-  // (ex. relâchement du bloc cues collé) — + window.scrollY compense.
-  const dy = Math.round(studioRect.top - (stageRect.top + window.scrollY));
-
-  el.style.setProperty("transform", `translate(${dx}px, ${dy}px)`, "important");
-}
-
-let stageStudioLayoutFrame = 0;
-
-function applyStageStudioLayoutSoon() {
-  if (stageStudioLayoutFrame) {
-    cancelAnimationFrame(stageStudioLayoutFrame);
-  }
-
-  stageStudioLayoutFrame = requestAnimationFrame(() => {
-    stageStudioLayoutFrame = 0;
-    applyStageStudioLayout();
-  });
-}
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest?.("[data-board-mode-target='stage']");
-  if (!button) return;
-  captureStudioLayoutForStage();
-}, true);
-
-const stageStudioLayoutObserver = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    const prev = (mutation.oldValue || "").replace(/\bcues-stuck\b/g, "").trim();
-    const next = document.body.className.replace(/\bcues-stuck\b/g, "").trim();
-    if (prev !== next) {
-      applyStageStudioLayoutSoon();
-      return;
-    }
-  }
+window.addEventListener("resize", () => {
+  if (!windowResizeFrame) windowResizeFrame = requestAnimationFrame(onWindowResizeFrame);
+  if (windowResizeSettleTimer) clearTimeout(windowResizeSettleTimer);
+  windowResizeSettleTimer = window.setTimeout(onWindowResizeSettle, 180);
 });
-stageStudioLayoutObserver.observe(document.body, {
-  attributes: true,
-  attributeFilter: ["class"],
-  attributeOldValue: true,
-});
-
-// Au redimensionnement, le snapshot studio (positions de référence de
-// l'épinglage) est périmé : capturé à l'ancienne largeur de fenêtre, il
-// épinglait board/master/cues sur des positions qui n'existent plus — le bloc
-// cues restait en place pendant que les pads reflowaient par-dessus. On
-// recapture donc la géométrie studio avant de réappliquer, et on resynchronise
-// le bloc cues (sa largeur = zone des pads et son ancre de collage dépendent
-// aussi de la fenêtre), en studio comme en scène.
-let stageStudioResizeFrame = 0;
-function refreshStageStudioGeometrySoon() {
-  if (stageStudioResizeFrame) cancelAnimationFrame(stageStudioResizeFrame);
-  stageStudioResizeFrame = requestAnimationFrame(() => {
-    stageStudioResizeFrame = 0;
-    // Même garde mobile que applyStageStudioLayout : pas d'épinglage là-bas,
-    // donc rien à recapturer (et le toggle synchrone de classe serait inutile).
-    if (
-      document.body.classList.contains("stage-mode")
-      && !window.matchMedia("(max-width: 950px), (pointer: coarse)").matches
-    ) {
-      captureStudioLayoutForStage();
-    }
-    applyStageStudioLayout();
-    syncFloatingCueFrame(true);
-  });
-}
-window.addEventListener("resize", refreshStageStudioGeometrySoon);
-window.addEventListener("load", applyStageStudioLayoutSoon);
 
 // Étendue du board (curseur du bloc Aspect) : pilote --board-extent, la
 // largeur commune topbar/deck/bloc cues collé. Permet d'occuper un grand
@@ -20552,7 +20627,6 @@ function applyBoardExtent(value, save = true) {
   document.documentElement.style.setProperty("--board-extent", `${px}px`);
   if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
   if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
-  refreshStageStudioGeometrySoon();
   requestAnimationFrame(refreshPadCompactnessRange);
 }
 
@@ -20582,6 +20656,17 @@ function currentPadWidth() {
   return pad ? Math.round(pad.getBoundingClientRect().width) : 0;
 }
 
+/* ── Contrat hauteur de rangée des pads (JS ↔ CSS) ───────────────────────────
+   Deux variables, un seul propriétaire chacune :
+   • `--pad-compact-height` (sur <html>) = plafond de hauteur de rangée visé par
+     le curseur Aspect. ÉCRITE UNIQUEMENT par `applyPadCompactness()` ; lue par
+     `grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px))`
+     (.pads.has-pad-layout, styles.css). Le repli 340px du CSS = PAD_ROW_MAX_FALLBACK.
+   • `pad.style.minHeight` (inline, par pad) = plancher incompressible du pad,
+     mesuré. ÉCRIT UNIQUEMENT par `syncAllPadMinHeights()` ; consommé par le `auto`
+     minimum de `grid-auto-rows`, qui n'agrandit donc une rangée que pour SON pad
+     le plus haut.
+   Aucune autre fonction ne doit toucher ces deux valeurs. */
 function applyPadCompactness(value, save = true) {
   if (!els.padCompactness) return;
   const min = Number(els.padCompactness.min) || 90;
@@ -20603,7 +20688,7 @@ function refreshPadCompactnessRange() {
     if (padCompactnessRetries++ < 20) {
       requestAnimationFrame(refreshPadCompactnessRange);
     } else if (!document.documentElement.style.getPropertyValue("--pad-compact-height")) {
-      document.documentElement.style.setProperty("--pad-compact-height", "260px");
+      applyPadCompactness(PAD_ROW_MAX_FALLBACK, false); // clampé à PAD_COMPACTNESS_MAX
     }
     return;
   }
@@ -20646,31 +20731,36 @@ function syncAllPadMinHeightsSoon() {
 // déborde, pour garder une marge basse. Lecture synchrone : pas de repaint.
 function syncAllPadMinHeights() {
   const root = document.documentElement;
-  const pads = [...document.querySelectorAll(".pads .pad")];
+  // Panneau effets plein pad ouvert : le contenu du pad est encore dans le flux
+  // (visibility:hidden), donc scrollHeight renverrait la hauteur « boutons
+  // visibles » et figerait un min-height gonflé — même sur les pads illustrés.
+  // On laisse ces pads de côté ; ils seront remesurés à la fermeture.
+  const pads = [...document.querySelectorAll(".pads .pad")].filter((p) => !p.classList.contains("is-fx-open"));
   if (!pads.length) return;
+  // `--pad-compact-height: 1px` écrase toute la hauteur du document le temps de
+  // la mesure → le navigateur clampe scrollY vers 0 et ne le restaure PAS quand
+  // on rétablit la hauteur (page qui saute en haut, surtout à l'ouverture du
+  // panneau effets plein pad : setTimeout(syncAllPadMinHeightsSoon, 400)). On
+  // mémorise et on restaure la position.
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
   const prev = root.style.getPropertyValue("--pad-compact-height");
   pads.forEach((p) => p.style.removeProperty("min-height"));
-  root.style.setProperty("--pad-compact-height", "1px");
+  root.style.setProperty("--pad-compact-height", PAD_MEASURE_HEIGHT);
   const measures = pads.map((p) => {
     const padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0;
     return Math.ceil(p.scrollHeight) + Math.max(Math.round(padBottom), 6);
   });
-  if (prev) {
-    root.style.setProperty("--pad-compact-height", prev);
-  } else if (els.padCompactness) {
-    // Filet de sécurité : si --pad-compact-height n'était pas encore posée à cet
-    // instant (ex. cette fonction déclenchée avant l'initialisation normale du
-    // curseur de compacité, ou après une remise à zéro), ne jamais la laisser
-    // vide — le repli CSS (grid-auto-rows: minmax(auto, var(--pad-compact-height,
-    // 9999px)) sur .pads.has-pad-layout) fait alors exploser la hauteur des
-    // rangées (pads étirés sur tout l'écran, vus côté façade au clic sur
-    // "Désactiver" en scène). On repose une vraie valeur plutôt que de retirer
-    // la propriété.
-    applyPadCompactness(els.padCompactness.value, false);
-  } else {
-    root.style.removeProperty("--pad-compact-height");
-  }
+  // Restauration : la valeur d'avant si elle existait, sinon la cible canonique
+  // via l'unique propriétaire (applyPadCompactness). Ne JAMAIS laisser
+  // --pad-compact-height vide — le repli CSS (340px) étire alors chaque rangée
+  // à cette hauteur (pads géants, vus côté façade au clic sur « Désactiver » en
+  // scène).
+  if (prev) root.style.setProperty("--pad-compact-height", prev);
+  else if (els.padCompactness) applyPadCompactness(padCompactnessTarget(), false);
+  else root.style.removeProperty("--pad-compact-height"); // jamais laisser "1px" en place
   pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
+  if (window.scrollX !== scrollX || window.scrollY !== scrollY) window.scrollTo(scrollX, scrollY);
 }
 
 if (els.padCompactness) {
@@ -20679,7 +20769,7 @@ if (els.padCompactness) {
     localStorage.setItem(PAD_COMPACTNESS_STORAGE + "-set", "1"); // réglage explicite de l'utilisateur
     applyPadCompactness(els.padCompactness.value);
   });
-  window.addEventListener("resize", () => requestAnimationFrame(refreshPadCompactnessRange));
+  // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   requestAnimationFrame(() => {
     refreshPadCompactnessRange();
     applyPadCompactness(padCompactnessTarget(), false);

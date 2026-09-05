@@ -1,3 +1,17 @@
+/* S2 — vraie syntaxe @layer, amorcée sur le composant pad (titre/tags, lot 1).
+   Ordre de priorité croissante : base < mode < skin < responsive. Choisi par
+   analyse du sous-système titre/tags (04/09/2026) : le skin (couleurs/déco)
+   doit toujours battre un état/mode générique (ex. fond dégradé illustré basic
+   qui doit rester même pendant la lecture), alors qu'un mode+skin combiné
+   (ex. positionnement scène du titre illustré basic) est classé skin (il porte
+   déjà le qualificatif data-skin). Cet ordre n'est PAS encore revérifié pour
+   les autres sous-zones du pad (trigger/play-row/vu/progress, ~100 !important
+   restants) — à revalider avant d'étendre. Les règles encore hors couche
+   continuent à suivre la cascade normale (spécificité) et gagnent toujours
+   sur une règle mise en couche : c'est volontaire tant qu'une zone n'est pas
+   migrée. */
+@layer base, mode, skin, responsive;
+
 :root {
   color-scheme: dark;
   --color_ui_background: #101114;
@@ -183,8 +197,14 @@ body[data-skin="candy"] {
   --danger: var(--color_status_danger);
 }
 
+/* S2 — lot 2 (.pad-trigger, propriétés isolées uniquement, cf. commentaire
+   d'ordre des couches en tête de fichier). `filter` sur .pad-ducked n'est posé
+   que par ces 2 règles (candy + générique) dans tout le fichier → migration
+   sûre, même schéma skin>mode déjà vérifié sur le titre. */
+@layer skin {
 body[data-skin="candy"] .pad.is-ducked .pad-trigger {
   filter: saturate(0.78) brightness(0.82);
+}
 }
 
 body[data-skin="candy"] .pad-alert {
@@ -248,16 +268,29 @@ body[data-skin="minimal"] .pad-actions {
   gap: 5px;
 }
 
+/* S2 — lot 3 (.pad-play-row/.pad-vu/.pad-progress). `grid-template-columns` et
+   `gap` de .pad-play-row sont ici du code mort : la règle inconditionnelle
+   styles.css ~8304 (`.pad-play-row { display:grid !important; grid-template-
+   columns:… !important; gap:… !important }`) s'applique TOUJOURS (aucune
+   condition de skin/mode) et l'emporte quoi qu'il arrive — cette règle reste
+   volontairement hors couche (mélange de propriétés importantes et non
+   importantes, cf. mémoire du chantier). Migration sans risque : la valeur
+   ci-dessous n'a de toute façon jamais d'effet visuel. */
+@layer skin {
 body[data-skin="minimal"] .pad-play-row {
   grid-template-columns: 1fr;
   gap: 5px;
 }
+}
 
+/* S2 — nettoyage code mort : min-height/padding supprimés, toujours masqués
+   par la règle non-édition ~8804 (spécificité supérieure). width/gap restent
+   vivants. */
+@layer skin {
 body[data-skin="minimal"] .pad-trigger {
   width: 100%;
-  min-height: 100%;
-  padding: 6px 6px 30px;
   gap: 6px;
+}
 }
 
 body[data-skin="minimal"] .pad-action-line,
@@ -267,9 +300,7 @@ body[data-skin="minimal"] .manage-group {
   min-width: 0;
 }
 
-body[data-skin="minimal"] .pad-title {
-  font-size: 0.86rem;
-}
+/* .pad-title font-size → token --pad-title-size (bloc S1 près de la règle .pad-title) */
 
 body[data-skin="minimal"] .pad-time {
   font-size: 0.72rem;
@@ -784,7 +815,6 @@ body.board-edit-mode .board-edit-actions {
 
 .master-strip {
   --master-stop-size: 70px;
-  --master-stop-panel-height: 112px;
   /* Taille des boutons absolus du coin bas-droite (aide / audio master). Sert à réserver
      leur bande via .master-option-badges — à garder synchronisé si on change leur taille
      (cf. media query portrait qui les passe à 54px). */
@@ -1018,6 +1048,16 @@ body.board-edit-mode .board-action-grid .stage-lock-button {
   flex: 1;
 }
 
+/* Message « écran trop étroit pour N colonnes » (plafond largeur, cf. app.js
+   maxPadColumnsForWidth). */
+.board-cols-limit-hint {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--color_ui_warn, #e0a33c);
+}
+.board-cols-limit-hint[hidden] { display: none; }
+
 .stage-lock-button .lock-closed-icon,
 .stage-lock-button.is-active .lock-open-icon {
   display: none;
@@ -1245,71 +1285,48 @@ body.board-edit-mode .board-info-section-toggle {
   display: none;
 }
 
-.live-tools {
-  /* --master-stop-size n'existe que sur .master-strip (pas de portée globale) ;
-     .live-tools est un bloc frère (pas un descendant), donc sans cette
-     redéfinition en miroir, .cue-stop-all-button ne pouvait pas la lire du
-     tout (var() invalide → ignorée). Valeurs alignées sur .master-strip à
-     chaque breakpoint non-scène (.cue-stop-all-button a ses propres règles
-     dédiées en mode scène, indépendantes de cette variable). */
+/* Barre Cues : îlot compact FIXE, centré en bas du viewport, dans tous les
+   modes (studio/scène ; masqué en garage et en invité). Remplace l'ancienne
+   mécanique sticky-scroll (classe body.cues-stuck + JS syncFloatingCueFrame,
+   toutes deux retirées) et le placement en grille dans .topbar. Le bloc
+   n'occupe plus de place dans le flux : .app réserve une bande basse pour que
+   la dernière rangée de pads ne passe pas dessous (cf. --cues-bar-clearance).
+   .cue-live-row / .xfade-live-row restent display:contents : leurs enfants
+   sont des items flex directs de .live-tools, ordonnés via `order`.
+   Scopé `.topbar > .live-tools` : l'aperçu de l'éditeur de skin a son propre
+   .live-tools (hors .topbar), qui garde un rendu en flux normal. */
+.topbar > .live-tools {
+  /* --master-stop-size n'existe que sur .master-strip (bloc frère, pas
+     ancêtre) → redéfinie ici en miroir pour que .cue-stop-all-button puisse
+     la lire. Valeur studio (le mode scène a ses propres règles dédiées). */
   --master-stop-size: 70px;
+  position: fixed;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 65;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  grid-column: 1;
-  grid-row: 3;
-  align-self: end;
-  /* max-content (pas 100%, ni fit-content) + justify-self:start : Cues n'a
-     pas besoin de toute la largeur de sa cellule de grille (souvent bien
-     plus large que ses quelques boutons, surtout en studio) — l'étirer
-     laissait un grand vide à droite dans le bloc, repéré le 2026-08-20.
-     fit-content avait été essayé d'abord, mais sur cet élément qui span 2
-     colonnes de grille (grid-column:1/-1, ci-dessous ~901px) son résultat
-     dépendait de façon incohérente de la hauteur de la fenêtre (même largeur,
-     largeur calculée différente selon la hauteur) — max-content, qui ignore
-     l'espace disponible et se cale uniquement sur le contenu, n'a pas ce
-     problème... sauf que max-content lui-même s'est avéré incohérent aussi :
-     mesuré à 707px alors que .cue-status (le texte du cue courant) est
-     plafonné à 320px par ailleurs — la contribution de .cue-status au calcul
-     max-content du parent ignore son propre max-width (chromium/firefox
-     semblent calculer cette contribution sur la taille NON contrainte).
-     680px (proche du besoin réel mesuré en état correct, 668px) : garde-fou
-     explicite sur le CONTENEUR lui-même (contourne le calcul intrinsèque peu
-     fiable, quelle qu'en soit la cause exacte — 700px ne suffisait pas,
-     à peine sous la valeur bugguée mesurée à 707px). */
+  justify-content: center;
   width: max-content;
-  max-width: min(100%, 680px);
-  justify-self: start;
+  max-width: calc(100vw - 20px);
   box-sizing: border-box;
   margin: 0;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--color_ui_panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
 }
 
-/* Studio/Garage, largeur réelle (.topbar vraiment à 2 colonnes, board+master
-   côte à côte — cf. .topbar, repli 1 colonne sous 900px) : Cues occupe sa
-   propre ligne sur toute la largeur des 2 colonnes, au-dessus des pads, sous
-   Board ET Master (pas seulement sous Board), quelle que soit leur hauteur
-   respective. Demandé le 2026-08-20, après un essai de regroupement
-   Board+Cues (colonne 1 seule) qui ne correspondait pas au design voulu.
-   Scopé à min-width:901px : sous ce seuil, .topbar passe à 1 seule colonne
-   et Board/Master/Cues ont déjà chacun leur propre ligne (2/3/4, cf. plus
-   bas) — un design différent, correct, pas touché ici (élargir grid-column
-   là-dessous provoquait un chevauchement Cues/Master, repéré le 2026-08-20). */
-@media (min-width: 901px) {
-  .live-tools {
-    grid-column: 1 / -1;
-    /* margin-top négatif : compense le gap uniforme de .topbar (18px, cf.
-       .topbar) pour que l'écart Board/Master → Cues retombe à 12px — la
-       même valeur que le gap entre pads (cf. .pads) — au lieu des 18px
-       hérités. CSS Grid ne permet pas un gap différent par paire de lignes ;
-       c'est le seul point de couplage avec la valeur de gap de .topbar (à
-       ajuster si l'un des deux change). */
-    margin-top: -6px;
-  }
+/* Volet crossfade armé (titre « Crossfade » + bouton showCables) : masquable
+   via la case master « Afficher le volet crossfade » (body.xfade-panel-hidden).
+   Le stop global et l'aide restent, eux, toujours visibles. */
+body.xfade-panel-hidden .topbar > .live-tools .xfade-live-title,
+body.xfade-panel-hidden .topbar > .live-tools .show-cables-button {
+  display: none;
 }
 
 .live-tools-title {
@@ -1321,160 +1338,41 @@ body.board-edit-mode .board-info-section-toggle {
   text-transform: uppercase;
 }
 
-/* Panneau flottant des filtres live par pad : toujours position:fixed (pas de
-   mécanique sticky-scroll comme .live-tools), déplaçable par sa poignée
-   (setupLiveFxPanelDrag) et rabattable en bas de l'écran (setLiveFxPanelDocked).
-   Une rangée repliable par pad en cours de lecture, ajoutée/retirée directement
-   par addLiveFxRow/removeLiveFxRow. */
-.live-fx-panel {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 69;
-  display: flex;
-  flex-direction: column;
-  width: 220px;
-  max-width: calc(100vw - 16px);
-}
-
-.live-fx-panel:not(:has(.live-fx-row)) {
+/* Îlot : le titre « Cues » est porté par le bouton activer/désactiver
+   (#cueEditor), pas par le h2. */
+.topbar > .live-tools .live-tools-title {
   display: none;
 }
 
-body.board-edit-mode .live-fx-panel,
-body.live-fx-panel-disabled .live-fx-panel {
-  display: none;
-}
-
-.live-fx-panel-handle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px 8px 0 0;
-  background: var(--color_ui_panel);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.live-fx-panel-handle.is-dragging {
-  cursor: grabbing;
-}
-
-.live-fx-panel-grip {
-  flex-shrink: 0;
-  color: var(--muted);
-}
-
-.live-fx-panel-title {
-  flex: 1;
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  color: var(--color_ui_text);
-}
-
-/* Bat .icon-button (42px) : bouton compact pour la barre de poignée du
-   panneau (padding 6px 8px), sinon le bouton forçait toute la barre à
-   grandir pour loger ses 42px. */
-#liveFxPanelDock {
-  width: 24px;
-  height: 24px;
-}
-
-#liveFxPanelDock svg {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.18s;
-}
-
-#liveFxPanelDock.is-flipped svg {
-  transform: rotate(180deg);
-}
-
-.live-fx-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  max-height: 60vh;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  background: var(--panel);
-}
-
-.live-fx-panel.is-docked {
-  top: auto !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: 0 !important;
-  width: auto;
-  transform: translateX(-50%);
-}
-
-.live-fx-panel.is-docked .live-fx-panel-handle {
-  border-radius: 8px 8px 0 0;
-}
-
-.live-fx-panel.is-docked .live-fx-panel-body {
-  display: none;
-}
-
-.live-fx-row {
+/* Bouton activer/désactiver les cues : porte le libellé « Cues » (plus d'icône).
+   Inactif = atténué ; actif = mis en avant (règle .is-active partagée ~598). */
+.cue-editor-button {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--color_ui_frame_background);
-  overflow: hidden;
-}
-
-.live-fx-row-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* .random-group-section-toggle est réutilisé tel quel (repli/dépli, pastille,
-   chevron) mais sans padding propre — on l'ajoute ici, scopé à ce contexte.
-   Bouton compact (pas seulement le chevron) : la rangée reste dense même
-   avec plusieurs pads actifs en même temps. */
-.live-fx-row .random-group-section-toggle {
-  flex: 1;
-  min-width: 0;
-  padding: 1px 3px;
-}
-
-.live-fx-row .filter-section-chevron {
-  width: 7px !important;
-  height: 7px !important;
-}
-
-.live-fx-row-title {
+  background: var(--color_ui_panel_secondary);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-/* Sélecteur à 2 classes (pas juste .live-fx-row-bypass) : nécessaire pour
-   battre .icon-button (42px, définie plus loin dans le fichier) à spécificité
-   égale sans recourir à !important — sinon la règle la plus tardive du
-   fichier gagne et le bouton reste à sa taille .icon-button par défaut. */
-.live-fx-row-head .live-fx-row-bypass {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  margin-right: 4px;
-  padding: 0;
+/* Bouton lancer / pause en cours de lecture d'enchaînement : mis en avant. */
+.cue-run-button.is-playing {
+  border-color: var(--color_status_progress);
+  color: var(--color_status_progress);
+  background: color-mix(in srgb, var(--color_status_progress) 16%, var(--color_ui_panel_secondary));
 }
 
-.live-fx-row-head .live-fx-row-bypass svg {
-  width: 13px;
-  height: 13px;
-}
-
+/* Effets live des pads : plus de panneau flottant — les curseurs (4 effets +
+   Pan/Volume + bypass) vivent uniquement au verso du pad (.pad-fx-back-body,
+   cf. setPadFxOverlayOpen). Les classes .live-fx-row-body / .live-fx-control /
+   .live-fx-row-bypass ci-dessous sont partagées avec ce verso. */
 .live-fx-row-bypass[aria-pressed="true"] {
   border-color: var(--danger);
   color: var(--danger);
@@ -1570,12 +1468,42 @@ body.board-edit-mode .live-tools {
   display: none;
 }
 
-.xfade-live-row .cue-stop-all-button {
+.xfade-live-row .cue-stop-all-button,
+.xfade-live-row .cue-mute-all-button,
+.xfade-live-row .cue-stop-group {
   display: none;
 }
 
-body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cue-stop-all-button {
+/* Stop global + stop groupé + mute global : toujours dans l'îlot (studio ET
+   scène), que les cues soient activées ou non — sécurités de régie. Chacun est
+   masquable via sa case master (body.stopall-hidden / .stopgroup-hidden /
+   .mute-hidden, cf. fin de fichier). */
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-stop-all-button,
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-mute-all-button {
   display: grid;
+}
+body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools .cue-stop-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Stop groupé dans l'îlot : bouton à la taille des autres (42px), sélecteur de
+   tag compact. Sélecteurs #id-préfixés pour battre les anciennes règles
+   `#stopGroup { width: var(--master-stop-size) }` (~70px, master strip retiré),
+   qui subsistent à plusieurs breakpoints. */
+.topbar > .live-tools #stopGroup {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  aspect-ratio: auto;
+}
+.topbar > .live-tools .cue-stop-group #stopGroupSelect {
+  height: 42px;
+  max-width: 11ch;
+  min-width: 5ch;
+  font-size: 0.8rem;
 }
 
 body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
@@ -1593,7 +1521,9 @@ body.cues-enabled:not(.board-edit-mode) .topbar .live-tools .cues-help-button {
 .cue-window-button svg,
 .show-cables-button svg,
 .cues-help-button svg,
-.cue-stop-all-button svg {
+.cue-stop-all-button svg,
+.cue-mute-all-button svg,
+.cue-stop-group-button svg {
   display: block;
   justify-self: center;
   align-self: center;
@@ -1985,10 +1915,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   height: 42px;
 }
 
-/* grid-area:group (et align-self:start) : obsolète depuis le regroupement en
-   .master-stop-cluster — supprimé (le 2e align-self:start bloquait le
-   align-items:stretch du cluster parent, empêchant ce bloc de s'étirer). */
-
 /* Hasard groupé : pas de grid-area dédiée dans le layout du master-strip (très
    finement calé sur de nombreux breakpoints) — placé en 5e ligne implicite,
    pleine largeur, pour ne rien perturber de l'existant. */
@@ -2017,6 +1943,24 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
 
 .random-group-section-toggle span {
   flex: 1;
+}
+
+/* Titre « Random playlist » : on réutilise le style partagé « .master-control span »
+   (police / taille / couleur / capitales), déjà actif ici puisque .random-group-control
+   porte la classe .master-control — exactement comme le libellé « Volume sono ».
+   Il n'y a donc rien à redéclarer : on neutralise seulement le flex:1 du toggle
+   et la coloration verte « playlist en cours » pour que l'aspect reste identique. */
+#randomGroupSectionToggle > span:not(.random-group-playing-dot) {
+  flex: 0 1 auto;
+}
+
+#randomGroupSectionToggle.is-active > span:not(.random-group-playing-dot) {
+  color: var(--muted);
+}
+
+/* Flash de lecture collé à droite du titre ; le chevron repart à l'extrémité. */
+#randomGroupSectionToggle .filter-section-chevron {
+  margin-left: auto;
 }
 
 .random-group-section-toggle[aria-expanded="false"] .filter-section-chevron {
@@ -2123,6 +2067,28 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   color: var(--color_ui_text);
 }
 
+/* Bouton lancer/arrêter : même gabarit que le bouton stop global (#cueStopAll).
+   Contenu du volet Random playlist (déjà en flux), donc n'affecte pas les
+   dimensions repliées du bloc master. */
+.random-group-row-minmax #randomGroupToggle {
+  width: var(--master-stop-size);
+  height: var(--master-stop-size);
+  min-height: var(--master-stop-size);
+  aspect-ratio: 1 / 1;
+}
+
+.random-group-row-minmax #randomGroupToggle svg {
+  width: 58%;
+  height: 58%;
+}
+
+/* Board partagé à un invité : bouton moitié moins grand. */
+body.guest-mode .random-group-row-minmax #randomGroupToggle {
+  width: calc(var(--master-stop-size) / 2);
+  height: calc(var(--master-stop-size) / 2);
+  min-height: calc(var(--master-stop-size) / 2);
+}
+
 /* Rangée regroupant les étiquettes d'options ET les boutons patchbay/audio/aide
    master (auparavant flottants en position:absolute sur le coin bas-droite) :
    tout tient désormais sur une seule ligne, en flux normal. */
@@ -2175,70 +2141,6 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   align-items: flex-start;
 }
 
-/* Regroupe Stop global, Stop groupé et Mute master sur une seule ligne pleine
-   largeur, sur desktop comme mobile (au lieu des zones nommées "stop"/"group"
-   du grid .master-strip — étroites, confinées à la dernière colonne, ce qui
-   provoquait débordement/chevauchement sur téléphone). grid-column:1/-1 sans
-   grid-row explicite : auto-placé par la grille dans une nouvelle ligne après
-   les zones nommées existantes (title/master/stop/group/audio, inchangées,
-   simplement plus utilisées par ces trois contrôles). Les enfants perdent
-   leur propre grid-area (ignoré, plus des enfants directs de la grille) mais
-   gardent leur CSS interne telle quelle. */
-.master-stop-cluster {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  /* stretch (pas start) : les 3 blocs prennent la hauteur du plus grand
-     (group-stop-control, avec son select en plus) — chaque bloc a déjà
-     align-content:start en interne, donc titre+bouton restent calés en haut,
-     l'espace en trop va sous le bouton plutôt que de désaligner quoi que ce
-     soit. */
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
-}
-
-.master-stop-cluster > * {
-  flex: 1 1 0;
-  min-width: max-content;
-}
-
-/* grid-area:stop (et align-self:start) : obsolète depuis le regroupement en
-   .master-stop-cluster — supprimé (même raison que group-stop-control
-   ci-dessus, l'align-self bloquait le stretch du cluster parent). */
-.stop-all-control {
-  display: grid;
-  grid-template-rows: auto var(--master-stop-size);
-  gap: 3px;
-  /* space-between (pas start) : ancre le bouton en bas du bloc — les 3 blocs
-     du cluster ont la même hauteur (align-items:stretch du parent), donc ça
-     aligne les boutons entre eux même quand group-stop-control a un select
-     en plus entre son titre et son bouton. */
-  align-content: space-between;
-  justify-items: stretch;
-  /* Plus lié à --stop-group-width (longueur des tags) : depuis que ce bloc
-     est côte à côte avec group-stop-control (master-stop-cluster) plutôt
-     qu'empilé dans la même colonne de grille, il n'a plus besoin de suivre
-     cette largeur — juste assez pour son propre bouton + libellé. */
-  min-width: calc(var(--master-stop-size) + 24px);
-  /* min-height (pas height) : laisse align-items:stretch du cluster parent
-     l'étirer à la hauteur du plus grand voisin (group-stop-control). */
-  min-height: var(--master-stop-panel-height);
-  padding: 3px 6px 5px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--color_ui_frame_background);
-}
-
-.group-stop-control > span:first-child,
-.stop-all-control > span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .master-control.small {
   justify-items: start;
 }
@@ -2250,22 +2152,12 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   text-transform: uppercase;
 }
 
-.master-control.group-stop-control > span:first-child,
-.stop-all-control > span {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .master-control output {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
-.master-control.small input,
-.group-stop-row select {
+.master-control.small input {
   width: 100%;
   min-width: var(--stop-group-width, 8ch);
   height: 28px;
@@ -2287,74 +2179,12 @@ body.cues-enabled:not(.board-edit-mode) .cue-status {
   text-align: center;
 }
 
-.group-stop-row {
-  display: grid;
-  grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-  /* Select des tags d'abord, bouton en dessous (ordre "naturel" titre→select→
-     bouton). L'alignement horizontal des boutons entre les 3 blocs vient
-     désormais de align-content:space-between sur .group-stop-control /
-     .stop-all-control (bouton ancré en bas), pas de cet ordre de lignes. */
-  grid-template-rows: 28px var(--master-stop-size);
-  gap: 3px;
-  min-width: 0;
-  justify-items: center;
-}
-
-/* .master-mute-control n'a qu'un bouton (pas de select) : une seule ligne à
-   la taille du bouton, sinon l'auto-placement grid le coince dans la
-   première ligne (28px, prévue pour le select). */
-.master-mute-control .group-stop-row {
-  grid-template-rows: var(--master-stop-size);
-}
-
-/* Idem : pas de select à accueillir, donc pas besoin de suivre
-   --stop-group-width (longueur des tags) pour la largeur du bloc. */
-.master-mute-control {
-  min-width: calc(var(--master-stop-size) + 24px);
-}
-
-.group-stop-control {
-  /* +16px = juste la bordure/le padding du bloc, pas de marge supplémentaire
-     (le +54px précédent datait d'avant le regroupement en cluster pleine
-     largeur, où ce bloc avait besoin d'être plus large pour rester visuellement
-     cohérent avec stop-all-control voisin — plus la peine maintenant). */
-  min-width: calc(var(--stop-group-width, 8ch) + 16px);
-  min-height: var(--master-stop-panel-height);
-  display: grid;
-  gap: 3px;
-  /* space-between : voir commentaire sur .stop-all-control (styles.css ~2005) —
-     même principe, s'applique aussi à .master-mute-control via cette classe
-     partagée. */
-  align-content: space-between;
-  padding: 3px 6px 5px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--color_ui_frame_background);
-}
-
-#stopGroup {
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-  align-self: end;
-}
-
-#masterMute {
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-}
-
 input[type="range"] {
   width: 100%;
   accent-color: var(--color_status_success);
   /* Sans ça, un double-tap sur un curseur (reset à la valeur par défaut,
      cf. createLiveFxControl) peut être intercepté par le zoom natif au
-     double-tap du navigateur — même correctif que .pad-flip. */
+     double-tap du navigateur — même correctif que .pad-actions. */
   touch-action: manipulation;
 }
 
@@ -2421,27 +2251,20 @@ button.is-pressed {
   color: color-mix(in srgb, var(--color_status_stop) 30%, #fff);
 }
 
-#stopAll {
-  grid-row: 2;
-  justify-self: center;
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-  aspect-ratio: 1 / 1;
-  align-self: center;
-}
-
-#stopGroup {
-  width: var(--master-stop-size);
-  height: var(--master-stop-size);
-  min-height: var(--master-stop-size);
-}
-
 .deck {
   --cable-extra-bottom: 0px;
   position: relative;
   width: min(var(--board-extent, 1280px), 100%);
   margin: 0 auto;
+  /* Bande basse réservée pour l'îlot Cues fixe (position:fixed en bas) : la
+     dernière rangée de pads ne doit pas rester cachée dessous. ~2 rangées de
+     boutons + volet + marges ; masqué en garage/invité où .live-tools est
+     absent (padding inoffensif mais on l'annule pour ne pas laisser un vide). */
+  padding-bottom: calc(var(--cable-extra-bottom) + 132px);
+}
+
+body.board-edit-mode .deck,
+body.guest-mode .deck {
   padding-bottom: var(--cable-extra-bottom);
 }
 
@@ -2461,12 +2284,26 @@ button.is-pressed {
      que le contenu tient toujours, ce plafond empêche seulement une rangée de
      s'étirer AU-DELÀ — indispensable sur mobile où --pad-compact-height peut
      n'être pas encore posée (pads pas mesurables au 1er rAF), sinon rangées
-     infinies (l'ancien repli 9999px). */
+     infinies (l'ancien repli 9999px). Le 340px = PAD_ROW_MAX_FALLBACK (app.js) ;
+     --pad-compact-height n'est écrite QUE par applyPadCompactness(), le
+     min-height inline par pad QUE par syncAllPadMinHeights() — cf. le bloc
+     « Contrat hauteur de rangée des pads » dans app.js. */
   grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
 }
 
 body.stage-mode .pads.has-pad-layout {
   grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
+}
+/* Skin basic en scène : les pads illustrés sont forcés carrés (aspect-ratio:1,
+   ~145-250px selon le nb de colonnes). Avec `minmax(auto, X)`, le mot-clé `auto`
+   en minimum gonfle CHAQUE piste jusqu'au `max` (--pad-compact-height ≈ 260-310)
+   même pour une rangée de petits carrés → ~60-120px de vide sous chaque rangée.
+   `minmax(min-content, max-content)` dimensionne la piste au contenu réel (testé :
+   pas de rangée écrasée — les pads non illustrés portent leur min-height via
+   syncAllPadMinHeights). Le plafond --pad-compact-height n'a pas de sens ici : la
+   taille des carrés est déjà pilotée par la largeur de colonne. */
+body.stage-mode[data-skin="basic"] .pads.has-pad-layout {
+  grid-auto-rows: minmax(min-content, max-content);
 }
 
 .cable-overlay {
@@ -2496,119 +2333,196 @@ body.show-cables .cable-overlay {
   box-shadow: 0 12px 32px var(--color_ui_shadow);
 }
 
-/* Recto/verso de la MOITIÉ SUPÉRIEURE du pad en scène (setupPadFxFlipTrigger/
-   setPadFxFaceFlipped, app.js) : double-clic sur une zone vide de .pad-flip
-   (= l'ancien .pad-head) pour révéler les effets live sans attendre que le
-   son joue. .pad-actions (boutons live) et .controls (Volume/Pan) restent en
-   dehors de .pad-flip, inchangés sur les deux faces — pas de second jeu de
-   curseurs à garder synchronisé/aligné. Hors scène, .pad-flip/.pad-face-front
-   s'effacent (display:contents) pour laisser .pad-head en enfant direct de la
-   grille de .pad, comme avant cette évolution — même principe que
-   .control-group sur les 3 modes. .pad-face-back reste display:none : jamais
-   montré hors scène. */
-.pad-flip,
-.pad-face-front {
-  display: contents;
-}
-
-.pad-face-back {
+/* Panneau effets live plein pad. Déclencheur : le bouton œil du pad
+   (.visual-toggle-button → handlePadEyeButton / setPadFxOverlayOpen, app.js).
+   Le panneau .pad-fx-panel glisse verticalement à l'intérieur de
+   .pad-fx-overlay (qui le clippe) : il monte du bas vers le haut à
+   l'ouverture, redescend à la fermeture. Affiché en scène ET en studio, jamais en garage
+   (board-edit-mode) ni en board partagé (guest-mode). Contenu reconstruit à
+   chaque ouverture : 4 effets live + Pan + Volume + bypass. */
+.pad-fx-overlay {
   display: none;
 }
 
-body.stage-mode .pad {
-  -webkit-perspective: 1200px;
-  perspective: 1200px;
-}
-
-/* .pad-flip prend la place de .pad-head dans l'ordre visuel existant
-   (".pad:not(.is-editing) .pad-head{order:1}", ".controls{order:2}",
-   ".pad-actions{order:3}", plus bas dans ce fichier) : en scène, .pad-head
-   n'est plus un enfant direct de la grille de .pad (il est descendu dans
-   .pad-flip > .pad-face-front), donc son order:1 n'a plus d'effet sur le
-   classement de .pad — c'est .pad-flip qu'il faut positionner à sa place. */
-body.stage-mode .pad:not(.is-editing) .pad-flip {
-  order: 1;
-}
-
-body.stage-mode .pad-flip {
-  display: grid;
-  position: relative;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
-  transition: transform 0.5s ease;
-  /* Sans ça, un double-tap tactile est intercepté par le zoom au double-tap
-     du navigateur avant d'atteindre le JS (dblclick ne se déclenche jamais) —
-     même correctif que .pad-actions applique déjà pour ses boutons. */
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-body.stage-mode .pad.is-fx-flipped .pad-flip {
-  -webkit-transform: rotateY(180deg);
-  transform: rotateY(180deg);
-}
-
-/* Face effets ouverte : .pad-flip devient la rangée souple de la grille de
-   .pad (Volume/Pan et transport, les deux autres rangées, restent à leur
-   hauteur naturelle). L'espace libre du pad — qui tombait sinon tout en bas,
-   inutilisé, à cause de `align-content: start` — revient ainsi aux réglages
-   FX, qui gagnent en hauteur et scrollent moins. Cf. app.js
-   syncPadFxFlipHeight() : il cesse de figer la hauteur de .pad-flip tant que
-   la face effets est retournée. */
-body.stage-mode .pad.is-fx-flipped {
-  grid-template-rows: minmax(0, 1fr) auto auto;
-}
-
-/* Recto et verso empilés dans LA MÊME cellule de grille (grid-area partagée)
-   plutôt qu'un recto en flux normal + un verso en position:absolute : les
-   deux s'étirent alors identiquement à la taille de .pad-flip (grid stretch
-   par défaut), sans dépendre l'un de l'autre pour leur hauteur.
-   backface-visibility ne suffit pas à masquer la face arrière (constaté :
-   les deux faces restent visibles superposées). On la garde en filet de
-   sécurité, mais le masquage réel vient d'un visibility caché/affiché au
-   milieu de la rotation (transition-delay = moitié de la durée de
-   .pad-flip) : la face qui s'éloigne disparaît quand elle est de toute
-   façon vue par la tranche, donc sans à-coup visible, indépendamment du
-   support de backface-visibility. */
-body.stage-mode .pad-face-front,
-body.stage-mode .pad-face-back {
-  grid-area: 1 / 1;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  transition: visibility 0s linear 0.25s;
-}
-
-/* display:contents (règle par défaut plus haut) rendrait grid-area/
-   backface-visibility/visibility sans effet — .pad-face-front doit redevenir
-   une vraie boîte en scène. display:block suffit : un seul enfant
-   (.pad-head), pas de rangées à empiler comme avant cette évolution. */
-body.stage-mode .pad-face-front {
+body.stage-mode .pad:not(.is-editing) .pad-fx-overlay,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing) .pad-fx-overlay {
   display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
-body.stage-mode .pad-face-back {
+/* Fermé : transparent aux clics (le pad reste jouable au travers). Ouvert :
+   interactif (curseurs). Scopé au mode pour battre la spécificité de la règle
+   d'affichage ci-dessus (sinon `pointer-events` ne repasse jamais à `auto`
+   et les curseurs sont gelés). */
+body.stage-mode .pad:not(.is-editing):not(.is-fx-open) .pad-fx-overlay,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing):not(.is-fx-open) .pad-fx-overlay {
+  pointer-events: none;
+}
+
+/* Pas d'effets live sur les pads texte / vidéo : ni panneau, ni bouton œil
+   dans son rôle « effets ». Le bouton reste disponible pour le rôle
+   « illustration » en skin basic (règles .has-visual-image / .has-color). */
+.pad.is-text-pad .pad-fx-overlay,
+.pad.is-video-pad .pad-fx-overlay,
+.pad.is-text-pad .visual-toggle-button,
+.pad.is-video-pad .visual-toggle-button {
+  display: none !important;
+}
+
+body[data-skin="basic"] .pad.is-text-pad.has-visual-image:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-text-pad.has-color:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-video-pad.has-visual-image:not(.is-editing) .visual-toggle-button,
+body[data-skin="basic"] .pad.is-video-pad.has-color:not(.is-editing) .visual-toggle-button {
+  display: grid !important;
+}
+
+.pad-fx-overlay .pad-fx-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  visibility: hidden;
-  -webkit-transform: rotateY(180deg);
-  transform: rotateY(180deg);
+  box-sizing: border-box;
+  /* Calé sur l'overlay (lui-même inset:0 du pad) — jamais dimensionné par son
+     contenu, donc n'influence aucune mesure de hauteur du pad. */
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  /* Double fond : le tint pad (--color_pad_background) est à ~90 % d'opacité,
+     insuffisant par-dessus une illustration — le fond UI opaque dessous
+     garantit un panneau plein. */
+  background-color: var(--color_ui_background);
+  background-image: linear-gradient(var(--color_pad_background), var(--color_pad_background));
   overflow-y: auto;
-  /* overflow-x explicite : sans lui, la spec le fait passer à "auto" dès que
-     overflow-y n'est pas "visible" — un débordement horizontal de l'ordre du
-     pixel (arrondi flex/grid) suffisait à faire apparaître une scrollbar
-     horizontale pleine largeur en bas. */
   overflow-x: hidden;
+  /* Fermé : escamoté sous le pad → il monte du bas vers le haut à l'ouverture. */
+  -webkit-transform: translateY(100%);
+  transform: translateY(100%);
+  transition: transform 0.32s ease;
 }
 
-body.stage-mode .pad.is-fx-flipped .pad-face-front {
+.pad.is-fx-open .pad-fx-overlay .pad-fx-panel {
+  -webkit-transform: translateY(0);
+  transform: translateY(0);
+}
+
+/* Panneau ouvert : le pad devient un contexte d'empilement isolé et tout ce
+   qui est SOUS le panneau est neutralisé (visibility), quel que soit son
+   z-index — seuls le panneau (.pad-fx-overlay) et le bouton œil restent
+   visibles. Évite qu'un bouton du pad (pense-bête, etc.) transparaisse. */
+.pad.is-fx-open {
+  isolation: isolate;
+}
+
+.pad.is-fx-open .pad-head,
+.pad.is-fx-open .pad-actions,
+.pad.is-fx-open .controls,
+.pad.is-fx-open .pad-visual-slide {
   visibility: hidden;
 }
 
-body.stage-mode .pad.is-fx-flipped .pad-face-back {
+/* #2 : fermeture du panneau effets d'un pad illustré — le panneau reste en
+   place, la couche illustration passe AU-DESSUS de lui (z-index 7 > overlay 6)
+   et redevient visible pour remonter (translateY 100%→0, cf. .pad-visual-slide-img)
+   et le masquer progressivement. Classe posée/retirée par handlePadEyeButton
+   le temps de la transition. */
+.pad.is-fx-open.pad-fx-reveal-illustration .pad-visual-slide {
+  visibility: visible !important;
+  z-index: 7 !important;
+}
+
+/* Bouton œil ramené en haut à droite, au-dessus du panneau ouvert, pour
+   permettre la fermeture au 2e clic. On neutralise explicitement le
+   placement de grille du bloc skin basic (grid-area:eye / align-self /
+   justify-self / margin) sinon la cellule « eye » sert de bloc conteneur et
+   le bouton se cale au milieu du pad. */
+.pad.is-fx-open .visual-toggle-button {
   visibility: visible;
+  position: absolute !important;
+  grid-area: auto !important;
+  z-index: 7;
+  inset: 8px 8px auto auto;
+  margin: 0 !important;
+  align-self: start !important;
+  justify-self: end !important;
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+
+.pad.is-fx-open .pad-fx-back-head {
+  padding-right: 44px;
+}
+
+/* Le bouton œil est le déclencheur du panneau : visible sur tous les skins
+   en scène et en studio (hors pad en édition), masqué en garage / invité. */
+body.stage-mode .pad:not(.is-editing) .visual-toggle-button,
+body:not(.stage-mode):not(.board-edit-mode) .pad:not(.is-editing) .visual-toggle-button {
+  display: grid;
+}
+
+body.guest-mode .pad .visual-toggle-button {
+  display: none !important;
+}
+
+body.guest-mode .pad-fx-overlay {
+  display: none !important;
+}
+
+/* Illustration / couleur du pad (skin basic) : couche dédiée qui glisse vers
+   le bas quand on la masque (bouton œil) pour découvrir le pad, et remonte à
+   la ré-affichage. .pad-visual-slide est un CLIP fixe (inset:0, overflow
+   hidden) — donc il ne déborde jamais et n'entre dans aucune mesure de
+   hauteur du pad ; seule .pad-visual-slide-img se translate à l'intérieur.
+   z-index 4 : au-dessus du contenu du pad, sous le panneau effets (6). */
+.pad-visual-slide {
+  display: none;
+}
+
+/* Contexte d'empilement local : cantonne les z-index de la couche illustration
+   et de .pad-trigger au pad, sans interférence entre pads voisins. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) {
+  isolation: isolate;
+}
+
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-visual-slide,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-visual-slide {
+  display: block;
+  position: absolute;
+  inset: 0;
+  /* z-index 1 : au-dessus du fond du pad, sous .pad-trigger (z-index 2, qui
+     porte la boîte titre) et sous le panneau effets (z-index 6). */
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  /* Décorative : les clics passent au travers (lecture du pad, bouton œil). */
+  pointer-events: none;
+}
+
+.pad-visual-slide-img {
+  position: absolute;
+  inset: 0;
+  background-position: var(--pad-image-position, center);
+  background-size: var(--pad-image-size, cover);
+  background-repeat: no-repeat;
+  -webkit-transform: translateY(0);
+  transform: translateY(0);
+  transition: transform 0.32s ease;
+}
+
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-visual-slide-img {
+  background-image: var(--pad-image);
+}
+
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .pad-visual-slide-img {
+  background: var(--pad-color);
+}
+
+body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
+  -webkit-transform: translateY(100%);
+  transform: translateY(100%);
 }
 
 .pad-fx-back-head {
@@ -2629,8 +2543,7 @@ body.stage-mode .pad.is-fx-flipped .pad-face-back {
   color: var(--color_ui_text);
 }
 
-/* Même gabarit que le bouton bypass du panneau flottant (.live-fx-row-head
-   .live-fx-row-bypass) : ancestor différent ici, donc règle séparée. */
+/* Bouton « couper les effets » au verso du pad. */
 .pad-fx-back-head .live-fx-row-bypass {
   flex: 0 0 auto;
   width: 22px;
@@ -2676,8 +2589,10 @@ body.stage-mode .pad.is-fx-flipped .pad-face-back {
   border-color: rgba(97, 168, 255, 0.9);
 }
 
+@layer mode {
 .pad.is-ducked .pad-trigger {
   filter: saturate(0.72) brightness(0.82);
+}
 }
 
 .pad.has-color {
@@ -2707,19 +2622,15 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-visual-hid
   background-color: var(--pad-color);
 }
 
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing) .pad-trigger {
   overflow: hidden;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image.is-visual-hidden {
   background-image: none;
 }
-
-/* Cf. app.js syncPadFxFlipHeight() : c'est lui qui fige .pad-flip à la hauteur
-   de .pad-head, et il est désormais rappelé au masquage/affichage d'une
-   illustration (setPadVisualImage) — sans quoi .pad-flip restait à la hauteur
-   de l'état illustré (~254px) et les boutons Volume/Pan étaient poussés hors du
-   pad jusqu'au premier flip FX. Aucune règle CSS spécifique nécessaire. */
 
 /* Ce bloc ne style QUE le bouton œil (masquer/afficher l'image), caché par
    défaut puis affiché par la règle .has-visual-image/.has-color plus bas.
@@ -2754,6 +2665,12 @@ body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
 }
 
+/* opacity/pointer-events : seule règle du fichier à les poser sur ce quatuor
+   (pad-actions/.controls/.pad-progress/.pad-vu, illustré basic non-édition) —
+   les concurrentes (styles.css ~7157/~8010, stage-mode) sont en !important et
+   restent hors couche, elles gagnent déjà sans condition quand elles
+   s'appliquent, migration ici sans risque. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-actions,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .controls,
@@ -2764,6 +2681,7 @@ body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hi
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-vu {
   opacity: 0;
   pointer-events: none;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
@@ -2806,18 +2724,30 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
    semi-transparente, juste un peu plus haute que le texte, posée en bas.
    Le .pad-label (height:100%, transparent) sert uniquement à l'aligner en bas ;
    toute la surface du pad reste cliquable via le .pad-trigger transparent. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
-  display: block;
   align-self: end;
   margin: 0 8px 8px;
   padding: 6px 12px;
   border-radius: 6px;
   background: linear-gradient(145deg, rgba(37, 42, 50, 0.82), rgba(28, 31, 39, 0.82));
-  -webkit-line-clamp: unset;
-  /* Boîte compacte : police plus petite que le titre de scène (clamp jusqu'à 1.6rem),
-     relative à la largeur du trigger (conteneur inline-size). */
-  font-size: clamp(0.9rem, 6cqi, 1.25rem);
+  /* `display: block` + `-webkit-line-clamp: unset` annulaient la limite 2 lignes
+     de la règle `.pad-title` de base : un titre long débordait alors du carré en
+     scène (beaucoup de colonnes). On garde la limite 2 lignes + « … » ; on borne
+     aussi en dur (`max-height`) au cas où `-webkit-box` ne prendrait pas comme
+     item de grille (Firefox). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  /* Borne dure = exactement 2 interlignes + le padding vertical (6+6), au cas où
+     `-webkit-line-clamp` ne prenne pas (Firefox : `.pad-title` item de grille se
+     calcule `flow-root`). `lh` = interligne réel de l'élément. `overflow: hidden`
+     vient de la règle `.pad-title` de base → titre plus long coupé net. */
+  box-sizing: border-box;
+  max-height: calc(2lh + 12px);
+  /* font-size (clamp cqi) → token --pad-title-size (bloc S1) */
 }
 
 /* Pads basic SANS illustration : pas de boîte titre superflue. */
@@ -2826,23 +2756,32 @@ body[data-skin="basic"] .pad:not(.has-visual-image):not(.has-color):not(.is-edit
   border-radius: 0;
   padding: 0;
 }
+}
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing),
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
   cursor: pointer;
 }
 
+/* S2 — nettoyage code mort : grid-template-columns/align-items/justify-items/
+   min-height/padding supprimés — la règle jumelle ~8139 (même sélecteur,
+   !important) les emportait déjà toujours. container-type/z-index/width/
+   height/cursor restent (isolées). */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   container-type: inline-size;
-  grid-template-columns: 1fr;
-  align-items: center;
-  justify-items: stretch;
+  /* `.pad-trigger` est un item de grille : `z-index` s'y applique sans
+     `position`. container-type en fait déjà un contexte d'empilement (statique,
+     donc rendu au niveau du flux) ; z-index 2 le hisse au-dessus de la couche
+     illustration `.pad-visual-slide` (z-index 1) pour que la boîte titre
+     qu'il contient reste visible. Sous les badges (z-index 3) et le bouton
+     œil (z-index 5). */
+  z-index: 2;
   width: 100%;
   height: 100%;
-  min-height: inherit;
-  padding: 34px 12px 18px;
   cursor: pointer;
+}
 }
 
 .visual-preview {
@@ -2875,12 +2814,18 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing:not(.has-visual-image):n
   background-image: repeating-linear-gradient(-45deg, transparent 0, transparent 3px, rgba(255,255,255,0.07) 3px, rgba(255,255,255,0.07) 4px);
 }
 
+/* S2 — lot 2b (.pad-trigger, cluster taille). Groupée avec ses concurrentes
+   (~8100/~8514/~8708/~9101/~11372) dans la même couche pour préserver l'ordre
+   de spécificité exact (celle-ci l'emporte déjà partout où elle s'applique :
+   c'est la plus spécifique du groupe édition garage). */
+@layer skin {
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
   grid-template-columns: 44px 1fr !important;
   column-gap: 8px;
   align-items: center;
   padding: 0 8px !important; /* pas de padding vertical : titre 2 lignes centré sans déborder du cadre */
   min-height: 56px;
+}
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label {
@@ -2889,9 +2834,17 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label 
   text-align: left;
 }
 
+/* Exception au défaut `center` (règle de base .pad-title, @layer base) : icône
+   + titre côte à côte (grille 44px 1fr ci-dessus) → texte aligné à gauche.
+   Combine skin+mode (garage+édition) → classée @layer skin (skin gagne
+   toujours sur base ici, cf. commentaire d'ordre des couches en tête de
+   fichier) ; plus besoin de !important depuis la consolidation S1 des 5
+   règles text-align concurrentes. */
+@layer skin {
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-title,
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags {
-  text-align: left !important;
+  text-align: left;
+}
 }
 
 .pad.is-empty {
@@ -2920,6 +2873,7 @@ body.filter-compact .pad.is-tag-dimmed {
 /* Mode « sélection manuelle » armé : le clic sur un pad l'ajoute/le retire de la
    sélection au lieu de le jouer (cf. handleManualSelectPadClick). Repères visuels :
    curseur de copie + liseré discret sur les pads cliquables. */
+@layer mode {
 body.manual-select-mode .pad,
 body.manual-select-mode .pad .pad-trigger,
 body.manual-select-mode .pad .pad-title {
@@ -2932,6 +2886,7 @@ body.manual-select-mode .pad.is-tag-match,
 body.manual-select-mode .pad.is-tag-match .pad-trigger,
 body.manual-select-mode .pad.is-tag-match .pad-title {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23222' stroke='%23fff' stroke-width='2'/%3E%3Crect x='5' y='9' width='10' height='2' rx='1' fill='%23fff'/%3E%3C/svg%3E") 10 10, pointer;
+}
 }
 
 body.manual-select-mode .pad:not(.is-tag-match) {
@@ -3304,21 +3259,34 @@ body.stage-mode .tag-filter-section-header {
   gap: 8px;
 }
 
+/* display/grid-template-columns/gap : code mort, cf. commentaire ~ligne 271
+   (règle inconditionnelle ~8304, hors couche, gagne toujours). */
+@layer base {
 .pad-play-row {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
 }
+}
 
+/* S2 — lot 2b (.pad-trigger, cluster taille). grid-template-columns/align-items/
+   min-height/padding : code mort, toujours masqués par des règles plus
+   spécifiques (~8359 non-édition/édition, ~8063 illustré basic, ~4105 édition,
+   ~7179 scène). gap : masqué dès qu'un skin/breakpoint pose le sien (minimal
+   ~205, responsive ~7530 et suivants) mais reste la valeur par défaut sinon —
+   @layer base gagne bien puisque toutes ses concurrentes sont dans une couche
+   plus prioritaire (skin/responsive). Le reste (display/position/etc.) est
+   isolé, aucune autre règle ne le pose sur .pad-trigger. */
+/* S2 — nettoyage code mort (.pad-trigger, cluster taille) : grid-template-columns/
+   align-items/min-height/padding supprimés ici — toujours masqués par ~8420
+   (`.pad-trigger, body.stage-mode .pad-trigger`, !important, s'applique à tout
+   .pad-trigger sans condition), cf. mémoire du chantier. */
+@layer base {
 .pad-trigger {
   display: grid;
   position: relative;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
   gap: 9px;
   min-width: 0;
-  min-height: 86px;
-  padding: 10px 10px 34px;
   border-radius: 8px;
   /* Zone de clic uniquement : la boîte visible est portée par .pad-title.
      Fond ET bordure explicitement neutres, sinon les valeurs UA par défaut du
@@ -3331,6 +3299,7 @@ body.stage-mode .tag-filter-section-header {
   text-align: left;
   cursor: default;
   transition: background 140ms ease, transform 90ms ease;
+}
 }
 
 .vu-meter {
@@ -3369,6 +3338,14 @@ body.stage-mode .tag-filter-section-header {
   transform-origin: left center;
 }
 
+/* position : gagne toujours face aux règles ~8405/~8414 (hors couche, leur
+   position est en !important). height : ~8405/~8414 (hors couche) posent
+   aussi une valeur non importante, mais une règle plus spécifique encore
+   (~8669 pour .pad-vu, hors couche) l'emporte déjà aujourd'hui en dehors de
+   l'édition — elle continue de gagner (hors couche bat toujours couche),
+   vérifié navigateur. right/bottom/left/overflow/border/… : isolées, aucune
+   autre règle ne les pose sur .pad-vu/.pad-progress. */
+@layer base {
 .pad-vu {
   position: absolute;
   right: 8px;
@@ -3390,6 +3367,7 @@ body.stage-mode .tag-filter-section-header {
   background: var(--color_pad_progress_background);
   cursor: pointer;
   touch-action: none;
+}
 }
 
 .pad-progress-fill {
@@ -3669,19 +3647,59 @@ body[data-skin="print"] .patch-bay-node {
   background: #ffffff;
 }
 
+@layer mode {
 .pad-trigger:active {
   color: var(--color_ui_text);
   transform: none;
+}
+}
+
+/* ── S1 — taille de police du titre de pad, en token ─────────────────────────
+   Avant : 8 règles éparses posaient `font-size` sur `.pad-title` avec 4 niveaux
+   de spécificité + 3 @media qui se chevauchaient → cascade imprévisible.
+   Maintenant : UN consommateur (`.pad-title { font-size: var(--pad-title-size) }`,
+   dans la règle de base ci-dessous) et des setters en `:where()` (spécificité 0)
+   → la PRIORITÉ SE LIT DANS L'ORDRE de ce bloc, de haut (faible) en bas (fort).
+   Les 3 @media (setters mobiles) sont plus bas dans le fichier, donc gagnent
+   quand ils s'appliquent (≤950px → 0.86rem, de façon cohérente). */
+:where(.pads) {
+  /* défaut (1-4 colonnes, skins custom) : suit le réglage de skin, sinon la
+     police est héritée du parent (var invalide → font-size hérite). */
+  --pad-title-size: var(--skin_font_size_title);
+}
+:where(body[data-skin="minimal"] .pads) { --pad-title-size: 0.86rem; }
+:where(.pads[data-columns="5"], .pads[data-columns="6"]) { --pad-title-size: 0.88rem; }
+:where(
+  .pads[data-columns="7"], .pads[data-columns="8"], .pads[data-columns="9"],
+  .pads[data-columns="10"], .pads[data-columns="11"], .pads[data-columns="12"]
+) { --pad-title-size: 0.78rem; }
+:where(
+  body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+  body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden)
+) {
+  /* pad illustré : relatif à la largeur du conteneur, borné */
+  --pad-title-size: clamp(0.9rem, 6cqi, 1.25rem);
 }
 
 /* Le trigger n'est plus qu'une zone de clic : sa boîte visible est désormais
    portée par .pad-title. On neutralise tous ses fonds/bordures/ombres (built-in,
    basic, playing, pressed…). Le filtre is-ducked reste sur le trigger : il
    assombrit le titre (enfant). */
+@layer base {
 .pad-title {
   min-width: 0;
   overflow: hidden;
   font-weight: 800;
+  font-size: var(--pad-title-size);
+  /* S1 : valeur unique de base (avant, 5 règles éparses reposaient toutes
+     `center`, dont 2 devenues redondantes). Seule vraie exception : skin basic
+     + garage + édition → left (règle dédiée plus bas, gagne par spécificité
+     seule, sans !important). */
+  text-align: center;
+  /* `.pad-label` est une grille (2 colonnes en studio/scène, la 1ʳᵉ à 0px) : le
+     titre occupe toute la largeur. Valeur unique — avant, 6 règles éparses
+     (grid-column 1 / 3 !important / 1/-1 !important) toutes ramenées ici. */
+  grid-column: 1 / -1;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -3698,7 +3716,9 @@ body[data-skin="print"] .patch-bay-node {
   border-radius: 6px;
   padding: 4px 10px;
 }
+}
 
+@layer mode {
 .pad.is-playing .pad-title {
   background: var(--color_pad_trigger_playing_background);
 }
@@ -3708,21 +3728,20 @@ body[data-skin="print"] .patch-bay-node {
      Succès/Progression codées en dur (mission #3.5). Le fond reste « Fond titre ». */
   filter: brightness(1.15);
 }
-
-.pads[data-columns="5"] .pad-title,
-.pads[data-columns="6"] .pad-title {
-  font-size: 0.88rem;
 }
 
-.pads[data-columns="7"] .pad-title,
-.pads[data-columns="8"] .pad-title,
-.pads[data-columns="9"] .pad-title,
-.pads[data-columns="10"] .pad-title,
-.pads[data-columns="11"] .pad-title,
-.pads[data-columns="12"] .pad-title {
-  font-size: 0.78rem;
-}
+/* .pad-title font-size par nb de colonnes → token --pad-title-size (bloc S1) */
 
+/* S2 — lot 4 : min-width/height/margin-right/font-size concurrentes de ~8430
+   (!important sur margin/font-size, non important mais plus tardive sur
+   min-width/height) — groupée avec elle dans la même couche pour préserver
+   l'ordre (sinon hors-couche battrait la couche pour le non-important, quelle
+   que soit la spécificité). display/place-items/border/color/background/
+   font-weight/line-height : leurs concurrentes restent hors couche
+   (print/illustré/`.pad-type` seul, ~499/~3766/~8125) et continuent donc de
+   gagner sans changement (hors couche bat toujours couche pour le non
+   important). */
+@layer skin {
 .pad-shortcut,
 .pad-type {
   display: inline-grid;
@@ -3737,6 +3756,7 @@ body[data-skin="print"] .patch-bay-node {
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
+}
 }
 
 .pad-shortcut:empty,
@@ -3757,17 +3777,28 @@ body[data-skin="print"] .patch-bay-node {
   border-radius: 7px;
 }
 
-.pad-title {
-  grid-column: 1;
-}
+/* grid-column du titre/tags → valeur unique dans les règles de base .pad-title /
+   .pad-tags (vestiges d'un ancien layout multi-colonnes du pad). */
 
+/* S2 — lot 4 : top/left/margin concurrentes de ~4164/~8568 (édition, plus
+   spécifiques, mêmes valeurs 8/8 — mutuellement exclusif avec cet état non-
+   édition de toute façon). Groupée dans la même couche pour rester cohérente
+   avec le reste du cluster .pad-shortcut/.pad-type. */
+@layer skin {
 .pad-shortcut.is-number {
   position: absolute;
   top: 0;
   left: 0;
   margin: 0;
 }
+}
 
+/* S2 — lot 4 : position/top/left/margin/border-color/color concurrentes de
+   ~4169 (édition sans board-edit-mode, dead) et ~8582 (édition garage,
+   gagnant actuel) — groupée dans la même couche pour préserver l'ordre de
+   spécificité exact (cette règle ne s'applique que hors édition, aucun
+   chevauchement réel avec elles, mais partage les mêmes propriétés). */
+@layer skin {
 .pad-type {
   position: absolute;
   top: 24px;
@@ -3776,6 +3807,7 @@ body[data-skin="print"] .patch-bay-node {
   border-color: var(--color_ui_border);
   color: var(--color_pad_secondary_text);
 }
+}
 
 .pad-type svg {
   display: block;
@@ -3783,12 +3815,9 @@ body[data-skin="print"] .patch-bay-node {
   height: 14px;
 }
 
-.pad-shortcut.is-number + .pad-title {
-  grid-column: 1;
-}
-
+@layer base {
 .pad-tags {
-  grid-column: 1;
+  grid-column: 1 / -1;
   min-width: 0;
   overflow: hidden;
   color: var(--color_pad_tag_text);
@@ -3797,9 +3826,6 @@ body[data-skin="print"] .patch-bay-node {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.pad-shortcut.is-number ~ .pad-tags {
-  grid-column: 1;
 }
 
 .pad,
@@ -4123,18 +4149,26 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   display: contents;
 }
 
+/* display : code mort (~8435, hors couche, display:contents !important gagne
+   déjà) — order/grid-column : isolées, migration sans risque. */
+@layer mode {
 .pad.is-editing .pad-play-row {
   display: contents;
   order: 0;
   grid-column: 1 / -1;
 }
+}
 
+/* S2 — nettoyage code mort : min-height/padding/align-items supprimés —
+   `.pad.is-editing` n'apparaît jamais sans `body.board-edit-mode`
+   (setPadEditing() dans app.js), donc la règle plus spécifique ~8591
+   (body.board-edit-mode .pad.is-editing .pad-trigger) l'emportait toujours.
+   order/grid-column restent (isolées). */
+@layer mode {
 .pad.is-editing .pad-trigger {
   order: 0;
   grid-column: 1 / -1;
-  min-height: 56px;
-  padding: 8px 72px 8px 60px;
-  align-items: center;
+}
 }
 
 .pad.is-editing .pad-label {
@@ -4146,18 +4180,28 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   text-align: center;
 }
 
+@layer mode {
 .pad.is-editing .pad-title,
 .pad.is-editing .pad-tags {
-  grid-column: 1 / -1 !important;
   width: 100%;
-  text-align: center;
+}
 }
 
+/* S2 — lot 4 : concurrente de ~8568 (board-edit-mode .pad.is-editing, plus
+   spécifique, mêmes valeurs top/left — aucun changement visible, mais groupée
+   par cohérence avec sa jumelle .pad-type ci-dessous). */
+@layer skin {
 .pad.is-editing .pad-shortcut.is-number {
   top: 8px;
   left: 8px;
 }
+}
 
+/* S2 — lot 4 : concurrente de ~8582 (board-edit-mode .pad.is-editing, plus
+   spécifique, left/color DIFFÉRENTS : 34px/muted ici vs 32px/text là-bas) —
+   ~8582 doit gagner (comportement actuel) — groupée dans la même couche pour
+   préserver l'ordre de spécificité exact. */
+@layer skin {
 .pad.is-editing .pad-type {
   top: 8px;
   left: 34px;
@@ -4168,11 +4212,13 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   background: transparent;
   color: var(--color_ui_text_muted);
 }
-
-.pad.is-editing .pad-type svg {
-  width: 18px;
-  height: 18px;
 }
+
+/* (Supprimé le 2026-09-05 : `.pad.is-editing .pad-type svg { width:18; height:18 }`
+   était du code mort — `body.board-edit-mode .pad.is-editing .pad-type svg`
+   (~styles.css 8666, 19px, plus spécifique) gagne toujours, et `.pad.is-editing`
+   n'existe jamais sans `board-edit-mode` (setPadEditing(), app.js). Aucune
+   variante @media. Dernier reliquat du chantier @layer pad.) */
 
 .pad.is-editing .pad-time {
   top: 9px;
@@ -4181,9 +4227,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   transform: translateX(-50%);
 }
 
+@layer mode {
 .pad.is-editing .pad-progress,
 .pad.is-editing .pad-vu {
   display: none;
+}
 }
 
 .pad.is-editing .pad-note-button {
@@ -4333,8 +4381,10 @@ body.board-edit-mode .pad.is-editing .tags-add-btn:hover {
 }
 
 /* Garage: hide tags from trigger display, show only in chips below */
+@layer mode {
 body.board-edit-mode .pad.is-editing .pad-tags {
   display: none;
+}
 }
 
 body.board-edit-mode .pad.is-editing .tag-field input[data-tags] {
@@ -4927,6 +4977,11 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   text-align: center;
 }
 
+#remoteResendBoard {
+  display: block;
+  margin: 12px auto 0;
+}
+
 .remote-control-field {
   display: grid;
   gap: 6px;
@@ -5277,21 +5332,10 @@ body.no-cue-output .pad-live-row .pad-cue-button,
 /* Boutons stop globaux (master, groupe, cues) : icône en plein --color_status_stop
    comme le bouton stop du pad / le cercle du mute (color pilote currentColor =
    rect rempli + ligne au trait). Ne touche pas aux autres .danger-button. */
-#stopAll svg,
-#stopGroup svg,
 #cueStopAll svg,
-#masterMute svg {
+#masterMute svg,
+#stopGroup svg {
   color: var(--color_status_stop);
-}
-
-/* Icône plus grande dans les boutons stop global / stop groupé / mute master,
-   sans changer la taille des boutons (% de --master-stop-size → suit studio,
-   scène et mobile). */
-#stopAll svg,
-#stopGroup svg,
-#masterMute svg {
-  width: 58%;
-  height: 58%;
 }
 
 .pad-live-row .pad-mute-button.is-active {
@@ -5367,6 +5411,15 @@ body[data-skin="print"] .pad.is-missing-audio::after {
 /* Skin "print" : même fond noir en dur que le badge « manquant » ci-dessus. */
 body[data-skin="print"] .pad.is-empty:not(.is-missing-audio)::after {
   background: rgba(0, 0, 0, 0.05);
+}
+
+/* Régie (contrôle à distance) : le board miroir n'a jamais de média par
+   construction (voir applyRemoteMirrorBoard) — tous ses pads sont "vides" au
+   sens du code, mais rien n'y est réellement manquant. Le badge [?] serait un
+   faux signal sur chaque pad. */
+body.remote-controller-active .pad.is-empty::after,
+body.remote-controller-active .pad.is-missing-audio::after {
+  display: none;
 }
 
 .pad-live-check:has(input:checked) {
@@ -7035,7 +7088,11 @@ body:not(.stage-mode) .stage-board-title {
 body.stage-mode .board-strip,
 body.stage-mode .master-strip {
   gap: 6px;
-  padding: 7px;
+  /* padding identique au studio (12px, cf. règles de base) : un padding plus
+     petit en scène décalait le contenu de board/master de ~5px vers le haut-
+     gauche à la bascule, ce que la couche d'épinglage JS compensait. Étape 1 de
+     S3 (retrait progressif de cette couche). */
+  padding: 12px;
   box-shadow: none;
 }
 
@@ -7104,49 +7161,11 @@ body.stage-mode .board-skin-select select {
 
 body.stage-mode .live-tools {
   gap: 12px;
-  /* Neutralise le margin-top:-6px et le justify-self:start de la règle de
-     base (.live-tools, styles.css ~1099 — Cues ajusté à son contenu, en
-     largeur pleine sous Board+Master, uniquement demandé pour Studio/Garage) :
-     sans ça, ils fuitaient ici aussi malgré grid-column:1 (non pleine
-     largeur) posé plus bas pour la scène — stretch restaure le comportement
-     scène d'origine (implicite avant l'ajout de justify-self:start ici). */
-  margin-top: 0;
-  justify-self: stretch;
 }
 
-body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  min-height: 84px;
-}
-
-
-body.stage-mode.cues-enabled .cue-live-row .icon-button:not(.cue-editor-button) svg {
-  width: 42px;
-  height: 42px;
-}
-
-body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button) {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-}
-
-/* Bouton stop global (danger) : même grande taille que les boutons de cue (84px)
-   quand les cues sont activées en scène — collé au scroll ou non. */
-body.stage-mode.cues-enabled .cue-stop-all-button {
-  width: 84px;
-  height: 84px;
-  min-width: 84px;
-  min-height: 84px;
-}
-
-body.stage-mode.cues-enabled .cue-stop-all-button svg {
-  width: 42px;
-  height: 42px;
-}
+/* Cues actives en scène : les boutons de cue / stop global gardent la taille
+   studio (42px, cf. .cue-live-row .icon-button ~1420). L'îlot Cues étant
+   désormais fixe et facile d'accès, plus besoin de les agrandir en scène. */
 
 body.stage-mode .versions-section-toggle,
 body.stage-mode .board-manage-section-toggle,
@@ -7156,18 +7175,15 @@ body.stage-mode .version-select {
 }
 
 body.stage-mode .master-strip {
-  --master-stop-size: clamp(96px, 10.5vw, 140px);
-  /* Taille réelle des boutons stop/mute : par défaut identique à
-     --master-stop-size (comportement d'origine, celui qu'on veut partout sauf
-     sur grand écran à pointeur fin — cf. media query ci-dessous qui la réduit
-     aux 2/3). En laissant cette valeur par défaut égale à --master-stop-size,
-     les nombreuses media queries de repli (portrait, 560/900/950px…) qui ne
-     connaissent pas cette variable retombent automatiquement sur le gabarit
-     historique, sans avoir à les corriger une par une. */
-  --master-stop-btn-size: var(--master-stop-size);
-  --master-stop-panel-height: calc(var(--master-stop-btn-size) + 34px);
+  /* Master identique au Studio en Scène (taille des boutons stop/mute, grille,
+     largeur) : depuis le retrait de la couche d'épinglage JS (S3), toute
+     différence de gabarit décale visiblement le bloc à la bascule. Les boutons
+     agrandis « live » d'avant sont abandonnés (peu accessibles une fois la
+     grille scrollée — repositionnement à revoir séparément). */
+  --master-stop-size: 70px;
+  gap: 10px;
   grid-column: 2;
-  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content);
+  grid-template-columns: minmax(168px, 220px) 42px minmax(0, 1fr) minmax(var(--stop-group-width, 118px), max-content);
   grid-template-areas:
     "title title title title"
     "master master . stop"
@@ -7180,95 +7196,6 @@ body.stage-mode .master-strip {
   overflow: visible;
 }
 
-/* Réduction des boutons stop/mute (2/3 de --master-stop-size) réservée au
-   vrai bureau : grand écran ET pointeur fin. Négation exacte de
-   « @media (max-width: 950px), (pointer: coarse) », utilisée partout ailleurs
-   dans ce fichier pour détecter mobile/tactile — garantit qu'un écran large
-   mais tactile garde les boutons pleine taille, comme le reste de l'appli. */
-@media (min-width: 951px) and (pointer: fine) {
-  body.stage-mode .master-strip {
-    --master-stop-btn-size: calc(var(--master-stop-size) * 2 / 3);
-  }
-}
-
-body.stage-mode .live-tools {
-  grid-column: 1;
-  /* Pas de align-self ici : styles.css ~11083 ("Ne pas réduire/repositionner
-     Master et Cues en mode Scène") impose align-self:stretch !important sans
-     media query, donc gagne systématiquement — toute valeur posée ici serait
-     morte. Optimisation du 2026-08-20 : la précédente valeur (end) ne
-     s'appliquait jamais, retirée. */
-}
-
-body.stage-mode .group-stop-control,
-body.stage-mode .stop-all-control {
-  min-width: 0;
-  width: 100%;
-  min-height: var(--master-stop-panel-height);
-  height: auto;
-  box-sizing: border-box;
-  padding: 3px;
-  align-content: space-between;
-}
-
-/* Marge basse explicite (12px, > que le padding 3px des autres côtés) :
-   espace visible entre le bas du bouton (réduit, cf. --master-stop-btn-size
-   ci-dessus) et le bas du bloc. align-content:space-between seul ne suffit
-   pas — quand le contenu tient dans min-height, aucun espace n'est distribué
-   après la dernière ligne (le bouton colle au padding-bottom), d'où cette
-   marge fixée directement. Même garde que --master-stop-btn-size (grand
-   écran + pointeur fin) : sur portable, le bouton garde sa pleine taille et
-   n'a pas besoin de cette marge supplémentaire. */
-@media (min-width: 951px) and (pointer: fine) {
-  body.stage-mode .group-stop-control,
-  body.stage-mode .stop-all-control {
-    padding-bottom: 12px;
-  }
-}
-
-/* .stop-all-control n'a pas de .group-stop-row (pas de select) : sa 2e ligne
-   de grille vient directement de la règle de base (styles.css ~2009), à
-   recaler ici sur --master-stop-btn-size comme les deux autres blocs. */
-body.stage-mode .stop-all-control {
-  grid-template-rows: auto var(--master-stop-btn-size);
-}
-
-body.stage-mode .group-stop-row {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 24px var(--master-stop-btn-size);
-  width: 100%;
-}
-
-/* Spécificité : body.stage-mode .group-stop-row (type+classe) bat
-   .master-mute-control .group-stop-row (2 classes) — sans ce contre-poids,
-   le bouton mute (une seule ligne, pas de select) hérite du gabarit à 2
-   lignes ci-dessus et déborde de sa case en mode scène. */
-body.stage-mode .master-mute-control .group-stop-row {
-  grid-template-rows: var(--master-stop-btn-size);
-}
-
-body.stage-mode .group-stop-row select {
-  width: 100% !important;
-  min-width: 0 !important;
-  height: 24px;
-  padding: 0 3px;
-  font-size: 0.62rem;
-}
-
-/* Boutons stop (global/groupé) et mute suivent --master-stop-btn-size (posée sur
-   .master-strip ci-dessus, égale à --master-stop-size sauf sur grand écran à
-   pointeur fin où elle vaut 2/3) : la largeur des blocs qui les entourent reste
-   sur --master-stop-size, seule leur rangée de grille suit --master-stop-btn-size
-   (voir .stop-all-control/.group-stop-row plus haut) — pas de vide sous le
-   bouton, et les 3 boutons restent alignés horizontalement entre eux. */
-body.stage-mode #stopAll,
-body.stage-mode #stopGroup,
-body.stage-mode #masterMute {
-  width: var(--master-stop-btn-size);
-  height: var(--master-stop-btn-size);
-  min-height: var(--master-stop-btn-size);
-}
-
 /* Même largeur que le studio (et que la .topbar, centrée) : un deck plus large
    décalait les pads à gauche/droite par rapport au bloc logo/textes et au bloc
    cues inactif. Suit --board-extent comme eux. */
@@ -7277,7 +7204,9 @@ body.stage-mode .deck {
 }
 
 body.stage-mode .pads {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* grid-template-columns retiré le 2026-09-05 (#3) : la scène suit désormais
+     `--pad-columns` (JS, comme le studio) via `.pads.has-pad-layout` — plus de
+     `auto-fit minmax(220px)` qui imposait un minimum de colonne différent. */
   gap: 10px;
 }
 
@@ -7322,10 +7251,9 @@ body.stage-mode .controls {
   pointer-events: auto !important;
 }
 
-body.stage-mode .pad-trigger {
-  min-height: clamp(108px, 18vh, 180px);
-  padding: 14px;
-}
+/* S2 — nettoyage code mort : règle supprimée (min-height/padding, toujours
+   masqués par `.pad:not(.is-editing) .pad-trigger`/sa variante stage-mode,
+   ~8805, spécificité supérieure). */
 
 /* Titre du pad : même format en scène qu'en studio/garage (l'agrandissement
    scène-spécifique — clamp jusqu'à 1.6rem — a été retiré ; le titre suit
@@ -7357,13 +7285,7 @@ body.stage-mode .pad-alerts {
     grid-row: 3;
   }
 
-  .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
   }
 
@@ -7395,17 +7317,11 @@ body.stage-mode .pad-alerts {
     grid-row: 2;
   }
 
-  .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
   .master-strip {
     grid-row: 3;
   }
 
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
   }
 
@@ -7416,7 +7332,6 @@ body.stage-mode .pad-alerts {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -7426,12 +7341,6 @@ body.stage-mode .pad-alerts {
     align-items: stretch;
     gap: 5px;
     padding: 6px;
-  }
-
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). */
-  .live-tools {
-    --master-stop-size: 56px;
   }
 
   #fadeInSeconds,
@@ -7498,37 +7407,19 @@ body.stage-mode .pad-alerts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  body.board-edit-mode .pads,
-  body.board-edit-mode .pads.has-pad-layout {
-    grid-template-columns: 1fr !important;
-  }
+  /* (Retiré le 2026-09-05, #3 : `body.board-edit-mode .pads[.has-pad-layout] {
+     grid-template-columns: 1fr !important }` forçait le garage à 1 colonne sous
+     560px. Demande utilisateur : autoriser 2 colonnes → le garage suit
+     `--pad-columns` comme les autres modes. Le champ "Nom" du pad devra
+     s'accommoder d'une colonne plus étroite.) */
 
-  .pad-trigger {
-    min-height: 76px;
-    padding-bottom: 32px;
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
-  .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: 32px var(--master-stop-size);
-    gap: 4px;
-  }
-
-  .master-control.small input,
-  .group-stop-row select {
+  .master-control.small input {
     height: 32px;
     padding: 0 7px;
     font-size: 0.72rem;
-  }
-
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  .group-stop-control {
-    grid-area: group;
   }
 
   .icon-button {
@@ -7564,18 +7455,6 @@ body.stage-mode .pad-alerts {
     grid-row: 2;
   }
 
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  /* grid-row:2 (pas 2/4) : Master ne doit plus s'étendre sur la ligne 3, qui
-     appartient maintenant à Cues pleine largeur (cf. .live-tools, styles.css
-     ~1131) — l'ancien span évitait le partage de ligne Board/Master en
-     étirant Master par-dessus, mais rentrait en collision avec Cues une fois
-     celui-ci passé pleine largeur sur cette même ligne 3. Repéré le
-     2026-08-20. */
   .master-strip,
   body.stage-mode .master-strip {
     grid-column: 2;
@@ -7673,7 +7552,6 @@ body.stage-mode .pad-alerts {
   .board-name input,
   .small-button,
   .master-control.small input,
-  .group-stop-row select,
   .danger-button {
     height: 32px;
     min-height: 32px;
@@ -7684,7 +7562,6 @@ body.stage-mode .pad-alerts {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 56px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(150px, 190px) 38px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -7694,33 +7571,11 @@ body.stage-mode .pad-alerts {
     align-items: stretch;
   }
 
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). */
-  .live-tools {
-    --master-stop-size: 56px;
-  }
-
   #fadeInSeconds,
   #fadeSeconds,
   #duckPercent {
     width: 72px;
     min-width: 72px;
-  }
-
-  .group-stop-row {
-    grid-template-columns: minmax(var(--stop-group-width, 8ch), 1fr);
-    grid-template-rows: 32px var(--master-stop-size);
-    gap: 4px;
-  }
-
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  .group-stop-control {
-    grid-area: group;
   }
 
   .pads {
@@ -7738,21 +7593,23 @@ body.stage-mode .pad-alerts {
     gap: 5px;
   }
 
+  @layer responsive {
   .pad-play-row {
     grid-template-columns: 1fr;
     gap: 5px;
   }
+  }
 
+  /* S2 — nettoyage code mort : grid-template-columns/min-height/padding
+     supprimés (toujours masqués par une règle plus spécifique). gap reste
+     (vivant à cette largeur). */
+  @layer skin {
   .pad-trigger {
-    grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
-    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 32px;
+  }
   }
 
-  .pad-title {
-    font-size: 0.86rem;
-  }
+  :where(.pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile, cf. bloc token */
 
   .pad-time {
     font-size: 0.72rem;
@@ -7821,15 +7678,15 @@ body.stage-mode .pad-alerts {
     padding: 6px;
   }
 
+  /* S2 — nettoyage code mort : min-height/padding supprimés (toujours
+     masqués par une règle plus spécifique). gap reste (vivant). */
+  @layer skin {
   body.stage-mode .pad-trigger {
-    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 32px;
+  }
   }
 
-  body.stage-mode .pad-title {
-    font-size: 0.86rem;
-  }
+  :where(body.stage-mode .pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile */
 
   body.stage-mode .pad-time {
     font-size: 0.72rem;
@@ -7841,11 +7698,8 @@ body.stage-mode .pad-alerts {
     grid-template-columns: 1fr;
   }
 
-  .pad-trigger,
-  body.stage-mode .pad-trigger {
-    min-height: 88px;
-    padding-bottom: 38px;
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
   body[data-skin="minimal"].stage-mode .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7864,15 +7718,38 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
 }
 
-@media (max-width: 950px), (pointer: coarse) {
-  /* Mobile / 1 colonne : le bloc Board a un plafond de 460px pensé pour la
-     colonne étroite du layout 2 colonnes (desktop). En 1 colonne il laissait
-     un grand vide à droite, alors que Master et Cues, eux, prennent toute la
-     largeur → logo et pads « repoussés » à gauche. On lève le plafond. */
+/* Élargissement du bloc board cadré sur le passage en 1 colonne (900px), PAS sur
+   950px : entre 900 et 950 le layout est encore 2 colonnes (board + pads côte à
+   côte) et le board doit y rester étroit (plafond de base 460px). Sinon on voyait
+   le board s'élargir d'un coup en rétrécissant la fenêtre. Sur pointeur grossier
+   (tablette), on applique quelle que soit la largeur. */
+@media (max-width: 900px), (pointer: coarse) {
+  /* Plafond relevé 460 → 620 : en 1 colonne, 460 laissait un grand vide à droite
+     (Master/Cues prennent toute la largeur) ; 620 laisse la place à la rangée
+     SÉLECTION / MODIFICATION sans étaler le bloc sur toute la largeur. */
   .board-strip {
-    max-width: none;
+    max-width: 620px;
   }
 
+  /* .board-area en une seule colonne souple (bornée par la max-width de
+     .board-strip). Sans ça sa 1re colonne restait en `max-content` (règle de
+     base) et le bloc s'étirait à la largeur de son plus large contenu déplié
+     (rangée SÉLECTION / MODIFICATION sur une ligne), débordant vers la droite.
+     `.board-area` ne repassait en 1 colonne qu'à 700px — trou entre 700 et 900. */
+  .board-area {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Largeur d'un groupe de chips bornée : dans les ~600px du bloc, on tient 2
+     groupes par rangée (Tags passe à la ligne), sans forcer un retour à la ligne
+     après chaque groupe. Les chips internes se réempilent dans les groupes larges
+     (Aspect, Tags). */
+  .chip-group {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 950px), (pointer: coarse) {
   /* --board-extent (curseur « étendue du board ») sert à ne pas étaler le board
      sur un très grand écran : aucun intérêt sur mobile, et une valeur mémorisée
      basse rétrécissait toute l'app. On force 100 % ici. */
@@ -7880,33 +7757,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .deck,
   body.stage-mode .deck {
     width: 100%;
-  }
-
-  .live-tools {
-    grid-template-columns: minmax(0, 1fr) max-content;
-    gap: 7px 8px;
-    grid-column: 1;
-    grid-row: 3;
-    align-self: start;
-  }
-
-  .cue-live-row {
-    grid-column: 1;
-    grid-row: 2;
-    grid-template-columns: repeat(4, 32px) minmax(60px, 1fr);
-    gap: 6px;
-    min-width: 0;
-  }
-
-  .cue-status {
-    grid-column: 5;
-    min-width: 0;
-  }
-
-  .xfade-live-row {
-    grid-column: 2;
-    grid-row: 2;
-    gap: 5px;
   }
 
   .cue-panel .dialog-close-button {
@@ -8065,16 +7915,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     width: 42px;
   }
 
-  .pad-shortcut,
-  .pad-shortcut[hidden] {
-    display: inline-grid !important;
-    font-size: 0 !important;
-  }
-
-  .pad-shortcut::after {
-    content: attr(data-pad-number);
-    font-size: 0.72rem;
-  }
+  /* S2 — nettoyage code mort : règle supprimée (display : redondante avec
+     ~8476, toujours présente ; font-size:0 + le ::after juste en dessous
+     voulaient remplacer la lettre par le numéro du pad sur tactile — devenu
+     inutile depuis qu'app.js le fait déjà directement, cf. isPortableDevice()
+     dans showNumber ~app.js:1784 : le badge affiche le numéro en texte natif
+     sur portable, indépendamment du réglage « afficher les touches »). */
 
   body.stage-mode .pad-live-row {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -8087,7 +7933,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   .master-strip,
   body.stage-mode .master-strip {
     --master-stop-size: 54px;
-    --master-stop-panel-height: 126px;
     grid-template-columns: minmax(138px, 170px) 36px minmax(0, 1fr) minmax(70px, 86px);
     grid-template-areas:
       "title title title title"
@@ -8096,14 +7941,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
       "audio badges badges badges";
     gap: 6px;
     overflow: hidden;
-  }
-
-  /* --master-stop-size en miroir sur .live-tools : voir commentaire sur la
-     règle de base .live-tools (styles.css ~1098). C'est cette valeur (54px)
-     que .cue-stop-all-button doit reprendre via .xfade-live-row .cue-stop-all-button
-     plus bas dans ce même bloc. */
-  .live-tools {
-    --master-stop-size: 54px;
   }
 
   .master-volume-control,
@@ -8117,58 +7954,25 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     min-height: 34px;
   }
 
-  .group-stop-control {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .stop-all-control {
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .group-stop-row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 30px var(--master-stop-size);
-    width: 100%;
-  }
-
-  .group-stop-row select {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-
-  #stopAll,
-  #stopGroup {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
-  /* min-width en plus (contrairement à #stopAll/#stopGroup ci-dessus) : ce
-     bouton est un item parmi beaucoup d'autres dans une rangée flex-wrap
-     serrée (.live-tools) — sans min-width égal à width, flex-shrink l'écrase
-     en dessous de la taille visée dès que la rangée manque de place. */
-  .xfade-live-row .cue-stop-all-button {
-    width: var(--master-stop-size);
-    height: var(--master-stop-size);
-    min-width: var(--master-stop-size);
-    min-height: var(--master-stop-size);
-  }
-
+  /* `body.stage-mode .pads` retiré de ces deux listes le 2026-09-05 (#3) : la
+     scène (skin par défaut) suit `--pad-columns` via `.pads.has-pad-layout`
+     comme le studio. Les variantes skin "minimal" restent (studio et scène y
+     sont déjà alignés entre eux). Le `.pads` nu couvre le repli sans layout. */
   .pads,
-  body.stage-mode .pads,
   body[data-skin="minimal"] .pads,
   body[data-skin="minimal"].stage-mode .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
+  /* gap mobile conservé pour la scène (l'ancienne règle qui le posait portait
+     aussi grid-template-columns, retirée ci-dessus). */
+  body.stage-mode .pads {
+    gap: 6px;
+  }
+
   @media (orientation: landscape) {
     .pads,
-    body.stage-mode .pads,
     body[data-skin="minimal"] .pads,
     body[data-skin="minimal"].stage-mode .pads {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -8181,17 +7985,16 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     padding: 6px;
   }
 
+  /* S2 — nettoyage code mort : min-height/padding supprimés (toujours
+     masqués par une règle plus spécifique). gap reste (vivant). */
+  @layer skin {
   .pad-trigger,
   body.stage-mode .pad-trigger {
-    min-height: 76px;
-    padding: 6px 6px 32px;
     gap: 6px;
   }
-
-  .pad-title,
-  body.stage-mode .pad-title {
-    font-size: 0.86rem;
   }
+
+  :where(.pads, body.stage-mode .pads) { --pad-title-size: 0.86rem; }   /* S1 : setter mobile (landscape) */
 
   .pad-time,
   body.stage-mode .pad-time {
@@ -8215,15 +8018,6 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   }
 }
 
-/* 561–900px : `@media (max-width: 900px)` a déjà repassé la topbar à UNE colonne (1fr),
-   mais `@media (min-width: 561px) and (max-width: 950px)`, plus bas dans le fichier,
-   continue d'envoyer le master en `grid-column: 2` (avec width:100% / min-width:0). Cette
-   2e colonne n'étant plus qu'implicite, elle s'écrase à ~0 dès que les cues sont actives :
-   syncFloatingCueFrame impose alors au bloc cues la largeur des pads, qui remplit à elle
-   seule la colonne 1fr. Résultat mesuré à 800px : master réduit à 14px et rejeté à x=810,
-   donc hors de l'écran. On rétablit ici l'empilement une colonne board(2)/master(3)/cues(4),
-   celui déjà utilisé sous 560px. La ligne 4 doit être réaffirmée car le bloc
-   `@media (max-width: 950px), (pointer: coarse)` ci-dessus remet .live-tools en ligne 3. */
 @media (min-width: 561px) and (max-width: 900px) {
   .master-strip,
   body.stage-mode .master-strip {
@@ -8232,146 +8026,23 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     width: fit-content;
     justify-self: end;
   }
-
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-row: 4;
-  }
-}
-
-/* Même correctif que ci-dessus, pour en dessous de 561px : la restriction
-   min-width:561px de la règle précédente laissait passer le même conflit
-   Cues/Master (tous deux ligne 3) en dessous de ce seuil — repéré le
-   2026-08-20 (chevauchement mesuré à 400px). Bug préexistant à cette
-   session, simplement jamais couvert sous 561px. */
-@media (max-width: 560px) {
-  .live-tools,
-  body.stage-mode .live-tools {
-    grid-row: 4;
-  }
-}
-
-/* Réaffirme le design pleine largeur (studio/garage, styles.css ~1131) pour
-   901-950px : la plage historique "561-950px" ci-dessus (widerange que le
-   vrai seuil d'empilement 1 colonne de .topbar, ≤900px) repose grid-column:1
-   après la règle de ~1131, l'écrasant dans cette fourchette précise — repéré
-   le 2026-08-20 (Cues resté à la largeur de la colonne 1 au lieu de pleine
-   largeur, entre 901 et 950px). */
-@media (min-width: 901px) {
-  .live-tools {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  /* Cues/Crossfade en portrait, sur 3 lignes : 1re les deux titres, 2e tous les
-     boutons, 3e le statut du cue. Grille (et non plus flex) pour que le titre
-     « Crossfade » et son groupe de boutons (armer crossfade manuel + aide/stop
-     global, toujours l'un OU l'autre visible) partagent EXACTEMENT les mêmes
-     colonnes que les boutons en ligne 2 : le titre s'aligne ainsi pile sur le
-     bord gauche du bouton « armer crossfade manuel », et la colonne 1fr pousse
-     tout ce sous-groupe à droite du bloc. Les rangées (.cue-live-row /
-     .xfade-live-row) étant en display:contents, chaque bouton/titre reste un
-     enfant direct de la grille .live-tools et se positionne individuellement. */
-  /* Retour au flex (pas grid) après diagnostic sur téléphone réel : dès que le
-     titre "CUES" (ligne 1, span colonnes 1-5) ET le statut (ligne 3, span
-     colonnes 1-7) traversaient tous les deux la même colonne flexible (1fr,
-     colonne 5), CSS Grid redistribuait l'espace de façon incohérente entre
-     collé/décollé (colonne 1 mesurée à 123.8px collé contre 42px décollé,
-     confirmé par le badge de debug) — d'où le décalage des boutons de
-     navigation. Le flex n'a pas cet algorithme de "distribution d'espace aux
-     items qui traversent une piste flexible", donc pas ce risque. L'alignement
-     précis du titre "Crossfade" sur le bord gauche du bouton "armer crossfade
-     manuel" (que le flex seul ne peut pas garantir entre deux lignes
-     différentes) est calculé en JS, cf. alignXfadeTitle(). */
-  /* width:100% (pas max-content, cf. règle de base ~1105) : .cue-status plus
-     bas se pose en flex-basis:100% pour occuper sa propre ligne pleine
-     largeur (design 3 lignes titre/boutons/statut) — ça suppose que .live-tools
-     a une largeur bien définie (100% de sa cellule de grille). Avec
-     width:max-content, la largeur du parent dépend de ses enfants ET un
-     enfant (.cue-status) veut être 100% du parent : boucle que les
-     navigateurs résolvent de façon incohérente (largeur mesurée entre 660 et
-     707px pour un même contenu visuel, uniquement selon des détails de rendu
-     — repéré le 2026-08-20 en cherchant pourquoi Cues "s'étirait" sans cause
-     identifiable). */
-  .live-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    row-gap: 7px;
-    column-gap: 6px;
-    min-width: 0;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
+  /* Colonnes de pads en portrait portable : retiré le 2026-09-05 (#3) les
+     forçages `repeat(2) !important` (studio/scène) et `repeat(1) !important`
+     (garage). `effectiveLayoutForBoard` renvoie déjà 2 colonnes pour tous les
+     modes en portrait portable (stagePortablePortraitLayoutForBoard) et
+     `applyPadLayout` ne rabaisse plus cette valeur ici → `.pads.has-pad-layout`
+     rend `repeat(var(--pad-columns))` de façon cohérente dans les 3 modes.
+     Garage passe donc de 1 à 2 colonnes (demande utilisateur). */
 
-  .live-tools-title {
-    flex-basis: auto;
-    order: 0;
-  }
+  /* S2 — nettoyage code mort : règle supprimée, doublon exact de la règle
+     ~8608 (même sélecteur/media, plus bas dans le fichier → elle seule
+     compte). */
 
-  .live-tools .xfade-live-title {
-    order: 1;
-    margin-left: 0;
-  }
-
-  .live-tools::after {
-    content: "";
-    order: 2;
-    flex-basis: 100%;
-    height: 0;
-  }
-
-  #cueEditor,
-  #resetCuePosition,
-  #cueRun,
-  #cueNext,
-  #showCables,
-  #cuesHelp,
-  #cueStopAll {
-    order: 3;
-  }
-
-  /* Même rangée (order:3 ci-dessus) que les autres boutons, mais poussé à
-     l'extrémité droite de cette rangée flex (margin-left:auto), plutôt que
-     simplement adjacent au dernier bouton crossfade. */
-  #cueStopAll {
-    margin-left: auto;
-  }
-
-  .live-tools .cue-status {
-    order: 4;
-    flex-basis: 100%;
-  }
-
-  .pads,
-  .pads.has-pad-layout,
-  body.stage-mode .pads,
-  body.stage-mode .pads.has-pad-layout,
-  body[data-skin="minimal"] .pads,
-  body[data-skin="minimal"] .pads.has-pad-layout,
-  body[data-skin="minimal"].stage-mode .pads,
-  body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  /* Garage : 1 seule colonne en portrait (tous skins) pour laisser toute la
-     largeur de l'écran au champ "Nom" du pad, sinon le titre est tronqué. */
-  body.board-edit-mode .pads,
-  body.board-edit-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
-  }
-
-  body.board-edit-mode .pad.is-editing .pad-trigger {
-    padding: 8px 34px 9px 30px !important;
-  }
-
-  .pad-trigger,
-  body.stage-mode .pad-trigger {
-    min-height: 88px;
-    padding-bottom: 38px;
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
   .master-audio-button {
     width: 34px;
@@ -8455,9 +8126,11 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     display: none !important;
   }
 
-  body.stage-mode .pads.has-pad-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
+  /* (Retiré le 2026-09-05, #3 : `body.stage-mode .pads.has-pad-layout {
+     grid-template-columns: repeat(2) !important }` — la scène suit désormais
+     `--pad-columns` comme les autres modes, via le bloc `@media (max-width:950px),
+     (pointer:coarse)` juste au-dessus. En portrait portable la valeur vaut de
+     toute façon 2 (stagePortablePortraitLayoutForBoard).) */
 }
 
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-actions,
@@ -8479,6 +8152,11 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   display: none !important;
 }
 
+/* S2 — nettoyage code mort : padding supprimé (toujours masqué par ~9133,
+   même spécificité, plus bas dans le fichier). min-height reste (masqué
+   seulement en scène par ~11404, vivant partout ailleurs). grid-template-
+   columns/align-items/justify-items : vivantes. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   grid-template-columns: 1fr !important;
@@ -8487,7 +8165,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   width: 100%;
   height: 100%;
   min-height: clamp(150px, 18vw, 260px) !important;
-  padding: 34px 12px 18px !important;
+}
 }
 
 /* Écran tactile : la zone de clic d'un pad illustré était plafonnée par
@@ -8498,10 +8176,12 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
    (Ancienne version en `52cqw` + `container-type` : rendait les rangées
    incohérentes, 184px vs 275px selon que le conteneur était résolu ou non.) */
 @media (pointer: coarse) {
+  @layer skin {
   body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
   body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
     min-height: 56px !important;
     padding: 10px !important;
+  }
   }
 }
 
@@ -8572,31 +8252,14 @@ body.stage-mode .secondary-live-group {
 
 @media (max-width: 950px), (pointer: coarse) {
 
-  /* grid-column/grid-row/justify-self/align-self de ce bloc (Board/Master/Cues
-     en scène) SANS !important depuis l'optimisation du 2026-08-20 : un doublon
-     mort de ces mêmes propriétés traînait en toute fin de fichier (ajouté pour
-     une tout autre raison en 2026-06, rendu obsolète depuis sans être retiré)
-     et forçait à passer en !important pour continuer à l'emporter. Le doublon
-     supprimé, l'ordre naturel de la cascade suffit — vérifié par simulation
-     sur largeur/pointeur (aucune valeur finale ne change). --master-stop-size
-     et consorts restent en !important : non vérifiés dans cette passe. */
-  body.stage-mode .board-area,
-  body.stage-mode .live-tools {
+  body.stage-mode .board-area {
     grid-column: 1;
     align-self: start;
-  }
-
-  body.stage-mode .board-area {
     grid-row: 2;
-  }
-
-  body.stage-mode .live-tools {
-    grid-row: 3;
   }
 
   body.stage-mode .master-strip {
     --master-stop-size: clamp(52px, 8vw, 72px) !important;
-    --master-stop-panel-height: calc(var(--master-stop-size) + 34px) !important;
     grid-template-columns: minmax(54px, 68px) 24px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
     grid-column: 2;
     grid-row: 2;
@@ -8605,50 +8268,6 @@ body.stage-mode .secondary-live-group {
        spécificité) — une valeur posée ici serait de toute façon morte. */
     justify-self: end;
     overflow: visible !important;
-  }
-
-  body.stage-mode #stopAll,
-  body.stage-mode #stopGroup,
-  body.stage-mode #masterMute {
-    width: var(--master-stop-size) !important;
-    height: var(--master-stop-size) !important;
-    min-height: var(--master-stop-size) !important;
-  }
-
-  body.stage-mode .cue-live-row {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(4, 46px) minmax(0, 1fr) !important;
-    gap: 9px !important;
-  }
-
-  body.stage-mode .cue-status {
-    grid-column: 1 / -1 !important;
-  }
-
-  body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button,
-  body.stage-mode.cues-enabled .show-cables-button {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-  }
-
-  body.stage-mode .xfade-live-row {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(2, 34px) !important;
-    gap: 5px !important;
-  }
-
-  /* Aide exclue : même taille réduite qu'avant (34px), seuls stop global et
-     crossfade armé suivent désormais la taille des boutons de cue ci-dessus. */
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
-    width: 34px !important;
-    height: 34px !important;
-    min-width: 34px !important;
-    min-height: 34px !important;
   }
 
   body.stage-mode .pad-live-row {
@@ -8664,7 +8283,16 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+/* #4 (2026-09-05) : media query élargie de « portrait uniquement » à tout
+   portable / fenêtre étroite. Le topbar de la scène est en 1 colonne dans les
+   DEUX orientations sur portable — donc Master doit toujours passer SOUS le
+   bloc board (ligne 3), jamais le partager (ligne 2). En paysage, faute de ce
+   forçage, des règles de l'ancienne mise en page 2 colonnes (grid-column:2 /
+   grid-row:2, styles.css ~7445/~8224) laissaient Master en ligne 2 pendant que
+   son grid-column était par ailleurs forcé à 1 → Master recouvrait le bloc
+   board (bug iPhone 13 mini paysage). Rend caduque le « grid-row: 2 / 4 »
+   d'atténuation en pointeur fin (~styles.css 10944). */
+@media (max-width: 950px), (pointer: coarse) {
 
   body.stage-mode .board-area {
     grid-column: 1 !important;
@@ -8686,67 +8314,6 @@ body.stage-mode .secondary-live-group {
        paysage/large (justify-self:end, cf. styles.css ~8171) — pas collé au
        bord gauche de l'écran. Erreur du 2026-08-20 corrigée le même jour. */
     justify-self: end !important;
-  }
-
-  /* width:100% (pas fit-content) : même raison qu'en studio (cf. .live-tools
-     ~1105 et le bloc portrait de base ~8009) — .cue-status se pose en
-     flex-basis:100% dans ce même contexte portrait, ce qui suppose une
-     largeur de parent bien définie plutôt que calculée sur son contenu. */
-  body.stage-mode .live-tools {
-    grid-column: 1 !important;
-    grid-row: 4 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    justify-self: start !important;
-    align-self: start !important;
-  }
-
-  body.stage-mode .cue-live-row {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(4, 36px) minmax(48px, 1fr) !important;
-    width: 100% !important;
-    gap: 5px !important;
-  }
-
-  /* grid-column:auto (pas 1/-1) : la pleine largeur chevauchait les 4 boutons
-     de .cue-live-row (repère.template-columns juste au-dessus : 4×36px +
-     1×1fr), donc l'auto-placement CSS Grid rejetait le statut sur une
-     nouvelle ligne pour éviter le chevauchement — au lieu de tenir la 5e
-     colonne (1fr) prévue pour lui, à côté des boutons. Repéré le 2026-08-20 :
-     "Cues désactivées" isolé sur sa propre ligne sous les boutons. */
-  body.stage-mode .cue-status {
-    grid-column: auto;
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-  }
-
-  body.stage-mode.cues-enabled .cue-live-row .icon-button,
-  body.stage-mode.cues-enabled .cue-stop-all-button,
-  body.stage-mode.cues-enabled .show-cables-button {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-
-  body.stage-mode .xfade-live-row {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    grid-template-columns: repeat(2, 34px) !important;
-    justify-self: end !important;
-    gap: 5px !important;
-  }
-
-  body.stage-mode.cues-enabled .xfade-live-row .icon-button:not(.cue-stop-all-button):not(.show-cables-button) {
-    width: 34px !important;
-    min-width: 34px !important;
-  }
-
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: 100% !important;
-    max-width: 100% !important;
   }
 }
 
@@ -8791,31 +8358,6 @@ body.stage-mode .secondary-live-group {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    position: fixed;
-    top: max(6px, env(safe-area-inset-top));
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 70;
-    width: min(1280px, calc(100vw - 16px));
-    grid-template-columns: minmax(0, 1fr) max-content;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
-    backdrop-filter: blur(10px);
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
-    display: none !important;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
-    display: grid;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
-    grid-template-columns: repeat(2, minmax(36px, 42px)) !important;
-  }
-
   /* 1re colonne bornée (170-220px, pas 1fr) : cette règle suppose une .topbar
      à 1 seule colonne pleine largeur (mobile), où max-width:100% se résout
      contre une largeur finie. Mais html body.stage-mode .topbar (styles.css
@@ -8841,140 +8383,7 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-  position: fixed;
-  top: max(8px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 70;
-  /* fit-content (pas une largeur fixe calée sur --board-extent) : le bloc
-     collé doit épouser son contenu, pas s'étirer jusqu'à la largeur des pads
-     — demandé le 2026-08-20. max-width en garde-fou (petits écrans). En
-     pratique, JS (syncFloatingCueFrame) réaligne left/transform sur le bord
-     gauche des pads dès qu'il tourne (couplé au même toggle de classe) ; ce
-     left:50%/transform ci-dessus ne sert que de repli si jamais il ne
-     tournait pas. */
-  width: fit-content;
-  max-width: calc(100vw - 28px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(10px);
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
-  padding-top: 92px;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-window-button,
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cues-help-button {
-  display: none !important;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .cue-stop-all-button {
-  display: grid;
-}
-
-body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools .xfade-live-row {
-  position: static;
-  top: auto;
-  right: auto;
-  z-index: auto;
-  grid-template-columns: repeat(2, 42px);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) main {
-    padding-top: 76px;
-  }
-
-  body.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: min(100vw - 14px, 100%);
-  }
-}
-
-/* Scène + bloc cues collé au scroll : le bloc reste étiré sur TOUTE la largeur de
-   la fenêtre (left/right:0) et conserve ses GROS boutons de cue (84px), comme hors
-   scroll — on ne les rétrécit plus. Le padding-top de compensation est recalculé
-   dynamiquement sur la hauteur réelle du bloc (JS, syncFloatingCueFrame), donc la
-   plus grande hauteur est absorbée automatiquement. */
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-  left: 0 !important;
-  right: 0 !important;
-  width: auto !important;
-  transform: none !important;
-}
-
-/* Bloc cues activé mais PAS encore collé : étiré pleine largeur de la fenêtre
-   dans le flux. La largeur/décalage exacts sont posés en JS (syncFloatingCueFrame)
-   car le bloc n'est pas centré dans la fenêtre — un 100vw CSS déborderait à
-   droite. box-sizing pour que la largeur inline inclue bordures/padding. */
-body.stage-mode.cues-enabled:not(.cues-stuck):not(.board-edit-mode) .live-tools {
-  box-sizing: border-box;
-}
-
-/* Bloc cues INACTIF (studio ET scène, hors garage) : compact, largeur de la
-   rangée de boutons, calé à gauche — pas de marge à droite. max-content (pas
-   fit-content, cf. .live-tools de base ~1105) : même raison, résultat
-   incohérent selon la hauteur de la fenêtre sur un élément qui span 2
-   colonnes de grille. max-width:680px (pas 100%) : cette règle étant
-   !important, elle gagnait sur le plafond posé dans la règle de base — sans
-   la répéter ici, le calcul max-content bugué (mesuré jusqu'à 707px alors
-   que le contenu réel ne dépasse pas ~670px) n'était pas contenu du tout
-   dans l'état "cues désactivées" (repéré le 2026-08-20). */
-body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
-  width: max-content !important;
-  max-width: min(100%, 680px) !important;
-  justify-self: start !important;
-}
-
-/* Grille dès l'activation (collé ou non) : 1re colonne compacte pour le bouton
-   activer/désactiver les cues (reste petit), puis 3 gros boutons de cue (84px),
-   puis l'espace extensible (1fr) qui porte le titre du cue au centre. */
-body.stage-mode.cues-enabled:not(.board-edit-mode) .cue-live-row {
-  grid-template-columns: 42px repeat(3, 84px) minmax(0, 1fr) !important;
-}
-
-/* Les boutons de cue (.cue-live-row .icon-button) et le stop global gardent leur
-   taille scène (84px, hérités) dans la barre collée. Seule la rangée crossfade
-   reste compacte. */
-body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .xfade-live-row .icon-button:not(.cue-stop-all-button) {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    width: calc(100vw - 14px) !important;
-  }
-}
-
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  body.stage-mode.cues-enabled.cues-stuck:not(.board-edit-mode) .live-tools {
-    left: 0 !important;
-    transform: none !important;
-  }
-}
-
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (pointer: coarse) {
-  .cue-live-row,
-  body.stage-mode .cue-live-row {
-    grid-template-columns: repeat(4, minmax(44px, 1fr)) minmax(140px, 1.6fr) !important;
-  }
-
-  .cue-live-row .icon-button,
-  body.stage-mode .cue-live-row .icon-button {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-
   .pad-live-row button,
   body.stage-mode .pad-live-row button {
     min-height: 44px;
@@ -9038,6 +8447,12 @@ body:not(.board-edit-mode) .help-section[aria-label="Pad edit"] {
   display: none !important;
 }
 
+/* S2 — lot 2c (.pad-play-row/.pad-vu/.pad-progress). display/grid-template-
+   columns/grid-template-areas/align-items/gap : concurrentes de ~8721/~9186/
+   ~11759/~8556 (toutes !important) — groupées dans la même couche pour
+   préserver l'arbitrage par spécificité/ordre exact. min-height : non
+   important, concurrente de ~8721/~8556 pour la même raison. */
+@layer skin {
 .pad-play-row,
 body.stage-mode .pad-play-row {
   display: grid !important;
@@ -9054,7 +8469,14 @@ body.stage-mode .pad-play-row {
   gap: 5px 6px !important;
   min-height: 104px;
 }
+}
 
+/* S2 — nettoyage code mort : min-height/padding supprimés, toujours masqués
+   par des règles plus spécifiques (~8740 non-édition, ~8555 édition garage,
+   ~8132 illustré basic). grid-template-columns/align-items : la base par
+   défaut (gagnent déjà sur ~3272, seule règle non conditionnelle du fichier
+   à les poser, donc vivantes partout). */
+@layer skin {
 .pad-trigger,
 body.stage-mode .pad-trigger {
   grid-area: label;
@@ -9062,10 +8484,14 @@ body.stage-mode .pad-trigger {
   box-sizing: border-box;
   grid-template-columns: minmax(0, 1fr) !important;
   align-items: center !important;
-  min-height: 46px;
-  padding: 8px 8px 9px !important;
+}
 }
 
+/* S2 — lot 2c : NON migrée — concurrente de la règle de base `.pad-label`
+   (~3755, hors couche, gap différent) sur gap/min-width ; passer celle-ci en
+   couche seule inverserait le gagnant (hors couche bat couche pour le non
+   important), détecté par la vérif double-snapshot. `.pad-label` de base est
+   hors périmètre de ce lot (partagée par de nombreux autres contextes). */
 .pad-play-row .pad-label {
   display: grid;
   grid-template-columns: 22px 22px minmax(0, 1fr);
@@ -9075,6 +8501,16 @@ body.stage-mode .pad-trigger {
   padding: 0;
 }
 
+/* S2 — lot 4 (.pad-shortcut/.pad-type). position/display/margin/font-size :
+   concurrentes des variantes édition garage (~8561/~8575, !important, plus
+   spécifiques, gagnent déjà toujours en édition) — groupée avec elles dans
+   la même couche pour préserver l'ordre. justify-self/width/height :
+   isolées. min-width : NON incluse ici — concurrente du reset global
+   `.pad, .pad * { min-width: 0 }` (~8845, hors couche) qu'elle bat par
+   spécificité (variante body.stage-mode) ; la mettre en couche l'aurait fait
+   perdre contre ce reset quelle que soit sa spécificité (détecté par la
+   vérif double-snapshot). Redéclarée juste en dessous, hors couche. */
+@layer skin {
 .pad-shortcut,
 .pad-shortcut.is-number,
 .pad-type,
@@ -9084,35 +8520,36 @@ body.stage-mode .pad-type {
   position: static !important;
   display: inline-grid !important;
   justify-self: start;
-  min-width: 22px;
   width: 22px;
   height: 22px;
   margin: 0 !important;
   font-size: 0.7rem !important;
+}
+}
+
+/* S2 — lot 4 : min-width laissée hors couche, cf. commentaire ci-dessus. */
+.pad-shortcut,
+.pad-shortcut.is-number,
+.pad-type,
+body.stage-mode .pad-shortcut,
+body.stage-mode .pad-shortcut.is-number,
+body.stage-mode .pad-type {
+  min-width: 22px;
 }
 
 .pad-shortcut[hidden] {
   display: none !important;
 }
 
-.pad-shortcut::after {
-  content: none !important;
-}
+/* S2 — nettoyage code mort : règle supprimée (ne neutralisait plus que le
+   ::after ci-dessus, lui-même supprimé). */
 
-.pad-title,
-.pad-shortcut.is-number + .pad-title,
-body.stage-mode .pad-title {
-  grid-column: 3 !important;
-  width: 100%;
-  min-width: 0;
-}
-
-.pad-tags,
-.pad-shortcut.is-number ~ .pad-tags {
-  grid-column: 1 / -1 !important;
+@layer base {
+.pad-tags {
   width: 100%;
   min-width: 0;
   text-align: center;
+}
 }
 
 /* Ne pas repasser la durée en flux ICI (sélecteur commun aux trois modes) : le garage
@@ -9147,6 +8584,11 @@ body.stage-mode .pad-time {
   align-self: center;
 }
 
+/* S2 — lot 2c : position isolée (aucune autre règle importante ne la pose sur
+   .pad-progress). grid-area/width/height/min-height : isolées aussi, sauf
+   height qui a une concurrente non importante plus spécifique pour .pad-vu
+   (~8807) — groupée avec elle. */
+@layer skin {
 .pad-progress,
 body.stage-mode .pad-progress {
   grid-area: progress;
@@ -9163,6 +8605,7 @@ body.stage-mode .pad-vu {
   width: 100%;
   height: 4px;
 }
+}
 
 .pad-alerts,
 body.stage-mode .pad-alerts {
@@ -9177,11 +8620,21 @@ body.stage-mode .pad-alerts {
   max-width: 100%;
 }
 
+/* S2 — lot 2c : display concurrente de ~8419 (importance tranche déjà, quelle
+   que soit la couche) ; min-height concurrente de ~8419/~8721 (non important,
+   groupée avec eux). */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-play-row {
   display: contents !important;
   min-height: 0;
 }
+}
 
+/* S2 — lot 2b (.pad-trigger, cluster taille). min-height : vivant hors skin
+   basic (masqué par ~2814 pour ce skin, plus spécifique). padding : masqué en
+   portrait/tactile par la règle juste en dessous (même sélecteur, plus bas
+   dans le fichier). Groupée avec ses concurrentes pour préserver l'ordre. */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-area: auto;
   grid-column: 1 / -1;
@@ -9190,10 +8643,13 @@ body.board-edit-mode .pad.is-editing .pad-trigger {
   padding: 0 12px !important; /* pas de padding vertical : le titre 2 lignes est centré dans le cadre sans déborder */
   align-items: center;
 }
+}
 
 @media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+  @layer skin {
   body.board-edit-mode .pad.is-editing .pad-trigger {
     padding: 8px 34px 9px 30px !important;
+  }
   }
 }
 
@@ -9201,12 +8657,13 @@ body.board-edit-mode .pad.is-editing .pad-label {
   grid-template-columns: minmax(0, 1fr);
 }
 
-body.board-edit-mode .pad.is-editing .pad-title,
-body.board-edit-mode .pad.is-editing .pad-tags {
-  grid-column: 1 / -1 !important;
-  text-align: center;
-}
-
+/* S2 — lot 4 : position/display/margin/font-size concurrentes de ~8429
+   (!important, spécificité inférieure) — groupée dans la même couche.
+   min-width : NON incluse — concurrente du reset global `.pad, .pad *
+   { min-width: 0 }` (~8845, hors couche) qu'elle bat par spécificité ; la
+   mettre en couche l'aurait fait perdre quelle que soit sa spécificité
+   (détecté par la vérif double-snapshot). Redéclarée hors couche ci-dessous. */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-shortcut,
 body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
   position: absolute !important;
@@ -9215,12 +8672,20 @@ body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
   top: 8px;
   left: 8px;
   width: 20px;
-  min-width: 20px;
   height: 20px;
   margin: 0 !important;
   font-size: 0.7rem !important;
 }
+}
+body.board-edit-mode .pad.is-editing .pad-shortcut,
+body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
+  min-width: 20px;
+}
 
+/* S2 — lot 4 : position/display/margin concurrentes de ~8429 (!important,
+   spécificité inférieure) — groupée dans la même couche. min-width : NON
+   incluse, même raison que ci-dessus. */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-type {
   grid-area: auto;
   position: absolute !important;
@@ -9229,12 +8694,15 @@ body.board-edit-mode .pad.is-editing .pad-type {
   top: 8px;
   left: 32px;
   width: 20px;
-  min-width: 20px;
   height: 20px;
   margin: 0 !important;
   border-color: transparent;
   background: transparent;
   color: var(--color_ui_text);
+}
+}
+body.board-edit-mode .pad.is-editing .pad-type {
+  min-width: 20px;
 }
 
 body.board-edit-mode .pad.is-editing .pad-type svg {
@@ -9321,9 +8789,14 @@ body.board-edit-mode .pad.is-editing .pad-alerts {
   pointer-events: none;
 }
 
+/* S2 — lot 2c : isolée, aucune autre règle importante ne pose display sur
+   .pad-progress/.pad-vu dans ce contexte (édition garage — mutuellement
+   exclusif avec les sélecteurs :not(.is-editing) de ~8201/~8807). */
+@layer mode {
 body.board-edit-mode .pad.is-editing .pad-progress,
 body.board-edit-mode .pad.is-editing .pad-vu {
   display: none !important;
+}
 }
 
 .pad:not(.is-editing) .pad-head {
@@ -9338,6 +8811,12 @@ body.board-edit-mode .pad.is-editing .pad-vu {
   order: 3;
 }
 
+/* S2 — lot 2c : grid-template-columns/areas concurrentes de ~8419/~9186/
+   ~11759 (le même sélecteur est dupliqué à ~9186 et ~11759 dans des @media
+   identiques — c'est la version la plus basse dans le fichier qui gagne à
+   spécificité égale, groupée avec elles pour préserver cet ordre). min-height
+   concurrente de ~8419/~8556 (non important). */
+@layer skin {
 .pad:not(.is-editing) .pad-play-row,
 body.stage-mode .pad:not(.is-editing) .pad-play-row {
   grid-template-columns: 22px 22px 16px minmax(0, 1fr) auto 28px 28px !important;
@@ -9347,6 +8826,7 @@ body.stage-mode .pad:not(.is-editing) .pad-play-row {
     "progress progress progress progress progress vu vu"
     "alerts alerts alerts alerts alerts alerts alerts" !important;
   min-height: 112px;
+}
 }
 
 .pad:not(.is-editing) .pad-shortcut {
@@ -9381,11 +8861,18 @@ body.stage-mode .pad:not(.is-editing) .pad-play-row {
   pointer-events: none;
 }
 
+/* S2 — lot 2b (.pad-trigger, cluster taille). min-height : vivant en dehors du
+   skin basic illustré/couleur (masqué par ~8132/~11404 pour ce cas, plus
+   spécifiques). padding : masqué par ~9133 pour le même cas. Groupée avec ses
+   concurrentes (~2764/~2814/~8132/~8436/~8555/~9133/~11404) dans la même
+   couche pour préserver l'ordre de spécificité exact. */
+@layer skin {
 .pad:not(.is-editing) .pad-trigger,
 body.stage-mode .pad:not(.is-editing) .pad-trigger {
   grid-area: title;
   min-height: 38px;
   padding: 4px 0 !important;
+}
 }
 
 /* Le trigger transparent en not-editing n'est nécessaire que pour les skins
@@ -9400,25 +8887,31 @@ body.stage-mode .pad:not(.is-editing) .pad-label {
   min-width: 0;
 }
 
+@layer base {
 .pad:not(.is-editing) .pad-title,
 body.stage-mode .pad:not(.is-editing) .pad-title {
   display: -webkit-box;
-  grid-column: 1 / -1 !important;
   width: 100%;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-align: center;
+}
 }
 
+@layer base {
 .pad-tags:empty {
   display: none;
 }
+}
 
+/* S2 — lot 2c : height concurrente de ~8537 (non importante) — groupée dans
+   la même couche pour préserver l'ordre de spécificité. align-self : isolée. */
+@layer skin {
 .pad:not(.is-editing) .pad-vu,
 body.stage-mode .pad:not(.is-editing) .pad-vu {
   align-self: center;
   height: 9px;
+}
 }
 
 .pad:not(.is-editing) .controls,
@@ -9472,8 +8965,12 @@ body.stage-mode .pad:not(.is-editing) .controls {
   min-width: 0;
 }
 
+/* S2 — nettoyage !important superflu : bat déjà ~2567 (même sélecteur, non
+   important, plus haut dans le fichier) par le seul ordre des règles, sans
+   avoir besoin de !important — aucune autre règle importante ne concurrence
+   `animation` sur .pad.is-ending. Cf. feedback_no_important. */
 .pad.is-ending {
-  animation: none !important;
+  animation: none;
 }
 
 .pad-alert-ending {
@@ -9572,16 +9069,13 @@ body.stage-mode .pad:not(.is-editing) .controls {
   }
 }
 
-body[data-skin="classic"] .pad:not(.is-editing) .pad-trigger {
-  border-radius: 8px;
-  padding: 7px 9px !important;
-}
-
-
-body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
-  border-radius: 8px;
-  padding: 7px 9px !important;
-}
+/* Anciennement : padding: 7px 9px !important propre à candy/classic (juin 2026,
+   « Restore candy pad title frame »). Depuis que la boîte visible du titre est
+   portée par .pad-title et que .pad-trigger n'est plus qu'une zone de clic à
+   `padding: 4px 0 !important`, ce padding horizontal de 9px ne faisait que
+   rétrécir le titre de 18px (161px au lieu de 179px comme High Contrast) — d'où
+   un retour à la ligne prématuré et le débordement des boutons du pad. On aligne
+   candy et classic dark sur High Contrast (règle générale .pad-trigger). */
 
 /* Badge « audio manquant » : masqué par défaut, révélé par .is-missing-audio.
    (Le masquage des badges d'options en skin basic n'est plus inconditionnel : il
@@ -9590,10 +9084,15 @@ body[data-skin="candy"] .pad:not(.is-editing) .pad-trigger {
   display: none !important;
 }
 
+/* S2 — lot 2c : isolées (aucune autre règle non importante ne pose max-width/
+   overflow sur .pad-play-row ; ~11458, importante et illustrée-scène, gagne
+   déjà sans condition quand elle s'applique, quelle que soit la couche ici). */
+@layer mode {
 .pad:not(.is-editing) .pad-play-row,
 body.stage-mode .pad:not(.is-editing) .pad-play-row {
   max-width: 100%;
   overflow: hidden;
+}
 }
 
 .pad:not(.is-editing) .pad-alerts,
@@ -9605,6 +9104,10 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
   overflow: hidden;
 }
 
+/* S2 — lot 2c : isolées pour .pad-vu/.pad-progress (aucune autre règle ne pose
+   max-width/min-width sur ces deux-là) ; pad-live-row/.control-group/pad-actions/
+   .controls hors périmètre de ce lot, non auditées séparément. */
+@layer mode {
 .pad-live-row,
 .pad-live-row .control-group,
 .pad:not(.is-editing) .pad-actions,
@@ -9613,6 +9116,7 @@ body.stage-mode .pad:not(.is-editing) .pad-alerts {
 .pad:not(.is-editing) .pad-progress {
   max-width: 100%;
   min-width: 0;
+}
 }
 
 .visual-toggle-button {
@@ -9636,6 +9140,16 @@ body[data-skin="basic"] .visual-toggle-button {
 body[data-skin="basic"] .pad.has-visual-image .visual-toggle-button,
 body[data-skin="basic"] .pad.has-color .visual-toggle-button {
   display: grid;
+}
+
+/* Illustration affichée : le bouton œil doit passer AU-DESSUS de la couche
+   .pad-visual-slide (z-index 1) — sinon il est masqué par l'illustration. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .visual-toggle-button,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .visual-toggle-button {
+  position: absolute !important;
+  grid-area: auto !important;
+  z-index: 5;
+  inset: 6px 6px auto auto;
 }
 
 body[data-skin="basic"] .pad.is-editing .visual-toggle-button {
@@ -9670,6 +9184,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   opacity: 1;
   position: absolute;
   grid-area: auto;
+  z-index: 3;
   top: 20px;
   left: 50%;
   right: auto;
@@ -9681,15 +9196,19 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   padding: 1px 5px;
 }
 
+/* S2 — nettoyage !important superflu (les deux règles suivantes) : `.pad.is-
+   editing` n'apparaît jamais sans `board-edit-mode` (setPadEditing() dans
+   app.js), donc ces sélecteurs plus spécifiques gagnent déjà sans !important
+   — cf. feedback_no_important. */
 body.board-edit-mode .pad.is-editing {
   /* Comme en basic/custom : 2 colonnes larges + 1 colonne étroite (38px) où
      tombent « déplacer » (drag, order 42) et « supprimer » (delete, order 45)
      → 4 boutons identiques + 2 boutons carrés plus petits, pour tous les skins. */
-  grid-template-columns: 1fr 1fr 38px !important;
+  grid-template-columns: 1fr 1fr 38px;
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing {
-  grid-template-columns: 1fr 1fr 38px !important;
+  grid-template-columns: 1fr 1fr 38px;
   grid-template-rows: auto auto auto 1fr auto auto;
 }
 
@@ -9752,20 +9271,33 @@ body.board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
   grid-column: 3;
 }
 
+/* S2 — lot 2c : isolée, aucune autre règle ne pose grid-template-rows sur
+   .pad-play-row. */
+@layer skin {
 body[data-skin="basic"] .pad:not(.is-editing) .pad-play-row {
   grid-template-rows: 26px minmax(0, 1fr) auto auto !important;
 }
+}
 
+/* padding : isolée, aucune autre règle ne pose padding sur .pad-play-row. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
   padding: 8px;
 }
+}
 
+/* S2 — lot 2b (.pad-trigger, cluster taille). padding : c'est cette règle-ci
+   qui l'emporte pour ce sélecteur (même spécificité que ~8132, mais plus bas
+   dans le fichier) — groupée dans la même couche pour le garantir. place-items :
+   isolée. */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   /* end : la boîte titre est collée EN BAS de l'illustration, pas centrée. */
   place-items: end center;
   padding: 8px !important;
+}
 }
 
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
@@ -9778,10 +9310,15 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 
 @media (max-width: 950px), (pointer: coarse) {
+  /* S2 — nettoyage code mort : grid-template-columns supprimée, toujours
+     masquée par le doublon ~9226 (même sélecteur, même @media, plus bas dans
+     le fichier). gap reste (vivante, aucune autre règle @media identique ne
+     la redéclare). */
+  @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
-    grid-template-columns: 22px 22px 14px minmax(0, 1fr) auto 24px 24px !important;
     gap: 4px !important;
+  }
   }
 
   .pad:not(.is-editing) .pad-actions {
@@ -9804,24 +9341,29 @@ body.stage-mode .board-action-grid .version-notes-button {
   display: none !important;
 }
 
+@layer base {
 body:not([data-skin="basic"]) .pad:not(.is-editing) .pad-tags,
 body[data-skin="basic"] .pad:not(.is-editing) .pad-tags {
   display: block;
+}
 }
 
 /* Skin Basic : dès que l'illustration (image, dessin ou couleur) est affichée,
    tags ET badges d'options sont masqués — jamais par-dessus l'illustration, en
    studio comme en scène. En mode « données » (illustration masquée par le bouton
    œil, ou pad sans illustration) ils restent visibles dans les deux modes : tags
-   via `.pad-tags{display:block}` plus haut, badges via `.pad-alerts{display:flex}`.
-   Pas de !important ni de .stage-mode : ces sélecteurs (0,6,1) battent déjà les
-   règles de base, et le critère est l'illustration, pas le mode. `display:none`
-   suffit (les resets margin/border/… d'avant étaient morts sous un display:none). */
+   via `.pad-tags{display:block}` plus haut (@layer base), badges via
+   `.pad-alerts{display:flex}`. Pas de !important : @layer skin gagne déjà sur
+   @layer base (cf. commentaire d'ordre des couches en tête de fichier), et le
+   critère est l'illustration, pas le mode. `display:none` suffit (les resets
+   margin/border/… d'avant étaient morts sous un display:none). */
+@layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-tags,
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-alerts,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-alerts {
   display: none;
+}
 }
 
 /* Aides contextuelles */
@@ -9837,10 +9379,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background: var(--color_ui_help_background);
   color: var(--color_ui_help);
   z-index: 3;
-}
-
-.xfade-live-row {
-  grid-template-columns: repeat(2, 42px);
 }
 
 .cues-help-button {
@@ -10565,6 +10103,7 @@ body.stage-mode #boardName:focus {
 }
 
 /* Apply font overrides to both preview and real board */
+@layer base {
 .pad-title,
 .pad-trigger,
 .skin-editor-preview .pad-title,
@@ -10572,9 +10111,12 @@ body.stage-mode #boardName:focus {
   font-family: var(--skin_font_family, inherit);
 }
 
-.pad-title,
+/* `.pad-title` (vrai board) : font-size via le token --pad-title-size (bloc S1).
+   L'aperçu éditeur de skin garde son override direct au cas où son `.pad-title`
+   ne serait pas dans un `.pads`. */
 .skin-editor-preview .pad-title {
   font-size: var(--skin_font_size_title, inherit);
+}
 }
 
 .skin-editor-preview .skin-hue-match,
@@ -11164,24 +10706,20 @@ body.stage-mode #boardName:focus {
   display: none !important;
 }
 
+/* .board-mode-selector de base : display/align-items/grid-template-columns sont
+   inertes (le conteneur réel `.board-main > .board-mode-selector` impose
+   inline-flex plus bas) ; seul `gap` sert encore. `min-width` retiré le
+   2026-09-05 (lot 3) : redéclaré `0` par le conteneur réel. */
 .board-mode-selector {
   display: grid;
   grid-template-columns: auto repeat(3, minmax(74px, 1fr));
   align-items: stretch;
   gap: 6px;
-  min-width: min(100%, 360px);
 }
 
-.board-mode-label {
-  display: grid;
-  place-items: center;
-  padding: 0 6px;
-  color: var(--color_ui_text_muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
+/* (`.board-mode-label` — plus aucun élément de ce nom dans le DOM ; toutes ses
+   règles retirées le 2026-09-05, lot 3. Vérifié : absent de index.html et
+   jamais créé par app.js.) */
 
 .board-mode-button {
   display: grid;
@@ -11266,53 +10804,21 @@ body.stage-mode #boardName:focus {
   .board-mode-selector {
     grid-template-columns: 1fr 1fr 1fr;
   }
-
-  .board-mode-label {
-    grid-column: 1 / -1;
-    justify-content: start;
-  }
 }
 
-/* Mode selector : ligne dédiée pour éviter les chevauchements */
-.board-mode-selector {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  width: 100% !important;
-  gap: 6px !important;
-  align-items: center;
-}
-
-.board-mode-label {
-  flex: 0 0 100% !important;
-  margin-bottom: 4px;
-}
-
-.board-mode-button {
-  flex: 1 1 0 !important;
-  min-width: 70px !important;
-}
+/* Lot 2/3 (2026-09-05) : supprimées ici des règles jamais appliquées —
+   `.board-mode-selector { display:flex … }` (redéclaré inline-flex juste
+   après), `.board-mode-button { flex:1 1 0 !important }` (redéclaré par
+   `.board-main > .board-mode-selector .board-mode-button`, plus spécifique —
+   aucun `.board-mode-button` n'existe hors de ce conteneur), et l'essentiel de
+   `.board-mode-selector { display:inline-flex … !important }` dont 8 des 9
+   propriétés sont redéclarées par `.board-main > .board-mode-selector` ; seul
+   `min-width:0` a été conservé, replié dans ce conteneur réel. */
 
 @media (max-width: 950px), (pointer: coarse) {
   .board-mode-selector {
     margin-bottom: 8px;
   }
-}
-
-/* Sélecteur de modes : aligné à gauche, horizontal, compact */
-.board-mode-selector {
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  justify-self: start !important;
-}
-
-.board-mode-selector .board-mode-label {
-  display: none !important;
 }
 
 .board-mode-selector .board-mode-button {
@@ -11357,22 +10863,23 @@ body.board-edit-mode .board-mode-selector-extra {
   color: var(--color_ui_text);
 }
 
-/* Sur portable, le board-strip passe en pleine largeur mais reste étroit :
-   les 3 boutons de mode + les 2 boutons "extra" ne tiennent pas sur une seule
-   ligne en nowrap (ils débordaient hors de l'écran, invisibles). On autorise
-   le retour à la ligne à partir du même seuil que .board-area (700px). */
+/* Sur portable, le bouton "extra" (annuler) se cale à droite du sélecteur.
+   (Les `flex-wrap:wrap !important; width:100% !important` sur .board-mode-selector
+   qui étaient ici ont été retirés le 2026-09-05, lot 3 : `.board-main >
+   .board-mode-selector` (plus spécifique) impose nowrap/fit-content sur toute
+   la plage — vérifié à 375 px pointeur grossier, les 3 boutons + 2 extra
+   tiennent sans déborder ni passer à la ligne.) */
 @media (max-width: 700px), (pointer: coarse) {
-  .board-mode-selector {
-    flex-wrap: wrap !important;
-    width: 100% !important;
-  }
-
   .board-mode-selector-extra {
     margin-left: auto;
   }
 }
 
-/* Sélecteur de modes : sous le nom du board, aligné à gauche */
+/* Correctif final sélecteur modes : position stable.
+   (Ce bloc était précédé de 2 copies strictement identiques — supprimées le
+   2026-09-05, lot 1 du nettoyage du sélecteur de mode : seul le dernier
+   comptait. `min-width: 0` replié ici depuis la règle `.board-mode-selector`
+   de base au lot 3.) */
 .board-main > .board-mode-selector {
   grid-column: 1 / -1 !important;
   display: inline-flex !important;
@@ -11381,6 +10888,7 @@ body.board-edit-mode .board-mode-selector-extra {
   align-items: center !important;
   gap: 6px !important;
   width: fit-content !important;
+  min-width: 0 !important;
   max-width: 100% !important;
   margin: 4px 0 8px !important;
   justify-self: start !important;
@@ -11393,32 +10901,6 @@ body.board-edit-mode .board-mode-selector-extra {
   white-space: nowrap !important;
 }
 
-/* Sélecteur de modes : position stable entre Board et Nom */
-.board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
-
-.board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
-  white-space: nowrap !important;
-}
-
-/* Couleurs distinctes du mode courant */
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: #36c66a !important;
-  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel_secondary)) !important;
-}
-
 body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
   border-color: #62b7ff !important;
   background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
@@ -11429,51 +10911,12 @@ body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage
   background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
 }
 
-/* Correctif final sélecteur modes : position stable et couleur Scène verte */
-.board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
-
-.board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
-  white-space: nowrap !important;
-}
-
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
-.board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 42%, var(--color_ui_panel_secondary)) !important;
-  color: var(--color_ui_text) !important;
-}
-
-body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
-  border-color: #62b7ff !important;
-  background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
-}
-
-body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
-  border-color: #ffd36e !important;
-  background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
-}
-
-/* Mode Scène : bouton Scène vert logo + clignotement pendant chargement */
-.board-mode-button[data-board-mode-target="stage"].is-current,
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 48%, var(--color_ui_panel_secondary)) !important;
-  color: var(--color_ui_text) !important;
-}
-
+/* Clignotement du bouton Scène pendant le chargement.
+   (La couleur active du bouton Scène — border/fond/texte — est posée plus bas
+   par la règle `html body .board-main > .board-mode-selector … [stage].is-current`
+   qui gagne par spécificité : les 3 crans intermédiaires #36c66a 42 % /
+   success 42 % / success 48 % qui la précédaient étaient du code mort, retirés
+   le 2026-09-05, lot 2.) */
 .board-mode-button[data-board-mode-target="stage"].is-pending {
   border-color: var(--color_status_success) !important;
   background: color-mix(in srgb, var(--color_status_success) 34%, var(--color_ui_panel_secondary)) !important;
@@ -11484,7 +10927,9 @@ body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"]
    (#ffd36e) ci-dessus sont codés en dur, hors système de variables — un seul
    traitement gris neutre pour les 3, le libellé du bouton suffit à distinguer
    le mode actif. */
-body[data-skin="print"][data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
+/* stage retiré du groupe le 2026-09-05 (lot 2) : la règle logo-green plus bas
+   gagne par spécificité, `--soundboard-logo-green` valant #333 en skin print —
+   ce traitement #000 n'était donc jamais appliqué au bouton Scène. */
 body[data-skin="print"][data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current,
 body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
   border-color: #000000 !important;
@@ -11503,44 +10948,27 @@ body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-
   }
 }
 
-/* Mode Scène : stabiliser Board / Master / Cues-Crossfade sur les positions Studio */
+/* Mode Scène : ces blocs restent dans le flux, sans transform. */
 body.stage-mode .board-strip,
 body.stage-mode .board-main,
 body.stage-mode .master-strip,
-body.stage-mode .live-tools,
 body.stage-mode .cue-strip,
 body.stage-mode .cues-strip,
 body.stage-mode .crossfade-strip,
 body.stage-mode .cues-crossfade-strip {
   transform: none !important;
-  transition: none !important;
 }
 
-body.stage-mode .board-main > .board-mode-selector {
-  grid-column: 1 / -1 !important;
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  margin: 4px 0 8px !important;
-  justify-self: start !important;
-}
+/* (Supprimé le 2026-09-05, lot 1 : body.stage-mode .board-main > .board-mode-selector
+   [+ .board-mode-button] étaient des copies strictement identiques — mêmes valeurs,
+   juste plus spécifiques — des règles .board-main > .board-mode-selector ci-dessus,
+   qui s'appliquent déjà en Scène. Aucun effet sur le rendu.) */
 
-body.stage-mode .board-main > .board-mode-selector .board-mode-button {
-  flex: 0 0 auto !important;
-  min-width: 72px !important;
-  white-space: nowrap !important;
-}
-
-/* Ne pas réduire/repositionner Master et Cues en mode Scène. Sans !important
+/* Ne pas réduire/repositionner Master en mode Scène. Sans !important
    depuis l'optimisation du 2026-08-20 (vérifié par simulation de cascade,
    cf. commentaire styles.css ~8171) : rien de plus tardif/spécifique ne
-   redéclare ces propriétés pour Master/Cues, donc l'ordre naturel suffit. */
-body.stage-mode .master-strip,
-body.stage-mode .live-tools {
+   redéclare ces propriétés pour Master, donc l'ordre naturel suffit. */
+body.stage-mode .master-strip {
   width: auto;
   max-width: none;
   min-width: 0;
@@ -11581,37 +11009,6 @@ body.stage-mode .live-tools {
   }
 }
 
-/* Scène, bloc cues pas encore "stuck" : ~568px seulement (largeur de la
-   colonne board+master), pas assez pour les 9 boutons → on ne garde que
-   l'essentiel jouable et on masque les réglages secondaires (déjà masqués
-   sur mobile / une fois stuck sur desktop pour cue-window et aide). */
-/* Le patch bay n'est plus masqué avant collage : le bloc cues doit avoir le même
-   rendu (mêmes boutons) dès l'activation qu'une fois collé, sinon le layout change
-   entre les deux états. Seuls la fenêtre de réglage des cues et l'aide restent
-   masquées (elles le sont aussi en collé). */
-body.stage-mode:not(.cues-stuck) .live-tools .cue-window-button,
-body.stage-mode:not(.cues-stuck) .live-tools .cues-help-button {
-  display: none !important;
-}
-
-@media (max-width: 950px), (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg,
-  body.stage-mode .show-cables-button svg {
-    width: 26px !important;
-    height: 26px !important;
-  }
-}
-
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  body.stage-mode .cue-live-row .icon-button svg,
-  body.stage-mode .cue-stop-all-button svg,
-  body.stage-mode .show-cables-button svg {
-    width: 22px !important;
-    height: 22px !important;
-  }
-}
-
 
 /* CORRECTIF FINAL : bouton Scène vert logo */
 :root {
@@ -11634,17 +11031,6 @@ html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-
   background: color-mix(in srgb, var(--soundboard-logo-green) 38%, var(--color_ui_panel_secondary)) !important;
   filter: none !important;
 }
-/* Compensation du bloc board pendant la transition Studio→Scène : la
-   position/transform réelle est pilotée en JS (applyStageStudioLayout),
-   cette règle ne sert que de repli si le JS ne s'applique pas (mobile). */
-body.stage-mode .board-strip {
-  margin-top: 0 !important;
-  left: auto !important;
-  right: auto !important;
-  position: static !important;
-  transform: none !important;
-}
-
 /* Le logo / titre / signature / message gardent le même aspect qu'en
    Studio/Garage (pas de réduction de taille en Scène) — seul l'agencement
    change (largeur du titre libérée, centrage vertical). */
@@ -11667,33 +11053,13 @@ html body.stage-mode .topbar {
 html body.stage-mode .brand {
   display: flex !important;
   /* "start", comme en Studio/Garage (cf. .brand de base) : "center" décalait
-     visiblement le logo vers le bas et le texte vers le haut au relâchement
-     de la compensation Studio->Scène (~1s après l'entrée en scène), quand le
-     align-items figé de Studio cède la place à cette règle. */
+     visiblement le logo/texte lors de l'ancienne compensation Studio→Scène. */
   align-items: start !important;
-  transform: none !important;
 }
 
 html body.stage-mode .brand-tools {
-  /* "auto" (= start, hérité de .brand), comme en Studio/Garage : "center" ici
-     recentrait le logo (plus haut que .mark seul, cf. .brand-tools) contre la
-     colonne de texte, plus haute que lui, au relâchement de la compensation
-     Studio->Scène (~1s après l'entrée en scène) — le logo semblait "descendre"
-     par rapport au texte resté fixe. Même cause que les fix précédents sur
-     .brand/.topbar, sur un troisième élément distinct. */
+  /* "auto" (= start, hérité de .brand), comme en Studio/Garage. */
   align-self: auto !important;
-  transform: none !important;
-}
-
-
-/* CORRECTIF : éviter les transitions visibles lors de l'alignement dynamique Studio → Scène */
-body.stage-mode .board-strip,
-body.stage-mode .brand,
-body.stage-mode .mark,
-body.stage-mode .brand h1,
-body.stage-mode .brand p,
-body.stage-mode #audioStatus {
-  transition: none !important;
 }
 
 .help-button {
@@ -11857,28 +11223,6 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-butt
     width: 100%;
     max-width: 460px;
   }
-
-  /* Cues désactivées : la règle dédiée (~8842, body:not(.cues-enabled)
-     .live-tools, !important) impose width:max-content — sujette au calcul
-     max-content peu fiable déjà documenté dans ce fichier (mesuré jusqu'à
-     707px pour un besoin réel de ~670px) — d'où le bloc élargi débordant à
-     droite en portrait, et Board/Master entraînés avec lui (cf. commentaire
-     ci-dessus). Même sélecteur exact (même spécificité) + !important, plus
-     tardif dans la cascade, pour la battre proprement sur mobile plutôt que
-     dupliquer un !important générique moins ciblé. */
-  body .live-tools {
-    grid-column: 1;
-    grid-row: 4;
-    justify-self: center;
-    width: 100%;
-    max-width: 460px;
-  }
-
-  body:not(.board-edit-mode):not(.cues-enabled) .live-tools {
-    width: 100% !important;
-    max-width: 460px !important;
-    justify-self: center !important;
-  }
 }
 
 /* Survol consolidé, net et uniforme sur tous les boutons de l'éditeur audio
@@ -11986,16 +11330,8 @@ body.guest-locked { overflow: hidden; }
    égale, sans !important. À revoir visuellement (pas de preview sur ce projet). */
 
 body.guest-mode .remote-control-button,
-body.guest-mode .live-tools,
-body.guest-mode #liveFxPanel {
+body.guest-mode .live-tools {
   display: none;
-}
-/* Board partagé : jamais de face effets, même si un état la réclamait. */
-body.guest-mode .pad-face-back {
-  visibility: hidden !important;
-}
-body.guest-mode .pad.is-fx-flipped .pad-face-front {
-  visibility: visible !important;
 }
 
 /* Bloc MASTER : seulement Volume sono + Random playlist */
@@ -12018,8 +11354,7 @@ body.guest-mode .master-title,
 body.guest-mode .master-strip .cue-output-group,
 body.guest-mode .master-strip .master-input-group,
 body.guest-mode .master-option-badges,
-body.guest-mode .master-corner-row,
-body.guest-mode .master-stop-cluster {
+body.guest-mode .master-corner-row {
   display: none;
 }
 body.guest-mode .master-volume-stack {
@@ -12090,8 +11425,12 @@ body.guest-mode .guest-light-note { display: block; }
 
 /* Skin basic, pad illustré en scène : la boîte titre est ÉPINGLÉE au bas du pad
    (position:absolute sur `.pad`, position:relative), quel que soit le layout
-   interne de `.pad-flip` / `.pad-play-row` / des rangées progress/vu/alerts qui
-   la laissaient flotter ~140px au-dessus du bas. */
+   interne de `.pad-head` / `.pad-play-row` / des rangées progress/vu/alerts qui
+   la laissaient flotter ~140px au-dessus du bas.
+   Combine skin+mode (basic+scène) → classée @layer skin (comme l'exception
+   garage plus haut) : au sein de la couche skin, la spécificité normale la
+   fait déjà gagner sur la règle skin illustrée générale (2684, sans .stage-mode). */
+@layer skin {
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-title,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-title {
   position: absolute;
@@ -12100,26 +11439,72 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   bottom: 8px;
   width: auto;
   margin: 0;
-  text-align: center;
   z-index: 2;
   align-self: auto;
+  /* Limite 2 lignes. `-webkit-line-clamp` ne prend pas sous Firefox ici (élément
+     calculé `flow-root`), donc c'est `max-height` + `overflow: hidden` qui borne.
+     Piège : `overflow: hidden` clippe au bord de la BOÎTE DE PADDING → une 3ᵉ
+     ligne pouvait affleurer dans les 6px de padding bas. On réduit le padding bas
+     à 2px et on cale `max-height` sur (2 interlignes + 6px haut + 2px bas). */
+  overflow: hidden;
+  padding-block: 6px 2px;
+  max-height: calc(2lh + 8px);
 }
-/* .pad-trigger est `position: relative` : on le repasse static, ET on fait
-   remplir `.pad-flip` (qui reste l'ancre) sur toute la hauteur du pad — sinon
-   il ne fait que ~la hauteur du titre et le titre absolu se cale à SON bas,
-   ~40px au-dessus du bas du pad. */
+}
+/* `.pad-trigger` (offset-parent du titre absolu) et `.pad-label` gardent en
+   scène/basic illustré un `min-height` figé (clamp jusqu'à 260px / 100%),
+   indépendant du carré réel. Sur un carré plus petit, `bottom` ancrait le titre
+   au bas de ces ~260px, donc SOUS la ligne de coupe. On les recale sur le carré.
+   (Studio non concerné : le pad y fait bien --pad-compact-height de haut.) */
+/* S2 — lot 2b (.pad-trigger, cluster taille). min-height : sélecteur le plus
+   spécifique du groupe (ajoute .stage-mode à ~8132) — l'emporte déjà partout
+   où il s'applique. Groupée dans la même couche que ses concurrentes. */
+@layer skin {
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger,
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-label,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-label {
+  min-height: 0 !important;
+}
+}
+/* Carré étroit (beaucoup de colonnes) : `.pad-play-row` a un gabarit de grille à
+   colonnes fixes (24+16+28+28px + gaps ≈ 150px de plancher) → ses tracks restent
+   à ~152px même quand le carré fait 139. `.pad-trigger` (sa rangée « label »)
+   fait donc 152 lui aussi, et comme il porte `container-type: inline-size` c'est
+   LUI le bloc de référence du titre absolu → titre décalé/rogné à droite.
+   Solution : déplacer le `container-type` (et donc le bloc de référence du titre
+   + la base des `cqi` de la police) sur `.pad` lui-même, qui fait bien la largeur
+   du carré. `.pad-play-row` : on clippe quand même son débordement visuel. */
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-play-row,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-play-row {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
+  container-type: inline-size;
+}
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
+  /* `.pad-trigger` est `position: relative` (règle de base l.3442) : c'est LUI
+     l'offset-parent du titre absolu, pas `.pad`, même après le passage du
+     `container-type` sur `.pad`. On le repasse `static` ici pour que le titre
+     s'ancre sur `.pad` (largeur du carré). Le carré n'a plus de contrôles empilés
+     dessus en scène, le z-index de `.pad-trigger` ne sert plus. */
+  container-type: normal;
   position: static;
 }
+/* (`.pad-trigger` occupe la rangée `1fr` de la grille du play-row en skin
+   basic — il fait donc presque toute la hauteur du pad, et le titre absolu
+   s'ancre bien à son bas. Cf. règle basic illustré plus haut pour son z-index.) */
 /* Pad illustré (sans contrôles visibles) en scène : CARRÉ, point.
    `aspect-ratio: 1` + `align-self: start` (pas étiré par une rangée tirée par
    un pad texte voisin) + `min-height: 0 !important` pour neutraliser le
    min-height inline que `syncAllPadMinHeights` (app.js) leur posait — c'est lui
    qui rendait les rangées incohérentes (264/196) et empêchait le retour au
    carré après masquer/afficher l'illustration.
-   `grid-template-rows: 1fr` + `.pad-flip { height: 100% }` : la seule rangée
-   utile remplit le pad → le titre, ancré au bas de `.pad-flip`, touche le bas
+   `grid-template-rows: 1fr` + `.pad-head { height: 100% }` : la seule rangée
+   utile remplit le pad → le titre, ancré au bas de `.pad-head`, touche le bas
    du pad. */
 body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden),
 body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) {
@@ -12128,8 +11513,8 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   align-self: start;
   grid-template-rows: minmax(0, 1fr);
 }
-body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-flip,
-body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-flip {
+body[data-skin="basic"].stage-mode .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-head,
+body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-head {
   height: 100%;
 }
 
@@ -12141,9 +11526,7 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
    on borne leur largeur au conteneur, quoi qu'il arrive. */
 @media (max-width: 950px), (pointer: coarse) {
   body .master-strip,
-  body.stage-mode .master-strip,
-  body .live-tools,
-  body.stage-mode .live-tools {
+  body.stage-mode .master-strip {
     width: auto;
     max-width: 100%;
     min-width: 0;
@@ -12173,8 +11556,7 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     grid-template-columns: minmax(0, 1fr) !important;
   }
   html body.stage-mode .board-area,
-  html body.stage-mode .master-strip,
-  html body.stage-mode .live-tools {
+  html body.stage-mode .master-strip {
     grid-column: 1 !important;
     width: auto !important;
     max-width: 100% !important;
@@ -12187,13 +11569,253 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     grid-template-columns: minmax(0, 1fr) !important;
     --master-stop-size: clamp(48px, 20vw, 110px);
   }
-  body.stage-mode .master-strip > *,
-  body.stage-mode .master-stop-cluster,
-  body.stage-mode .master-stop-cluster > * {
+  body.stage-mode .master-strip > * {
     min-width: 0;
     max-width: 100%;
   }
-  body.stage-mode .master-stop-cluster {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+/* ── Îlot Cues fixe : dernier bloc du fichier ──────────────────────────────
+   .live-tools est un îlot position:fixed centré en bas (cf. la règle de base
+   ~1256). Ce bloc réaffirme le modèle d'îlot dans tous les modes (studio +
+   scène ; garage exclu, Cues y est masqué). Depuis le nettoyage S2
+   (04/09/2026, [[feedback_no_important]]), plus de `!important` ici : chaque
+   sélecteur est déjà plus spécifique que tout ce qu'il doit battre (ancien
+   modèle grid/sticky retiré, cf. [[project_optimisation_mode_scene]]) et ce
+   bloc reste le plus tardif du fichier, donc gagne aussi les ex æquo de
+   spécificité. Exception : les 3 règles `body.stopall-hidden`/
+   `.stopgroup-hidden`/`.mute-hidden` juste en dessous gardent leur
+   `!important` — elles doivent battre la règle « toujours visible »
+   `body:not(.board-edit-mode):not(.guest-mode) .topbar > .live-tools
+   .cue-stop-all-button/.cue-mute-all-button/.cue-stop-group` (styles.css
+   ~1448), plus spécifique qu'elles (2× :not() en plus). */
+body:not(.board-edit-mode) .topbar > .live-tools {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 20px);
+  min-width: 0;
+  margin: 0;
+  align-self: auto;
+  justify-self: auto;
+}
+
+/* Cases master « Contrôle des cues » / « Contrôle du crossfade » décochées :
+   masquer le sous-groupe correspondant dans l'îlot. Le stop global
+   (#cueStopAll) et l'aide restent toujours visibles. */
+body.cue-panel-hidden .topbar > .live-tools .live-tools-title,
+body.cue-panel-hidden .topbar > .live-tools .cue-editor-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-reset-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-run-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-next-button,
+body.cue-panel-hidden .topbar > .live-tools .cue-status {
+  display: none;
+}
+
+/* Cases master « Bouton stop global / groupé / mute global » décochées :
+   masquer le bouton correspondant dans l'îlot. */
+body.stopall-hidden .topbar > .live-tools .cue-stop-all-button {
+  display: none !important;
+}
+body.stopgroup-hidden .topbar > .live-tools .cue-stop-group {
+  display: none !important;
+}
+body.mute-hidden .topbar > .live-tools .cue-mute-all-button {
+  display: none !important;
+}
+
+/* Cues inactives (bouton « Cues » éteint) OU board sans cues → on ne montre que
+   le bouton « Cues » lui-même : pas de navigation (revenir/lancer/suivante) ni
+   d'info. `body.cue-nav` = cues actives ET au moins une cue (cf. syncCueControls). */
+body:not(.cue-nav) .topbar > .live-tools .cue-reset-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-run-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-next-button,
+body:not(.cue-nav) .topbar > .live-tools .cue-status {
+  display: none;
+}
+
+/* Board sans cues : bouton « Cues » grisé (mais cliquable → message + flash du
+   bouton « Réglage des cues »). */
+.cue-editor-button.is-empty {
+  opacity: 0.5;
+}
+
+@keyframes cueDialogFlash {
+  0%, 100% { }
+  50% {
+    border-color: var(--color_status_progress);
+    color: var(--color_status_progress);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color_status_progress) 30%, transparent);
+  }
+}
+.cue-window-button.flash-attention {
+  animation: cueDialogFlash 0.42s ease 3;
+}
+
+/* Réglages master — groupe « Contrôles à l'écran » : 2 colonnes remplies EN
+   COLONNE. Gauche = stops (stop global / groupé / mute) ; droite = panneaux
+   (effets live / cues / crossfade). L'ordre du DOM suit : 3 stops puis 3
+   panneaux. Titre sur toute la largeur, cases resserrées dessous. */
+.master-toggles-section {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto repeat(3, auto);
+  grid-auto-flow: column;
+  gap: 3px 14px;
+  padding-bottom: 12px;
+}
+.master-toggles-section h3 {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 1px;
+}
+/* Icône · libellé · case, packés à gauche (justify-content:start hérité) : la
+   case colle à SON libellé au lieu d'être poussée au bord droit de la demi-
+   colonne (où elle paraissait appartenir au libellé voisin). */
+.master-toggles-section .master-audio-control {
+  grid-template-columns: 18px auto max-content !important;
+  gap: 6px;
+  align-self: start;
+}
+.master-toggles-section .master-audio-control.live-fx-panel-toggle > span:not(.field-unit) {
+  grid-column: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.62rem;
+}
+.master-toggles-section .master-audio-control.live-fx-panel-toggle input[type="checkbox"] {
+  grid-column: 3;
+  margin-left: 0;
+}
+
+/* Cues désactivées → #cueStatus est vide (cf. syncCueControls) : ne pas
+   réserver d'espace pour un libellé absent. */
+.topbar > .live-tools .cue-status:empty {
+  display: none;
+}
+
+/* Portable / tactile : l'îlot se colle au bas de l'écran (pleine largeur) et sa
+   hauteur est fortement réduite — une seule rangée compacte, défilable
+   horizontalement si besoin. Il occupait beaucoup trop de place autrement. */
+@media (max-width: 950px), (pointer: coarse) {
+  body:not(.board-edit-mode) .topbar > .live-tools {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: auto;
+    max-width: none;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    border-radius: 10px 10px 0 0;
+    border-bottom: none;
+    overflow-x: auto;
+  }
+  /* Le bloc portrait (~8189) repose un modèle flex 3-lignes sur .live-tools
+     (order 0-4, #cueStopAll{margin-left:auto}, ::after et .cue-status en
+     flex-basis:100%) — incompatible avec l'îlot 1-rangée. On l'aplatit :
+     tous les items en order:0, ordre DOM, sans marge auto ni flex-basis:100%. */
+  body:not(.board-edit-mode) .topbar > .live-tools::after {
+    display: none;
+  }
+  /* Portable : pas de libellés texte dans l'îlot (« Cues », « Crossfade »). */
+  body:not(.board-edit-mode) .topbar > .live-tools .live-tools-title,
+  body:not(.board-edit-mode) .topbar > .live-tools .xfade-live-title {
+    display: none;
+  }
+  body:not(.board-edit-mode) .topbar > .live-tools > *,
+  body:not(.board-edit-mode) .topbar > .live-tools .cue-live-row > *,
+  body:not(.board-edit-mode) .topbar > .live-tools .xfade-live-row > * {
+    order: 0;
+    margin-left: 0;
+    margin-right: 0;
+    flex-basis: auto;
+  }
+  .topbar > .live-tools .cue-live-row .icon-button,
+  .topbar > .live-tools .xfade-live-row .icon-button,
+  .topbar > .live-tools .cue-stop-all-button,
+  .topbar > .live-tools .cue-mute-all-button,
+  .topbar > .live-tools .cue-stop-group-button,
+  .topbar > .live-tools .show-cables-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-live-row .icon-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-stop-all-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-mute-all-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .cue-stop-group-button,
+  body.stage-mode.cues-enabled .topbar > .live-tools .show-cables-button,
+  .topbar > .live-tools #stopGroup {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    flex: 0 0 auto;
+  }
+  .topbar > .live-tools .cue-stop-group #stopGroupSelect {
+    height: 30px;
+    max-width: 9ch;
+    font-size: 0.72rem;
+  }
+  .topbar > .live-tools .cue-editor-button {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 0.7rem;
+  }
+  .topbar > .live-tools .cue-live-row .icon-button svg,
+  .topbar > .live-tools .xfade-live-row .icon-button svg,
+  .topbar > .live-tools .cue-stop-all-button svg,
+  .topbar > .live-tools .cue-mute-all-button svg,
+  .topbar > .live-tools .cue-stop-group-button svg,
+  .topbar > .live-tools .show-cables-button svg {
+    width: 16px;
+    height: 16px;
+  }
+  /* Pad : centrer la rangée d'options (numéro/type · durée/note/œil) au lieu
+     de la coller aux deux bords — un 1fr de chaque côté du groupe.
+     #1 (2026-09-05) : restreint à (pointer: coarse). Le `max-width: 950px` du
+     bloc parent attrapait aussi les fenêtres d'ordinateur redimensionnées
+     (pointeur fin) — la rangée s'y tassait au centre au passage 4→3 colonnes,
+     signalé comme un bug. Sur pointeur fin la rangée garde le gabarit bord-à-
+     bord de base (styles.css ~8783). */
+  /* S2 — lot 2c : gagne sur le doublon ~9186 (même sélecteur, même @media,
+     plus haut dans le fichier) — groupée avec lui pour préserver ce résultat. */
+  @media (pointer: coarse) {
+  @layer skin {
+  .pad:not(.is-editing) .pad-play-row,
+  body.stage-mode .pad:not(.is-editing) .pad-play-row {
+    grid-template-columns: minmax(0, 1fr) 22px 22px 14px auto 24px 24px minmax(0, 1fr) !important;
+    grid-template-areas:
+      ". shortcut type flash time note eye ."
+      "title title title title title title title title"
+      "progress progress progress progress progress progress vu vu"
+      "alerts alerts alerts alerts alerts alerts alerts alerts" !important;
+  }
+  }
+  }
+  /* Info de cue (« lance pad X si… ») : sur 2 lignes si elle ne tient pas sur
+     une, plutôt que tronquée. */
+  .topbar > .live-tools .cue-status {
+    flex: 0 1 auto;
+    max-width: 55vw;
+    font-size: 0.72rem;
+    line-height: 1.15;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    max-height: calc(1.15em * 2);
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .topbar > .live-tools .xfade-live-title {
+    font-size: 0.68rem;
+  }
+  body:not(.board-edit-mode):not(.guest-mode) .deck {
+    padding-bottom: calc(var(--cable-extra-bottom) + 52px);
   }
 }
