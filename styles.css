@@ -10657,24 +10657,20 @@ body.stage-mode #boardName:focus {
   display: none !important;
 }
 
+/* .board-mode-selector de base : display/align-items/grid-template-columns sont
+   inertes (le conteneur réel `.board-main > .board-mode-selector` impose
+   inline-flex plus bas) ; seul `gap` sert encore. `min-width` retiré le
+   2026-09-05 (lot 3) : redéclaré `0` par le conteneur réel. */
 .board-mode-selector {
   display: grid;
   grid-template-columns: auto repeat(3, minmax(74px, 1fr));
   align-items: stretch;
   gap: 6px;
-  min-width: min(100%, 360px);
 }
 
-.board-mode-label {
-  display: grid;
-  place-items: center;
-  padding: 0 6px;
-  color: var(--color_ui_text_muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
+/* (`.board-mode-label` — plus aucun élément de ce nom dans le DOM ; toutes ses
+   règles retirées le 2026-09-05, lot 3. Vérifié : absent de index.html et
+   jamais créé par app.js.) */
 
 .board-mode-button {
   display: grid;
@@ -10759,49 +10755,21 @@ body.stage-mode #boardName:focus {
   .board-mode-selector {
     grid-template-columns: 1fr 1fr 1fr;
   }
-
-  .board-mode-label {
-    grid-column: 1 / -1;
-    justify-content: start;
-  }
 }
 
-/* (Supprimé le 2026-09-05, lot 2 : .board-mode-selector { display:flex … }
-   était entièrement redéclaré — mêmes propriétés, même sélecteur, même
-   spécificité — par .board-mode-selector { display:inline-flex … } quelques
-   lignes plus bas, donc jamais appliqué.) */
-
-.board-mode-label {
-  flex: 0 0 100% !important;
-  margin-bottom: 4px;
-}
-
-.board-mode-button {
-  flex: 1 1 0 !important;
-  min-width: 70px !important;
-}
+/* Lot 2/3 (2026-09-05) : supprimées ici des règles jamais appliquées —
+   `.board-mode-selector { display:flex … }` (redéclaré inline-flex juste
+   après), `.board-mode-button { flex:1 1 0 !important }` (redéclaré par
+   `.board-main > .board-mode-selector .board-mode-button`, plus spécifique —
+   aucun `.board-mode-button` n'existe hors de ce conteneur), et l'essentiel de
+   `.board-mode-selector { display:inline-flex … !important }` dont 8 des 9
+   propriétés sont redéclarées par `.board-main > .board-mode-selector` ; seul
+   `min-width:0` a été conservé, replié dans ce conteneur réel. */
 
 @media (max-width: 950px), (pointer: coarse) {
   .board-mode-selector {
     margin-bottom: 8px;
   }
-}
-
-/* Sélecteur de modes : aligné à gauche, horizontal, compact */
-.board-mode-selector {
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  justify-content: flex-start !important;
-  align-items: center !important;
-  gap: 6px !important;
-  justify-self: start !important;
-}
-
-.board-mode-selector .board-mode-label {
-  display: none !important;
 }
 
 .board-mode-selector .board-mode-button {
@@ -10846,16 +10814,13 @@ body.board-edit-mode .board-mode-selector-extra {
   color: var(--color_ui_text);
 }
 
-/* Sur portable, le board-strip passe en pleine largeur mais reste étroit :
-   les 3 boutons de mode + les 2 boutons "extra" ne tiennent pas sur une seule
-   ligne en nowrap (ils débordaient hors de l'écran, invisibles). On autorise
-   le retour à la ligne à partir du même seuil que .board-area (700px). */
+/* Sur portable, le bouton "extra" (annuler) se cale à droite du sélecteur.
+   (Les `flex-wrap:wrap !important; width:100% !important` sur .board-mode-selector
+   qui étaient ici ont été retirés le 2026-09-05, lot 3 : `.board-main >
+   .board-mode-selector` (plus spécifique) impose nowrap/fit-content sur toute
+   la plage — vérifié à 375 px pointeur grossier, les 3 boutons + 2 extra
+   tiennent sans déborder ni passer à la ligne.) */
 @media (max-width: 700px), (pointer: coarse) {
-  .board-mode-selector {
-    flex-wrap: wrap !important;
-    width: 100% !important;
-  }
-
   .board-mode-selector-extra {
     margin-left: auto;
   }
@@ -10864,7 +10829,8 @@ body.board-edit-mode .board-mode-selector-extra {
 /* Correctif final sélecteur modes : position stable.
    (Ce bloc était précédé de 2 copies strictement identiques — supprimées le
    2026-09-05, lot 1 du nettoyage du sélecteur de mode : seul le dernier
-   comptait.) */
+   comptait. `min-width: 0` replié ici depuis la règle `.board-mode-selector`
+   de base au lot 3.) */
 .board-main > .board-mode-selector {
   grid-column: 1 / -1 !important;
   display: inline-flex !important;
@@ -10873,6 +10839,7 @@ body.board-edit-mode .board-mode-selector-extra {
   align-items: center !important;
   gap: 6px !important;
   width: fit-content !important;
+  min-width: 0 !important;
   max-width: 100% !important;
   margin: 4px 0 8px !important;
   justify-self: start !important;
