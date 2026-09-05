@@ -10766,14 +10766,10 @@ body.stage-mode #boardName:focus {
   }
 }
 
-/* Mode selector : ligne dédiée pour éviter les chevauchements */
-.board-mode-selector {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  width: 100% !important;
-  gap: 6px !important;
-  align-items: center;
-}
+/* (Supprimé le 2026-09-05, lot 2 : .board-mode-selector { display:flex … }
+   était entièrement redéclaré — mêmes propriétés, même sélecteur, même
+   spécificité — par .board-mode-selector { display:inline-flex … } quelques
+   lignes plus bas, donc jamais appliqué.) */
 
 .board-mode-label {
   flex: 0 0 100% !important;
@@ -10865,14 +10861,7 @@ body.board-edit-mode .board-mode-selector-extra {
   }
 }
 
-/* Couleur distincte du mode Scène courant (Studio/Garage : voir le bloc
-   groupé plus bas ; Scène : voir aussi l'escalade #36c66a puis logo-green). */
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: #36c66a !important;
-  background: color-mix(in srgb, #36c66a 42%, var(--color_ui_panel_secondary)) !important;
-}
-
-/* Correctif final sélecteur modes : position stable et couleur Scène verte.
+/* Correctif final sélecteur modes : position stable.
    (Ce bloc était précédé de 2 copies strictement identiques — supprimées le
    2026-09-05, lot 1 du nettoyage du sélecteur de mode : seul le dernier
    comptait.) */
@@ -10896,13 +10885,6 @@ body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"]
   white-space: nowrap !important;
 }
 
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
-.board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 42%, var(--color_ui_panel_secondary)) !important;
-  color: var(--color_ui_text) !important;
-}
-
 body[data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current {
   border-color: #62b7ff !important;
   background: color-mix(in srgb, #62b7ff 36%, var(--color_ui_panel_secondary)) !important;
@@ -10913,14 +10895,12 @@ body[data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage
   background: color-mix(in srgb, #ffd36e 38%, var(--color_ui_panel_secondary)) !important;
 }
 
-/* Mode Scène : bouton Scène vert logo + clignotement pendant chargement */
-.board-mode-button[data-board-mode-target="stage"].is-current,
-body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current {
-  border-color: var(--color_status_success) !important;
-  background: color-mix(in srgb, var(--color_status_success) 48%, var(--color_ui_panel_secondary)) !important;
-  color: var(--color_ui_text) !important;
-}
-
+/* Clignotement du bouton Scène pendant le chargement.
+   (La couleur active du bouton Scène — border/fond/texte — est posée plus bas
+   par la règle `html body .board-main > .board-mode-selector … [stage].is-current`
+   qui gagne par spécificité : les 3 crans intermédiaires #36c66a 42 % /
+   success 42 % / success 48 % qui la précédaient étaient du code mort, retirés
+   le 2026-09-05, lot 2.) */
 .board-mode-button[data-board-mode-target="stage"].is-pending {
   border-color: var(--color_status_success) !important;
   background: color-mix(in srgb, var(--color_status_success) 34%, var(--color_ui_panel_secondary)) !important;
@@ -10931,7 +10911,9 @@ body[data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"]
    (#ffd36e) ci-dessus sont codés en dur, hors système de variables — un seul
    traitement gris neutre pour les 3, le libellé du bouton suffit à distinguer
    le mode actif. */
-body[data-skin="print"][data-board-mode="stage"] .board-mode-button[data-board-mode-target="stage"].is-current,
+/* stage retiré du groupe le 2026-09-05 (lot 2) : la règle logo-green plus bas
+   gagne par spécificité, `--soundboard-logo-green` valant #333 en skin print —
+   ce traitement #000 n'était donc jamais appliqué au bouton Scène. */
 body[data-skin="print"][data-board-mode="studio"] .board-mode-button[data-board-mode-target="studio"].is-current,
 body[data-skin="print"][data-board-mode="garage"] .board-mode-button[data-board-mode-target="garage"].is-current {
   border-color: #000000 !important;
