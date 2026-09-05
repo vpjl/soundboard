@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=958">
+    <link rel="stylesheet" href="styles.css?v=962">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -300,7 +300,7 @@
                 </select>
                 <span class="layout-rows-line">
                   <output id="padColumnsComputed" class="layout-rows-output" aria-label="Nombre de colonnes"></output>
-                  <span class="layout-control-label layout-rows-label">colonnes</span>
+                  <span class="layout-control-label layout-rows-label">colonnes maximum</span>
                 </span>
                 <span class="layout-rows-line">
                   <output id="padRows" class="layout-rows-output" aria-label="Nombre de lignes">3</output>
@@ -2219,32 +2219,6 @@
                     </button>
                   </div>
                 </div>
-
-                <section class="live-tools" data-skin-variable="--color_ui_border" aria-label="Cues et crossfade live">
-                  <h2 class="live-tools-title" data-skin-variable="--color_ui_text">Cues</h2>
-                  <div class="cue-live-row" aria-label="Cues" data-skin-variable="--color_ui_panel">
-                    <button class="icon-button cue-editor-button" type="button" aria-label="Activer les cues" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-7424f535" xlink:href="#ic-7424f535"></use></svg>
-                    </button>
-                    <button class="icon-button cue-run-button" type="button" aria-label="Lancer le cue courant" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-417557d6" xlink:href="#ic-417557d6"></use></svg>
-                    </button>
-                    <button class="icon-button cue-next-button" type="button" aria-label="Cue suivante" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-093913f7" xlink:href="#ic-093913f7"></use></svg>
-                    </button>
-                    <span class="cue-status" data-skin-variable="--color_ui_text_muted">Pas de cues</span>
-                  </div>
-                  <div class="xfade-live-row" aria-label="Crossfade live" data-skin-variable="--color_ui_panel">
-                    <button class="icon-button cue-window-button" type="button" aria-label="Réglage des cues" data-skin-variable="--color_ui_panel_secondary">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" data-skin-variable="--color_ui_button_icon"><use href="#ic-a43e6e48" xlink:href="#ic-a43e6e48"></use></svg>
-                    </button>
-                    <button class="icon-button help-button cues-help-button" type="button" aria-label="Aide Cues / Crossfade" data-skin-variable="--color_ui_help_background">
-                      <svg viewBox="6 5 12 15" aria-hidden="true" data-skin-variable="--color_ui_help">
-                        <path d="M9.5 9a2.7 2.7 0 0 1 5.1 1.2c0 2-2.6 2.2-2.6 4M12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                </section>
               </div>
 
               <div class="skin-preview-board pads" aria-label="Pads de prévisualisation">
@@ -2405,7 +2379,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=958"></script>
+    <script src="app.js?v=962"></script>
 
 
   </body>

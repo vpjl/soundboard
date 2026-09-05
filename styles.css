@@ -7705,15 +7705,38 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
   grid-template-columns: repeat(var(--pad-columns), minmax(0, 1fr));
 }
 
-@media (max-width: 950px), (pointer: coarse) {
-  /* Mobile / 1 colonne : le bloc Board a un plafond de 460px pensé pour la
-     colonne étroite du layout 2 colonnes (desktop). En 1 colonne il laissait
-     un grand vide à droite, alors que Master et Cues, eux, prennent toute la
-     largeur → logo et pads « repoussés » à gauche. On lève le plafond. */
+/* Élargissement du bloc board cadré sur le passage en 1 colonne (900px), PAS sur
+   950px : entre 900 et 950 le layout est encore 2 colonnes (board + pads côte à
+   côte) et le board doit y rester étroit (plafond de base 460px). Sinon on voyait
+   le board s'élargir d'un coup en rétrécissant la fenêtre. Sur pointeur grossier
+   (tablette), on applique quelle que soit la largeur. */
+@media (max-width: 900px), (pointer: coarse) {
+  /* Plafond relevé 460 → 620 : en 1 colonne, 460 laissait un grand vide à droite
+     (Master/Cues prennent toute la largeur) ; 620 laisse la place à la rangée
+     SÉLECTION / MODIFICATION sans étaler le bloc sur toute la largeur. */
   .board-strip {
-    max-width: none;
+    max-width: 620px;
   }
 
+  /* .board-area en une seule colonne souple (bornée par la max-width de
+     .board-strip). Sans ça sa 1re colonne restait en `max-content` (règle de
+     base) et le bloc s'étirait à la largeur de son plus large contenu déplié
+     (rangée SÉLECTION / MODIFICATION sur une ligne), débordant vers la droite.
+     `.board-area` ne repassait en 1 colonne qu'à 700px — trou entre 700 et 900. */
+  .board-area {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Largeur d'un groupe de chips bornée : dans les ~600px du bloc, on tient 2
+     groupes par rangée (Tags passe à la ligne), sans forcer un retour à la ligne
+     après chaque groupe. Les chips internes se réempilent dans les groupes larges
+     (Aspect, Tags). */
+  .chip-group {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 950px), (pointer: coarse) {
   /* --board-extent (curseur « étendue du board ») sert à ne pas étaler le board
      sur un très grand écran : aucun intérêt sur mobile, et une valeur mémorisée
      basse rétrécissait toute l'app. On force 100 % ici. */

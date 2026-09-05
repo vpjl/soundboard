@@ -208,7 +208,11 @@ const COMPRESSOR_PRESETS = {
 const CUE_ACTIONS = ["playPad", "stopPad", "playTag", "stopTag", "wait"];
 const CUE_CONDITIONS = ["manual", "padEnd", "tagEnd"];
 const AUDIO_FILE_RE = /\.(mp3|wav|m4a|aac|aif|aiff|caf|ogg|flac)$/i;
-const VIDEO_FILE_RE = /\.(mp4|mov|m4v|webm)$/i;
+const VIDEO_FILE_RE = /\.(mp4|mov|m4v)$/i;
+// .webm est ambigu (conteneur audio OU vidéo) : c'est le format des sons
+// enregistrés par l'app elle-même (voir recordingExtension), donc traité
+// comme audio par défaut, sauf si le type MIME dit explicitement "video/".
+const WEBM_FILE_RE = /\.webm$/i;
 
 const state = {
   // Mode invité : identifiant du partage (#g=…) quand la page est ouverte via un
@@ -10467,6 +10471,7 @@ function contentFileKind(file) {
   // mal le type de fichiers audio (ex. .wav identifié comme video/*).
   if (AUDIO_FILE_RE.test(name)) return "audio";
   if (VIDEO_FILE_RE.test(name)) return "video";
+  if (WEBM_FILE_RE.test(name)) return /^video\//.test(file.type) ? "video" : "audio";
   if (isTextDocFile(file)) return "text";
   if (/^video\//.test(file.type)) return "video";
   if (/^audio\//.test(file.type)) return "audio";
@@ -10747,10 +10752,13 @@ async function loadVideoIntoPad(pad, file) {
 }
 
 function audioFilesFromSelection(files) {
-  return [...(files || [])].filter((file) => (
-    file?.type?.startsWith("audio/")
-    || AUDIO_FILE_RE.test(file?.name || "")
-  )).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
+  return [...(files || [])].filter((file) => {
+    const name = file?.name || "";
+    if (file?.type?.startsWith("audio/")) return true;
+    if (AUDIO_FILE_RE.test(name)) return true;
+    if (WEBM_FILE_RE.test(name)) return !file?.type?.startsWith("video/");
+    return false;
+  }).sort((a, b) => String(a.webkitRelativePath || a.name).localeCompare(String(b.webkitRelativePath || b.name), "fr", { sensitivity: "base" }));
 }
 
 function audioFileIdentity(file) {
@@ -10843,6 +10851,11 @@ async function boardHasAnyMedia(board = currentBoard()) {
     const meta = await dbGet(padMetaKeyFor(board.id, index));
     const saved = await dbGet(padAudioKeyFor(board.id, index));
     if (pad.buffer || pad.videoName || saved?.audio || saved?.video || meta?.audioName || meta?.videoName) return true;
+    // Un pad renommé (titre non défaut) trahit un board déjà configuré, même
+    // si son média a été perdu entre-temps : il ne faut pas le confondre
+    // avec un board vierge (voir fillBlankBoardFromAudioFiles, destructif).
+    const title = meta?.title ?? pad.title;
+    if (title && !isDefaultTitleForPad({ title, index })) return true;
   }
   return false;
 }
@@ -18637,20 +18650,45 @@ async function init() {
   els.skinEditorFields?.addEventListener("click", handleSkinVariablePointerOver);
   els.skinEditorFields?.addEventListener("input", handleSkinVariablePointerOver);
   els.boardTagFilter?.addEventListener("change", () => applyBoardTagFilter());
+  // Volets du bloc board : un seul ouvert à la fois. Referme tous les autres
+  // quand on en déplie un (INFOS, VERSIONS, GESTION, ASPECT, SÉLECTION/MODIF,
+  // RANDOM PLAYLIST).
+  function collapseBoardSections(except) {
+    const sections = [
+      { id: "boardInfo", key: "boardInfoSectionOpen", toggle: els.boardInfoSectionToggle, body: els.boardInfoSectionBody },
+      { id: "versions", key: "versionsSectionOpen", toggle: els.versionsSectionToggle, body: els.boardVersionRow },
+      { id: "boardManage", key: "boardManageSectionOpen", toggle: els.boardManageSectionToggle, body: els.boardManageSectionBody },
+      { id: "aspect", key: "aspectSectionOpen", toggle: els.aspectSectionToggle, body: els.aspectSectionBody },
+      { id: "randomGroup", key: "randomGroupSectionOpen", toggle: els.randomGroupSectionToggle, body: els.randomGroupSectionBody },
+    ];
+    for (const s of sections) {
+      if (s.id === except) continue;
+      state[s.key] = false;
+      s.toggle?.setAttribute("aria-expanded", "false");
+      if (s.body) s.body.hidden = true;
+    }
+    if (except !== "filter" && state.filterSectionOpen) {
+      state.filterSectionOpen = false;
+      refreshTagFilterChips();
+    }
+  }
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("#filterSectionToggle")) {
       state.filterSectionOpen = !state.filterSectionOpen;
+      if (state.filterSectionOpen) collapseBoardSections("filter");
       refreshTagFilterChips();
       return;
     }
     if (e.target.closest?.("#versionsSectionToggle")) {
       state.versionsSectionOpen = !state.versionsSectionOpen;
+      if (state.versionsSectionOpen) collapseBoardSections("versions");
       els.versionsSectionToggle?.setAttribute("aria-expanded", String(state.versionsSectionOpen));
       if (els.boardVersionRow) els.boardVersionRow.hidden = !state.versionsSectionOpen;
       return;
     }
     if (e.target.closest?.("#aspectSectionToggle")) {
       state.aspectSectionOpen = !state.aspectSectionOpen;
+      if (state.aspectSectionOpen) collapseBoardSections("aspect");
       els.aspectSectionToggle?.setAttribute("aria-expanded", String(state.aspectSectionOpen));
       if (els.aspectSectionBody) els.aspectSectionBody.hidden = !state.aspectSectionOpen;
       // Rafraîchit le minimum du curseur de compacité (largeur courante d'un
@@ -18660,12 +18698,14 @@ async function init() {
     }
     if (e.target.closest?.("#boardManageSectionToggle")) {
       state.boardManageSectionOpen = !state.boardManageSectionOpen;
+      if (state.boardManageSectionOpen) collapseBoardSections("boardManage");
       els.boardManageSectionToggle?.setAttribute("aria-expanded", String(state.boardManageSectionOpen));
       if (els.boardManageSectionBody) els.boardManageSectionBody.hidden = !state.boardManageSectionOpen;
       return;
     }
     if (e.target.closest?.("#boardInfoSectionToggle")) {
       state.boardInfoSectionOpen = !state.boardInfoSectionOpen;
+      if (state.boardInfoSectionOpen) collapseBoardSections("boardInfo");
       els.boardInfoSectionToggle?.setAttribute("aria-expanded", String(state.boardInfoSectionOpen));
       if (els.boardInfoSectionBody) els.boardInfoSectionBody.hidden = !state.boardInfoSectionOpen;
       if (state.boardInfoSectionOpen) renderBoardInfoSection();
@@ -18673,6 +18713,7 @@ async function init() {
     }
     if (e.target.closest?.("#randomGroupSectionToggle")) {
       state.randomGroupSectionOpen = !state.randomGroupSectionOpen;
+      if (state.randomGroupSectionOpen) collapseBoardSections("randomGroup");
       els.randomGroupSectionToggle?.setAttribute("aria-expanded", String(state.randomGroupSectionOpen));
       if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = !state.randomGroupSectionOpen;
       return;
