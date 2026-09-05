@@ -8916,8 +8916,12 @@ body.stage-mode .pad:not(.is-editing) .controls {
   min-width: 0;
 }
 
+/* S2 — nettoyage !important superflu : bat déjà ~2567 (même sélecteur, non
+   important, plus haut dans le fichier) par le seul ordre des règles, sans
+   avoir besoin de !important — aucune autre règle importante ne concurrence
+   `animation` sur .pad.is-ending. Cf. feedback_no_important. */
 .pad.is-ending {
-  animation: none !important;
+  animation: none;
 }
 
 .pad-alert-ending {
@@ -9143,15 +9147,19 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   padding: 1px 5px;
 }
 
+/* S2 — nettoyage !important superflu (les deux règles suivantes) : `.pad.is-
+   editing` n'apparaît jamais sans `board-edit-mode` (setPadEditing() dans
+   app.js), donc ces sélecteurs plus spécifiques gagnent déjà sans !important
+   — cf. feedback_no_important. */
 body.board-edit-mode .pad.is-editing {
   /* Comme en basic/custom : 2 colonnes larges + 1 colonne étroite (38px) où
      tombent « déplacer » (drag, order 42) et « supprimer » (delete, order 45)
      → 4 boutons identiques + 2 boutons carrés plus petits, pour tous les skins. */
-  grid-template-columns: 1fr 1fr 38px !important;
+  grid-template-columns: 1fr 1fr 38px;
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing {
-  grid-template-columns: 1fr 1fr 38px !important;
+  grid-template-columns: 1fr 1fr 38px;
   grid-template-rows: auto auto auto 1fr auto auto;
 }
 
