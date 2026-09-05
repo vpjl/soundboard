@@ -8246,7 +8246,16 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
+/* #4 (2026-09-05) : media query élargie de « portrait uniquement » à tout
+   portable / fenêtre étroite. Le topbar de la scène est en 1 colonne dans les
+   DEUX orientations sur portable — donc Master doit toujours passer SOUS le
+   bloc board (ligne 3), jamais le partager (ligne 2). En paysage, faute de ce
+   forçage, des règles de l'ancienne mise en page 2 colonnes (grid-column:2 /
+   grid-row:2, styles.css ~7445/~8224) laissaient Master en ligne 2 pendant que
+   son grid-column était par ailleurs forcé à 1 → Master recouvrait le bloc
+   board (bug iPhone 13 mini paysage). Rend caduque le « grid-row: 2 / 4 »
+   d'atténuation en pointeur fin (~styles.css 10944). */
+@media (max-width: 950px), (pointer: coarse) {
 
   body.stage-mode .board-area {
     grid-column: 1 !important;
