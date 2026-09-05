@@ -3719,6 +3719,16 @@ body[data-skin="print"] .patch-bay-node {
 
 /* .pad-title font-size par nb de colonnes → token --pad-title-size (bloc S1) */
 
+/* S2 — lot 4 : min-width/height/margin-right/font-size concurrentes de ~8430
+   (!important sur margin/font-size, non important mais plus tardive sur
+   min-width/height) — groupée avec elle dans la même couche pour préserver
+   l'ordre (sinon hors-couche battrait la couche pour le non-important, quelle
+   que soit la spécificité). display/place-items/border/color/background/
+   font-weight/line-height : leurs concurrentes restent hors couche
+   (print/illustré/`.pad-type` seul, ~499/~3766/~8125) et continuent donc de
+   gagner sans changement (hors couche bat toujours couche pour le non
+   important). */
+@layer skin {
 .pad-shortcut,
 .pad-type {
   display: inline-grid;
@@ -3733,6 +3743,7 @@ body[data-skin="print"] .patch-bay-node {
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
+}
 }
 
 .pad-shortcut:empty,
@@ -3756,13 +3767,25 @@ body[data-skin="print"] .patch-bay-node {
 /* grid-column du titre/tags → valeur unique dans les règles de base .pad-title /
    .pad-tags (vestiges d'un ancien layout multi-colonnes du pad). */
 
+/* S2 — lot 4 : top/left/margin concurrentes de ~4164/~8568 (édition, plus
+   spécifiques, mêmes valeurs 8/8 — mutuellement exclusif avec cet état non-
+   édition de toute façon). Groupée dans la même couche pour rester cohérente
+   avec le reste du cluster .pad-shortcut/.pad-type. */
+@layer skin {
 .pad-shortcut.is-number {
   position: absolute;
   top: 0;
   left: 0;
   margin: 0;
 }
+}
 
+/* S2 — lot 4 : position/top/left/margin/border-color/color concurrentes de
+   ~4169 (édition sans board-edit-mode, dead) et ~8582 (édition garage,
+   gagnant actuel) — groupée dans la même couche pour préserver l'ordre de
+   spécificité exact (cette règle ne s'applique que hors édition, aucun
+   chevauchement réel avec elles, mais partage les mêmes propriétés). */
+@layer skin {
 .pad-type {
   position: absolute;
   top: 24px;
@@ -3770,6 +3793,7 @@ body[data-skin="print"] .patch-bay-node {
   margin: 0;
   border-color: var(--color_ui_border);
   color: var(--color_pad_secondary_text);
+}
 }
 
 .pad-type svg {
@@ -4150,11 +4174,21 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 }
 
+/* S2 — lot 4 : concurrente de ~8568 (board-edit-mode .pad.is-editing, plus
+   spécifique, mêmes valeurs top/left — aucun changement visible, mais groupée
+   par cohérence avec sa jumelle .pad-type ci-dessous). */
+@layer skin {
 .pad.is-editing .pad-shortcut.is-number {
   top: 8px;
   left: 8px;
 }
+}
 
+/* S2 — lot 4 : concurrente de ~8582 (board-edit-mode .pad.is-editing, plus
+   spécifique, left/color DIFFÉRENTS : 34px/muted ici vs 32px/text là-bas) —
+   ~8582 doit gagner (comportement actuel) — groupée dans la même couche pour
+   préserver l'ordre de spécificité exact. */
+@layer skin {
 .pad.is-editing .pad-type {
   top: 8px;
   left: 34px;
@@ -4164,6 +4198,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   border-color: transparent;
   background: transparent;
   color: var(--color_ui_text_muted);
+}
 }
 
 .pad.is-editing .pad-type svg {
@@ -8421,6 +8456,16 @@ body.stage-mode .pad-trigger {
   padding: 0;
 }
 
+/* S2 — lot 4 (.pad-shortcut/.pad-type). position/display/margin/font-size :
+   concurrentes des variantes édition garage (~8561/~8575, !important, plus
+   spécifiques, gagnent déjà toujours en édition) — groupée avec elles dans
+   la même couche pour préserver l'ordre. justify-self/width/height :
+   isolées. min-width : NON incluse ici — concurrente du reset global
+   `.pad, .pad * { min-width: 0 }` (~8845, hors couche) qu'elle bat par
+   spécificité (variante body.stage-mode) ; la mettre en couche l'aurait fait
+   perdre contre ce reset quelle que soit sa spécificité (détecté par la
+   vérif double-snapshot). Redéclarée juste en dessous, hors couche. */
+@layer skin {
 .pad-shortcut,
 .pad-shortcut.is-number,
 .pad-type,
@@ -8430,11 +8475,21 @@ body.stage-mode .pad-type {
   position: static !important;
   display: inline-grid !important;
   justify-self: start;
-  min-width: 22px;
   width: 22px;
   height: 22px;
   margin: 0 !important;
   font-size: 0.7rem !important;
+}
+}
+
+/* S2 — lot 4 : min-width laissée hors couche, cf. commentaire ci-dessus. */
+.pad-shortcut,
+.pad-shortcut.is-number,
+.pad-type,
+body.stage-mode .pad-shortcut,
+body.stage-mode .pad-shortcut.is-number,
+body.stage-mode .pad-type {
+  min-width: 22px;
 }
 
 .pad-shortcut[hidden] {
@@ -8558,6 +8613,13 @@ body.board-edit-mode .pad.is-editing .pad-label {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* S2 — lot 4 : position/display/margin/font-size concurrentes de ~8429
+   (!important, spécificité inférieure) — groupée dans la même couche.
+   min-width : NON incluse — concurrente du reset global `.pad, .pad *
+   { min-width: 0 }` (~8845, hors couche) qu'elle bat par spécificité ; la
+   mettre en couche l'aurait fait perdre quelle que soit sa spécificité
+   (détecté par la vérif double-snapshot). Redéclarée hors couche ci-dessous. */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-shortcut,
 body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
   position: absolute !important;
@@ -8566,12 +8628,20 @@ body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
   top: 8px;
   left: 8px;
   width: 20px;
-  min-width: 20px;
   height: 20px;
   margin: 0 !important;
   font-size: 0.7rem !important;
 }
+}
+body.board-edit-mode .pad.is-editing .pad-shortcut,
+body.board-edit-mode .pad.is-editing .pad-shortcut.is-number {
+  min-width: 20px;
+}
 
+/* S2 — lot 4 : position/display/margin concurrentes de ~8429 (!important,
+   spécificité inférieure) — groupée dans la même couche. min-width : NON
+   incluse, même raison que ci-dessus. */
+@layer skin {
 body.board-edit-mode .pad.is-editing .pad-type {
   grid-area: auto;
   position: absolute !important;
@@ -8580,12 +8650,15 @@ body.board-edit-mode .pad.is-editing .pad-type {
   top: 8px;
   left: 32px;
   width: 20px;
-  min-width: 20px;
   height: 20px;
   margin: 0 !important;
   border-color: transparent;
   background: transparent;
   color: var(--color_ui_text);
+}
+}
+body.board-edit-mode .pad.is-editing .pad-type {
+  min-width: 20px;
 }
 
 body.board-edit-mode .pad.is-editing .pad-type svg {
