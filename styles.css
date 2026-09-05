@@ -2284,7 +2284,10 @@ body.guest-mode .deck {
      que le contenu tient toujours, ce plafond empêche seulement une rangée de
      s'étirer AU-DELÀ — indispensable sur mobile où --pad-compact-height peut
      n'être pas encore posée (pads pas mesurables au 1er rAF), sinon rangées
-     infinies (l'ancien repli 9999px). */
+     infinies (l'ancien repli 9999px). Le 340px = PAD_ROW_MAX_FALLBACK (app.js) ;
+     --pad-compact-height n'est écrite QUE par applyPadCompactness(), le
+     min-height inline par pad QUE par syncAllPadMinHeights() — cf. le bloc
+     « Contrat hauteur de rangée des pads » dans app.js. */
   grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px));
 }
 

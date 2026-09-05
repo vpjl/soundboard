@@ -146,6 +146,16 @@ const BOARD_EXTENT_DEFAULT = 1280;
 const PAD_COMPACTNESS_STORAGE = "soundboard-live-pad-compactness";
 const AUDIO_LIB_SORT_STORAGE = "soundboard-live-audio-lib-sort"; // fenêtre « Sons stockés »
 const PAD_COMPACTNESS_MAX = 260;
+// Repli haut de la cible de hauteur de rangée, utilisé UNIQUEMENT tant que la
+// vraie valeur n'a pas pu être mesurée (pads pas encore dans le DOM). Doit
+// rester ≥ à toute hauteur de pad plausible : il vaut mieux une rangée un peu
+// haute qu'un pad écrasé. Même valeur que le repli du CSS
+// (`grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px))`, styles.css).
+const PAD_ROW_MAX_FALLBACK = 340;
+// Hauteur imposée à --pad-compact-height le temps d'une mesure : on comprime la
+// grille au maximum pour lire via scrollHeight la hauteur INCOMPRESSIBLE de
+// chaque pad (cf. syncAllPadMinHeights).
+const PAD_MEASURE_HEIGHT = "1px";
 const MICROPHONE_STORAGE = "soundboard-live-microphone";
 const ORPHAN_AUDIO_PREFIX = "orphan-audio-";
 const DEFAULT_BOARD_ID = "default";
@@ -20646,6 +20656,17 @@ function currentPadWidth() {
   return pad ? Math.round(pad.getBoundingClientRect().width) : 0;
 }
 
+/* ── Contrat hauteur de rangée des pads (JS ↔ CSS) ───────────────────────────
+   Deux variables, un seul propriétaire chacune :
+   • `--pad-compact-height` (sur <html>) = plafond de hauteur de rangée visé par
+     le curseur Aspect. ÉCRITE UNIQUEMENT par `applyPadCompactness()` ; lue par
+     `grid-auto-rows: minmax(auto, var(--pad-compact-height, 340px))`
+     (.pads.has-pad-layout, styles.css). Le repli 340px du CSS = PAD_ROW_MAX_FALLBACK.
+   • `pad.style.minHeight` (inline, par pad) = plancher incompressible du pad,
+     mesuré. ÉCRIT UNIQUEMENT par `syncAllPadMinHeights()` ; consommé par le `auto`
+     minimum de `grid-auto-rows`, qui n'agrandit donc une rangée que pour SON pad
+     le plus haut.
+   Aucune autre fonction ne doit toucher ces deux valeurs. */
 function applyPadCompactness(value, save = true) {
   if (!els.padCompactness) return;
   const min = Number(els.padCompactness.min) || 90;
@@ -20667,7 +20688,7 @@ function refreshPadCompactnessRange() {
     if (padCompactnessRetries++ < 20) {
       requestAnimationFrame(refreshPadCompactnessRange);
     } else if (!document.documentElement.style.getPropertyValue("--pad-compact-height")) {
-      document.documentElement.style.setProperty("--pad-compact-height", "260px");
+      applyPadCompactness(PAD_ROW_MAX_FALLBACK, false); // clampé à PAD_COMPACTNESS_MAX
     }
     return;
   }
@@ -20725,26 +20746,19 @@ function syncAllPadMinHeights() {
   const scrollY = window.scrollY;
   const prev = root.style.getPropertyValue("--pad-compact-height");
   pads.forEach((p) => p.style.removeProperty("min-height"));
-  root.style.setProperty("--pad-compact-height", "1px");
+  root.style.setProperty("--pad-compact-height", PAD_MEASURE_HEIGHT);
   const measures = pads.map((p) => {
     const padBottom = parseFloat(getComputedStyle(p).paddingBottom) || 0;
     return Math.ceil(p.scrollHeight) + Math.max(Math.round(padBottom), 6);
   });
-  if (prev) {
-    root.style.setProperty("--pad-compact-height", prev);
-  } else if (els.padCompactness) {
-    // Filet de sécurité : si --pad-compact-height n'était pas encore posée à cet
-    // instant (ex. cette fonction déclenchée avant l'initialisation normale du
-    // curseur de compacité, ou après une remise à zéro), ne jamais la laisser
-    // vide — le repli CSS (grid-auto-rows: minmax(auto, var(--pad-compact-height,
-    // 9999px)) sur .pads.has-pad-layout) fait alors exploser la hauteur des
-    // rangées (pads étirés sur tout l'écran, vus côté façade au clic sur
-    // "Désactiver" en scène). On repose une vraie valeur plutôt que de retirer
-    // la propriété.
-    applyPadCompactness(els.padCompactness.value, false);
-  } else {
-    root.style.removeProperty("--pad-compact-height");
-  }
+  // Restauration : la valeur d'avant si elle existait, sinon la cible canonique
+  // via l'unique propriétaire (applyPadCompactness). Ne JAMAIS laisser
+  // --pad-compact-height vide — le repli CSS (340px) étire alors chaque rangée
+  // à cette hauteur (pads géants, vus côté façade au clic sur « Désactiver » en
+  // scène).
+  if (prev) root.style.setProperty("--pad-compact-height", prev);
+  else if (els.padCompactness) applyPadCompactness(padCompactnessTarget(), false);
+  else root.style.removeProperty("--pad-compact-height"); // jamais laisser "1px" en place
   pads.forEach((p, i) => { p.style.minHeight = `${measures[i]}px`; });
   if (window.scrollX !== scrollX || window.scrollY !== scrollY) window.scrollTo(scrollX, scrollY);
 }
