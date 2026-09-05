@@ -283,15 +283,12 @@ body[data-skin="minimal"] .pad-play-row {
 }
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). width/gap : vivants (spécificité
-   plus haute que la base ~3249/~3441). min-height/padding : code mort, toujours
-   masqués par la règle non-édition ~8671 (spécificité encore supérieure) —
-   migration groupée sans risque, cf. mémoire du chantier. */
+/* S2 — nettoyage code mort : min-height/padding supprimés, toujours masqués
+   par la règle non-édition ~8804 (spécificité supérieure). width/gap restent
+   vivants. */
 @layer skin {
 body[data-skin="minimal"] .pad-trigger {
   width: 100%;
-  min-height: 100%;
-  padding: 6px 6px 30px;
   gap: 6px;
 }
 }
@@ -2753,19 +2750,14 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   cursor: pointer;
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). grid-template-columns/align-items/
-   justify-items/min-height/padding : code mort, la règle jumelle ~8063 (même
-   sélecteur/spécificité, en !important) les emporte toujours. container-type/
-   z-index/width/height/cursor : isolées. Reste groupée avec ses concurrentes
-   (~8063/~8082/~8359/~8478/~8671/~11333) dans la même couche pour préserver
-   l'ordre de spécificité exact. */
+/* S2 — nettoyage code mort : grid-template-columns/align-items/justify-items/
+   min-height/padding supprimés — la règle jumelle ~8139 (même sélecteur,
+   !important) les emportait déjà toujours. container-type/z-index/width/
+   height/cursor restent (isolées). */
 @layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
   container-type: inline-size;
-  grid-template-columns: 1fr;
-  align-items: center;
-  justify-items: stretch;
   /* `.pad-trigger` est un item de grille : `z-index` s'y applique sans
      `position`. container-type en fait déjà un contexte d'empilement (statique,
      donc rendu au niveau du flux) ; z-index 2 le hisse au-dessus de la couche
@@ -2775,8 +2767,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   z-index: 2;
   width: 100%;
   height: 100%;
-  min-height: inherit;
-  padding: 34px 12px 18px;
   cursor: pointer;
 }
 }
@@ -3274,16 +3264,16 @@ body.stage-mode .tag-filter-section-header {
    @layer base gagne bien puisque toutes ses concurrentes sont dans une couche
    plus prioritaire (skin/responsive). Le reste (display/position/etc.) est
    isolé, aucune autre règle ne le pose sur .pad-trigger. */
+/* S2 — nettoyage code mort (.pad-trigger, cluster taille) : grid-template-columns/
+   align-items/min-height/padding supprimés ici — toujours masqués par ~8420
+   (`.pad-trigger, body.stage-mode .pad-trigger`, !important, s'applique à tout
+   .pad-trigger sans condition), cf. mémoire du chantier. */
 @layer base {
 .pad-trigger {
   display: grid;
   position: relative;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
   gap: 9px;
   min-width: 0;
-  min-height: 86px;
-  padding: 10px 10px 34px;
   border-radius: 8px;
   /* Zone de clic uniquement : la boîte visible est portée par .pad-title.
      Fond ET bordure explicitement neutres, sinon les valeurs UA par défaut du
@@ -4132,18 +4122,15 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). min-height/padding/align-items :
-   code mort — `.pad.is-editing` n'apparaît jamais sans `body.board-edit-mode`
-   (setPadEditing() dans app.js), donc la règle plus spécifique ~8478
-   (body.board-edit-mode .pad.is-editing .pad-trigger) l'emporte toujours.
-   order/grid-column : isolées. */
+/* S2 — nettoyage code mort : min-height/padding/align-items supprimés —
+   `.pad.is-editing` n'apparaît jamais sans `body.board-edit-mode`
+   (setPadEditing() dans app.js), donc la règle plus spécifique ~8591
+   (body.board-edit-mode .pad.is-editing .pad-trigger) l'emportait toujours.
+   order/grid-column restent (isolées). */
 @layer mode {
 .pad.is-editing .pad-trigger {
   order: 0;
   grid-column: 1 / -1;
-  min-height: 56px;
-  padding: 8px 72px 8px 60px;
-  align-items: center;
 }
 }
 
@@ -7213,15 +7200,9 @@ body.stage-mode .controls {
   pointer-events: auto !important;
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). min-height/padding : code mort —
-   `.pad:not(.is-editing) .pad-trigger` (~8671, spécificité supérieure y
-   compris sur sa variante body.stage-mode) l'emporte toujours en scène. */
-@layer mode {
-body.stage-mode .pad-trigger {
-  min-height: clamp(108px, 18vh, 180px);
-  padding: 14px;
-}
-}
+/* S2 — nettoyage code mort : règle supprimée (min-height/padding, toujours
+   masqués par `.pad:not(.is-editing) .pad-trigger`/sa variante stage-mode,
+   ~8805, spécificité supérieure). */
 
 /* Titre du pad : même format en scène qu'en studio/garage (l'agrandissement
    scène-spécifique — clamp jusqu'à 1.6rem — a été retiré ; le titre suit
@@ -7380,13 +7361,8 @@ body.stage-mode .pad-alerts {
     grid-template-columns: 1fr !important;
   }
 
-  /* S2 — lot 2b : code mort, cf. ~3272/~8708 (spécificité supérieure gagne déjà). */
-  @layer skin {
-  .pad-trigger {
-    min-height: 76px;
-    padding-bottom: 32px;
-  }
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
   .master-control.small input {
     height: 32px;
@@ -7572,15 +7548,12 @@ body.stage-mode .pad-alerts {
   }
   }
 
-  /* S2 — lot 2b : gap vivant (masque celui de ~3272/~291 à cette largeur, il
-     lui faut rester dans une couche plus prioritaire qu'eux, cf. commentaires).
-     grid-template-columns/min-height/padding : code mort, cf. ~8396/~8708. */
+  /* S2 — nettoyage code mort : grid-template-columns/min-height/padding
+     supprimés (toujours masqués par une règle plus spécifique). gap reste
+     (vivant à cette largeur). */
   @layer skin {
   .pad-trigger {
-    grid-template-columns: minmax(0, 1fr) minmax(38px, auto);
-    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 32px;
   }
   }
 
@@ -7653,13 +7626,11 @@ body.stage-mode .pad-alerts {
     padding: 6px;
   }
 
-  /* S2 — lot 2b : gap vivant, groupé avec ses concurrentes (~3272/~291/~7566)
-     dans la couche responsive. min-height/padding : code mort, cf. ~8722. */
+  /* S2 — nettoyage code mort : min-height/padding supprimés (toujours
+     masqués par une règle plus spécifique). gap reste (vivant). */
   @layer skin {
   body.stage-mode .pad-trigger {
-    min-height: 76px;
     gap: 6px;
-    padding: 6px 6px 32px;
   }
   }
 
@@ -7675,14 +7646,8 @@ body.stage-mode .pad-alerts {
     grid-template-columns: 1fr;
   }
 
-  /* S2 — lot 2b : code mort, cf. ~3272/~8722/~8410 (spécificité supérieure gagne déjà). */
-  @layer skin {
-  .pad-trigger,
-  body.stage-mode .pad-trigger {
-    min-height: 88px;
-    padding-bottom: 38px;
-  }
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
   body[data-skin="minimal"].stage-mode .pads {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7941,13 +7906,11 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     padding: 6px;
   }
 
-  /* S2 — lot 2b : gap vivant, groupé avec ses concurrentes (~3272/~291/~7566/
-     ~7656) dans la couche responsive. min-height/padding : code mort, cf. ~8729. */
+  /* S2 — nettoyage code mort : min-height/padding supprimés (toujours
+     masqués par une règle plus spécifique). gap reste (vivant). */
   @layer skin {
   .pad-trigger,
   body.stage-mode .pad-trigger {
-    min-height: 76px;
-    padding: 6px 6px 32px;
     gap: 6px;
   }
   }
@@ -8005,22 +7968,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
 
-  /* S2 — lot 2b : code mort, doublon exact de la règle ~8535 (même sélecteur/
-     media, plus bas dans le fichier → elle seule compte). */
-  @layer skin {
-  body.board-edit-mode .pad.is-editing .pad-trigger {
-    padding: 8px 34px 9px 30px !important;
-  }
-  }
+  /* S2 — nettoyage code mort : règle supprimée, doublon exact de la règle
+     ~8608 (même sélecteur/media, plus bas dans le fichier → elle seule
+     compte). */
 
-  /* code mort, cf. ~3272/~8729 (spécificité supérieure gagne déjà). */
-  @layer skin {
-  .pad-trigger,
-  body.stage-mode .pad-trigger {
-    min-height: 88px;
-    padding-bottom: 38px;
-  }
-  }
+  /* S2 — nettoyage code mort : règle supprimée (min-height/padding-bottom,
+     toujours masqués par une règle plus spécifique). */
 
   .master-audio-button {
     width: 34px;
@@ -8128,11 +8081,10 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   display: none !important;
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). min-height : masqué en scène par
-   ~11404 (spécificité supérieure). padding : masqué par ~9133 (même spécificité,
-   plus bas dans le fichier). grid-template-columns/align-items/justify-items :
-   vivantes. Groupée avec ses concurrentes (~2764/~2814/~8428/~8546/~8740/~9133/
-   ~11404) dans la même couche pour préserver l'ordre de spécificité exact. */
+/* S2 — nettoyage code mort : padding supprimé (toujours masqué par ~9133,
+   même spécificité, plus bas dans le fichier). min-height reste (masqué
+   seulement en scène par ~11404, vivant partout ailleurs). grid-template-
+   columns/align-items/justify-items : vivantes. */
 @layer skin {
 body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-trigger,
 body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-trigger {
@@ -8142,7 +8094,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   width: 100%;
   height: 100%;
   min-height: clamp(150px, 18vw, 260px) !important;
-  padding: 34px 12px 18px !important;
 }
 }
 
@@ -8440,12 +8391,11 @@ body.stage-mode .pad-play-row {
 }
 }
 
-/* S2 — lot 2b (.pad-trigger, cluster taille). min-height/padding : code mort,
-   masqués partout par des règles plus spécifiques (~8740 non-édition, ~8555
-   édition garage, ~8132 illustré basic). grid-template-columns/align-items/
-   width : la base par défaut (gagnent déjà sur ~3272, non important, plus
-   ancienne). Groupée dans la même couche que ses concurrentes pour préserver
-   l'ordre de spécificité exact. */
+/* S2 — nettoyage code mort : min-height/padding supprimés, toujours masqués
+   par des règles plus spécifiques (~8740 non-édition, ~8555 édition garage,
+   ~8132 illustré basic). grid-template-columns/align-items : la base par
+   défaut (gagnent déjà sur ~3272, seule règle non conditionnelle du fichier
+   à les poser, donc vivantes partout). */
 @layer skin {
 .pad-trigger,
 body.stage-mode .pad-trigger {
@@ -8454,8 +8404,6 @@ body.stage-mode .pad-trigger {
   box-sizing: border-box;
   grid-template-columns: minmax(0, 1fr) !important;
   align-items: center !important;
-  min-height: 46px;
-  padding: 8px 8px 9px !important;
 }
 }
 
@@ -9237,14 +9185,13 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 
 @media (max-width: 950px), (pointer: coarse) {
-  /* S2 — lot 2c : grid-template-columns rendue morte par le doublon ~11759
-     (même sélecteur, même @media, plus bas dans le fichier) — groupée avec
-     lui pour préserver ce résultat. gap : vivante, aucune autre règle @media
-     identique ne la redéclare. */
+  /* S2 — nettoyage code mort : grid-template-columns supprimée, toujours
+     masquée par le doublon ~9226 (même sélecteur, même @media, plus bas dans
+     le fichier). gap reste (vivante, aucune autre règle @media identique ne
+     la redéclare). */
   @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
-    grid-template-columns: 22px 22px 14px minmax(0, 1fr) auto 24px 24px !important;
     gap: 4px !important;
   }
   }
