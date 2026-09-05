@@ -4201,10 +4201,11 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
 }
 }
 
-.pad.is-editing .pad-type svg {
-  width: 18px;
-  height: 18px;
-}
+/* (Supprimé le 2026-09-05 : `.pad.is-editing .pad-type svg { width:18; height:18 }`
+   était du code mort — `body.board-edit-mode .pad.is-editing .pad-type svg`
+   (~styles.css 8666, 19px, plus spécifique) gagne toujours, et `.pad.is-editing`
+   n'existe jamais sans `board-edit-mode` (setPadEditing(), app.js). Aucune
+   variante @media. Dernier reliquat du chantier @layer pad.) */
 
 .pad.is-editing .pad-time {
   top: 9px;
