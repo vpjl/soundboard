@@ -2677,10 +2677,28 @@ function handlePadEyeButton(pad) {
       savePadMeta(pad);
     }
   } else if (pad.fxOverlayOpen) {
+    // #2 (2026-09-05) : escamoter l'illustration (translateY 100%) AVANT de
+    // fermer le panneau, puis la faire remonter deux frames plus tard — sinon
+    // le retrait simultané de `is-fx-open` (qui rend .pad-visual-slide visible)
+    // et de `is-visual-hidden` dans le même tick saute la transition et
+    // l'illustration apparaît d'un coup, découverte de haut en bas par le
+    // panneau qui descend.
+    if (isBasicSkin && hasIllustration) pad.node.classList.add("is-visual-hidden");
     setPadFxOverlayOpen(pad, false);
     if (isBasicSkin && hasIllustration) {
-      setPadVisualImage(pad, pad.visualImage, false);
-      savePadMeta(pad);
+      let revealed = false;
+      const revealIllustration = () => {
+        if (revealed) return;
+        revealed = true;
+        setPadVisualImage(pad, pad.visualImage, false);
+        savePadMeta(pad);
+      };
+      // Deux frames pour que .pad-visual-slide peigne l'illustration escamotée
+      // (translateY 100%) avant de retirer is-visual-hidden → la transition
+      // « remonte » se joue. setTimeout = filet si l'onglet passe en arrière-
+      // plan entre-temps (rAF gelé), sinon l'illustration resterait masquée.
+      requestAnimationFrame(() => requestAnimationFrame(revealIllustration));
+      window.setTimeout(revealIllustration, 120);
     }
   } else {
     setPadFxOverlayOpen(pad, true);
