@@ -7875,16 +7875,12 @@ body[data-skin="minimal"].stage-mode .pads.has-pad-layout {
     width: 42px;
   }
 
-  .pad-shortcut,
-  .pad-shortcut[hidden] {
-    display: inline-grid !important;
-    font-size: 0 !important;
-  }
-
-  .pad-shortcut::after {
-    content: attr(data-pad-number);
-    font-size: 0.72rem;
-  }
+  /* S2 — nettoyage code mort : règle supprimée (display : redondante avec
+     ~8476, toujours présente ; font-size:0 + le ::after juste en dessous
+     voulaient remplacer la lettre par le numéro du pad sur tactile — devenu
+     inutile depuis qu'app.js le fait déjà directement, cf. isPortableDevice()
+     dans showNumber ~app.js:1784 : le badge affiche le numéro en texte natif
+     sur portable, indépendamment du réglage « afficher les touches »). */
 
   body.stage-mode .pad-live-row {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -8496,9 +8492,8 @@ body.stage-mode .pad-type {
   display: none !important;
 }
 
-.pad-shortcut::after {
-  content: none !important;
-}
+/* S2 — nettoyage code mort : règle supprimée (ne neutralisait plus que le
+   ::after ci-dessus, lui-même supprimé). */
 
 @layer base {
 .pad-tags {
