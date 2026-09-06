@@ -9641,27 +9641,6 @@ body.stage-mode #boardName:focus {
   gap: 10px;
 }
 
-.skin-editor-preview {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
-}
-
-.skin-preview-status.is-success {
-  color: var(--color_status_success);
-}
-
-.skin-preview-status.is-danger {
-  color: var(--color_status_danger);
-}
-
-.skin-preview-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
 .skin-editor-field[hidden] {
   display: none !important;
 }
@@ -9703,10 +9682,6 @@ body.stage-mode #boardName:focus {
   grid-template-columns: minmax(300px, 360px) minmax(520px, 1fr);
 }
 
-.skin-preview-board {
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-}
-
 .skin-editor-group-title {
   margin: 12px 0 2px;
   color: var(--text);
@@ -9723,24 +9698,6 @@ body.stage-mode #boardName:focus {
   line-height: 1.3;
 }
 
-.skin-preview-status.is-progress {
-  color: var(--color_status_progress);
-}
-
-.skin-preview-status.is-warning {
-  color: var(--color_status_warning);
-}
-
-.skin-preview-status.is-stop {
-  color: var(--color_status_stop);
-}
-
-.skin-editor-preview {
-  color: var(--color_ui_text);
-  background: var(--color_ui_panel);
-  border-color: var(--color_ui_border);
-}
-
 .skin-editor-preview::before {
   content: "Aperçu board";
   display: block;
@@ -9750,84 +9707,12 @@ body.stage-mode #boardName:focus {
   text-transform: uppercase;
 }
 
-.skin-preview-board {
-  padding: 14px;
-  border: 1px solid var(--color_ui_border);
-  border-radius: 12px;
-  background: var(--color_ui_background);
-}
-
 .skin-editor-dialog,
 .skin-editor-panel {
   color: var(--color_ui_text);
   background: var(--color_ui_panel);
   border-color: var(--color_ui_border);
 }
-
-.skin-editor-preview {
-  color: var(--color_ui_text) !important;
-  background: var(--color_ui_panel) !important;
-  border-color: var(--color_ui_border) !important;
-}
-
-.skin-preview-board {
-  color: var(--color_ui_text) !important;
-  background: var(--color_ui_background) !important;
-  border-color: var(--color_ui_border) !important;
-}
-
-.skin-preview-board-shell {
-  margin-bottom: 14px;
-  padding: 14px;
-  border: 1px solid var(--color_ui_border);
-  border-radius: 12px;
-  background: var(--color_ui_panel);
-  color: var(--color_ui_text);
-}
-
-
-/* Skin editor preview rebuild */
-.skin-editor-preview {
-  color: inherit;
-  background: transparent;
-}
-
-.skin-preview-board-shell {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--color_ui_border);
-  border-radius: 14px;
-  background: var(--color_ui_background);
-}
-
-.skin-preview-board {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 12px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.skin-preview-messages {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.skin-preview-status {
-  padding: 4px 8px;
-  border: 1px solid var(--color_ui_border);
-  border-radius: 999px;
-  background: var(--color_ui_panel);
-}
-
-.skin-preview-status.is-success { color: var(--color_status_success); }
-.skin-preview-status.is-progress { color: var(--color_status_progress); }
-.skin-preview-status.is-warning { color: var(--color_status_warning); }
-.skin-preview-status.is-danger { color: var(--color_status_danger); }
-.skin-preview-status.is-stop { color: var(--color_status_stop); }
 
 .skin-editor-field label {
   color: var(--muted);
@@ -10345,12 +10230,25 @@ body.stage-mode #boardName:focus {
 }
 
 
+/* ── Aperçu de l'éditeur de skin ──────────────────────────────────────────
+   L'aperçu est rendu dans une <iframe> (#skinPreviewFrame) : `.skin-editor-preview`
+   est la <section> parente (mode selector + champ tags + l'iframe) ; le board
+   maquette vit DANS l'iframe, racine `.skin-preview-board-shell` (sans classe
+   `.skin-editor-preview`), et n'est stylé QUE par les classes `.skin-preview-*`.
+   Ces blocs étaient auparavant éclatés en ~15 règles dupliquées (cruft d'avant
+   le passage en iframe) — consolidés ici, valeurs effectives inchangées.
+   `!important` conservés à l'identique (à réviser dans une passe dédiée). */
 .skin-editor-preview {
   min-height: 0;
   max-height: min(780px, calc(92vh - 120px));
   padding: 10px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 12px;
   overflow-x: hidden; /* clip the wide desktop-width iframe to the panel */
   overflow-y: auto;
+  color: var(--color_ui_text) !important;
+  background: var(--color_ui_panel) !important;
+  border-color: var(--color_ui_border) !important;
 }
 
 /* Preview iframe: rendered at a DESKTOP width so the real desktop CSS applies
@@ -10372,30 +10270,42 @@ body.stage-mode #boardName:focus {
   z-index: 1;
 }
 
+/* Racine du board maquette dans l'iframe. Le <style> injecté par
+   buildSkinPreviewFrame() force en plus display:flex/column + width:520px et
+   ramène gap à 8px — d'où l'écart avec les valeurs ci-dessous. */
 .skin-preview-board-shell {
+  display: grid;
   gap: 4px;
+  margin-bottom: 14px;
   padding: 8px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 14px;
+  background: var(--color_ui_background);
+  color: var(--color_ui_text);
 }
-
-/* NB : l'aperçu de l'éditeur de skin est rendu dans une <iframe>
-   (#skinPreviewFrame) dont la racine est `.skin-preview-board-shell`, sans
-   classe `.skin-editor-preview`. Tous les anciens overrides de mise en page
-   `.skin-editor-preview .<élément du board>` (master-strip, board-area, barre
-   Cues…) ne matchaient donc plus rien et ont été supprimés — l'iframe utilise
-   directement le CSS desktop réel du board. Ne styler l'aperçu que par les
-   classes propres `.skin-preview-*` (sans préfixe `.skin-editor-preview`). */
 
 .skin-preview-board {
+  display: grid;
   grid-template-columns: repeat(2, minmax(250px, 1fr));
   gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  color: var(--color_ui_text) !important;
+  background: var(--color_ui_background) !important;
+  border-color: var(--color_ui_border) !important;
 }
 
+/* Le board maquette est toujours `.skin-preview-board.pads` ; le <style> de
+   l'iframe force en plus grid-template-columns: minmax(0, 340px). */
 .skin-preview-board.pads {
   grid-template-columns: repeat(2, minmax(260px, 1fr));
   gap: 8px;
 }
 
 .skin-preview-messages {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-self: start;
   align-items: flex-start;
@@ -10403,8 +10313,17 @@ body.stage-mode #boardName:focus {
 
 .skin-preview-status {
   padding: 5px 9px;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 999px;
+  background: var(--color_ui_panel);
   font-size: 0.74rem;
 }
+
+.skin-preview-status.is-success { color: var(--color_status_success); }
+.skin-preview-status.is-progress { color: var(--color_status_progress); }
+.skin-preview-status.is-warning { color: var(--color_status_warning); }
+.skin-preview-status.is-danger { color: var(--color_status_danger); }
+.skin-preview-status.is-stop { color: var(--color_status_stop); }
 
 @media (max-width: 1120px) {
   .skin-editor-layout {
