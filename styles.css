@@ -9524,10 +9524,9 @@ body.stage-mode #boardSelect {
   padding: 0;
 }
 
-/* Le nom du board est désormais dans le bloc board : masquer le gros titre topbar.
-   Cible l'ID + !important pour battre `html body.stage-mode .brand p { display:block !important }`. */
+/* Le nom du board est désormais dans le bloc board : masquer le gros titre topbar. */
 body.stage-mode #stageBoardTitle {
-  display: none !important;
+  display: none;
 }
 
 body.stage-mode .board-name {
@@ -10867,34 +10866,24 @@ html body .board-main > .board-mode-selector .board-mode-button[data-board-mode-
 }
 /* Le logo / titre / signature / message gardent le même aspect qu'en
    Studio/Garage (pas de réduction de taille en Scène) — seul l'agencement
-   change (largeur du titre libérée, centrage vertical). */
+   change (largeur du titre libérée). */
 html body.stage-mode .topbar {
   /* minmax(420px, …) et pas minmax(0, …) : sans plancher, la colonne 1
      (Board+Cues) rétrécit autant qu'il faut pour laisser Master (colonne 2,
      max-content) prendre toute la place qu'il réclame — Cues n'a alors plus
      assez de largeur pour tenir sur une ligne (repasse à 2 lignes). Studio
      (.topbar de base) a déjà un plancher similaire (260px) ; 420px ici car
-     Cues a besoin d'un peu plus large pour Cues+Crossfade sur une ligne. */
-  grid-template-columns: minmax(420px, 1fr) max-content !important;
-  /* "start", comme en Studio/Garage (cf. .topbar de base) — même cause que le
-     fix précédent sur .brand : "center" ici décalait le logo/texte au
-     relâchement de la compensation, même une fois .brand lui-même corrigé,
-     car c'est une propriété distincte (alignement de .brand DANS la ligne de
-     grille du topbar, pas alignement DES ENFANTS de .brand). */
-  align-items: start !important;
+     Cues a besoin d'un peu plus large pour Cues+Crossfade sur une ligne.
+     Pas de `!important` : (0,2,2) bat déjà la règle de base (0,1,0) ; le
+     garde-fou mobile (~11389, @media + !important) reste prioritaire sous
+     950px. `align-items: start` est déjà la valeur de `.topbar` de base. */
+  grid-template-columns: minmax(420px, 1fr) max-content;
 }
 
-html body.stage-mode .brand {
-  display: flex !important;
-  /* "start", comme en Studio/Garage (cf. .brand de base) : "center" décalait
-     visiblement le logo/texte lors de l'ancienne compensation Studio→Scène. */
-  align-items: start !important;
-}
-
-html body.stage-mode .brand-tools {
-  /* "auto" (= start, hérité de .brand), comme en Studio/Garage. */
-  align-self: auto !important;
-}
+/* (Anciennes règles `html body.stage-mode .brand { display:flex; align-items:start }`
+   et `.brand-tools { align-self:auto }` supprimées : redondantes avec `.brand` /
+   `.brand-tools` de base — c'étaient des contre-poids à la couche d'épinglage JS
+   Studio→Scène, retirée en S3 (v923). */
 
 .help-button {
   border-radius: 50% !important;
@@ -11381,13 +11370,14 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
     max-width: 100%;
   }
 
-  /* LA cause du débordement : `html body.stage-mode .topbar` (l.~11623, sans
-     media query, !important) impose `minmax(420px,1fr) max-content` → colonne 1
-     à 420px MINIMUM + Master en colonne 2 max-content = topbar bien plus large
-     que le viewport. On force 1 seule colonne ici (même spécificité + important,
-     mais dans un @media et plus tard dans le fichier → gagne). */
+  /* LA cause du débordement : `html body.stage-mode .topbar` (~10871, hors
+     media query) impose `minmax(420px,1fr) max-content` → colonne 1 à 420px
+     MINIMUM + Master en colonne 2 max-content = topbar bien plus large que le
+     viewport. On force 1 seule colonne ici (même spécificité (0,2,2), plus tard
+     dans le fichier → gagne, plus besoin de !important depuis que ~10871 l'a
+     perdu). */
   html body.stage-mode .topbar {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr);
   }
   html body.stage-mode .board-area,
   html body.stage-mode .master-strip {
