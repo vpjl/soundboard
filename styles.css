@@ -3404,7 +3404,10 @@ body.stage-mode .tag-filter-section-header {
   text-transform: uppercase;
 }
 
-.pad.is-ending .pad-alert-ending,
+/* .pad-alert-ending (« Fin ») : jamais affiché — remplacé par le flash de fin
+   (.pad-crossfade-flash). Le badge reste dans le template mais retiré de cette
+   liste « afficher si l'état est actif » → il garde le `display: none` de base
+   `.pad-alert`, sans avoir besoin d'un override `!important` plus bas. */
 .pad.is-looping .pad-alert-loop,
 .pad.is-reverse .pad-alert-reverse,
 .pad.is-mono .pad-alert-mono,
@@ -8973,9 +8976,9 @@ body.stage-mode .pad:not(.is-editing) .controls {
   animation: none;
 }
 
-.pad-alert-ending {
-  display: none !important;
-}
+/* (Ancien override `.pad-alert-ending { display: none !important }` supprimé :
+   le badge « Fin » n'est plus dans la liste « afficher si l'état actif » ~3407,
+   il garde donc le `display: none` de base `.pad-alert`.) */
 
 /* Flash de fin : entrée verte brève puis clignotement ROUGE de plus en plus RAPIDE,
    sur toute la fenêtre restante (--preend-flash-duration = temps restant). forwards pour
