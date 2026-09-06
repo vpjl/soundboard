@@ -9313,10 +9313,8 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 
 
 @media (max-width: 950px), (pointer: coarse) {
-  /* S2 — nettoyage code mort : grid-template-columns supprimée, toujours
-     masquée par le doublon ~9226 (même sélecteur, même @media, plus bas dans
-     le fichier). gap reste (vivante, aucune autre règle @media identique ne
-     la redéclare). */
+  /* Resserre l'espacement de la 1re ligne des pads sur petit écran / tactile ;
+     le gabarit de grille reste celui de base (~8823, bord-à-bord). */
   @layer skin {
   .pad:not(.is-editing) .pad-play-row,
   body.stage-mode .pad:not(.is-editing) .pad-play-row {
@@ -11520,28 +11518,11 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
     width: 16px;
     height: 16px;
   }
-  /* Pad : centrer la rangée d'options (numéro/type · durée/note/œil) au lieu
-     de la coller aux deux bords — un 1fr de chaque côté du groupe.
-     #1 (2026-09-05) : restreint à (pointer: coarse). Le `max-width: 950px` du
-     bloc parent attrapait aussi les fenêtres d'ordinateur redimensionnées
-     (pointeur fin) — la rangée s'y tassait au centre au passage 4→3 colonnes,
-     signalé comme un bug. Sur pointeur fin la rangée garde le gabarit bord-à-
-     bord de base (styles.css ~8783). */
-  /* S2 — lot 2c : gagne sur le doublon ~9186 (même sélecteur, même @media,
-     plus haut dans le fichier) — groupée avec lui pour préserver ce résultat. */
-  @media (pointer: coarse) {
-  @layer skin {
-  .pad:not(.is-editing) .pad-play-row,
-  body.stage-mode .pad:not(.is-editing) .pad-play-row {
-    grid-template-columns: minmax(0, 1fr) 22px 22px 14px auto 24px 24px minmax(0, 1fr) !important;
-    grid-template-areas:
-      ". shortcut type flash time note eye ."
-      "title title title title title title title title"
-      "progress progress progress progress progress progress vu vu"
-      "alerts alerts alerts alerts alerts alerts alerts alerts" !important;
-  }
-  }
-  }
+  /* (Retiré 2026-09-06 : le gabarit `.pad-play-row` centré sur (pointer: coarse)
+     — un `minmax(0,1fr)` de chaque côté du groupe numéro/type · note/œil.
+     Jamais demandé, introduit par erreur en v936 dans un commit sans rapport ;
+     la 1re ligne des pads reprend le gabarit bord-à-bord de base ~8823
+     (`shortcut type flash . time note eye`) dans tous les modes/skins.) */
   /* Info de cue (« lance pad X si… ») : sur 2 lignes si elle ne tient pas sur
      une, plutôt que tronquée. */
   .topbar > .live-tools .cue-status {
