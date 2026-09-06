@@ -1838,6 +1838,13 @@ function setBoardPadEditing(editing) {
   syncPadSelectionLocks();
   renderBoardInfoSection();
   refreshUndoButton();
+  // Entrer/sortir du garage ajoute ou retire une rangée de boutons d'édition sur
+  // chaque pad : la hauteur naturelle change, donc le min-height mesuré doit être
+  // recalculé, sinon la grille garde les rangées du studio (pads « carrés » en
+  // skin basic/custom) et rogne la 2e rangée de boutons. Immédiat + rAF (le style
+  // .board-edit-mode vient d'être appliqué sur <body>).
+  syncAllPadMinHeightsSoon();
+  requestAnimationFrame(() => syncAllPadMinHeightsSoon());
   localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
@@ -7983,6 +7990,15 @@ function applySkin(skin) {
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
   state.pads.forEach((pad) => { fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
+  // Changer de skin change la hauteur naturelle du pad (illustration affichée ou
+  // non, paddings, rangées de boutons) : le min-height mesuré de chaque pad doit
+  // être recalculé, sinon la grille garde les rangées de l'ancien skin (pads
+  // « carrés » du basic/custom qui rognent la 2e rangée de boutons). Même patron
+  // immédiat + rAF que setPadVisualImage.
+  if (typeof syncAllPadMinHeightsSoon === "function") {
+    syncAllPadMinHeightsSoon();
+    requestAnimationFrame(() => syncAllPadMinHeightsSoon());
+  }
 }
 
 function revealGalleryPads(save = true) {
