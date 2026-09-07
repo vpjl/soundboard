@@ -8354,14 +8354,12 @@ body.stage-mode .secondary-live-group {
   }
 
   body.stage-mode .master-strip {
-    --master-stop-size: clamp(52px, 8vw, 72px) !important;
-    grid-template-columns: minmax(54px, 68px) 24px minmax(0, 1fr) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
-    grid-column: 2;
-    grid-row: 2;
-    /* Pas de align-self ici : styles.css ~11083 impose align-self:stretch
-       sans media query, donc gagne systématiquement (dernier arrivé, même
-       spécificité) — une valeur posée ici serait de toute façon morte. */
-    justify-self: end;
+    /* overflow visible : neutralise le `overflow: hidden` partagé ci-dessus
+       (~8038) pour la Scène — halos de focus, menus déroulants et nom de
+       sortie audio long ne doivent pas être rognés. Les propriétés de layout
+       qui vivaient ici (colonnes, grid-column/row, justify-self,
+       --master-stop-size) étaient toutes mortes : le garde-fou de fin de
+       fichier (~11362) et le bloc « #4 » (~8402) les redéfinissent. */
     overflow: visible !important;
   }
 
@@ -8394,21 +8392,16 @@ body.stage-mode .secondary-live-group {
     grid-row: 2 !important;
   }
 
-  /* width:fit-content (au lieu de 100%/stretch) : ces deux blocs n'ont pas
-     besoin de toute la largeur de l'écran pour leur contenu (badges
-     FX/Ducking, bouton Crossfade…) — les étirer laissait un grand vide à
-     droite, repéré le 2026-08-20. max-width:100% en garde-fou (contenu
-     jamais plus large que l'écran, ex. nom de sortie audio long). */
+  /* #4 (2026-09-05) : Master passe SOUS le bloc board (ligne 3) sur portable,
+     dans les deux orientations. `grid-row` garde son !important — il bat le
+     `grid-row: 2 / 4` du bloc pointeur-fin (~10834). La largeur et le
+     positionnement horizontal (grid-column / width / justify-self) sont
+     pilotés par le garde-fou de fin de fichier (~11362), qui étire Master
+     pleine largeur : les `fit-content` / `justify-self:end` posés ici étaient
+     déjà morts. */
   body.stage-mode .master-strip {
-    --master-stop-size: 62px !important;
-    grid-column: 1 !important;
+    --master-stop-size: 62px;
     grid-row: 3 !important;
-    width: fit-content !important;
-    max-width: 100% !important;
-    /* end (pas start) : Master doit rester à droite — même alignement qu'en
-       paysage/large (justify-self:end, cf. styles.css ~8171) — pas collé au
-       bord gauche de l'écran. Erreur du 2026-08-20 corrigée le même jour. */
-    justify-self: end !important;
   }
 }
 
@@ -8453,19 +8446,11 @@ body.stage-mode .secondary-live-group {
 }
 
 @media (max-width: 950px), (pointer: coarse) {
-  /* 1re colonne bornée (170-220px, pas 1fr) : cette règle suppose une .topbar
-     à 1 seule colonne pleine largeur (mobile), où max-width:100% se résout
-     contre une largeur finie. Mais html body.stage-mode .topbar (styles.css
-     ~11143, !important, sans media query) garde 2 colonnes même ici — le
-     bloc Master atterrit dans une colonne « max-content » où max-width:100%
-     ne se résout plus contre rien de fini, et la colonne 1fr grandissait donc
-     sans limite (bloc Master étiré sur toute la largeur de l'écran, repéré au
-     passage du seuil ~950px sur ordinateur). */
-  body.stage-mode .master-strip {
-    grid-template-columns: minmax(170px, 220px) 30px minmax(0, 0) minmax(calc(var(--master-stop-size) + 12px), max-content) !important;
-    max-width: 100%;
-  }
-
+  /* (Retiré : `body.stage-mode .master-strip { grid-template-columns:
+     minmax(170px,220px)… !important; max-width:100% }` — bornait la 1re
+     colonne quand la topbar restait à 2 colonnes ; depuis que le garde-fou
+     ~11391 force la topbar à 1 colonne ici, cette règle était morte,
+     entièrement redéfinie par ~11404.) */
   body.stage-mode .master-volume-stack {
     min-width: 0;
   }
@@ -11391,19 +11376,25 @@ body[data-skin="basic"].stage-mode .pad.has-color:not(.has-visual-image):not(.is
   html body.stage-mode .topbar {
     grid-template-columns: minmax(0, 1fr);
   }
-  html body.stage-mode .board-area,
-  html body.stage-mode .master-strip {
+  html body.stage-mode .board-area {
     grid-column: 1 !important;
     width: auto !important;
     max-width: 100% !important;
     justify-self: stretch !important;
   }
+  /* Master : plus de !important — les blocs qui le combattaient (~8356, ~8402,
+     ~8464) ont été nettoyés (05/09→07/09). `grid-column` bat `grid-column: 2`
+     (~7272) par la spécificité du préfixe `html` ; `width` / `max-width` /
+     `justify-self` sont posés juste au-dessus (`body .master-strip,
+     body.stage-mode .master-strip`), plus tard dans le fichier. */
+  html body.stage-mode .master-strip {
+    grid-column: 1;
+  }
 
-  /* Master en scène : forcer une seule colonne + tout ce qui est dedans à
-     pouvoir rétrécir, et réduire la taille des gros boutons Stop. */
+  /* Master en scène : une seule colonne (les 3 autres pistes des
+     grid-template-areas retombent en `auto`). */
   body.stage-mode .master-strip {
-    grid-template-columns: minmax(0, 1fr) !important;
-    --master-stop-size: clamp(48px, 20vw, 110px);
+    grid-template-columns: minmax(0, 1fr);
   }
   body.stage-mode .master-strip > * {
     min-width: 0;
