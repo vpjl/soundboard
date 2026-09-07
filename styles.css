@@ -11630,6 +11630,34 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   }
 }
 
+/* Portable en portrait, cues actives : l'îlot passe sur 2 rangées — tous les
+   boutons sur la 1re, l'info de la cue suivante seule sur la 2e, en pleine
+   largeur et sans troncature (sur une seule ligne, on ne pouvait pas la lire). */
+@media (orientation: portrait) and (pointer: coarse) {
+  body.cues-enabled:not(.board-edit-mode) .topbar > .live-tools {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    overflow-x: visible;
+  }
+  body.cues-enabled:not(.board-edit-mode) .topbar > .live-tools > *,
+  body.cues-enabled:not(.board-edit-mode) .topbar > .live-tools .cue-live-row > *,
+  body.cues-enabled:not(.board-edit-mode) .topbar > .live-tools .xfade-live-row > * {
+    order: 0;
+  }
+  body.cues-enabled:not(.board-edit-mode) .topbar > .live-tools .cue-status {
+    order: 1;
+    flex: 1 0 100%;
+    max-width: none;
+    max-height: none;
+    -webkit-line-clamp: none;
+    line-clamp: none;
+    display: block;
+  }
+  body.cues-enabled:not(.board-edit-mode):not(.guest-mode) .deck {
+    padding-bottom: calc(var(--cable-extra-bottom) + 78px);
+  }
+}
+
 /* Repli de projection vidéo : quand window.open est bloqué (lecture d'un pad
    vidéo commandée depuis la régie → pas de geste utilisateur sur la façade),
    la vidéo est projetée ici, plein écran par-dessus toute l'app. Créé à la
