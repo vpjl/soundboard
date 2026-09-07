@@ -604,6 +604,7 @@ const els = {
   imageSketch: document.querySelector("#imageSketch"),
   imageRemove: document.querySelector("#imageRemove"),
   imagePreview: document.querySelector("#imagePreview"),
+  imagePreviewImg: document.querySelector("#imagePreview .image-preview-img"),
   imageSketchCanvas: document.querySelector("#imageSketchCanvas"),
   sketchColorBtns: [...document.querySelectorAll("[data-sketch-color]")],
   sketchSizeBtns: [...document.querySelectorAll("[data-sketch-size]")],
@@ -611,6 +612,9 @@ const els = {
   imagePosX: document.querySelector("#imagePosX"),
   imagePosY: document.querySelector("#imagePosY"),
   imageZoom: document.querySelector("#imageZoom"),
+  imagePosXValue: document.querySelector("#imagePosXValue"),
+  imagePosYValue: document.querySelector("#imagePosYValue"),
+  imageZoomValue: document.querySelector("#imageZoomValue"),
   duckPercent: document.querySelector("#duckPercent"),
   helpButton: document.querySelector("#helpButton"),
   helpDialog: document.querySelector("#helpDialog"),
@@ -2624,6 +2628,9 @@ function createLiveFxPanVolumeControls(pad) {
 function setPadFxOverlayOpen(pad, open) {
   if (!pad.fxOverlayEl) return;
   pad.fxOverlayOpen = open;
+  // Toute fermeture repart d'un état neutre ; handlePadEyeButton repose
+  // eyeAfterFx juste après quand la fermeture vient du bouton œil.
+  if (!open) pad.eyeAfterFx = false;
   pad.node.classList.toggle("is-fx-open", open);
   pad.fxOverlayEl.setAttribute("aria-hidden", String(!open));
   pad.visualToggleEl?.setAttribute("aria-pressed", String(open));
@@ -2672,6 +2679,10 @@ function syncPadEyeButtonLabel(pad) {
   let label = "Afficher les effets live du pad";
   if (pad.fxOverlayOpen) {
     label = "Masquer les effets live du pad";
+  } else if (pad.eyeAfterFx && document.body.dataset.skin === "basic"
+    && (pad.visualImage || pad.color)
+    && pad.node.classList.contains("is-visual-hidden")) {
+    label = "Afficher l’image du pad";
   } else if (document.body.dataset.skin === "basic"
     && (pad.visualImage || pad.color)
     && !pad.node.classList.contains("is-visual-hidden")) {
@@ -2689,62 +2700,53 @@ function handlePadEyeButton(pad) {
   const fxAllowed = padType(pad) === "audio" && state.liveFxPanelAllowed;
   const illustrationShown = isBasicSkin && hasIllustration
     && !pad.node.classList.contains("is-visual-hidden");
+  // Cycle (skin basic, pad audio, effets autorisés) :
+  //   illustration → boutons → panneau FX → boutons → illustration
+  const revealFromButtons = isBasicSkin && hasIllustration
+    && pad.node.classList.contains("is-visual-hidden");
   if (illustrationShown) {
     setPadVisualImage(pad, pad.visualImage, true);
+    pad.eyeAfterFx = false;
     savePadMeta(pad);
   } else if (!fxAllowed) {
     if (isBasicSkin && hasIllustration) {
       setPadVisualImage(pad, pad.visualImage, false);
+      pad.eyeAfterFx = false;
       savePadMeta(pad);
     }
   } else if (pad.fxOverlayOpen) {
-    const revealBySlide = isBasicSkin && hasIllustration
-      && pad.node.classList.contains("is-visual-hidden");
-    if (revealBySlide) {
-      // #2 : le panneau effets NE BOUGE PAS ; l'illustration remonte
-      // (translateY 100%→0) par-dessus lui et le masque progressivement.
-      // - is-fx-open reste posé pendant la remontée (panneau visible, en place)
-      // - .pad-fx-reveal-illustration élève la couche illustration au-dessus du
-      //   panneau (z-index) et la rend visible (elle est déjà à translateY 100%
-      //   via is-visual-hidden)
-      // - retrait de is-visual-hidden 2 frames plus tard → la remontée se joue
-      // - une fois l'illustration en place (panneau masqué), on ferme vraiment
-      // .pad-fx-reveal-illustration : couche illustration en z-index 7, visible,
-      // au-dessus du panneau resté en place.
-      pad.node.classList.add("pad-fx-reveal-illustration");
-      const img = pad.node.querySelector(".pad-visual-slide-img");
-      const panel = pad.node.querySelector(".pad-fx-panel");
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        pad.node.classList.remove("is-visual-hidden"); // → l'illustration remonte 100%→0
-      }));
-      let finished = false;
-      const finish = () => {
-        if (finished) return;
-        finished = true;
-        img?.removeEventListener("transitionend", onEnd);
-        setPadVisualImage(pad, pad.visualImage, false);
-        // Fermer le panneau SANS qu'il glisse (« animation de trop ») : on coupe
-        // sa transition en inline, on retire is-fx-open (→ il saute à
-        // translateY 100%), on force un reflow pour verrouiller cette position,
-        // puis on rend sa transition. Tout synchrone → marche même onglet en
-        // arrière-plan (pas de rAF/timeout à attendre).
-        if (panel) panel.style.transition = "none";
-        setPadFxOverlayOpen(pad, false);
-        if (panel) { void panel.offsetHeight; panel.style.transition = ""; }
-        pad.node.classList.remove("pad-fx-reveal-illustration");
-        savePadMeta(pad);
-        syncAllPadMinHeightsSoon();
-      };
-      const onEnd = (e) => { if (e.propertyName === "transform") finish(); };
-      img?.addEventListener("transitionend", onEnd);
-      window.setTimeout(finish, 480); // filet (onglet en arrière-plan : transitionend ne se déclenche pas)
-    } else {
-      setPadFxOverlayOpen(pad, false);
-      if (isBasicSkin && hasIllustration) {
-        setPadVisualImage(pad, pad.visualImage, false);
-        savePadMeta(pad);
-      }
-    }
+    // Fermer le panneau FX : retour au pad nu (boutons visibles), l'illustration
+    // NE remonte PAS. Le clic suivant la ré-affichera (cf. pad.eyeAfterFx).
+    setPadFxOverlayOpen(pad, false);
+    if (isBasicSkin && hasIllustration) pad.eyeAfterFx = true;
+  } else if (pad.eyeAfterFx && revealFromButtons) {
+    // État « boutons après FX » (3e clic) → ré-afficher l'illustration.
+    // La couche .pad-visual-slide remonte du bas (translateY 100%→0) PAR-DESSUS
+    // les boutons restés en place, comme un panneau qui glisse. Vaut pour
+    // image / dessin / couleur (même couche).
+    // - .pad-fx-reveal-illustration : couche en z-index 7 + force la remontée
+    //   de .pad-visual-slide-img (transform !important) SANS retirer
+    //   is-visual-hidden → la mise en page « pad nu » reste figée pendant la
+    //   glissade (sinon la bascule brutale vers la mise en page illustrée
+    //   écrase la transition — bug historique #2).
+    // - is-visual-hidden retiré seulement à la fin (finish) : l'illustration
+    //   couvre déjà tout, la bascule de mise en page est invisible.
+    pad.eyeAfterFx = false;
+    const img = pad.node.querySelector(".pad-visual-slide-img");
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      img?.removeEventListener("transitionend", onEnd);
+      setPadVisualImage(pad, pad.visualImage, false);
+      pad.node.classList.remove("pad-fx-reveal-illustration");
+      savePadMeta(pad);
+      syncAllPadMinHeightsSoon();
+    };
+    const onEnd = (e) => { if (e.propertyName === "transform") finish(); };
+    img?.addEventListener("transitionend", onEnd);
+    pad.node.classList.add("pad-fx-reveal-illustration"); // déclenche la glissade
+    window.setTimeout(finish, 480); // filet (onglet en arrière-plan : transitionend ne se déclenche pas)
   } else {
     setPadFxOverlayOpen(pad, true);
   }
@@ -3071,6 +3073,9 @@ function makePad(index) {
     visualImage: "",
     visualImageHidden: false,
     fxOverlayOpen: false,
+    // Cycle du bouton œil (skin basic) : posé à true quand on ferme le panneau
+    // FX (on reste sur le pad nu) ; le clic suivant ré-affiche l'illustration.
+    eyeAfterFx: false,
     visualKind: "",
     visualPositionX: 50,
     visualPositionY: 50,
@@ -7992,7 +7997,7 @@ function applySkin(skin) {
 
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (skinName === "basic") revealGalleryPads();
-  state.pads.forEach((pad) => { fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
+  state.pads.forEach((pad) => { pad.eyeAfterFx = false; fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
   // Changer de skin change la hauteur naturelle du pad (illustration affichée ou
   // non, paddings, rangées de boutons) : le min-height mesuré de chaque pad doit
   // être recalculé, sinon la grille garde les rangées de l'ancien skin (pads
@@ -13125,7 +13130,15 @@ function setPadVisualImage(pad, image = "", hidden = false, settings = {}) {
   pad.visualToggleEl?.setAttribute("aria-pressed", String(pad.visualImageHidden));
   syncPadEyeButtonLabel(pad);
   pad.node.style.setProperty("--pad-image-position", `${pad.visualPositionX}% ${pad.visualPositionY}%`);
-  pad.node.style.setProperty("--pad-image-size", pad.visualKind === "sketch" ? "contain" : (pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`));
+  // --pad-image-size : fond du pad en montage (.pad.is-editing) — zoom encore
+  //   appliqué via background-size ici (pas de scale possible sur .pad).
+  // --pad-slide-size + --pad-image-zoom : couche .pad-visual-slide-img (pad hors
+  //   montage) — `cover`/`contain` constant + zoom en scale() par-dessus, pour
+  //   éviter la bande blanche de `background-size: <zoom>%` (largeur seule).
+  const isSketch = pad.visualKind === "sketch";
+  pad.node.style.setProperty("--pad-image-size", isSketch ? "contain" : (pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`));
+  pad.node.style.setProperty("--pad-slide-size", isSketch ? "contain" : "cover");
+  pad.node.style.setProperty("--pad-image-zoom", String(pad.visualZoom || 1));
   if (pad.visualImage) {
     pad.node.style.setProperty("--pad-image", `url("${pad.visualImage}")`);
     pad.visualPreviewEl?.style.setProperty("background-image", `url("${pad.visualImage}")`);
@@ -15026,7 +15039,12 @@ function applyRemoteMasterAudioSettings(settings) {
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
   const livePadRect = pad.node?.getBoundingClientRect();
-  if (document.body.dataset.skin === "basic") {
+  // L'aperçu doit avoir la forme du pad tel qu'on le verra. En scène, skin
+  // basic, les pads illustrés sont carrés (aspect-ratio:1) → aperçu carré. En
+  // studio (et autres skins) le pad garde la forme de sa rangée (plus haut que
+  // large) : forcer un carré ici faisait cadrer l'image dans un carré, puis
+  // elle « tombait court » en bas du pad studio (bande blanche).
+  if (document.body.dataset.skin === "basic" && state.stageMode) {
     els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
   } else if (livePadRect?.width && livePadRect?.height) {
     els.imageDialog?.style.setProperty("--image-pad-aspect", `${livePadRect.width} / ${livePadRect.height}`);
@@ -15043,11 +15061,21 @@ function syncImageDialog(pad = state.imagePad) {
   if (els.imagePosX) els.imagePosX.value = String(pad.visualPositionX);
   if (els.imagePosY) els.imagePosY.value = String(pad.visualPositionY);
   if (els.imageZoom) els.imageZoom.value = String(pad.visualZoom);
+  if (els.imagePosXValue) els.imagePosXValue.textContent = `${Math.round(pad.visualPositionX)} %`;
+  if (els.imagePosYValue) els.imagePosYValue.textContent = `${Math.round(pad.visualPositionY)} %`;
+  if (els.imageZoomValue) els.imageZoomValue.textContent = `${Number(pad.visualZoom).toFixed(2)}×`;
   if (els.imagePreview) {
     els.imagePreview.classList.toggle("has-image", Boolean(pad.visualImage));
-    els.imagePreview.style.backgroundImage = pad.visualImage ? `url("${pad.visualImage}")` : "";
-    els.imagePreview.style.backgroundPosition = `${pad.visualPositionX}% ${pad.visualPositionY}%`;
-    els.imagePreview.style.backgroundSize = pad.visualZoom <= 1 ? "cover" : `${pad.visualZoom * 100}%`;
+    const layer = els.imagePreviewImg;
+    if (layer) {
+      layer.style.backgroundImage = pad.visualImage ? `url("${pad.visualImage}")` : "";
+      layer.style.backgroundPosition = `${pad.visualPositionX}% ${pad.visualPositionY}%`;
+      layer.style.backgroundSize = pad.visualKind === "sketch" ? "contain" : "cover";
+      // Zoom en scale() par-dessus `cover` (cf. .pad-visual-slide-img) — évite la
+      // discontinuité `cover` → `<zoom>%` qui faisait « sauter » l'image à mi-cadre.
+      layer.style.transformOrigin = `${pad.visualPositionX}% ${pad.visualPositionY}%`;
+      layer.style.transform = `scale(${pad.visualZoom || 1})`;
+    }
   }
   syncImageColorButtons(pad);
 }

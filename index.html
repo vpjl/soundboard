@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=971">
+    <link rel="stylesheet" href="styles.css?v=976">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -1585,12 +1585,12 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-2bd36a34" xlink:href="#ic-2bd36a34"></use></svg>
           </button>
         </div>
-        <div id="imagePreview" class="image-preview" aria-label="Aperçu image"></div>
+        <div id="imagePreview" class="image-preview" aria-label="Aperçu image"><div class="image-preview-img" aria-hidden="true"></div></div>
         <canvas id="imageSketchCanvas" class="image-sketch-canvas" width="640" height="360" aria-label="Croquis"></canvas>
         <div class="image-crop-controls">
-          <label><span>Centre X</span><input id="imagePosX" type="range" min="0" max="100" step="1" value="50"></label>
-          <label><span>Centre Y</span><input id="imagePosY" type="range" min="0" max="100" step="1" value="50"></label>
-          <label><span>Zoom</span><input id="imageZoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
+          <label><span>Centre X</span><output id="imagePosXValue" for="imagePosX">50 %</output><input id="imagePosX" type="range" min="0" max="100" step="1" value="50"></label>
+          <label><span>Centre Y</span><output id="imagePosYValue" for="imagePosY">50 %</output><input id="imagePosY" type="range" min="0" max="100" step="1" value="50"></label>
+          <label><span>Zoom</span><output id="imageZoomValue" for="imageZoom">1.00×</output><input id="imageZoom" type="range" min="1" max="2.5" step="0.05" value="1"></label>
         </div>
         <div class="dialog-actions">
           <button id="applyImage" class="small-button" type="button">Enregistrer</button>
@@ -2387,7 +2387,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=971"></script>
+    <script src="app.js?v=976"></script>
 
 
   </body>

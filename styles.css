@@ -2424,14 +2424,24 @@ body[data-skin="basic"] .pad.is-video-pad.has-color:not(.is-editing) .visual-tog
   visibility: hidden;
 }
 
-/* #2 : fermeture du panneau effets d'un pad illustré — le panneau reste en
-   place, la couche illustration passe AU-DESSUS de lui (z-index 7 > overlay 6)
-   et redevient visible pour remonter (translateY 100%→0, cf. .pad-visual-slide-img)
-   et le masquer progressivement. Classe posée/retirée par handlePadEyeButton
-   le temps de la transition. */
-.pad.is-fx-open.pad-fx-reveal-illustration .pad-visual-slide {
+/* Ré-affichage de l'illustration depuis le pad nu (3e clic sur l'œil : état
+   « boutons après FX » → illustration). La couche illustration passe AU-DESSUS
+   du reste du pad (z-index 7) et remonte du bas (translateY 100%→0) pour
+   recouvrir progressivement les boutons — comme un panneau qui glisse. Vaut
+   pour image / dessin / couleur (même couche .pad-visual-slide).
+   Classe posée/retirée par handlePadEyeButton le temps de la transition ; pas
+   de dépendance à is-fx-open (le panneau FX est déjà fermé à ce stade).
+   La remontée est forcée ICI (transform !important) plutôt qu'en retirant
+   is-visual-hidden : la mise en page « pad nu » reste figée pendant la
+   glissade, sinon la bascule instantanée vers la mise en page illustrée
+   (boutons masqués, titre absolu, paddings) écrase la transition. */
+.pad.pad-fx-reveal-illustration .pad-visual-slide {
   visibility: visible !important;
   z-index: 7 !important;
+}
+
+.pad.pad-fx-reveal-illustration .pad-visual-slide-img {
+  --pad-slide-y: 0 !important;
 }
 
 /* Bouton œil ramené en haut à droite, au-dessus du panneau ouvert, pour
@@ -2506,10 +2516,18 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .
   position: absolute;
   inset: 0;
   background-position: var(--pad-image-position, center);
-  background-size: var(--pad-image-size, cover);
+  /* Toujours `cover` (ou `contain` pour un dessin) : le zoom est appliqué
+     PAR-DESSUS via `scale()` — sinon `background-size: <zoom>%` ne contraint que
+     la largeur et une image paysage laisse une bande blanche en bas dès que le
+     zoom dépasse 1 (discontinuité avec `cover`). */
+  background-size: var(--pad-slide-size, cover);
   background-repeat: no-repeat;
-  -webkit-transform: translateY(0);
-  transform: translateY(0);
+  /* scale AVANT translateY : à l'état masqué (translateY 100%) l'image est
+     poussée de zoom×100% de sa hauteur → toujours hors du clip, quel que soit
+     le zoom. */
+  -webkit-transform: scale(var(--pad-image-zoom, 1)) translateY(var(--pad-slide-y, 0));
+  transform: scale(var(--pad-image-zoom, 1)) translateY(var(--pad-slide-y, 0));
+  transform-origin: var(--pad-image-position, center);
   transition: transform 0.32s ease;
 }
 
@@ -2522,8 +2540,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing) .
 }
 
 body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
-  -webkit-transform: translateY(100%);
-  transform: translateY(100%);
+  --pad-slide-y: 100%;
 }
 
 .pad-fx-back-head {
@@ -6817,6 +6834,8 @@ body[data-skin="print"] .audio-section h3 {
 .image-preview {
   display: grid;
   place-items: center;
+  position: relative;
+  overflow: hidden;
   width: 100%;
   min-height: 0;
   aspect-ratio: var(--image-pad-aspect, 16 / 9);
@@ -6824,8 +6843,21 @@ body[data-skin="print"] .audio-section h3 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
-  background-repeat: no-repeat;
   color: var(--muted);
+}
+
+/* Couche image de l'aperçu : rend exactement comme .pad-visual-slide-img du
+   pad — `cover` constant + zoom en scale() (pas `background-size: <zoom>%` qui
+   ne tient que la largeur → bande blanche dès zoom > 1). */
+.image-preview-img {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.image-preview:not(.has-image) .image-preview-img {
+  display: none;
 }
 
 .image-preview::before {
@@ -6939,10 +6971,22 @@ body[data-skin="print"] .audio-section h3 {
 
 .image-crop-controls label {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
   color: var(--muted);
   font-size: 0.72rem;
   text-transform: uppercase;
+}
+
+.image-crop-controls label input {
+  grid-column: 1 / -1;
+}
+
+.image-crop-controls label output {
+  text-transform: none;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color_ui_field_text, currentColor);
 }
 
 .shortcut-enable {
