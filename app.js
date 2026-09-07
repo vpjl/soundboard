@@ -3100,6 +3100,9 @@ function makePad(index) {
   pad.progressEl = node.querySelector("[data-progress]");
   pad.progressFillEl = node.querySelector("[data-progress-fill]");
   pad.vuEl = node.querySelector("[data-pad-vu]");
+  pad.fxProgressEl = node.querySelector("[data-fx-progress]");
+  pad.fxProgressFillEl = node.querySelector("[data-fx-progress-fill]");
+  pad.fxVuEl = node.querySelector("[data-fx-pad-vu]");
   pad.fileInput = node.querySelector("[data-file]");
   pad.recordButton = node.querySelector('[data-action="record"]');
   pad.modeButtons = [...node.querySelectorAll("[data-mode]")];
@@ -3284,7 +3287,7 @@ function makePad(index) {
     if (document.body.dataset.skin !== "basic" || pad.node.classList.contains("is-editing")) return;
     if (!pad.visualImage && !pad.color) return;
     if (pad.visualImageHidden) return;
-    if (event.target.closest("input, select, textarea, dialog, .pad-progress, .visual-toggle-button")) return;
+    if (event.target.closest("input, select, textarea, dialog, .pad-progress, .pad-fx-back-progress, .visual-toggle-button")) return;
     const clickedButton = event.target.closest("button");
     if (clickedButton && clickedButton !== trigger) return;
     event.preventDefault();
@@ -4609,7 +4612,7 @@ function toggleManualPadSelection(pad) {
 // crossfade manuel) : on sélectionne au lieu de jouer/éditer.
 function handleManualSelectPadClick(pad, event) {
   if (!state.manualSelectMode) return false;
-  if (event.target.closest('input, select, textarea, dialog, .pad-progress, [data-action="delete-pad"]')) return false;
+  if (event.target.closest('input, select, textarea, dialog, .pad-progress, .pad-fx-back-progress, [data-action="delete-pad"]')) return false;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation?.();
@@ -15241,7 +15244,10 @@ function updatePadProgress(pad) {
   if (!pad.progressFillEl) return;
   const duration = playableDuration(pad);
   const ratio = duration ? playbackOffset(pad) / duration : 0;
-  pad.progressFillEl.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
+  const progressScale = Math.min(1, Math.max(0, ratio));
+  pad.progressFillEl.style.transform = `scaleX(${progressScale})`;
+  // Verso du pad (panneau effets ouvert) : même remplissage que la face avant.
+  if (pad.fxProgressFillEl) pad.fxProgressFillEl.style.transform = `scaleX(${progressScale})`;
   if (state.audioPad === pad) updateAudioPlayhead(pad);
 }
 
@@ -15336,25 +15342,28 @@ function seekPadToRatio(pad, ratio) {
   }
 }
 
-function seekRatioFromPointer(pad, event) {
-  const rect = pad.progressEl.getBoundingClientRect();
+function seekRatioFromPointer(trackEl, event) {
+  const rect = trackEl.getBoundingClientRect();
   return rect.width ? (event.clientX - rect.left) / rect.width : 0;
 }
 
-function bindPadProgress(pad) {
-  if (!pad.progressEl) return;
+// Un rail de progression cliquable/traînable. Utilisé pour la barre de la face
+// avant (pad.progressEl) ET pour celle du verso, dans le panneau effets
+// (pad.fxProgressEl) — même pad, même logique de navigation.
+function bindPadProgressTrack(pad, trackEl) {
+  if (!trackEl) return;
   const seek = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    seekPadToRatio(pad, seekRatioFromPointer(pad, event));
+    seekPadToRatio(pad, seekRatioFromPointer(trackEl, event));
   };
-  pad.progressEl.addEventListener("pointerdown", (event) => {
+  trackEl.addEventListener("pointerdown", (event) => {
     if (!pad.duration) return;
-    pad.progressEl.setPointerCapture?.(event.pointerId);
+    trackEl.setPointerCapture?.(event.pointerId);
     state.progressDrag = { pad, pointerId: event.pointerId };
     seek(event);
   });
-  pad.progressEl.addEventListener("pointermove", (event) => {
+  trackEl.addEventListener("pointermove", (event) => {
     if (state.progressDrag?.pad !== pad || state.progressDrag.pointerId !== event.pointerId) return;
     seek(event);
   });
@@ -15362,11 +15371,16 @@ function bindPadProgress(pad) {
     if (state.progressDrag?.pad !== pad || state.progressDrag.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
-    pad.progressEl.releasePointerCapture?.(event.pointerId);
+    trackEl.releasePointerCapture?.(event.pointerId);
     state.progressDrag = null;
   };
-  pad.progressEl.addEventListener("pointerup", stopSeek);
-  pad.progressEl.addEventListener("pointercancel", stopSeek);
+  trackEl.addEventListener("pointerup", stopSeek);
+  trackEl.addEventListener("pointercancel", stopSeek);
+}
+
+function bindPadProgress(pad) {
+  bindPadProgressTrack(pad, pad.progressEl);
+  bindPadProgressTrack(pad, pad.fxProgressEl);
 }
 
 function duckAmount() {
@@ -15830,7 +15844,7 @@ async function executeManualCrossfade(targetPad) {
 
 function handleManualCrossfadePadClick(pad, event) {
   if (!state.crossfadeArm.active) return false;
-  if (event.target.closest("input, select, textarea, dialog, .pad-progress")) return false;
+  if (event.target.closest("input, select, textarea, dialog, .pad-progress, .pad-fx-back-progress")) return false;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation?.();
@@ -16831,6 +16845,7 @@ function clearPlayingPad(pad, source, triggerEnd = false) {
   if (els.status && els.status.textContent === `${pad.title} joue`) setStatus("");
   updatePadModeButtons(pad);
   setMeterLevel(pad.vuEl, 0);
+  setMeterLevel(pad.fxVuEl, 0);
   updatePadTime(pad);
   applyDucking();
   updateAllPadAlerts();
@@ -17995,6 +18010,7 @@ function updateMeters() {
       ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData)
       : meterLevel(pad.analyser, pad.meterData);
     setMeterLevel(pad.vuEl, level);
+    setMeterLevel(pad.fxVuEl, level);
   });
 }
 

@@ -2395,8 +2395,9 @@ body[data-skin="basic"] .pad.is-video-pad.has-color:not(.is-editing) .visual-tog
      garantit un panneau plein. */
   background-color: var(--color_ui_background);
   background-image: linear-gradient(var(--color_pad_background), var(--color_pad_background));
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* Le scroll vit désormais sur .pad-fx-back-body : l'en-tête et le bandeau
+     compteurs (progression + VU) restent épinglés quand les curseurs défilent. */
+  overflow: hidden;
   /* Fermé : escamoté sous le pad → il monte du bas vers le haut à l'ouverture. */
   -webkit-transform: translateY(100%);
   transform: translateY(100%);
@@ -2562,6 +2563,53 @@ body[data-skin="basic"] .pad.is-visual-hidden .pad-visual-slide-img {
   gap: 6px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Bandeau progression + VU au verso du pad : reprend les compteurs de la face
+   avant (mêmes classes de remplissage .pad-progress-fill / .vu-fill, mêmes
+   variables de couleur) pour garder l'œil sur la lecture pendant qu'on règle
+   les effets. Positionné en absolu par rapport à .pad-fx-panel (pas un enfant
+   flex) : n'entre dans AUCUNE mesure de hauteur — les pads carrés illustrés ne
+   s'allongent pas à l'ouverture du panneau. Reste épinglé quand les curseurs
+   défilent (le scroll vit sur .pad-fx-back-body, pas sur le panneau). Affiché
+   seulement pendant la lecture ; .pad-fx-back-body réserve alors la place en
+   bas pour que le dernier curseur ne passe pas dessous. */
+.pad-fx-back-meters {
+  display: none;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pad.is-playing .pad-fx-back-meters {
+  display: flex;
+}
+
+.pad.is-playing .pad-fx-back-body {
+  padding-bottom: 22px;
+}
+
+.pad-fx-back-progress {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--color_ui_border);
+  border-radius: 999px;
+  background: var(--color_pad_progress_background);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.pad-fx-back-vu {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color_pad_progress_background);
+  opacity: 0.9;
 }
 
 .pad.is-playing {
