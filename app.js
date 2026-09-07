@@ -16430,9 +16430,14 @@ function openInlineVideoProjection(pad, url, title) {
     overlay = document.createElement("div");
     overlay.className = "video-projection-overlay";
     overlay.hidden = true;
-    overlay.innerHTML = '<div class="video-projection-label"></div>';
+    overlay.innerHTML = '<button class="video-projection-playgate" type="button" hidden>▶ Lancer la vidéo</button><div class="video-projection-label"></div>';
     overlay.addEventListener("dblclick", () => {
       if (state.inlineVideoPad) stopVideoProjection(state.inlineVideoPad, { fade: false });
+    });
+    // Filet si video.play() est refusé faute de geste (commande régie) : ce
+    // clic-ci EST un geste → la vidéo part avec le son.
+    overlay.querySelector(".video-projection-playgate").addEventListener("click", () => {
+      overlay.querySelector("video")?.play().catch(() => {});
     });
     document.body.appendChild(overlay);
     els.videoProjectionOverlay = overlay;
@@ -16446,6 +16451,9 @@ function openInlineVideoProjection(pad, url, title) {
   video.setAttribute("controls", "");
   video.src = url;
   overlay.prepend(video);
+  const gate = overlay.querySelector(".video-projection-playgate");
+  gate.hidden = false;
+  video.addEventListener("play", () => { gate.hidden = true; }, { once: true });
   const label = overlay.querySelector(".video-projection-label");
   if (label) label.textContent = title || pad.title || "";
   overlay.hidden = false;
@@ -16491,6 +16499,8 @@ html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;overflow:hi
 video{width:100%;height:100%;object-fit:contain;background:#000}
 .label{position:fixed;left:14px;bottom:12px;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.58);font-size:13px;letter-spacing:.02em}
 .loading{display:grid;place-items:center;width:100%;height:100%;color:#d7dde8;font-size:18px}
+.playgate{position:fixed;inset:0;margin:auto;width:min(72%,340px);height:70px;font:600 18px/1 inherit;border:0;border-radius:12px;background:#2b7fff;color:#fff;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.playgate:disabled,.playgate.is-gone{display:none}
 </style>
 </head>
 <body>${body}</body>
@@ -16854,7 +16864,16 @@ async function playPadVideo(pad, options = {}) {
     pad.videoWindow = null;
     pad.videoInline = true;
   } else {
-    writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline></video><div class="label">${title}</div>`);
+    // Bouton « Lancer » : filet pour le cas où video.play() est refusé faute de
+    // geste utilisateur sur la fenêtre (lecture commandée depuis la régie). Le
+    // onclick s'exécute DANS la fenêtre de projection = geste valide → la vidéo
+    // part avec le son. Le bouton disparaît dès que la lecture démarre (par le
+    // code ou par le clic).
+    writeVideoProjectionDocument(projection, title,
+      `<video src="${url}" controls playsinline></video>`
+      + `<button class="playgate" type="button" onclick="this.classList.add('is-gone');document.querySelector('video').play().catch(function(){})">&#9654;&nbsp;Lancer la vidéo</button>`
+      + `<div class="label">${title}</div>`
+      + `<script>document.querySelector('video').addEventListener('play',function(){var b=document.querySelector('.playgate');if(b)b.classList.add('is-gone');});<\/script>`);
     pad.videoWindow = projection;
     pad.videoInline = false;
   }
@@ -16896,7 +16915,8 @@ async function playPadVideo(pad, options = {}) {
       fadeVideoVolume(video, 0, targetVolume, fadeDurationForPad(pad, "in"));
     }
   } catch {
-    setStatus("Lecture vidéo à confirmer dans la fenêtre de projection");
+    setStatus(`Vidéo prête — cliquez « Lancer » dans la fenêtre de projection : ${pad.title}`, "progress");
+    return;
   }
   setStatus(`Projection vidéo: ${pad.title}`);
 }
