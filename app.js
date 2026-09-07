@@ -16506,7 +16506,7 @@ html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;overflow:hi
 video{width:100%;height:100%;object-fit:contain;background:#000}
 .label{position:fixed;left:14px;bottom:12px;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.58);font-size:13px;letter-spacing:.02em}
 .loading{display:grid;place-items:center;width:100%;height:100%;color:#d7dde8;font-size:18px}
-.playgate{position:fixed;inset:0;margin:auto;width:min(72%,340px);height:70px;font:600 18px/1 inherit;border:0;border-radius:12px;background:#2b7fff;color:#fff;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.playgate{position:fixed;top:12px;right:14px;padding:10px 16px;font:600 15px/1 inherit;border:0;border-radius:10px;background:#2b7fff;color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
 .playgate:disabled,.playgate.is-gone{display:none}
 </style>
 </head>
