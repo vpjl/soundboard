@@ -15731,7 +15731,15 @@ function broadcastRemoteCrossfadeState() {
 function broadcastRemoteCueState(board = currentBoard()) {
   if (state.remoteRole !== "display") return;
   if (!state.remoteSocket || state.remoteSocket.readyState !== WebSocket.OPEN) return;
-  state.remoteSocket.send(JSON.stringify({ type: "cueState", index: cueIndexForBoard(board) }));
+  state.remoteSocket.send(JSON.stringify({
+    type: "cueState",
+    index: cueIndexForBoard(board),
+    // Sans ça, activer/désactiver le bouton « Cues » de l'îlot côté façade ne
+    // parvenait jamais à la régie déjà connectée (le board complet n'est repoussé
+    // qu'au changement de board / à la reconnexion) : ses boutons de navigation
+    // de cues restaient inactifs.
+    enabled: board?.cuesEnabled === true,
+  }));
 }
 
 // Façade autorité pour le mode board (studio/scène) : diffusé à chaque
@@ -17614,6 +17622,17 @@ function handleRemoteMessage(raw) {
       resetCuePosition();
       return;
     }
+    if (msg.action === "cueToggle") {
+      const board = currentBoard();
+      if (board?.cues?.length) {
+        board.cuesEnabled = board.cuesEnabled !== true;
+        if (!board.cuesEnabled) pauseCuePlayback();
+        saveBoards();
+        syncCueControls(); // renvoie enabled + index à la régie
+        setStatus(board.cuesEnabled ? "Cues activées" : "Cues désactivées");
+      }
+      return;
+    }
     if (msg.action === "crossfadeArm") {
       armManualCrossfade();
       return;
@@ -17750,6 +17769,7 @@ function handleRemoteMessage(raw) {
     const board = currentBoard();
     if (board) {
       board.cueIndex = Number(msg.index) || 0;
+      if (typeof msg.enabled === "boolean") board.cuesEnabled = msg.enabled;
       syncCueControls();
       renderCueRows();
     }
@@ -19131,6 +19151,12 @@ async function init() {
       // Board sans cues : rien à activer — on pointe vers « Réglage des cues ».
       setStatus("Pas de cues");
       flashCueDialogButton();
+      return;
+    }
+    if (state.remoteRole === "controller") {
+      // La façade est autorité : elle bascule board.cuesEnabled et le renvoie via
+      // le message cueState (voir broadcastRemoteCueState / handleRemoteMessage).
+      sendRemoteCommand("cueToggle", "");
       return;
     }
     board.cuesEnabled = board.cuesEnabled !== true;
