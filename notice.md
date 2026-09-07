@@ -190,7 +190,8 @@ Le bloc Master est présent dans tous les modes. Il se lit en volets : **Random 
 
 Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distorsion, filtre, flanger, delay.
 
-- **Panneau au verso du pad, en modes Scène et Studio** (pads audio uniquement) : le bouton œil du pad fait glisser sur le pad un panneau reprenant les 4 curseurs d'effets plus Volume et Pan. Un 2ᵉ clic sur le bouton œil referme le panneau. En skin Basic, si le pad affiche une illustration, le bouton œil la masque d'abord (le panneau s'ouvre au clic suivant).
+- **Panneau au verso du pad, en modes Scène et Studio** (pads audio uniquement) : le bouton œil du pad fait glisser sur le pad un panneau reprenant les 4 curseurs d'effets plus Volume et Pan. Pendant la lecture, ce panneau rappelle en bas la progression du pad (barre cliquable pour naviguer dans le son) et son VU-mètre. Un nouveau clic sur le bouton œil referme le panneau.
+- **Skin Basic, pad avec illustration ou couleur** : le bouton œil enchaîne un cycle à quatre temps — illustration → pad nu (boutons de lecture visibles) → panneau d'effets → pad nu → illustration.
 - **Remise à zéro** : double-clic (ou double-tap) sur un curseur pour le ramener à sa valeur neutre.
 - Les réglages sont mémorisés par pad d'une session à l'autre.
 - Le bouton œil peut être désactivé globalement dans **Audio Master → Contrôles à l'écran → Effets live des pads** — décoché, il ne pilote plus que l'illustration du pad (skin Basic).
@@ -201,7 +202,7 @@ Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distors
 ### Pads
 
 - **Déclenchement des pads** : interface épurée sans les outils d'édition — seuls les contrôles de lecture sont accessibles.
-- **Effets live du pad** : le bouton œil du pad fait glisser un panneau d'effets plein pad (4 curseurs + Volume + Pan) ; 2ᵉ clic pour le refermer — voir Effets live par pad.
+- **Effets live du pad** : le bouton œil du pad fait glisser un panneau d'effets plein pad (4 curseurs + Volume + Pan, plus progression et VU pendant la lecture) ; nouveau clic pour le refermer — voir Effets live par pad.
 
 ### Board
 
