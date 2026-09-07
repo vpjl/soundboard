@@ -11629,3 +11629,36 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
     padding-bottom: calc(var(--cable-extra-bottom) + 52px);
   }
 }
+
+/* Repli de projection vidéo : quand window.open est bloqué (lecture d'un pad
+   vidéo commandée depuis la régie → pas de geste utilisateur sur la façade),
+   la vidéo est projetée ici, plein écran par-dessus toute l'app. Créé à la
+   demande par openInlineVideoProjection(). Double-clic = stop. */
+.video-projection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #000;
+  display: block;
+}
+.video-projection-overlay[hidden] {
+  display: none;
+}
+.video-projection-overlay video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.video-projection-label {
+  position: fixed;
+  left: 14px;
+  bottom: 12px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.58);
+  color: #fff;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}

@@ -290,6 +290,7 @@ const state = {
   shortcutDraft: null,
   shortcutsEnabled: true,
   lastStartedPad: null,
+  inlineVideoPad: null, // pad dont la vidéo est projetée en plein écran dans la page (repli pop-up bloquée)
   audioPad: null,
   audioDraft: null,
   audioMediaDraft: null,
@@ -2999,6 +3000,7 @@ function makePad(index) {
     videoType: "",
     videoDuration: 0,
     videoWindow: null,
+    videoInline: false,
     videoUrl: "",
     videoTimer: null,
     textContent: "",
@@ -15474,7 +15476,7 @@ function applyDucking(exceptPad = null) {
       pad.gain.gain.cancelScheduledValues(now);
       pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
     }
-    if (pad.videoWindow) syncVideoProjectionAudio(pad);
+    if (padVideoProjecting(pad)) syncVideoProjectionAudio(pad);
     if (pad.speechUtterance && !pad.isPaused) pad.speechUtterance.volume = speechTargetVolume(pad);
   });
   updateAllPadAlerts();
@@ -15585,7 +15587,7 @@ function setPadMuted(pad, muted, pulse = true) {
     pad.gain.gain.cancelScheduledValues(now);
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
   }
-  if (pad.videoWindow) syncVideoProjectionAudio(pad);
+  if (padVideoProjecting(pad)) syncVideoProjectionAudio(pad);
   pad.crossfadeFlashEl?.classList.toggle("is-crossfade-muted", pad.muted);
   pad.muteEl?.classList.toggle("is-active", pad.muted);
   pad.muteEl?.setAttribute("aria-pressed", String(pad.muted));
@@ -15603,7 +15605,7 @@ function clearPadMuteState(pad) {
   if (pad.speechUtterance) {
     pad.speechUtterance.volume = speechTargetVolume(pad);
   }
-  if (pad.videoWindow) syncVideoProjectionAudio(pad);
+  if (padVideoProjecting(pad)) syncVideoProjectionAudio(pad);
   pad.crossfadeFlashEl?.classList.remove("is-crossfade-muted");
   pad.muteEl?.classList.remove("is-active");
   pad.muteEl?.setAttribute("aria-pressed", "false");
@@ -16402,12 +16404,65 @@ function connectPadEq(pad, input, output) {
 }
 
 function videoElementForPad(pad) {
+  if (pad?.videoInline) {
+    return state.inlineVideoPad === pad ? (els.videoProjectionOverlay?.querySelector("video") || null) : null;
+  }
   if (!pad?.videoWindow || pad.videoWindow.closed) return null;
   try {
     return pad.videoWindow.document.querySelector("video");
   } catch {
     return null;
   }
+}
+
+// Vraie fenêtre de projection ouverte OU repli plein écran dans la page.
+function padVideoProjecting(pad) {
+  return Boolean((pad?.videoWindow && !pad.videoWindow.closed) || (pad?.videoInline && state.inlineVideoPad === pad));
+}
+
+// Repli quand window.open est bloqué (lecture commandée depuis la régie) :
+// une surface plein écran dans la page de la façade. Un seul overlay partagé
+// (un seul projecteur), l'élément <video> est recréé à chaque lecture pour ne
+// pas empiler les écouteurs.
+function openInlineVideoProjection(pad, url, title) {
+  let overlay = els.videoProjectionOverlay;
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "video-projection-overlay";
+    overlay.hidden = true;
+    overlay.innerHTML = '<div class="video-projection-label"></div>';
+    overlay.addEventListener("dblclick", () => {
+      if (state.inlineVideoPad) stopVideoProjection(state.inlineVideoPad, { fade: false });
+    });
+    document.body.appendChild(overlay);
+    els.videoProjectionOverlay = overlay;
+  }
+  if (state.inlineVideoPad && state.inlineVideoPad !== pad) {
+    stopVideoProjection(state.inlineVideoPad, { fade: false });
+  }
+  overlay.querySelector("video")?.remove();
+  const video = document.createElement("video");
+  video.setAttribute("playsinline", "");
+  video.setAttribute("controls", "");
+  video.src = url;
+  overlay.prepend(video);
+  const label = overlay.querySelector(".video-projection-label");
+  if (label) label.textContent = title || pad.title || "";
+  overlay.hidden = false;
+  state.inlineVideoPad = pad;
+  return video;
+}
+
+function hideInlineVideoProjection(pad) {
+  if (pad && state.inlineVideoPad && state.inlineVideoPad !== pad) return;
+  const overlay = els.videoProjectionOverlay;
+  if (overlay) {
+    const video = overlay.querySelector("video");
+    if (video) { try { video.pause(); } catch {} video.removeAttribute("src"); video.load?.(); video.remove(); }
+    overlay.hidden = true;
+  }
+  state.inlineVideoPad = null;
+  if (pad) pad.videoInline = false;
 }
 
 function syncVideoProjectionAudio(pad) {
@@ -16740,6 +16795,9 @@ async function stopVideoProjection(pad, options = {}) {
   if (!preservePosition) pad.isPaused = false;
   clearPadMuteState(pad);
   markVideoStopped(pad, triggerEnd);
+  // Repli plein écran dans la page : le masquer quand la lecture s'arrête pour
+  // de bon (une pause qui garde la position laisse l'image à l'écran).
+  if (pad.videoInline && !preservePosition) hideInlineVideoProjection(pad);
 }
 
 function disposeVideoProjection(pad) {
@@ -16754,6 +16812,7 @@ function disposeVideoProjection(pad) {
     } catch {}
   }
   pad.videoWindow = null;
+  if (pad.videoInline) hideInlineVideoProjection(pad);
   if (pad.videoUrl) {
     URL.revokeObjectURL(pad.videoUrl);
     pad.videoUrl = "";
@@ -16762,15 +16821,18 @@ function disposeVideoProjection(pad) {
 }
 
 async function playPadVideo(pad, options = {}) {
-  const projection = (pad.videoWindow && !pad.videoWindow.closed)
-    ? pad.videoWindow
-    : window.open("about:blank", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+  const reusedWindow = (pad.videoWindow && !pad.videoWindow.closed) ? pad.videoWindow : null;
+  const projection = reusedWindow
+    || window.open("about:blank", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
+  // Pop-up bloquée (ex. lecture commandée depuis la régie → pas de geste
+  // utilisateur sur la façade) : repli en projection plein écran DANS la page.
+  const inline = !projection;
   if (projection) {
     writeVideoProjectionDocument(projection, escapeText(pad.title || "Video"), `<div class="loading">${escapeText(pad.title || "Video")}</div>`);
   }
   const record = await dbGet(padAudioKey(pad));
   if (!record?.video) {
-    if (projection && !pad.videoWindow) {
+    if (projection && !reusedWindow) {
       try {
         projection.close();
       } catch {}
@@ -16786,17 +16848,16 @@ async function playPadVideo(pad, options = {}) {
     url = URL.createObjectURL(blob);
     pad.videoUrl = url;
   }
-  if (!projection) {
-    if (!pad.videoWindow && pad.videoUrl) {
-      URL.revokeObjectURL(pad.videoUrl);
-      pad.videoUrl = "";
-    }
-    setStatus("Projection vidéo bloquée par le navigateur");
-    return;
-  }
   const title = escapeText(pad.title || record.videoName || "Video");
-  writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline></video><div class="label">${title}</div>`);
-  pad.videoWindow = projection;
+  if (inline) {
+    openInlineVideoProjection(pad, url, title);
+    pad.videoWindow = null;
+    pad.videoInline = true;
+  } else {
+    writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline></video><div class="label">${title}</div>`);
+    pad.videoWindow = projection;
+    pad.videoInline = false;
+  }
   const video = videoElementForPad(pad);
   const targetVolume = videoTargetVolume(pad);
   if (video) {
@@ -17902,7 +17963,7 @@ function stopPadLocal(pad, fade = false, preservePosition = false, options = {})
     }
     return;
   }
-  if (pad?.videoWindow || pad?.videoUrl || pad?.videoTimer) {
+  if (pad?.videoWindow || pad?.videoInline || pad?.videoUrl || pad?.videoTimer) {
     stopVideoProjection(pad, {
       preservePosition,
       resetPosition: !preservePosition,
