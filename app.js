@@ -16921,9 +16921,9 @@ async function playPadVideo(pad, options = {}) {
     video.addEventListener("ended", () => {
       pad.resumeOffset = 0;
       markVideoStopped(pad, true);
-      // Repli plein écran : la vidéo finie, on rend la main sur le board.
-      // (La pop-up, elle, reste ouverte — comportement historique.)
-      if (pad.videoInline) hideInlineVideoProjection(pad);
+      // On NE masque PAS l'overlay ici : en fin de vidéo la dernière image
+      // reste figée à l'écran (comme la pop-up). On en sort par « Fermer », le
+      // double-clic, ou un Stop depuis la régie.
     }, { once: true });
   }
   state.lastStartedPad = pad;
