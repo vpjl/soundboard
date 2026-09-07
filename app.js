@@ -16444,7 +16444,6 @@ function openInlineVideoProjection(pad, url, title) {
   const video = document.createElement("video");
   video.setAttribute("playsinline", "");
   video.setAttribute("controls", "");
-  video.muted = true; // rétabli après le démarrage (cf. playPadVideo)
   video.src = url;
   overlay.prepend(video);
   const label = overlay.querySelector(".video-projection-label");
@@ -16855,18 +16854,16 @@ async function playPadVideo(pad, options = {}) {
     pad.videoWindow = null;
     pad.videoInline = true;
   } else {
-    writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline autoplay muted></video><div class="label">${title}</div>`);
+    writeVideoProjectionDocument(projection, title, `<video src="${url}" controls playsinline></video><div class="label">${title}</div>`);
     pad.videoWindow = projection;
     pad.videoInline = false;
   }
   const video = videoElementForPad(pad);
   const targetVolume = videoTargetVolume(pad);
-  const wantMuted = Boolean(pad.muted) || Boolean(state.masterMuted);
-  const wantFadeIn = !pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0;
   if (video) {
     video.currentTime = Math.min(playableDuration(pad), Math.max(0, options.offset ?? pad.resumeOffset ?? 0));
     syncVideoProjectionAudio(pad);
-    if (wantFadeIn) {
+    if (!pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
       video.volume = 0;
     }
     video.addEventListener("play", () => {
@@ -16894,17 +16891,9 @@ async function playPadVideo(pad, options = {}) {
   updatePadModeButtons(pad);
   updatePadTime(pad);
   try {
-    // Démarrage en MUET : sans geste utilisateur (commande régie, ou fenêtre de
-    // projection fraîche sans activation), seule l'autoplay muette est
-    // autorisée — un play() avec son est rejeté et la vidéo reste figée. On
-    // rétablit le vrai état son juste après le démarrage.
-    if (video) video.muted = true;
     await video?.play();
-    if (video) {
-      video.muted = wantMuted;
-      if (wantFadeIn) {
-        fadeVideoVolume(video, 0, targetVolume, fadeDurationForPad(pad, "in"));
-      }
+    if (video && !pad.muted && options.fadeIn && fadeDurationForPad(pad, "in") > 0) {
+      fadeVideoVolume(video, 0, targetVolume, fadeDurationForPad(pad, "in"));
     }
   } catch {
     setStatus("Lecture vidéo à confirmer dans la fenêtre de projection");
