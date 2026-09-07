@@ -11678,19 +11678,19 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
 }
 
 /* Filet : video.play() refusé faute de geste (lecture commandée depuis la
-   régie) → l'opérateur façade lance à la main. Masqué dès que ça joue. */
+   régie) → l'opérateur façade lance à la main. Hors du cadre vidéo, sous le
+   bouton « Fermer ». Masqué dès que ça joue. */
 .video-projection-playgate {
   position: fixed;
-  inset: 0;
-  margin: auto;
-  width: min(72%, 340px);
-  height: 70px;
+  top: 52px;
+  right: 14px;
+  padding: 10px 16px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #2b7fff;
   color: #fff;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
