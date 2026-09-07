@@ -16832,10 +16832,22 @@ function disposeVideoProjection(pad) {
 
 async function playPadVideo(pad, options = {}) {
   const reusedWindow = (pad.videoWindow && !pad.videoWindow.closed) ? pad.videoWindow : null;
-  const projection = reusedWindow
-    || window.open("about:blank", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720");
-  // Pop-up bloquée (ex. lecture commandée depuis la régie → pas de geste
-  // utilisateur sur la façade) : repli en projection plein écran DANS la page.
+  // Rôle façade (pilotée à distance) : JAMAIS de pop-up. Elle prendrait le
+  // focus → l'onglet principal passerait en arrière-plan, ses minuteries
+  // ralenties par le navigateur → la façade ne traiterait plus les commandes
+  // de la régie à temps (« régie inactive »). Projection plein écran dans la
+  // page à la place. En lecture locale (studio/scène), la pop-up est gardée
+  // (pratique sur un 2ᵉ écran, et le clic fournit le geste requis).
+  const forceInline = state.remoteRole === "display";
+  if (forceInline && reusedWindow) {
+    try { reusedWindow.close(); } catch {}
+    pad.videoWindow = null;
+  }
+  const projection = forceInline
+    ? null
+    : (reusedWindow
+      || window.open("about:blank", `soundboard-video-${pad.uid || pad.index}`, "popup=yes,width=1280,height=720"));
+  // projection null = façade, OU pop-up bloquée en local → repli plein écran.
   const inline = !projection;
   if (projection) {
     writeVideoProjectionDocument(projection, escapeText(pad.title || "Video"), `<div class="loading">${escapeText(pad.title || "Video")}</div>`);
