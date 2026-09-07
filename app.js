@@ -16430,12 +16430,19 @@ function openInlineVideoProjection(pad, url, title) {
     overlay = document.createElement("div");
     overlay.className = "video-projection-overlay";
     overlay.hidden = true;
-    overlay.innerHTML = '<button class="video-projection-playgate" type="button" hidden>▶ Lancer la vidéo</button><div class="video-projection-label"></div>';
-    overlay.addEventListener("dblclick", () => {
-      if (state.inlineVideoPad) stopVideoProjection(state.inlineVideoPad, { fade: false });
-    });
-    // Filet si video.play() est refusé faute de geste (commande régie) : ce
-    // clic-ci EST un geste → la vidéo part avec le son.
+    overlay.innerHTML = '<button class="video-projection-playgate" type="button" hidden>\u25B6 Lancer la vid\u00e9o</button>'
+      + '<button class="video-projection-close" type="button" aria-label="Fermer la projection">\u2715 Fermer</button>'
+      + '<div class="video-projection-label"></div>';
+    const closeInlineProjection = () => {
+      // Fermeture manuelle : on arrête sans déclencher le crossfade de fin ni
+      // l'avancement des cues (l'opérateur range l'écran, il ne « termine » pas).
+      if (state.inlineVideoPad) stopVideoProjection(state.inlineVideoPad, { fade: false, triggerEnd: false });
+      else hideInlineVideoProjection(null);
+    };
+    overlay.addEventListener("dblclick", closeInlineProjection);
+    overlay.querySelector(".video-projection-close").addEventListener("click", closeInlineProjection);
+    // Filet si video.play() est refuse faute de geste (commande regie) : ce
+    // clic-ci EST un geste -> la video part avec le son.
     overlay.querySelector(".video-projection-playgate").addEventListener("click", () => {
       overlay.querySelector("video")?.play().catch(() => {});
     });
@@ -16914,6 +16921,9 @@ async function playPadVideo(pad, options = {}) {
     video.addEventListener("ended", () => {
       pad.resumeOffset = 0;
       markVideoStopped(pad, true);
+      // Repli plein écran : la vidéo finie, on rend la main sur le board.
+      // (La pop-up, elle, reste ouverte — comportement historique.)
+      if (pad.videoInline) hideInlineVideoProjection(pad);
     }, { once: true });
   }
   state.lastStartedPad = pad;

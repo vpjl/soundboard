@@ -11662,6 +11662,21 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   letter-spacing: 0.02em;
   pointer-events: none;
 }
+/* Bouton pour quitter la projection et revenir au board (repli plein écran :
+   pas de fenêtre séparée à fermer). Double-clic sur l'overlay = même effet. */
+.video-projection-close {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 /* Filet : video.play() refusé faute de geste (lecture commandée depuis la
    régie) → l'opérateur façade lance à la main. Masqué dès que ça joue. */
 .video-projection-playgate {
