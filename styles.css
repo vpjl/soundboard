@@ -11751,3 +11751,64 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
+
+/* Overlay de progression centré (chantier « barre de progression »). Piloté par
+   setStatus(..., "progress", { progress: { done, total, label } }) : montré tant
+   qu'un message "progress" porte un compteur, masqué au message suivant (succès
+   / stop / neutre). Purement informatif — pointer-events: none, ne piège aucun
+   clic même s'il tarde à se masquer. */
+.progress-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99000;
+  display: grid;
+  place-items: end center;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  pointer-events: none;
+  background: transparent;
+}
+.progress-overlay[hidden] {
+  display: none;
+}
+.progress-overlay-panel {
+  min-width: min(340px, 92vw);
+  max-width: 92vw;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: var(--color_ui_field_background);
+  color: var(--color_ui_text);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+.progress-overlay-label {
+  margin: 0 0 12px;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+.progress-overlay-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.3);
+  overflow: hidden;
+}
+.progress-overlay-bar {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--color_status_progress, var(--accent));
+  transition: width 0.2s ease;
+}
+.progress-overlay-count {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.progress-overlay.is-indeterminate .progress-overlay-bar {
+  width: 40%;
+  animation: progress-overlay-slide 1.1s ease-in-out infinite;
+}
+@keyframes progress-overlay-slide {
+  0% { transform: translateX(-140%); }
+  100% { transform: translateX(320%); }
+}

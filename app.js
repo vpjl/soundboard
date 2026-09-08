@@ -5719,7 +5719,7 @@ async function renderPads(options = {}) {
   const board = currentBoard();
   perf.log("preparation complete", { padCount: board.padCount });
   // Immediate feedback while a large board is being prepared.
-  setStatus("Ouverture du board…", "progress");
+  setStatus("Ouverture du board…", "progress", { progress: { label: "Ouverture du board", total: 0 } });
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const restoreJobs = [];
   for (let index = 0; index < board.padCount; index += 1) {
@@ -5756,7 +5756,7 @@ async function renderPads(options = {}) {
   let restoreDone = 0;
   const trackedJobs = restoreJobs.map((job) => job.then((res) => {
     restoreDone += 1;
-    setStatus(`Ouverture du board… ${restoreDone} / ${restoreTotal}`, "progress");
+    setStatus(`Ouverture du board… ${restoreDone} / ${restoreTotal}`, "progress", { progress: { label: "Ouverture du board", done: restoreDone, total: restoreTotal } });
     return res;
   }));
   const restoreResults = await Promise.all(trackedJobs);
@@ -8745,7 +8745,7 @@ async function uploadBoardToAdmin(blob, boardName, win, csrf) {
     fd.append("part", blob.slice(seq * CHUNK, (seq + 1) * CHUNK), "part");
     const res = await fetch("api/admin.php", { method: "POST", body: fd, credentials: "same-origin" });
     if (!res.ok) throw new Error(`tranche ${seq + 1}/${total} refusée (${res.status})`);
-    setStatus(`Envoi du board à la console : ${seq + 1} / ${total}`, "progress");
+    setStatus(`Envoi du board à la console : ${seq + 1} / ${total}`, "progress", { progress: { label: "Envoi du board à la console de partage", done: seq + 1, total } });
     try { win?.postMessage({ type: "sb-board-progress", seq: seq + 1, total }, location.origin); } catch {}
   }
   try { win?.postMessage({ type: "sb-board-staged", uid, name: boardName }, location.origin); } catch {}
@@ -8771,7 +8771,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
   }
   const board = currentBoard();
   // Immediate feedback: the prep step (persist) can take a moment with no UI.
-  if (!forRemote) setStatus("Préparation de l'export…", "progress");
+  if (!forRemote) setStatus("Préparation de l'export…", "progress", { progress: { label: "Préparation de l'export", total: 0 } });
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   const pads = [];
   syncPadIndexesFromDom();
@@ -8786,7 +8786,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     const meta = await dbGet(padMetaKey(pad));
     const saved = await dbGet(padAudioKey(pad));
     const hasVideoPad = Boolean(saved?.video || saved?.videoName || meta?.videoName || meta?.videoPath);
-    if (!forRemote) setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress");
+    if (!forRemote) setStatus(`Export : ${index + 1} / ${board.padCount} — ${meta?.title || saved?.title || `Pad ${index + 1}`}`, "progress", { progress: { label: "Export du board", done: index + 1, total: board.padCount } });
     const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
@@ -10337,7 +10337,7 @@ async function backupAllStoredSounds() {
       if (err?.name === "AbortError") { setStatus("Sauvegarde annulée"); return; }
       throw err;
     }
-    setStatus("Sauvegarde des sons en cours…", "progress");
+    setStatus("Sauvegarde des sons en cours…", "progress", { progress: { label: "Sauvegarde des sons", total: 0 } });
     for (const [folder, bucket] of folders) {
       const dir = await root.getDirectoryHandle(folder, { create: true });
       for (const file of bucket.files) {
@@ -12307,6 +12307,44 @@ async function safeSaveRestoredPadMeta(pad, meta) {
   return savePadMeta(pad);
 }
 
+// Overlay de progression centré : créé à la volée (comme la projection vidéo),
+// aucun markup dans index.html. Voir .progress-overlay dans styles.css.
+function progressOverlayEl() {
+  let overlay = els.progressOverlay;
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "progress-overlay";
+    overlay.hidden = true;
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    overlay.innerHTML =
+      '<div class="progress-overlay-panel">'
+      + '<p class="progress-overlay-label"></p>'
+      + '<div class="progress-overlay-track"><div class="progress-overlay-bar"></div></div>'
+      + '<p class="progress-overlay-count"></p>'
+      + '</div>';
+    document.body.appendChild(overlay);
+    els.progressOverlay = overlay;
+  }
+  return overlay;
+}
+
+function showProgressOverlay(label, done, total) {
+  const overlay = progressOverlayEl();
+  const hasTotal = Number.isFinite(total) && total > 0;
+  const pct = hasTotal ? Math.min(100, Math.max(0, Math.round((done / total) * 100))) : 0;
+  overlay.classList.toggle("is-indeterminate", !hasTotal);
+  overlay.querySelector(".progress-overlay-label").textContent = label || "Chargement…";
+  const bar = overlay.querySelector(".progress-overlay-bar");
+  bar.style.width = hasTotal ? `${pct}%` : "";
+  overlay.querySelector(".progress-overlay-count").textContent = hasTotal ? `${done} / ${total}` : "";
+  overlay.hidden = false;
+}
+
+function hideProgressOverlay() {
+  if (els.progressOverlay) els.progressOverlay.hidden = true;
+}
+
 function setStatus(text, type = "", options = {}) {
   const normalizedType = type || "neutral";
   els.status.textContent = text;
@@ -12326,6 +12364,16 @@ function setStatus(text, type = "", options = {}) {
   // automatiquement par le type, sinon chaque message warning/danger popperait.
   if (options.alert && !state.stageMode) {
     window.alert(text);
+  }
+
+  // Jauge centrée : visible tant qu'un message "progress" porte des données de
+  // progression, masquée dès le message suivant (succès / stop / neutre, ou un
+  // "progress" sans options.progress comme les messages d'étape ponctuels).
+  if (options.progress && normalizedType === "progress") {
+    const { done = 0, total = 0, label } = options.progress;
+    showProgressOverlay(label != null ? label : text, done, total);
+  } else {
+    hideProgressOverlay();
   }
 }
 
@@ -12400,7 +12448,7 @@ async function prepareBoardForStage(options = {}) {
 
   // Phase 1 — scan rapide (lecture DB, pas de décodage)
   if (audioCandidates.length) {
-    setStatus(`Vérification des fichiers (${audioCandidates.length})…`, "progress");
+    setStatus(`Vérification des fichiers (${audioCandidates.length})…`, "progress", { progress: { label: "Entrée en scène — vérification des fichiers", total: 0 } });
   }
   const missingPads = [];
   const validPads = [];
@@ -12448,7 +12496,7 @@ async function preloadStagePads(pads) {
         pad.node?.classList.add("is-missing-audio");
       }
       done += 1;
-      setStatus(`Préchargement : ${done} / ${total}`, "progress");
+      setStatus(`Préchargement : ${done} / ${total}`, "progress", { progress: { label: "Entrée en scène — préchargement des médias", done, total } });
     }
   };
   await Promise.all(
