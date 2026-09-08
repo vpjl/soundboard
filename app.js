@@ -1545,6 +1545,33 @@ function perfElapsedMs(start) {
   return Number((performance.now() - start).toFixed(2));
 }
 
+// Index de pad référencé, ou null. À utiliser partout plutôt que
+// Number.isInteger(Number(x)) : Number(null) === 0, ce qui transformait un
+// « pas de référence » en « référence vers le pad 0 » (bug metaSchema 2).
+function normalizeRefIndex(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+// Chantier 0 (instrumentation) : photo mémoire ponctuelle dans la console.
+// performance.memory est propriétaire Chrome et quantifié → profilage local
+// uniquement, jamais une métrique fiable. Sortie sur console.debug (masquée
+// hors niveau « Verbose »), comme les logs [perf].
+function perfMemorySnapshot(label, extra = {}) {
+  const mem = performance.memory;
+  if (!mem) {
+    // Firefox / Safari : performance.memory absent → on le signale une fois
+    // pour que le relevé ne paraisse pas incomplet par erreur.
+    console.debug(`[mem] ${label} — indisponible (navigateur non-Chromium)`);
+    return null;
+  }
+  const mb = (n) => Number((n / 1048576).toFixed(1));
+  const parts = Object.entries(extra).map(([k, v]) => `${k}=${v}`);
+  console.debug(
+    `[mem] ${label} — used=${mb(mem.usedJSHeapSize)}MB total=${mb(mem.totalJSHeapSize)}MB limit=${mb(mem.jsHeapSizeLimit)}MB${parts.length ? " " + parts.join(" ") : ""}`
+  );
+  return { used: mb(mem.usedJSHeapSize), total: mb(mem.totalJSHeapSize) };
+}
+
 function approximateMediaSize(value) {
   if (!value) return 0;
   if (typeof value === "string") return value.length;
@@ -1562,7 +1589,11 @@ function restorePadMediaSize(...records) {
       approximateMediaSize(record.audio),
       approximateMediaSize(record.video),
       approximateMediaSize(record.visualImage),
-      approximateMediaSize(record.textContent)
+      approximateMediaSize(record.textContent),
+      // Enregistrements « lecture blob différée » : le blob n'est pas là, mais sa
+      // taille persistée dans le descripteur meta l'est.
+      Number(record.audioByteLength) || 0,
+      Number(record.videoByteLength) || 0
     );
   }, 0);
 }
@@ -1596,7 +1627,13 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
   pad.audioPending = true;
   pad.audioDecodePromise = (async () => {
     prepareAudio();
+    const decodeStartedAt = performance.now();
+    const decodeBytes = approximateMediaSize(audioSource);
     const buffer = await state.audioContext.decodeAudioData(audioSource.slice(0));
+    // Chantier 0 (instrumentation) : coût réel du décodage par pad, pour
+    // confirmer/infirmer les ~158 ms/pad supposés. Ligne de texte à plat
+    // (copiable / exportable telle quelle).
+    console.debug(`[perf] decodeAudio pad#${pad.index + 1} "${pad.title}" — ${perfElapsedMs(decodeStartedAt)}ms · ${(decodeBytes / 1048576).toFixed(1)}Mo · ${(buffer?.duration || 0).toFixed(1)}s audio · source=play`);
     pad.buffer = buffer;
     setPadDecodedAudioMetadata(pad, buffer, audioSource);
     applyEffectiveBufferState(pad); // durée + waveform = buffer effectif (régions appliquées)
@@ -1620,6 +1657,10 @@ async function backfillPadDurations() {
   const pads = state.pads.filter((p) =>
     !p.duration && !p.buffer && !p.videoName && !p.textContent
     && (p.audioStored || p.hasDirectAudio || p.audioName || p.audioPath));
+  // Chantier 0 (instrumentation) : coût total de ce backfill de fond, pour
+  // vérifier les « ~750 ms » / « ~4 s » supposés. console.debug → [perf].
+  const backfillStartedAt = performance.now();
+  let backfillDone = 0;
   for (const pad of pads) {
     if (token !== durationBackfillToken || state.stageMode) return; // board changé / scène : on arrête
     if (pad.duration || pad.buffer) continue;
@@ -1631,9 +1672,12 @@ async function backfillPadDurations() {
       if (!audio) continue;
       prepareAudio();
       if (!state.audioContext) return;
+      const decodeStartedAt = performance.now();
       const buf = await state.audioContext.decodeAudioData(audio.slice(0));
+      console.debug(`[perf] decodeAudio pad#${pad.index + 1} "${pad.title}" — ${perfElapsedMs(decodeStartedAt)}ms · ${(approximateMediaSize(audio) / 1048576).toFixed(1)}Mo · ${(buf?.duration || 0).toFixed(1)}s audio · source=backfill`);
       if (token !== durationBackfillToken) return;
       if (pad.buffer || pad.duration) continue;
+      backfillDone += 1;
       pad.audioDuration = buf.duration;
       const cutTotal = (pad.regions || [])
         .filter((r) => r.type === "cut")
@@ -1645,6 +1689,9 @@ async function backfillPadDurations() {
       savePadMeta(pad);
     } catch {}
     await new Promise((r) => setTimeout(r, 30)); // respiration entre décodages
+  }
+  if (backfillDone > 0) {
+    console.debug(`[perf] backfillPadDurations — ${backfillDone} pad(s) décodé(s) en ${perfElapsedMs(backfillStartedAt)}ms (tâche de fond)`);
   }
 }
 
@@ -5727,6 +5774,8 @@ async function renderPads(options = {}) {
   syncCueControls();
   setStatus("Board prêt pour l’édition", "success");
   perf.log("complete", { padCount: state.pads.length });
+  console.debug(`[perf] renderPads — board affiché : ${state.pads.length} pad(s) en ${perfElapsedMs(perf.start)}ms`);
+  perfMemorySnapshot("renderPads:complete", { pads: state.pads.length }); // baseline studio (avant décodage)
   state.pads.forEach(fitPadTitle);
   updateAllPadAlerts(); // calcule les badges (dont source/cible crossfade) après restauration
   if (!state.stageMode) backfillPadDurations(); // durées affichées sans passer par la scène
@@ -11368,7 +11417,7 @@ async function restorePad(pad) {
     });
     setPadNote(pad, meta.noteText, meta.noteShowOnStart, meta.noteShowOnEnd);
     setPadMode(pad, meta.playMode || pad.playMode);
-    pad.audioRefIndex = Number.isInteger(Number(meta.audioRefIndex)) ? Number(meta.audioRefIndex) : null;
+    pad.audioRefIndex = normalizeRefIndex(meta.audioRefIndex);
     pad.volumeEl.value = pad.volume;
     updatePadVolumeValue(pad);
     pad.panEl.value = pad.panValue;
@@ -11376,16 +11425,66 @@ async function restorePad(pad) {
     log("pad settings applied", { source: "meta" });
   }
 
-  const rawSaved = await dbGet(padAudioKey(pad));
+  // Chantier « lecture blob différée » : si le descripteur meta (schema 2) affirme
+  // un blob audio DIRECT ou une vidéo, restorePad n'a pas besoin des octets — il ne
+  // fait que constater leur présence puis les jette (pad.buffer reste null tant que
+  // shouldPreloadAudioOnRestore() est false). On synthétise alors un enregistrement
+  // minimal depuis meta et on saute le dbGet du gros blob (300–450 ms sur un gros
+  // fichier). Les pads référencés / vides / texte gardent la lecture complète (pas
+  // de gros blob dans leur propre enregistrement). Sentinelle non-sliceable : si un
+  // chemin tente d'en lire les octets, ça casse bruyamment plutôt qu'en silence.
+  const SYNTHETIC_BLOB = Object.freeze({ __syntheticBlob: true });
+  const metaDescribesDirectAudio = meta?.metaSchema >= 3 && meta.hasAudioBlob === true;
+  const metaDescribesVideo = meta?.metaSchema >= 3 && meta.hasVideoBlob === true;
+  const canSkipBlobRead = (metaDescribesDirectAudio || metaDescribesVideo) && !shouldPreloadAudioOnRestore();
+  let rawSaved;
+  if (canSkipBlobRead) {
+    rawSaved = {
+      ...meta,
+      uid: meta.uid,
+      audioUid: meta.audioUid,
+      name: meta.audioName || "",
+      path: meta.audioPath || "",
+      type: meta.audioType || "",
+      audio: metaDescribesDirectAudio ? SYNTHETIC_BLOB : undefined,
+      video: metaDescribesVideo ? SYNTHETIC_BLOB : undefined,
+      audioRecordSynthetic: true,
+    };
+    summary.mediaSizeBytes = Number(meta.videoByteLength || meta.audioByteLength) || 0;
+    log("indexedDB audio read", { skipped: true, source: "meta-schema-2", kind: metaDescribesVideo ? "video" : "audio" });
+  } else {
+    const audioReadStartedAt = performance.now();
+    rawSaved = await dbGet(padAudioKey(pad));
+    summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved);
+    log("indexedDB audio read", {
+      skipped: false,
+      readMs: perfElapsedMs(audioReadStartedAt),
+      hasAudioRecord: Boolean(rawSaved),
+      hasDirectAudio: Boolean(rawSaved?.audio),
+      hasVideo: Boolean(rawSaved?.video),
+      audioRefIndex: rawSaved?.audioRefIndex ?? meta?.audioRefIndex ?? null,
+    });
+    // Migration opportuniste vers le schema 2 : on tient déjà le blob, poser le
+    // descripteur dans meta est gratuit et permet à restorePad de sauter ce
+    // dbGet au prochain chargement. Fire-and-forget (pas d'await, pas de
+    // checkpoint undo) ; se retente au chargement suivant si ça échoue.
+    if (meta && meta.metaSchema !== 3) {
+      const migHasVideo = Boolean(rawSaved?.video);
+      dbSet(padMetaKey(pad), {
+        ...meta,
+        metaSchema: 3,
+        hasAudioBlob: Boolean(rawSaved?.audio),
+        hasVideoBlob: migHasVideo,
+        audioType: meta.audioType || rawSaved?.type || "",
+        videoByteLength: migHasVideo ? approximateMediaSize(rawSaved.video) : 0,
+        audioRefIndex: normalizeRefIndex(meta.audioRefIndex), // répare le 0 écrit par le schema 2
+        hasAudio: undefined, // champ du schema 2, remplacé par hasAudioBlob
+        hasVideo: undefined,
+      }).catch(() => {});
+    }
+  }
   pad.audioStored = Boolean(rawSaved?.audio);
   pad.audioPending = false;
-  summary.mediaSizeBytes = restorePadMediaSize(meta, rawSaved);
-  log("indexedDB audio read", {
-    hasAudioRecord: Boolean(rawSaved),
-    hasDirectAudio: Boolean(rawSaved?.audio),
-    hasVideo: Boolean(rawSaved?.video),
-    audioRefIndex: rawSaved?.audioRefIndex ?? meta?.audioRefIndex ?? null,
-  });
   if (rawSaved?.video) {
     summary.detectedType = "video";
     summary.audioLink = "video";
@@ -12088,8 +12187,20 @@ async function savePadMeta(pad, options = {}) {
     || pad.audioRefIndex != null || pad.textMode || pad.textContent,
   );
   const keepVideoRef = !options.forgetVideo && !padHasOtherMedia;
+  // Chantier « lecture blob différée » : descripteur média inscrit dans le petit
+  // enregistrement meta, pour que restorePad n'ait plus à lire le blob audio/vidéo
+  // (plusieurs Mo) juste pour savoir qu'il existe. metaSchema:3 = descripteur fiable
+  // (2 était corrompu : Number(null)===0 écrivait audioRefIndex:0 partout).
+  const resolvedAudioRefIndex = normalizeRefIndex(pad.audioRefIndex);
+  const hasAudioBlob = Boolean(previousSaved?.audio);
+  const hasVideoBlob = Boolean(previousSaved?.video);
   const meta = {
     uid: pad.uid || createId(),
+    metaSchema: 3,
+    hasAudioBlob,
+    hasVideoBlob,
+    audioType: pad.audioType || previousSaved?.type || "",
+    videoByteLength: hasVideoBlob ? approximateMediaSize(previousSaved.video) : 0,
     title: pad.title,
     volume: pad.volume,
     panValue: pad.panValue,
@@ -12157,7 +12268,7 @@ async function savePadMeta(pad, options = {}) {
     regions: pad.regions || [],
     envelope: pad.envelope || [],
     playMode: pad.playMode,
-    audioRefIndex: Number.isInteger(Number(pad.audioRefIndex)) ? Number(pad.audioRefIndex) : null,
+    audioRefIndex: resolvedAudioRefIndex,
   };
   await dbSet(padMetaKey(pad), meta);
   const saved = await dbGet(padAudioKey(pad));
@@ -12318,6 +12429,10 @@ async function preloadStagePads(pads) {
   // decodeAudioData tourne hors thread principal ; la limite évite seulement de
   // lancer 25 fetch/décodages simultanés sur une machine modeste.
   const PRELOAD_CONCURRENCY = 6;
+  // Chantier 0 (instrumentation) : coût total du préchargement scène + delta
+  // mémoire (buffers PCM décodés conservés). console.debug → [perf] / [mem].
+  const preloadStartedAt = performance.now();
+  perfMemorySnapshot("preloadStagePads:avant", { pads: total });
   let done = 0;
   let next = 0;
   const decodeNextPad = async () => {
@@ -12339,6 +12454,8 @@ async function preloadStagePads(pads) {
   await Promise.all(
     Array.from({ length: Math.min(PRELOAD_CONCURRENCY, total) }, decodeNextPad)
   );
+  console.debug(`[perf] preloadStagePads — ${done}/${total} pad(s) préchargé(s) en ${perfElapsedMs(preloadStartedAt)}ms (concurrence ${PRELOAD_CONCURRENCY})`);
+  perfMemorySnapshot("preloadStagePads:apres", { pads: total });
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
 }
 
