@@ -3527,6 +3527,14 @@ body.stage-mode .tag-filter-section-header {
   font-size: 0.72rem;
 }
 
+/* Badge « média manquant » : icône bone-fracture (Lucide) au lieu du « ? » texte,
+   pour ne pas la confondre avec le bouton d'aide (qui garde son [?]). */
+.pad-alert-missing svg {
+  display: block;
+  width: 13px;
+  height: 13px;
+}
+
 /* Skin "print" : même nuancier de catégorie que .option-badge (bleu/rose/gris
    codés en dur ci-dessus) — neutralisé en un gris unique pour tous les
    .pad-alert-*, le texte du badge porte déjà l'information. */
@@ -9274,6 +9282,27 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background: rgba(0, 0, 0, 0.38);
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+/* Skin basic avec illustration/couleur : l'indicateur « joue / arrêt proche »
+   (pastille .pad-crossfade-flash) doit rester visible PAR-DESSUS l'illustration,
+   pour tous les types de pad (audio, vidéo, texte). Sans ce bloc elle héritait du
+   `position: static` de la mise en page en grille (~8660) et se retrouvait rejetée
+   hors cadre / masquée. On la repose en absolu au MÊME endroit que sur un pad nu :
+   sur la rangée du haut (celle du numéro), juste après le numéro et le badge de
+   type — pas rejetée sur une 2ᵉ ligne. */
+body[data-skin="basic"] .pad.has-visual-image:not(.is-editing):not(.is-visual-hidden) .pad-crossfade-flash,
+body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):not(.is-visual-hidden) .pad-crossfade-flash {
+  position: absolute !important;
+  grid-area: auto;
+  z-index: 4;
+  top: 14px;
+  left: 69px;
+  right: auto;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  outline: 1px solid rgba(0, 0, 0, 0.45);
 }
 
 /* S2 — nettoyage !important superflu (les deux règles suivantes) : `.pad.is-
