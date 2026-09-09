@@ -8340,10 +8340,6 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
 }
 
 
-body.stage-mode .master-audio-button {
-  display: none !important;
-}
-
 body.stage-mode .pad-live-row {
   grid-template-columns: minmax(0, 1fr) !important;
 }
