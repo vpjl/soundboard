@@ -9453,6 +9453,13 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-alerts {
   grid-row: 4;
 }
 
+/* Garage = construction du board : on n'affiche PAS les indicateurs d'options
+   audio (loop, crossfade, duck, fade, EQ, reverb, reverse, mono, fin…) — ils
+   se règlent en studio. Seul « média manquant » reste (état de construction). */
+body.board-edit-mode .pad.is-editing .pad-alerts .pad-alert:not(.pad-alert-missing) {
+  display: none !important;
+}
+
 body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
 body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-cue-button,
 body[data-skin="basic"].board-edit-mode .pad.is-editing .drag-handle {
