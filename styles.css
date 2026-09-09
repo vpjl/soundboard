@@ -4192,9 +4192,7 @@ body.board-edit-mode .pads-edit-button .live-mode-icon {
   font-size: 0.76rem;
 }
 
-.control-group button.is-active,
-.loop-button.is-active,
-.duck-button.is-active {
+.control-group button.is-active {
   border-color: var(--color_status_success);
   background: color-mix(in srgb, var(--color_status_success) 20%, transparent);
   color: var(--color_ui_text);
@@ -4407,6 +4405,15 @@ body.board-edit-mode .pads {
   align-items: stretch;
 }
 
+/* Skin basic garage : les rangées de la grille se dimensionnent à leur contenu
+   (au lieu d'être plafonnées à --pad-compact-height, calé sur le studio plus
+   haut) → plus d'espace vide sous les pads courts. Les pads d'une même rangée
+   restent alignés (stretch). */
+body[data-skin="basic"].board-edit-mode .pads.has-pad-layout {
+  grid-auto-rows: auto;
+}
+
+
 body.board-edit-mode .pad.is-editing {
   grid-template-rows: 68px 38px auto minmax(38px, auto) auto;
 }
@@ -4419,6 +4426,96 @@ body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
 body.board-edit-mode .pad.is-editing .tag-field {
   grid-row: 4;
   align-self: stretch;
+}
+
+/* --- Skin basic (pads illustrés = destinés à la scène) : compacter l'éditeur
+   du pad en garage. L'éditeur « Nom » remonte à DROITE de l'aperçu
+   d'illustration (là où s'affichait le titre autrefois), les tags remontent
+   juste dessous avec de la place pour ~3 lignes, plus de rangée « Nom »
+   dédiée → pad plus court. --- */
+/* rangée 1 : aperçu (dans .pad-trigger, forcé rangée 1) + éditeur « Nom » à sa
+   droite, stylé comme un TITRE (pas comme un champ de formulaire) : fond
+   transparent, souligné seulement, gras. Le cadre n'apparaît qu'au focus. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  justify-self: start;
+  align-self: center;
+  margin-top: 24px !important;
+  min-height: 0 !important;
+}
+body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
+  width: 46px;
+  height: 34px;
+}
+/* Champ « Nom » : pleine largeur, décalé à droite de l'aperçu par la marge
+   gauche + largeur calculée (pas de `width:100%` hérité, qui débordait sur le
+   pad voisin). Stylé comme un titre : cadre/fond seulement au survol/focus. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name] {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  width: calc(100% - 50px);
+  max-width: calc(100% - 50px);
+  margin: 24px 0 0 50px;
+  align-self: center;
+  min-height: 0;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.98rem;
+  font-weight: 600;
+  z-index: 2;
+}
+body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name]:hover {
+  border-color: var(--line);
+}
+body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name]:focus {
+  background: rgba(var(--color_ui_field_background_rgb), 0.8);
+  border-color: var(--color_status_progress);
+}
+
+/* rangée 2 : curseur de position + VU CÔTE À CÔTE, comme en studio (progress ~2/3,
+   VU la colonne étroite de droite). @layer mode pour battre le
+   `display:none !important` layered de ~8940. */
+@layer mode {
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-progress,
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-vu {
+  display: block !important;
+  position: static !important;
+  inset: auto !important;
+  grid-area: auto !important;   /* neutralise le grid-area nommé « progress » / « vu » */
+  grid-row: 2 !important;
+  width: auto !important;
+  height: 9px !important;
+  align-self: center;
+  justify-self: stretch;
+  margin: 0 !important;
+}
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-progress {
+  grid-column: 1 / 3 !important;
+}
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-vu {
+  grid-column: 3 / -1 !important;
+}
+}
+
+/* rangée 3 : tags — label « TAGS », [+] et chips sur la MÊME ligne ; les chips
+   débordent en hauteur (jusqu'à ~3 lignes) puis défilent. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .tag-field {
+  grid-row: 3;
+  align-self: start;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags-chips {
+  min-height: 24px;      /* 1 ligne quand peu de tags… */
+  max-height: 66px;      /* …jusqu'à ~3 lignes, puis défilement */
+  align-content: flex-start;
+  overflow-y: auto;
+  flex: 1 1 auto;
 }
 
 body.board-edit-mode .pad.is-editing .tag-field > span {
@@ -4459,6 +4556,15 @@ body.board-edit-mode .pad.is-editing .tags-add-btn:hover {
 /* Garage: hide tags from trigger display, show only in chips below */
 @layer mode {
 body.board-edit-mode .pad.is-editing .pad-tags {
+  display: none;
+}
+}
+
+/* Garage : le titre affiché sur la façade du pad fait doublon avec le champ
+   d'édition « Nom » (.name-field > input[data-name]) juste en dessous. On ne
+   garde que l'éditeur ; la façade du pad ne sert plus qu'à sélectionner. */
+@layer mode {
+body.board-edit-mode .pad.is-editing .pad-title {
   display: none;
 }
 }
@@ -4504,6 +4610,9 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   display: none;
 }
 
+/* Garage = construction : couleur du pad éditée via « Changer l'aspect du pad »
+   (dialogue), pas dans l'éditeur inline — trop encombrant. Comme trim / fade /
+   normalisation / crossfade, ce champ reste masqué ici. */
 .pad.is-editing .color-field {
   order: 90;
   display: none;
@@ -4861,8 +4970,11 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   display: contents;
 }
 
+/* Garage = construction du board : pas de réglages audio ici. Le bouton
+   « Réglages audio » est masqué (il reste en studio) et remplacé par la
+   pré-écoute cue pour auditionner le média du pad pendant le montage. */
 .pad.is-editing .live-button-group,
-.pad.is-editing .secondary-live-group button:not(.pad-audio-button) {
+.pad.is-editing .secondary-live-group button:not(.pad-cue-button) {
   display: none;
 }
 
@@ -4874,7 +4986,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   display: none;
 }
 
-.pad.is-editing .pad-audio-button,
+.pad.is-editing .pad-cue-button,
 .pad.is-editing .manage-group [data-action="visual-image"],
 .pad.is-editing .manage-group [data-action="duplicate-pad"],
 .pad.is-editing .manage-group [data-action="transfer-pad"],
@@ -4891,7 +5003,7 @@ body.board-edit-mode .pad.is-editing .tag-field.tags-input-open .tags-add-btn {
   order: 40;
 }
 
-.pad.is-editing .pad-audio-button {
+.pad.is-editing .pad-cue-button {
   order: 41;
 }
 
@@ -6846,7 +6958,7 @@ body[data-skin="print"] .audio-section h3 {
   overflow: hidden;
   width: 100%;
   min-height: 0;
-  aspect-ratio: var(--image-pad-aspect, 16 / 9);
+  aspect-ratio: var(--image-pad-aspect, 1 / 1);
   margin-bottom: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -6880,7 +6992,7 @@ body[data-skin="print"] .audio-section h3 {
 .image-sketch-canvas {
   display: block;
   width: 100%;
-  aspect-ratio: var(--image-pad-aspect, 16 / 9);
+  aspect-ratio: var(--image-pad-aspect, 1 / 1);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--color_ui_field_background);
@@ -9314,11 +9426,28 @@ body.board-edit-mode .pad.is-editing {
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing {
   grid-template-columns: 1fr 1fr 38px;
-  grid-template-rows: auto auto auto 1fr auto auto;
+  /* rangées : 1 aperçu+nom · 2 position/VU · 3 tags (3 lignes) · 4 badges ·
+     5-6 boutons. Plus de rangée « nom » dédiée ni de spacer 1fr → pad plus court. */
+  grid-template-rows: 56px 12px auto auto 38px 38px;
+  align-content: start;
+  gap: 4px 8px;
+}
+
+/* La façade ne porte plus que l'aperçu d'illustration : on la réduit à sa
+   colonne (elle reste la cible de sélection au clic), le champ « Nom » occupe
+   le reste de la rangée. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+  grid-column: 1 / 2 !important;
+  grid-template-columns: 44px !important;
+  min-height: 34px;
+}
+
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-alerts {
+  grid-row: 4;
 }
 
 body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-audio-button,
+body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-cue-button,
 body[data-skin="basic"].board-edit-mode .pad.is-editing .drag-handle {
   grid-row: 5;
 }
@@ -9337,7 +9466,7 @@ body.board-edit-mode .pad.is-editing .manage-group {
   display: contents !important;
 }
 
-body.board-edit-mode .pad.is-editing .pad-audio-button,
+body.board-edit-mode .pad.is-editing .pad-cue-button,
 body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
 body.board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"],
 body.board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"],
@@ -9354,7 +9483,7 @@ body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"] 
   grid-column: 1;
 }
 
-body.board-edit-mode .pad.is-editing .pad-audio-button {
+body.board-edit-mode .pad.is-editing .pad-cue-button {
   grid-column: 2;
   color: var(--color_pad_button_text);
   background: var(--color_pad_button_background);

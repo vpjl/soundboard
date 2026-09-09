@@ -3184,8 +3184,6 @@ function makePad(index) {
   pad.volumeValueEl = node.querySelector("[data-volume-value]");
   pad.panEl = node.querySelector("[data-pan]");
   pad.panValueEl = node.querySelector("[data-pan-value]");
-  pad.loopEl = node.querySelector('[data-action="loop"]');
-  pad.duckEl = node.querySelector('[data-action="duck"]');
   pad.muteEl = node.querySelector('[data-action="mute"]');
   pad.cueButton = node.querySelector('[data-action="cue-preview"]');
   pad.noteButton = node.querySelector('[data-action="note"]');
@@ -3497,16 +3495,6 @@ function makePad(index) {
   pad.panEl.addEventListener("dblclick", () => {
     pad.panEl.value = "0";
     pad.panEl.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-
-  pad.loopEl.addEventListener("click", () => {
-    applyPadLoopChange(pad, !pad.loop);
-    if (state.remoteRole === "controller") sendRemoteCommand("loop", remotePadTarget(pad), { value: pad.loop });
-  });
-
-  pad.duckEl.addEventListener("click", () => {
-    applyPadDuckChange(pad, pad.duckTrigger ? "none" : "global", pad.duckPercent);
-    if (state.remoteRole === "controller") sendRemoteCommand("duck", remotePadTarget(pad), { mode: pad.duckMode, percent: pad.duckPercent });
   });
 
   pad.muteEl?.addEventListener("click", (event) => {
@@ -4739,6 +4727,18 @@ function toggleManualPadSelection(pad) {
 // Interception du clic pad quand le mode sélection est armé (même motif que le
 // crossfade manuel) : on sélectionne au lieu de jouer/éditer.
 function handleManualSelectPadClick(pad, event) {
+  // Garage (hors mode sélection armé) : la façade du pad (.pad-trigger, qui
+  // porte le titre et les tags) ne sert plus qu'à sélectionner — pas à jouer.
+  // Les vrais contrôles du pad (dupliquer, transférer, aspect, supprimer,
+  // pré-écoute, nom, tags, couleur…) gardent leur action.
+  if (!state.manualSelectMode && state.boardEditMode) {
+    if (!event.target.closest(".pad-trigger")) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    toggleManualPadSelection(pad);
+    return true;
+  }
   if (!state.manualSelectMode) return false;
   if (event.target.closest('input, select, textarea, dialog, .pad-progress, .pad-fx-back-progress, [data-action="delete-pad"]')) return false;
   event.preventDefault();
@@ -12473,7 +12473,14 @@ async function previewPadCue(pad, options = {}) {
     await previewTextCue(pad);
     return;
   }
-  if (!pad?.buffer && !pad?.videoName) {
+  // En garage (et au boot direct en garage) l'audio n'est pas décodé : `pad.buffer`
+  // est vide alors que le blob existe en base. On se fie donc aux mêmes drapeaux
+  // que le badge « média manquant » (cf. updateAllPadAlerts) ; le vrai cas absent
+  // reste géré plus bas après lecture DB.
+  const hasPlayableMedia = pad?.buffer || pad?.videoName
+    || pad?.audioStored || pad?.hasDirectAudio || pad?.audioName || pad?.audioPath
+    || pad?.audioRefIndex != null;
+  if (!hasPlayableMedia) {
     setStatus(`Pré-écoute impossible: média manquant sur ${pad?.title || "pad"}`);
     return;
   }
@@ -13441,16 +13448,12 @@ function setPadLiveFade(pad, fadeInEnabled, fadeOutEnabled) {
 
 function setPadLoop(pad, loop) {
   pad.loop = Boolean(loop);
-  pad.loopEl?.classList.toggle("is-active", pad.loop);
-  pad.loopEl?.setAttribute("aria-pressed", String(pad.loop));
   updatePadAlerts(pad);
   if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
 
 function setPadDuckTrigger(pad, duckTrigger) {
   pad.duckTrigger = Boolean(duckTrigger);
-  pad.duckEl?.classList.toggle("is-active", pad.duckTrigger);
-  pad.duckEl?.setAttribute("aria-pressed", String(pad.duckTrigger));
   updatePadAlerts(pad);
   if (state.boardEditMode) refreshBoardTagFilterOptions();
 }
@@ -15078,6 +15081,10 @@ async function aeApply() {
 }
 
 async function openAudioDialog(pad) {
+  // Les réglages audio du pad appartiennent au studio : le garage est réservé à
+  // la construction du board (cf. bouton « Réglages audio » remplacé par la
+  // pré-écoute sur la façade du pad en garage).
+  if (state.boardEditMode) return;
   const perf = startPerfMeasure("openAudioDialog");
   state.audioPad = pad;
   // Micro branché dès l'ouverture (le bouton d'enregistrement est ici) : il sera
@@ -15678,17 +15685,12 @@ function applyRemoteMasterAudioSettings(settings) {
 
 function syncImageDialog(pad = state.imagePad) {
   if (!pad) return;
-  const livePadRect = pad.node?.getBoundingClientRect();
-  // L'aperçu doit avoir la forme du pad tel qu'on le verra. En scène, skin
-  // basic, les pads illustrés sont carrés (aspect-ratio:1) → aperçu carré. En
-  // studio (et autres skins) le pad garde la forme de sa rangée (plus haut que
-  // large) : forcer un carré ici faisait cadrer l'image dans un carré, puis
-  // elle « tombait court » en bas du pad studio (bande blanche).
-  if (document.body.dataset.skin === "basic" && state.stageMode) {
-    els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
-  } else if (livePadRect?.width && livePadRect?.height) {
-    els.imageDialog?.style.setProperty("--image-pad-aspect", `${livePadRect.width} / ${livePadRect.height}`);
-  }
+  // L'illustration d'un pad est cadrée pour la SCÈNE, où les pads illustrés sont
+  // carrés (aspect-ratio:1). L'aperçu de cette fenêtre est donc toujours carré,
+  // même si le pad n'est pas carré dans le mode courant (studio / garage). Le
+  // cadrage se règle une fois ici pour le rendu scène ; cf. l'historique v975
+  // (aperçu qui suivait la forme du pad courant) désormais abandonné.
+  els.imageDialog?.style.setProperty("--image-pad-aspect", "1 / 1");
   const mode = state.imageDialogMode || "color";
   els.imageDialog?.classList.toggle("is-color-mode", mode === "color");
   els.imageDialog?.classList.toggle("is-image-mode", mode === "image");
