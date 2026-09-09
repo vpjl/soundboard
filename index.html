@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Playfair+Display:wght@400;700&family=Ubuntu:wght@400;700&family=Nunito:wght@400;700&display=swap">
-    <link rel="stylesheet" href="styles.css?v=1015">
+    <link rel="stylesheet" href="styles.css?v=1016">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -166,11 +166,8 @@
                           <button type="button" class="board-mode-button" data-board-mode-target="stage" aria-label="Passer en mode scène">Scène</button>
                           <button type="button" class="board-mode-button" data-board-mode-target="studio" aria-label="Passer en mode studio">Studio</button>
                           <button type="button" class="board-mode-button" data-board-mode-target="garage" aria-label="Passer en mode garage">Garage</button>
-                          <button id="undoBoardEdit" class="icon-button board-undo-edit-button board-mode-selector-extra" type="button" aria-label="Annuler la dernière modification" title="Annuler la dernière modification (réglage ou suppression de pad)" disabled>
+                          <button id="undoBoardEdit" class="icon-button board-undo-edit-button board-mode-selector-extra" type="button" aria-label="Annuler la dernière modification" title="Annuler la dernière modification (réglage ou suppression de pad) — historique persistant" disabled>
                             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-da190c2a" xlink:href="#ic-da190c2a"></use></svg>
-                          </button>
-                          <button id="cancelBoardEdit" class="icon-button board-cancel-edit-button board-mode-selector-extra" type="button" aria-label="Annuler les modifications du board" title="Annuler toutes les modifications du board faites depuis l’entrée en garage (retour à l’état de départ)">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-135b75dc" xlink:href="#ic-135b75dc"></use></svg>
                           </button>
                         </div>
             <button class="board-section-toggle board-info-section-toggle" type="button" id="boardInfoSectionToggle" aria-expanded="false">
@@ -1380,6 +1377,20 @@
       </div>
     </dialog>
 
+    <dialog id="restorePreviewDialog" class="confirm-dialog restore-preview-dialog" aria-labelledby="restorePreviewTitle">
+      <div class="confirm-panel">
+        <div class="help-head">
+          <h2 id="restorePreviewTitle">Annuler la dernière modification</h2>
+        </div>
+        <p id="restorePreviewIntro" class="dialog-note">Voici ce qui va changer :</p>
+        <ul id="restorePreviewList" class="restore-preview-list"></ul>
+        <div class="dialog-actions">
+          <button id="cancelRestorePreview" class="small-button ghost" type="button">Fermer</button>
+          <button id="confirmRestorePreview" class="danger-button" type="button">Appliquer</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="masterAudioDialog" class="audio-dialog" aria-labelledby="masterAudioTitle">
       <div class="audio-panel master-audio-panel">
         <div class="audio-head">
@@ -1804,19 +1815,6 @@
           <div id="patchBayTargets" class="patch-bay-column" aria-label="Cibles"></div>
         </div>
         <p id="patchBayEmpty" class="patch-bay-empty" hidden>Aucun câble crossfade configuré.</p>
-      </div>
-    </dialog>
-
-    <dialog id="cancelEditDialog" class="confirm-dialog" aria-labelledby="cancelEditTitle">
-      <div class="confirm-panel">
-        <div class="help-head">
-          <h2 id="cancelEditTitle">Annuler les modifications</h2>
-        </div>
-        <p>Revenir à l’état initial du board avant le passage en mode edit ?</p>
-        <div class="dialog-actions">
-          <button id="keepBoardEdit" class="small-button" type="button">Continuer l’édition</button>
-          <button id="confirmCancelBoardEdit" class="danger-button" type="button">Annuler les modifications</button>
-        </div>
       </div>
     </dialog>
 
@@ -2391,7 +2389,7 @@
       window.WaveSurferEnvelope = EnvelopePlugin;
       window.dispatchEvent(new Event("wavesurfer-ready"));
     </script>
-    <script src="app.js?v=1015"></script>
+    <script src="app.js?v=1016"></script>
 
 
   </body>

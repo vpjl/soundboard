@@ -5742,6 +5742,36 @@ body[data-skin="contrast"] .color-field {
   font-size: 0.9rem;
 }
 
+/* Dialogue de diff (« Annuler » / « Restaurer une version ») : liste des
+   changements avant application. */
+.restore-preview-dialog .confirm-panel {
+  max-width: min(92vw, 520px);
+}
+
+.restore-preview-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  max-height: 46vh;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.restore-preview-list li {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--color_ui_panel_secondary, rgba(255, 255, 255, 0.06));
+  color: var(--color_ui_text, inherit);
+}
+
+.restore-preview-list li.restore-preview-more {
+  background: transparent;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .patch-bay-panel {
   display: grid;
   gap: 12px;
@@ -10821,16 +10851,17 @@ body.stage-mode #boardName:focus {
   padding: 0 10px !important;
 }
 
-/* Bouton "annuler les modifications" : déplacé à droite du sélecteur de mode,
-   avec un espace le distinguant des 3 boutons de mode (ce n'est pas un 4e
-   mode). Ne s'affiche qu'en garage — comme avant son déplacement. */
+/* Bouton "Annuler" : à droite du sélecteur de mode, avec un espace le
+   distinguant des 3 boutons de mode (ce n'est pas un 4e mode). L'historique
+   étant désormais persistant et transverse aux modes, il s'affiche en studio
+   ET en garage — masqué seulement en scène (et en invité). */
 .board-mode-selector-extra {
   display: none;
   margin-left: 10px;
   flex: 0 0 auto !important;
 }
 
-body.board-edit-mode .board-mode-selector-extra {
+body:not(.stage-mode) .board-mode-selector-extra {
   display: grid;
 }
 

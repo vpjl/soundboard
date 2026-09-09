@@ -330,7 +330,6 @@ const state = {
   sketchEraser: false,
   stageMode: false,
   boardEditMode: false,
-  boardEditSnapshot: null,
   undoStack: [],
   cueDraft: null,
   cueDragIndex: -1,
@@ -631,7 +630,6 @@ const els = {
   boardName: document.querySelector("#boardName"),
   editPads: document.querySelector("#editPads"),
   undoBoardEdit: document.querySelector("#undoBoardEdit"),
-  cancelBoardEdit: document.querySelector("#cancelBoardEdit"),
   saveBoardEdit: document.querySelector("#saveBoardEdit"),
   discardBoardEdit: document.querySelector("#discardBoardEdit"),
   patchBay: document.querySelector("#patchBay"),
@@ -642,9 +640,12 @@ const els = {
   patchBayOverlay: document.querySelector("#patchBayOverlay"),
   patchBayEmpty: document.querySelector("#patchBayEmpty"),
   closePatchBay: document.querySelector("#closePatchBay"),
-  cancelEditDialog: document.querySelector("#cancelEditDialog"),
-  keepBoardEdit: document.querySelector("#keepBoardEdit"),
-  confirmCancelBoardEdit: document.querySelector("#confirmCancelBoardEdit"),
+  restorePreviewDialog: document.querySelector("#restorePreviewDialog"),
+  restorePreviewTitle: document.querySelector("#restorePreviewTitle"),
+  restorePreviewIntro: document.querySelector("#restorePreviewIntro"),
+  restorePreviewList: document.querySelector("#restorePreviewList"),
+  cancelRestorePreview: document.querySelector("#cancelRestorePreview"),
+  confirmRestorePreview: document.querySelector("#confirmRestorePreview"),
   stageMissingFilesDialog: document.querySelector("#stageMissingFilesDialog"),
   stageMissingSection: document.querySelector("#stageMissingSection"),
   stageMissingFilesIntro: document.querySelector("#stageMissingFilesIntro"),
@@ -1076,7 +1077,7 @@ function closeOpenDialogFromEscape() {
     { dialog: els.patchBayDialog },
     { dialog: els.exportBoardDialog },
     { dialog: els.newBoardDialog },
-    { dialog: els.cancelEditDialog },
+    { dialog: els.restorePreviewDialog, action: () => settleRestorePreview(false) },
     { dialog: els.helpDialog },
   ];
   const entry = entries.find((item) => item.dialog?.open);
@@ -1875,7 +1876,6 @@ function setPadEditing(pad, editing) {
 
 function setBoardPadEditing(editing) {
   state.boardEditMode = Boolean(editing) && !state.stageMode;
-  if (!state.boardEditMode) state.boardEditSnapshot = null;
   document.body.classList.toggle("board-edit-mode", state.boardEditMode);
   els.editPads?.classList.toggle("is-active", state.boardEditMode);
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
@@ -1896,7 +1896,9 @@ function setBoardPadEditing(editing) {
     state.versionsSectionOpen = false;
     if (els.boardVersionRow) els.boardVersionRow.hidden = true;
     if (els.versionsSectionToggle) els.versionsSectionToggle.setAttribute("aria-expanded", "false");
-    resetUndoStack();
+    // L'historique « Annuler » n'est plus vidé en sortie de garage : il devient
+    // persistant et transverse aux modes. On force juste son écriture différée.
+    flushUndoMirror();
   }
   state.filterSectionOpen = false;
   // Le panneau effets plein pad n'existe pas en garage : refermer ceux restés ouverts.
@@ -1920,53 +1922,8 @@ function setBoardPadEditing(editing) {
 
 async function beginBoardEdit() {
   if (state.stageMode) return;
-  resetUndoStack();
-  state.boardEditSnapshot = await createBoardSnapshot(currentBoard());
+  await ensureBoardOpenSnapshot();
   setBoardPadEditing(true);
-}
-
-async function cancelBoardEdit() {
-  const snapshot = state.boardEditSnapshot;
-  if (!snapshot) {
-    setStatus("Rien à annuler");
-    return;
-  }
-  // Reset board reste en garage (ne bascule pas en Studio) : on garde le
-  // snapshot d'entrée intact pour permettre plusieurs "reset" successifs
-  // pendant la même session garage.
-  await applyBoardSnapshot(snapshot, { preserveEditMode: true });
-  resetUndoStack();
-  setBoardPadEditing(true);
-  setStatus("Modifications annulées");
-}
-
-function comparableBoardSnapshot(snapshot) {
-  return JSON.stringify({
-    board: snapshot?.board || null,
-    pads: (snapshot?.pads || []).map((item) => ({
-      index: item.index,
-      meta: item.meta || null,
-      audio: item.audio || null,
-    })),
-  });
-}
-
-async function boardEditHasChanges() {
-  if (!state.boardEditSnapshot) return false;
-  const current = await createBoardSnapshot(currentBoard());
-  return comparableBoardSnapshot(current) !== comparableBoardSnapshot(state.boardEditSnapshot);
-}
-
-async function openCancelBoardEditDialog() {
-  if (!(await boardEditHasChanges())) {
-    setStatus("Rien à annuler");
-    return;
-  }
-  if (els.cancelEditDialog?.showModal) {
-    els.cancelEditDialog.showModal();
-    return;
-  }
-  cancelBoardEdit().catch(() => setStatus("Annulation impossible", "stop"));
 }
 
 function setPadDuration(pad, seconds) {
@@ -5867,6 +5824,8 @@ async function switchBoard(boardId) {
   }
   const wasEditing = state.boardEditMode;
   pauseCuePlayback();
+  // Persister la pile « Annuler » du board sortant avant de changer d'ID.
+  await flushUndoMirror();
   setBoardPadEditing(false);
   if (wasEditing) {
     state.boardEditMode = true;
@@ -5880,6 +5839,8 @@ async function switchBoard(boardId) {
   saveBoards();
   renderBoardOptions();
   await renderPads({ preserveEditMode: wasEditing });
+  // Changement de board : repartir de la pile « Annuler » persistée du nouveau board.
+  await loadUndoStateForCurrentBoard();
   if (wasEditing) setBoardPadEditing(true);
   // Façade : la régie suit le board courant sans import manuel.
   if (state.remoteRole === "display") pushBoardToRemote();
@@ -8714,13 +8675,112 @@ async function applyBoardSnapshot(snapshot, options = {}) {
   applyPadLayout(board);
 }
 
-// Annulation pas à pas (garage) : deux types d'entrées empilées dans state.undoStack.
+// Annulation pas à pas : deux types d'entrées empilées dans state.undoStack.
 // - "snapshot" : réglages (non-audio) regroupés par rafale de 900ms, via savePadMeta.
 // - "delete"   : suppression de pad, réattache l'audio orphelin au lieu de le dupliquer.
+// L'entrée du bas, marquée { locked: true, origin: "board-open" }, est l'état du
+// board à son ouverture : amorce jamais évincée par la limite, jamais dépilée.
+//
+// Persistance : state.undoStack est un CACHE mémoire, miroir vers la clé IndexedDB
+// board-undo-{id} (sœur de board-history-{id}). Écriture différée ~1,5 s + flush
+// immédiat sur visibilitychange/pagehide, sortie de garage, switchBoard,
+// suppression de board. Rechargée dans switchBoard et au boot → la pile « Annuler »
+// survit aux allers-retours de mode ET au rechargement de page.
 const UNDO_STACK_LIMIT = 20;
 const UNDO_CHECKPOINT_DELAY_MS = 900;
+const UNDO_MIRROR_DELAY_MS = 1500;
+// Identifiant de l'entrée synthétique « État à l'ouverture du board » dans le
+// menu Versions (elle ne vit pas dans board-history mais dans board-undo).
+const BOARD_OPEN_VERSION_ID = "__board-open__";
 let undoCheckpointTimer = null;
 let undoBurstPending = null;
+let undoMirrorTimer = null;
+
+function boardUndoKey(boardId) {
+  return `board-undo-${boardId}`;
+}
+
+function boardOpenUndoEntry() {
+  return state.undoStack.find((entry) => entry?.locked && entry.origin === "board-open") || null;
+}
+
+// Ramène la pile à la limite sans jamais retirer l'amorce « état d'ouverture ».
+function trimUndoStack() {
+  while (state.undoStack.length > UNDO_STACK_LIMIT) {
+    const removeAt = state.undoStack[0]?.locked ? 1 : 0;
+    if (removeAt >= state.undoStack.length) break;
+    state.undoStack.splice(removeAt, 1);
+  }
+}
+
+// Passe à true quand la pile du board courant a été chargée : avant ça, aucun
+// flush ne doit écraser la clé persistée (un flush sur pagehide/visibilitychange
+// déclenché pendant le boot — renderPads bloqué, etc. — sinon la viderait).
+let undoStackLoaded = false;
+
+function scheduleUndoMirror() {
+  clearTimeout(undoMirrorTimer);
+  undoMirrorTimer = setTimeout(() => { flushUndoMirror(); }, UNDO_MIRROR_DELAY_MS);
+}
+
+async function flushUndoMirror() {
+  clearTimeout(undoMirrorTimer);
+  undoMirrorTimer = null;
+  const boardId = state.currentBoardId;
+  if (!boardId || !state.db || !undoStackLoaded) return;
+  try {
+    await dbSet(boardUndoKey(boardId), { stack: state.undoStack });
+  } catch (error) {
+    console.warn("Historique Annuler : écriture impossible", error);
+  }
+}
+
+// Prend, si absent, le snapshot « état à l'ouverture du board » et le place en bas
+// de la pile comme amorce protégée.
+async function ensureBoardOpenSnapshot() {
+  if (boardOpenUndoEntry()) return;
+  const board = currentBoard();
+  if (!board) return;
+  try {
+    const snapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
+    state.undoStack.unshift({ type: "snapshot", boardId: board.id, snapshot, locked: true, origin: "board-open" });
+    scheduleUndoMirror();
+  } catch (error) {
+    console.warn("Snapshot d'ouverture du board impossible", error);
+  }
+}
+
+// Recharge la pile persistée du board courant (appelée dans switchBoard et au boot).
+async function loadUndoStateForCurrentBoard() {
+  resetUndoStack();
+  const boardId = state.currentBoardId;
+  if (!boardId || !state.db) return;
+  let saved = null;
+  try {
+    saved = await dbGet(boardUndoKey(boardId));
+  } catch (error) {
+    console.warn("Historique Annuler : lecture impossible", error);
+  }
+  if (saved && Array.isArray(saved.stack)) {
+    state.undoStack = saved.stack.filter((entry) => entry && entry.snapshot);
+    trimUndoStack();
+  }
+  undoStackLoaded = true;
+  await ensureBoardOpenSnapshot();
+  refreshUndoButton();
+  // Le menu Versions affiche l'entrée protégée « État à l'ouverture » : la
+  // rafraîchir maintenant que l'amorce de pile est connue.
+  refreshVersionOptions(els.versionSelect?.value || "").catch(() => {});
+}
+
+// Repart d'une pile neuve après une opération qui redéfinit l'état de référence
+// (restauration de version, suppression de board).
+async function reseedUndoStack() {
+  resetUndoStack();
+  await ensureBoardOpenSnapshot();
+  refreshUndoButton();
+  await flushUndoMirror();
+}
 
 function resetUndoStack() {
   clearTimeout(undoCheckpointTimer);
@@ -8734,7 +8794,8 @@ function commitPendingUndoCheckpoint() {
   undoCheckpointTimer = null;
   if (undoBurstPending) {
     state.undoStack.push(undoBurstPending);
-    if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+    trimUndoStack();
+    scheduleUndoMirror();
   }
   undoBurstPending = null;
   refreshUndoButton();
@@ -8747,7 +8808,7 @@ let undoCapturing = false;
 let undoCheckpointsSuspended = false;
 
 async function scheduleUndoCheckpoint() {
-  if (!state.boardEditMode) return;
+  if (state.stageMode) return;
   if (undoCheckpointsSuspended) return;
   if (!undoBurstPending && !undoCapturing) {
     undoCapturing = true;
@@ -8765,21 +8826,40 @@ async function scheduleUndoCheckpoint() {
 
 function refreshUndoButton() {
   if (!els.undoBoardEdit) return;
-  const hasEntries = state.boardEditMode && (state.undoStack.length > 0 || Boolean(undoBurstPending));
-  els.undoBoardEdit.disabled = !hasEntries;
+  const hasEntries = state.undoStack.length > 0 || Boolean(undoBurstPending);
+  els.undoBoardEdit.disabled = state.stageMode || !hasEntries;
 }
 
 async function undoLastGarageChange() {
-  if (!state.boardEditMode) return;
+  if (state.stageMode) return;
   commitPendingUndoCheckpoint();
-  const entry = state.undoStack.pop();
+  const top = state.undoStack[state.undoStack.length - 1];
+  // L'amorce « état d'ouverture » n'est jamais dépilée : on l'applique sans la retirer.
+  const entry = top?.locked ? top : state.undoStack.pop();
   if (!entry) {
     setStatus("Rien à annuler");
     refreshUndoButton();
     return;
   }
   if (entry.boardId && entry.boardId !== state.currentBoardId) {
+    if (!top?.locked) state.undoStack.push(entry);
     setStatus("Rien à annuler");
+    refreshUndoButton();
+    return;
+  }
+  // Dialogue de diff : chaque annulation est confirmée (état courant → cible).
+  const currentSnapshot = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true });
+  const confirmed = await confirmSnapshotRestore({
+    title: entry.locked ? "Revenir à l'état d'ouverture du board" : "Annuler la dernière modification",
+    intro: entry.locked
+      ? "Le board reviendra à son état d'ouverture. Changements :"
+      : "La dernière modification sera annulée. Changements :",
+    before: currentSnapshot,
+    after: entry.snapshot,
+    confirmLabel: "Annuler la modification",
+  });
+  if (!confirmed) {
+    if (!top?.locked) state.undoStack.push(entry);
     refreshUndoButton();
     return;
   }
@@ -8812,12 +8892,166 @@ async function undoLastGarageChange() {
     setStatus("Modification annulée");
   }
   refreshUndoButton();
+  scheduleUndoMirror();
+}
+
+// ---------------------------------------------------------------------------
+// Diff lisible entre deux snapshots de board (Phase 2 « historique garage »).
+// ---------------------------------------------------------------------------
+function diffSkinLabel(skin) {
+  if (!skin) return "basic";
+  if (typeof skin === "string") return skin;
+  return skin.name || skin.id || "personnalisé";
+}
+
+function diffAudioSignature(audio) {
+  if (!audio) return "";
+  return String(
+    audio.audioUid || audio.audioName || audio.audioPath
+    || (audio.audioRefIndex != null ? `ref:${audio.audioRefIndex}` : "")
+    || (audio.audio ? "blob" : ""),
+  );
+}
+
+function diffPadMetaRest(meta) {
+  if (!meta) return null;
+  const { title, uid, audioUid, audioRefIndex, tags, ...rest } = meta;
+  return rest;
+}
+
+function diffBoardSnapshots(before, after) {
+  const lines = [];
+  const b = before?.board || {};
+  const a = after?.board || {};
+
+  if (String(b.name || "") !== String(a.name || "")) {
+    lines.push(`Nom du board : « ${b.name || "—"} » → « ${a.name || "—"} »`);
+  }
+  const bVol = Math.round((b.masterVolume ?? DEFAULT_MASTER_VOLUME) * 100);
+  const aVol = Math.round((a.masterVolume ?? DEFAULT_MASTER_VOLUME) * 100);
+  if (bVol !== aVol) lines.push(`Volume master : ${bVol} % → ${aVol} %`);
+  if (diffSkinLabel(b.skin) !== diffSkinLabel(a.skin)) {
+    lines.push(`Skin : ${diffSkinLabel(b.skin)} → ${diffSkinLabel(a.skin)}`);
+  }
+  if (Boolean(b.mosaic) !== Boolean(a.mosaic)) {
+    lines.push(a.mosaic ? "Mosaïque : ajoutée" : "Mosaïque : retirée");
+  }
+  const layoutLabel = (s) => `${s.layoutMode || "auto"}${s.layoutMode === "custom" ? ` ${s.padColumns || 0}×${s.padRows || 0}` : ""}`;
+  if (layoutLabel(b) !== layoutLabel(a)) {
+    lines.push(`Disposition : ${layoutLabel(b)} → ${layoutLabel(a)}`);
+  }
+  const bCues = (b.cues || []).length;
+  const aCues = (a.cues || []).length;
+  if (bCues !== aCues) lines.push(`Cues : ${bCues} → ${aCues}`);
+  else if (Number(b.cueIndex || 0) !== Number(a.cueIndex || 0)) {
+    lines.push(`Cue active : ${Number(b.cueIndex || 0) + 1} → ${Number(a.cueIndex || 0) + 1}`);
+  }
+  if (Boolean(b.cuesEnabled) !== Boolean(a.cuesEnabled)) {
+    lines.push(`Cues ${a.cuesEnabled ? "activées" : "désactivées"}`);
+  }
+  if (Boolean(b.shortcutsEnabled) !== Boolean(a.shortcutsEnabled)) {
+    lines.push(`Raccourcis clavier ${a.shortcutsEnabled ? "activés" : "désactivés"}`);
+  }
+  if (JSON.stringify(b.shortcuts || []) !== JSON.stringify(a.shortcuts || [])) {
+    lines.push("Raccourcis clavier : assignations modifiées");
+  }
+
+  const bPads = Array.isArray(before?.pads) ? before.pads : [];
+  const aPads = Array.isArray(after?.pads) ? after.pads : [];
+  const bCount = Number(b.padCount) || bPads.length;
+  const aCount = Number(a.padCount) || aPads.length;
+  if (bCount !== aCount) {
+    lines.push(aCount > bCount ? `${aCount - bCount} pad(s) ajouté(s)` : `${bCount - aCount} pad(s) supprimé(s)`);
+  }
+  const mapByIndex = (arr) => {
+    const map = new Map();
+    arr.forEach((pad) => map.set(Number(pad.index), pad));
+    return map;
+  };
+  const bByIndex = mapByIndex(bPads);
+  const aByIndex = mapByIndex(aPads);
+  const padLines = [];
+  for (let i = 0; i < Math.max(bCount, aCount); i += 1) {
+    const bp = bByIndex.get(i);
+    const ap = aByIndex.get(i);
+    if (!bp && !ap) continue;
+    const label = `Pad ${i + 1}`;
+    const bTitle = String(bp?.meta?.title || "").trim();
+    const aTitle = String(ap?.meta?.title || "").trim();
+    if (bTitle !== aTitle) padLines.push(`${label} renommé « ${bTitle || "—"} » → « ${aTitle || "—"} »`);
+    const bSig = diffAudioSignature(bp?.audio);
+    const aSig = diffAudioSignature(ap?.audio);
+    if (bSig !== aSig) {
+      padLines.push(bSig && aSig ? `${label} : son remplacé` : aSig ? `${label} : son ajouté` : `${label} : son retiré`);
+    }
+    if (JSON.stringify(bp?.meta?.tags || null) !== JSON.stringify(ap?.meta?.tags || null)) {
+      padLines.push(`${label} : tags modifiés`);
+    }
+    if (JSON.stringify(diffPadMetaRest(bp?.meta)) !== JSON.stringify(diffPadMetaRest(ap?.meta))) {
+      padLines.push(`${label} : réglages modifiés`);
+    }
+  }
+
+  const LIMIT = 12;
+  const budget = Math.max(0, LIMIT - lines.length);
+  const shownPadLines = padLines.slice(0, budget);
+  const truncated = padLines.length - shownPadLines.length;
+  return { lines: [...lines, ...shownPadLines], truncated };
+}
+
+let restorePreviewResolver = null;
+
+// Ouvre #restorePreviewDialog avec le diff before→after, résout à true/false.
+function confirmSnapshotRestore({ title, intro, before, after, confirmLabel } = {}) {
+  const diff = diffBoardSnapshots(before, after);
+  const dialog = els.restorePreviewDialog;
+  if (els.restorePreviewTitle) els.restorePreviewTitle.textContent = title || "Restaurer";
+  if (els.restorePreviewIntro) els.restorePreviewIntro.textContent = intro || "Voici ce qui va changer :";
+  if (els.confirmRestorePreview) els.confirmRestorePreview.textContent = confirmLabel || "Appliquer";
+  if (els.restorePreviewList) {
+    els.restorePreviewList.innerHTML = "";
+    const rows = diff.lines.length ? diff.lines : ["Aucune différence détectée."];
+    rows.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      els.restorePreviewList.append(li);
+    });
+    if (diff.truncated > 0) {
+      const li = document.createElement("li");
+      li.className = "restore-preview-more";
+      li.textContent = `+ ${diff.truncated} autre(s) changement(s)`;
+      els.restorePreviewList.append(li);
+    }
+  }
+  if (!dialog?.showModal) {
+    return Promise.resolve(window.confirm(`${title || "Restaurer"}\n\n${diff.lines.join("\n") || "Aucune différence détectée."}`));
+  }
+  return new Promise((resolve) => {
+    restorePreviewResolver = resolve;
+    dialog.showModal();
+  });
+}
+
+function settleRestorePreview(result) {
+  els.restorePreviewDialog?.close();
+  const resolve = restorePreviewResolver;
+  restorePreviewResolver = null;
+  if (resolve) resolve(result);
 }
 
 async function saveBoardVersion() {
   const board = currentBoard();
   const snapshot = await createBoardSnapshot(board, { includeMedia: !isPortableDevice() });
   const history = await dbGet(boardHistoryKey(board.id)) || [];
+  // Note automatique : diff depuis la version manuelle précédente de l'historique.
+  const previousManual = history.find((item) => !item?.archived) || history[0] || null;
+  if (previousManual && !String(snapshot.notes || "").trim()) {
+    const autoDiff = diffBoardSnapshots(previousManual, snapshot);
+    if (autoDiff.lines.length) {
+      snapshot.notes = `Changements depuis la version précédente :\n- ${autoDiff.lines.join("\n- ")}`
+        + (autoDiff.truncated > 0 ? `\n- (+ ${autoDiff.truncated} autre(s))` : "");
+    }
+  }
   history.unshift(snapshot);
   try {
     await dbSet(boardHistoryKey(board.id), versionHistoryForStorage(history));
@@ -8962,6 +9196,14 @@ async function refreshVersionOptions(selectedId = "") {
     option.textContent = versionOptionLabel(snapshot, index);
     els.versionSelect.append(option);
   });
+  // Entrée protégée, en bas : l'état du board à son ouverture (amorce de la pile
+  // « Annuler »). Restaurable, jamais renommable/archivable/supprimable.
+  if (boardOpenUndoEntry()) {
+    const option = document.createElement("option");
+    option.value = BOARD_OPEN_VERSION_ID;
+    option.textContent = `${visibleHistory.length + 1}. État à l'ouverture du board`;
+    els.versionSelect.append(option);
+  }
   els.versionSelect.value = visibleHistory.some((snapshot) => snapshot.id === effectiveSelectedId) ? effectiveSelectedId : "";
   syncVersionButtons(visibleHistory);
 }
@@ -8985,6 +9227,10 @@ function syncVersionButtons(history = null) {
 }
 
 async function renameSelectedBoardVersion() {
+  if (els.versionSelect?.value === BOARD_OPEN_VERSION_ID) {
+    setStatus("Entrée protégée : l'état d'ouverture ne peut pas être renommé");
+    return;
+  }
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
   const selectedId = els.versionSelect?.value;
@@ -9011,6 +9257,10 @@ async function selectedVersionSnapshot() {
 }
 
 async function openVersionNotesDialog() {
+  if (els.versionSelect?.value === BOARD_OPEN_VERSION_ID) {
+    setStatus("Entrée protégée : pas de notes sur l'état d'ouverture");
+    return;
+  }
   const { board, snapshot } = await selectedVersionSnapshot();
   if (!snapshot) {
     setStatus("Choisir une version");
@@ -9056,6 +9306,10 @@ function cancelVersionNotesDialog() {
 }
 
 async function toggleSelectedBoardVersionArchive() {
+  if (els.versionSelect?.value === BOARD_OPEN_VERSION_ID) {
+    setStatus("Entrée protégée : l'état d'ouverture ne peut pas être archivé");
+    return;
+  }
   const board = currentBoard();
   const history = await dbGet(boardHistoryKey(board.id)) || [];
   const selectedId = els.versionSelect?.value;
@@ -9072,6 +9326,10 @@ async function toggleSelectedBoardVersionArchive() {
 }
 
 async function deleteSelectedBoardVersion() {
+  if (els.versionSelect?.value === BOARD_OPEN_VERSION_ID) {
+    setStatus("Entrée protégée : l'état d'ouverture ne peut pas être supprimé");
+    return;
+  }
   const { board, history, snapshot } = await selectedVersionSnapshot();
   if (!snapshot) {
     setStatus("Choisir une version");
@@ -9088,23 +9346,36 @@ async function deleteSelectedBoardVersion() {
 
 async function restoreSelectedBoardVersion() {
   const board = currentBoard();
-  const history = await dbGet(boardHistoryKey(board.id)) || [];
   const selectedId = els.versionSelect?.value;
-  const snapshot = history.find((item) => item.id === selectedId);
+  const openEntry = selectedId === BOARD_OPEN_VERSION_ID ? boardOpenUndoEntry() : null;
+  const history = await dbGet(boardHistoryKey(board.id)) || [];
+  const snapshot = openEntry ? openEntry.snapshot : history.find((item) => item.id === selectedId);
   if (!snapshot) {
     setStatus("Choisir une version");
     return;
   }
 
-  const selectedLabel = els.versionSelect?.selectedOptions?.[0]?.textContent || versionOptionLabel(snapshot, history.indexOf(snapshot));
-  if (!window.confirm(`Restaurer la version sélectionnée ?\n\n${selectedLabel} remplacera l'état actuel de "${board.name}".`)) return;
+  const selectedLabel = openEntry
+    ? "État à l'ouverture du board"
+    : (els.versionSelect?.selectedOptions?.[0]?.textContent || versionOptionLabel(snapshot, history.indexOf(snapshot)));
+
+  // Dialogue de diff (remplace le window.confirm) : version ↔ état courant.
+  const currentSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
+  const confirmed = await confirmSnapshotRestore({
+    title: `Restaurer : ${selectedLabel}`,
+    intro: `« ${selectedLabel} » remplacera l'état actuel de « ${board.name} ». Changements :`,
+    before: currentSnapshot,
+    after: snapshot,
+    confirmLabel: "Restaurer",
+  });
+  if (!confirmed) return;
 
   // "Versions" vit desormais dans le garage : rester en garage apres la
-  // restauration plutot que de basculer en Studio (comme le reset board).
+  // restauration plutot que de basculer en Studio.
   await applyBoardSnapshot(snapshot, { preserveEditMode: true });
-  resetUndoStack();
+  await reseedUndoStack();
   setBoardPadEditing(true);
-  await refreshVersionOptions(snapshot.id);
+  await refreshVersionOptions(openEntry ? "" : snapshot.id);
   setStatus(`Version restauree: ${selectedLabel}`);
 }
 
@@ -10092,8 +10363,9 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     index: pad.index,
     title: pad.title,
   });
-  if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  trimUndoStack();
   refreshUndoButton();
+  scheduleUndoMirror();
   return true;
 }
 
@@ -10183,8 +10455,9 @@ async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
     orphanKeys,
     title: deletedCount > 1 ? `${deletedCount} pads` : (targets[0]?.title || "Pad"),
   });
-  if (state.undoStack.length > UNDO_STACK_LIMIT) state.undoStack.shift();
+  trimUndoStack();
   refreshUndoButton();
+  scheduleUndoMirror();
 
   const keptLast = deletedCount < targets.length && rows.length === 1;
   return { deletedCount, keptLast };
@@ -10223,6 +10496,7 @@ async function deleteCurrentBoard() {
     await dbDelete(padAudioKeyFor(board.id, index));
   }
   await dbDelete(boardHistoryKey(board.id));
+  await dbDelete(boardUndoKey(board.id));
 
   const deletedIndex = state.boards.findIndex((item) => item.id === board.id);
   state.boards = state.boards.filter((item) => item.id !== board.id);
@@ -10235,6 +10509,7 @@ async function deleteCurrentBoard() {
   // revenir. preserveEditMode conserve le mode pendant le rendu, puis setBoardPadEditing
   // réapplique l'UI garage aux pads reconstruits (même motif que switchBoard).
   await renderPads({ preserveEditMode: true });
+  await loadUndoStateForCurrentBoard();
   setBoardPadEditing(true);
   setStatus(`${board.name} supprime`);
   updateAudioLibraryBadge().catch(() => {});
@@ -13178,6 +13453,8 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   }
   syncStagePending();
+  // Le bouton « Annuler » est masqué en scène, réactivable en studio/garage.
+  refreshUndoButton();
   broadcastRemoteBoardMode();
 }
 
@@ -19328,6 +19605,12 @@ async function init() {
     if (document.visibilityState === "hidden") releaseMicWarm();
     else if (state.selectedMicrophoneId) ensureMicWarm().catch(() => {});
   });
+  // Historique « Annuler » persistant : flush immédiat quand l'onglet part en
+  // arrière-plan ou se ferme (le miroir différé ~1,5 s n'aurait pas le temps).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushUndoMirror();
+  });
+  window.addEventListener("pagehide", () => { flushUndoMirror(); });
   if (els.fadeSeconds) {
     els.fadeSeconds.value = localStorage.getItem(FADE_OUT_STORAGE) || els.fadeSeconds.value;
   }
@@ -19391,6 +19674,8 @@ async function init() {
   if (!state.stageMode && savedGarageMode) {
     setBoardPadEditing(true);
   }
+  // Recharger la pile « Annuler » persistée du board courant (survit au rechargement).
+  await loadUndoStateForCurrentBoard();
   updateStageLockUi();
   loadRemoteControlSettings();
   updateRemoteControlUi();
@@ -19763,19 +20048,14 @@ async function init() {
     beginBoardEdit().catch(() => setStatus("Mode edit impossible"));
   });
   els.undoBoardEdit?.addEventListener("click", () => undoLastGarageChange().catch(() => setStatus("Annulation impossible")));
-  els.cancelBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
   els.saveBoardEdit?.addEventListener("click", () => {
     setBoardPadEditing(false);
     setStatus("Mode live");
   });
-  els.discardBoardEdit?.addEventListener("click", () => openCancelBoardEditDialog().catch(() => setStatus("Annulation impossible")));
-  els.keepBoardEdit?.addEventListener("click", () => els.cancelEditDialog?.close());
-  els.confirmCancelBoardEdit?.addEventListener("click", () => {
-    els.cancelEditDialog?.close();
-    cancelBoardEdit().catch(() => setStatus("Annulation impossible"));
-  });
-  els.cancelEditDialog?.addEventListener("click", (event) => {
-    if (event.target === els.cancelEditDialog) els.cancelEditDialog.close();
+  els.confirmRestorePreview?.addEventListener("click", () => settleRestorePreview(true));
+  els.cancelRestorePreview?.addEventListener("click", () => settleRestorePreview(false));
+  els.restorePreviewDialog?.addEventListener("click", (event) => {
+    if (event.target === els.restorePreviewDialog) settleRestorePreview(false);
   });
   bindSafeActionButton(els.patchBay, () => {
     if (document.body.classList.contains("show-cables")) {
@@ -20280,10 +20560,22 @@ async function init() {
   });
   els.applyAudio?.addEventListener("click", async () => {
     if (state.audioPad) {
-      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-      await settleNativeSelects();
-      updateAudioCrossfadeDraftFromControls();
-      saveAudioPadFromDialog();
+      // Point d'annulation unique côté studio : capturer l'état « avant » avant
+      // les mutations du dialogue audio, puis geler les rafales de checkpoints
+      // le temps de l'application (sinon savePadMeta en recréerait un « après »).
+      if (!state.stageMode) {
+        await scheduleUndoCheckpoint();
+        commitPendingUndoCheckpoint();
+      }
+      undoCheckpointsSuspended = true;
+      try {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        await settleNativeSelects();
+        updateAudioCrossfadeDraftFromControls();
+        saveAudioPadFromDialog();
+      } finally {
+        undoCheckpointsSuspended = false;
+      }
     }
     state.audioDraft = null;
     state.audioMediaDraft = null;
@@ -20957,7 +21249,7 @@ async function init() {
   bindEscapeClose(els.patchBayDialog);
   bindEscapeClose(els.exportBoardDialog);
   bindEscapeClose(els.newBoardDialog);
-  bindEscapeClose(els.cancelEditDialog);
+  bindEscapeClose(els.restorePreviewDialog, () => settleRestorePreview(false));
   bindEscapeClose(els.cueDialog, () => {
     clearCueDialogDraft();
   });
@@ -21064,6 +21356,7 @@ async function purgeGuestBoards() {
       try { await dbDelete(padAudioKeyFor(id, index)); } catch { /* absent */ }
     }
     try { await dbDelete(boardHistoryKey(id)); } catch { /* absent */ }
+    try { await dbDelete(boardUndoKey(id)); } catch { /* absent */ }
   }
 }
 
@@ -21082,6 +21375,7 @@ async function cleanLegacyGuestPollution(ids) {
       try { await dbDelete(padAudioKeyFor(board.id, index)); } catch { /* absent */ }
     }
     try { await dbDelete(boardHistoryKey(board.id)); } catch { /* absent */ }
+    try { await dbDelete(boardUndoKey(board.id)); } catch { /* absent */ }
     localStorage.removeItem(boardShortcutsKey(board.id));
     localStorage.removeItem(boardShortcutsEnabledKey(board.id));
   }
