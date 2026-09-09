@@ -15913,7 +15913,14 @@ function playbackOffset(pad) {
 function updatePadProgress(pad) {
   if (!pad.progressFillEl) return;
   const duration = playableDuration(pad);
-  const ratio = duration ? playbackOffset(pad) / duration : 0;
+  // Pré-écoute cue : la lecture passe par un <audio> dédié (state.cuePreviewAudio),
+  // pas par pad.source → playbackOffset() renverrait un resumeOffset figé (barre
+  // qui saute puis reste bloquée = « erratique »). On lit la vraie position du
+  // cue, ramenée au repère du trim, comme le VU du pad (cf. updateMeters).
+  const offset = (state.cuePreviewPad === pad && state.cuePreviewAudio)
+    ? Math.max(0, (state.cuePreviewAudio.currentTime || 0) - trimStart(pad))
+    : playbackOffset(pad);
+  const ratio = duration ? offset / duration : 0;
   const progressScale = Math.min(1, Math.max(0, ratio));
   pad.progressFillEl.style.transform = `scaleX(${progressScale})`;
   // Verso du pad (panneau effets ouvert) : même remplissage que la face avant.
