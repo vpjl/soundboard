@@ -1,9 +1,9 @@
-const CACHE_NAME = "soundboard-live-v993";
+const CACHE_NAME = "soundboard-live-v999";
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=993",
-  "./app.js?v=993",
+  "./styles.css?v=999",
+  "./app.js?v=999",
   "./manifest.webmanifest",
   "./icons/icon.svg",
 ];

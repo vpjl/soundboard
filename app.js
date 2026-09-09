@@ -380,6 +380,7 @@ const els = {
   status: document.querySelector("#audioStatus"),
   remoteStatusBanner: document.querySelector("#remoteStatusBanner"),
   skinSelect: document.querySelector("#skinSelect"),
+  dissolveMosaic: document.querySelector("#dissolveMosaic"),
   boardExtent: document.querySelector("#boardExtent"),
   padCompactness: document.querySelector("#padCompactness"),
   openSkinEditorButton: document.querySelector("#openSkinEditorButton"),
@@ -1337,10 +1338,26 @@ function fitPadTitle(pad) {
   const hasVisual = node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
   const hasColorOnly = node.classList.contains("has-color") && !node.classList.contains("has-visual-image") && !node.classList.contains("is-visual-hidden");
   if ((!hasVisual && !hasColorOnly) || node.classList.contains("is-editing")) return;
-  if (title.scrollWidth <= title.clientWidth) return;
-  const currentSize = parseFloat(getComputedStyle(title).fontSize);
-  const fitted = Math.max(Math.floor(currentSize * (title.clientWidth / title.scrollWidth) * 10) / 10, 9);
-  title.style.fontSize = fitted + "px";
+
+  // Largeur : réduire la police si un mot déborde horizontalement.
+  if (title.scrollWidth > title.clientWidth) {
+    const currentSize = parseFloat(getComputedStyle(title).fontSize);
+    const fitted = Math.max(Math.floor(currentSize * (title.clientWidth / title.scrollWidth) * 10) / 10, 9);
+    title.style.fontSize = fitted + "px";
+  }
+
+  // Mosaïque : la boîte titre a une hauteur fixe (~2 lignes). Si le texte
+  // déborde en hauteur (3+ lignes → coupé haut/bas par le centrage), on réduit
+  // encore la police jusqu'à ce qu'il tienne.
+  if (document.body.classList.contains("skin-mosaic")) {
+    let guard = 0;
+    while (title.scrollHeight > title.clientHeight + 1 && guard < 12) {
+      const size = parseFloat(getComputedStyle(title).fontSize);
+      if (size <= 8) break;
+      title.style.fontSize = (size - 0.6).toFixed(1) + "px";
+      guard += 1;
+    }
+  }
 }
 
 function padType(pad) {
@@ -1864,6 +1881,7 @@ function setBoardPadEditing(editing) {
   els.editPads?.setAttribute("aria-pressed", String(state.boardEditMode));
   els.editPads?.setAttribute("aria-label", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
   els.editPads?.setAttribute("title", state.boardEditMode ? "Revenir au mode live" : "Mode edit des pads");
+  syncDissolveMosaicButton();
   if (!state.boardEditMode) {
     setCableOverlayVisible(false);
     // Conserver la sélection de pads en sortant du garage (comme studio → garage).
@@ -3585,6 +3603,48 @@ function makePad(index) {
   return pad;
 }
 
+// Skin « mosaïque » : une illustration lâchée sur une zone vide de l'en-tête est
+// découpée en une pièce par pad (puzzle). Le board mémorise la grille figée
+// (colonnes/lignes) et le cadrage choisi ; tant que `board.mosaic` existe,
+// `applySkin` force l'affichage basic + la classe `.skin-mosaic` (layout figé),
+// quel que soit le skin réellement sélectionné (restauré à la dissolution).
+function normalizeMosaic(mosaic) {
+  if (!mosaic || typeof mosaic !== "object") return null;
+  const columns = Math.max(2, Math.round(Number(mosaic.columns) || 0));
+  const rows = Math.max(2, Math.round(Number(mosaic.rows) || 0));
+  if (!columns || !rows) return null;
+  const tones = Array.isArray(mosaic.tones)
+    ? mosaic.tones.map((t) => (t && Number.isFinite(Number(t.r))
+      ? { r: Math.round(Number(t.r)), g: Math.round(Number(t.g)), b: Math.round(Number(t.b)) }
+      : null))
+    : undefined;
+  return {
+    columns,
+    rows,
+    fit: mosaic.fit === "contain" ? "contain" : "cover",
+    added: Math.max(0, Math.round(Number(mosaic.added) || 0)), // pads créés pour compléter la grille
+    ...(tones ? { tones } : {}),
+  };
+}
+
+// Choix de la grille : à partir du nombre de pads voulu et du format de l'image,
+// on cherche (colonnes × lignes) qui couvre tous les pads en ajoutant le moins de
+// pièces possible ET dont le ratio colonnes/lignes (pads carrés) colle au ratio
+// de l'illustration. Minimum 2×2.
+function computeMosaicGrid(padCount, imageRatio) {
+  const n = Math.max(4, Math.round(Number(padCount)) || 4);
+  const ratio = Number.isFinite(imageRatio) && imageRatio > 0 ? imageRatio : 1;
+  let best = null;
+  for (let cols = 2; cols <= n; cols += 1) {
+    const rows = Math.max(2, Math.ceil(n / cols));
+    const added = cols * rows - n;
+    if (added > cols) continue; // garde-fou : jamais plus d'une rangée de rab
+    const score = Math.abs(Math.log(cols / rows) - Math.log(ratio)) + 0.15 * added;
+    if (!best || score < best.score) best = { columns: cols, rows, added, score };
+  }
+  return best || { columns: 2, rows: 2, added: Math.max(0, 4 - n) };
+}
+
 function normalizeBoard(board, fallbackName = "Projet") {
   const mode = normalizeLayoutMode(board?.layoutMode);
   return {
@@ -3601,6 +3661,7 @@ function normalizeBoard(board, fallbackName = "Projet") {
     cues: normalizeCues(board?.cues),
     cueIndex: Math.max(0, Number(board?.cueIndex) || 0),
     skin: board?.skin || null,
+    mosaic: normalizeMosaic(board?.mosaic),
   };
 }
 
@@ -3718,6 +3779,19 @@ function applyPadMuteChange(pad, muted) {
 
 function applyPadLayout(board = currentBoard()) {
   if (!els.pads) return;
+  // Mosaïque : colonnes figées à la grille mémorisée, sans plafond de largeur —
+  // le puzzle doit rester intact même si les pads rétrécissent à l'écran.
+  if (board?.mosaic) {
+    const cols = Math.max(2, board.mosaic.columns);
+    const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
+    els.pads.classList.add("has-pad-layout");
+    els.pads.style.setProperty("--pad-columns", String(cols));
+    els.pads.style.setProperty("--pad-rows", String(Math.max(1, Math.ceil(padCount / cols))));
+    els.pads.dataset.columns = String(cols);
+    els.pads.dataset.mosaic = "1";
+    return;
+  }
+  delete els.pads.dataset.mosaic;
   const layout = effectiveLayoutForBoard(board);
   const enabled = layout.columns > 0 && layout.rows > 0;
   els.pads.classList.toggle("has-pad-layout", enabled);
@@ -5781,6 +5855,8 @@ async function renderPads(options = {}) {
   if (!state.stageMode) backfillPadDurations(); // durées affichées sans passer par la scène
   updateAudioLibraryBadge().catch(() => {});
   renderBoardInfoSection();
+  syncMosaicStudioMask(); // board en mosaïque hors scène : masquer les pièces
+  syncMosaicTitleTones();
 }
 
 async function switchBoard(boardId) {
@@ -6299,6 +6375,302 @@ async function resizeImageForPad(file) {
     img.onerror = () => resolve(dataUrl); // Fallback : data URL originale
     img.src = dataUrl;
   });
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+// Petit dialogue à 3 issues (« Remplir » / « Image entière » / annuler) pour le
+// cadrage de la mosaïque — `window.confirm` ne sait pas exprimer 3 choix.
+function askMosaicOptions(summary) {
+  return new Promise((resolve) => {
+    let dlg = document.querySelector("#mosaicDialog");
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.id = "mosaicDialog";
+      dlg.className = "mosaic-dialog";
+      dlg.innerHTML =
+        '<div class="mosaic-dialog-body">'
+        + '<h2>Fabriquer une mosaïque</h2>'
+        + '<p class="mosaic-dialog-summary"></p>'
+        + '<p class="mosaic-dialog-hint">Les illustrations existantes seront remplacées. Le puzzle ne s’affiche qu’en mode scène ; en studio le board garde son skin.</p>'
+        + '<div class="mosaic-dialog-actions">'
+        + '<button type="button" data-fit="cover">Remplir le cadre<small>les bords de l’image sont rognés</small></button>'
+        + '<button type="button" data-fit="contain">Image entière<small>bandes possibles sur les pads de bord</small></button>'
+        + '<button type="button" data-fit="" class="mosaic-dialog-cancel">Annuler</button>'
+        + '</div>'
+        + '</div>';
+      document.body.appendChild(dlg);
+    }
+    dlg.querySelector(".mosaic-dialog-summary").textContent = summary;
+    const finish = (value) => {
+      dlg.removeEventListener("click", onClick);
+      dlg.removeEventListener("cancel", onCancel);
+      if (dlg.open) dlg.close();
+      resolve(value || null);
+    };
+    const onClick = (e) => {
+      const btn = e.target.closest("button[data-fit]");
+      if (btn) finish(btn.dataset.fit);
+    };
+    const onCancel = (e) => { e.preventDefault(); finish(null); };
+    dlg.addEventListener("click", onClick);
+    dlg.addEventListener("cancel", onCancel);
+    dlg.showModal();
+  });
+}
+
+// Découpe la pièce du pad (col, row) d'une grille cols×rows de pads carrés (le
+// rendu figé du mode scène). Calcul analytique : pas besoin de mesurer le DOM,
+// donc la découpe se base toujours sur le rendu scène même si on fabrique en
+// garage. L'image est « peinte » sur la grille entière selon le cadrage choisi.
+function mosaicSliceDataUrl(img, col, row, cols, rows, fit) {
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height || 1;
+  const imgRatio = iw / ih;
+  const gridRatio = cols / rows; // pads carrés → la grille fait cols:rows
+
+  // visW/offX : fenêtre visible de l'image (fraction image) — utile en `cover`.
+  // boxW/boxX : rectangle occupé par l'image dans la grille (fraction grille) —
+  // < 1 seulement en `contain` (bandes sur les bords).
+  let visW = 1, visH = 1, offX = 0, offY = 0;
+  let boxX = 0, boxY = 0, boxW = 1, boxH = 1;
+  if (fit === "contain") {
+    if (imgRatio >= gridRatio) { boxH = gridRatio / imgRatio; boxY = (1 - boxH) / 2; }
+    else { boxW = imgRatio / gridRatio; boxX = (1 - boxW) / 2; }
+  } else if (imgRatio >= gridRatio) {
+    visW = gridRatio / imgRatio; offX = (1 - visW) / 2;
+  } else {
+    visH = imgRatio / gridRatio; offY = (1 - visH) / 2;
+  }
+
+  const fx = col / cols;
+  const fy = row / rows;
+  const fw = 1 / cols;
+  const fh = 1 / rows;
+
+  const S = Math.max(120, Math.min(480, Math.round(iw / cols)));
+  const canvas = document.createElement("canvas");
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext("2d");
+
+  const ix0 = Math.max(fx, boxX);
+  const iy0 = Math.max(fy, boxY);
+  const ix1 = Math.min(fx + fw, boxX + boxW);
+  const iy1 = Math.min(fy + fh, boxY + boxH);
+  if (ix1 > ix0 && iy1 > iy0) {
+    const u0 = (ix0 - boxX) / boxW;
+    const u1 = (ix1 - boxX) / boxW;
+    const v0 = (iy0 - boxY) / boxH;
+    const v1 = (iy1 - boxY) / boxH;
+    ctx.drawImage(
+      img,
+      (offX + u0 * visW) * iw,
+      (offY + v0 * visH) * ih,
+      Math.max(1, (u1 - u0) * visW * iw),
+      Math.max(1, (v1 - v0) * visH * ih),
+      ((ix0 - fx) / fw) * S,
+      ((iy0 - fy) / fh) * S,
+      Math.max(1, ((ix1 - ix0) / fw) * S),
+      Math.max(1, ((iy1 - iy0) / fh) * S),
+    );
+  }
+  // Échantillon de couleur de la bande basse de la pièce (là où s'affiche la
+  // boîte titre) — RVB brut, l'assombrissement est fait à l'affichage
+  // (MOSAIC_TONE_DARKEN) pour rester ajustable sans re-fabriquer.
+  const tone = sampleBoxTone(ctx, S);
+
+  // `contain` peut laisser des bords transparents → PNG ; `cover` remplit → JPEG.
+  const url = fit === "contain" ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.82);
+  return { url, tone };
+}
+
+// RVB moyen de la bande basse-centrée de la pièce.
+function sampleBoxTone(ctx, size) {
+  try {
+    const bandH = Math.max(1, Math.round(size * 0.34));
+    const x0 = Math.round(size * 0.12);
+    const w = Math.max(1, size - 2 * x0);
+    const data = ctx.getImageData(x0, size - bandH, w, bandH).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 8) continue; // pixel transparent (contain) ignoré
+      r += data[i]; g += data[i + 1]; b += data[i + 2]; n += 1;
+    }
+    if (!n) return null;
+    return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+  } catch {
+    return null; // canvas taint (ne devrait pas arriver : image locale)
+  }
+}
+
+// Assombrissement + opacité du fond de boîte titre (ajustables ici, effet immédiat
+// au rechargement — pas besoin de re-fabriquer la mosaïque).
+const MOSAIC_TONE_DARKEN = 0.5;
+const MOSAIC_TONE_ALPHA = 0.74;
+
+// Applique les teintes mémorisées (board.mosaic.tones, RVB brut) aux boîtes titre,
+// en scène uniquement. Retire les variables hors mosaïque.
+function syncMosaicTitleTones() {
+  const tones = document.body.classList.contains("skin-mosaic") ? currentBoard()?.mosaic?.tones : null;
+  [...state.pads].sort((a, b) => a.index - b.index).forEach((pad, i) => {
+    const t = Array.isArray(tones) ? tones[i] : null;
+    if (t && Number.isFinite(t.r)) {
+      const dr = t.r * MOSAIC_TONE_DARKEN;
+      const dg = t.g * MOSAIC_TONE_DARKEN;
+      const db = t.b * MOSAIC_TONE_DARKEN;
+      pad.node.style.setProperty("--mosaic-title-bg", `rgba(${Math.round(dr)}, ${Math.round(dg)}, ${Math.round(db)}, ${MOSAIC_TONE_ALPHA})`);
+      const lum = 0.2126 * dr + 0.7152 * dg + 0.0722 * db;
+      pad.node.style.setProperty("--mosaic-title-fg", lum > 140 ? "#15181d" : "#ffffff");
+    } else {
+      pad.node.style.removeProperty("--mosaic-title-bg");
+      pad.node.style.removeProperty("--mosaic-title-fg");
+    }
+  });
+}
+
+// Point d'entrée « puzzle » : une image lâchée sur une zone vide de l'en-tête.
+async function fabricateMosaicFromImage(file) {
+  console.debug("[mosaic] fabricate", { editMode: state.boardEditMode, padCount: currentBoard()?.padCount });
+  if (!state.boardEditMode) {
+    setStatus("Mosaïque : passez d'abord le board en mode garage", "stop", { alert: true });
+    return;
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    setStatus(`Image trop volumineuse (max ${Math.round(MAX_IMAGE_SIZE / 1024 / 1024)} Mo)`, "stop", { alert: true });
+    return;
+  }
+  const board = currentBoard();
+  if (!board) return;
+
+  const dataUrl = await fileToDataUrl(file).catch(() => "");
+  const img = dataUrl ? await loadImageElement(dataUrl) : null;
+  if (!img || !img.width || !img.height) {
+    setStatus("Illustration illisible", "stop");
+    return;
+  }
+  const ratio = img.width / img.height;
+
+  let baseCount = board.padCount;
+  if (baseCount < 4) {
+    if (!window.confirm(`Une mosaïque demande au moins 4 pads (2×2). Ce board en a ${baseCount}. Compléter à 4 et continuer ?`)) return;
+    baseCount = 4;
+  }
+
+  const grid = computeMosaicGrid(baseCount, ratio);
+  const target = grid.columns * grid.rows;
+  const added = target - board.padCount;
+  const summary = `Grille ${grid.columns} × ${grid.rows} = ${target} pièces`
+    + (added > 0
+      ? ` (${board.padCount} pad${board.padCount > 1 ? "s" : ""} + ${added} ajouté${added > 1 ? "s" : ""}).`
+      : ".");
+
+  const fit = await askMosaicOptions(summary);
+  if (!fit) return;
+
+  setStatus("Fabrication de la mosaïque…", "progress", { progress: { done: 0, total: target, label: "Découpe de l’image" } });
+  await scheduleUndoCheckpoint(); // capture l'état « avant » (un seul point d'annulation)
+  undoCheckpointsSuspended = true;
+  try {
+    while (board.padCount < target) {
+      // eslint-disable-next-line no-await-in-loop
+      await addPad();
+    }
+    const pads = [...state.pads].sort((a, b) => a.index - b.index);
+    const tones = [];
+    for (let i = 0; i < pads.length; i += 1) {
+      const col = i % grid.columns;
+      const row = Math.floor(i / grid.columns);
+      const { url, tone } = mosaicSliceDataUrl(img, col, row, grid.columns, grid.rows, fit);
+      tones[i] = tone;
+      setPadVisualImage(pads[i], url, false, { visualKind: "image", visualPositionX: 50, visualPositionY: 50, visualZoom: 1 });
+      // eslint-disable-next-line no-await-in-loop
+      await savePadMeta(pads[i]);
+      setStatus("Fabrication de la mosaïque…", "progress", { progress: { done: i + 1, total: pads.length, label: "Découpe de l’image" } });
+    }
+    board.mosaic = { columns: grid.columns, rows: grid.rows, fit, added: Math.max(0, added), tones };
+    saveBoards();
+    applySkin(board.skin || localStorage.getItem(SKIN_STORAGE) || "classic"); // pose has-mosaic-board + bouton dissoudre
+    applyPadLayout(board);
+    syncMosaicStudioMask(); // garage : pièces masquées, rendu réservé à la scène
+    syncMosaicTitleTones();
+    syncAllPadMinHeightsSoon();
+  } finally {
+    undoCheckpointsSuspended = false;
+  }
+  commitPendingUndoCheckpoint();
+  setStatus(`Mosaïque fabriquée — ${target} pièces · visible en mode scène`, "success");
+}
+
+// Studio / garage : un board en mosaïque garde son skin de menu et ne montre PAS
+// les pièces découpées — on masque chaque illustration via `.is-visual-hidden`
+// (mécanique du bouton œil, réutilisée), sans toucher à l'état persisté du pad.
+// En scène, on rétablit l'état réel (`pad.visualImageHidden`, faux pour les pièces).
+// Bouton « Dissoudre la mosaïque » : uniquement en garage (édition des pads).
+function syncDissolveMosaicButton() {
+  if (!els.dissolveMosaic) return;
+  els.dissolveMosaic.hidden = !(currentBoard()?.mosaic && state.boardEditMode);
+}
+
+function syncMosaicStudioMask() {
+  // Hors scène (studio ET garage), le puzzle n'est pas rendu : on masque chaque
+  // pièce. En scène, `mosaicActive` prend le relais (rendu basic + grille figée).
+  const masked = Boolean(currentBoard()?.mosaic) && !state.stageMode;
+  state.pads.forEach((pad) => {
+    if (!pad.node) return;
+    const hidden = masked ? Boolean(pad.visualImage) : Boolean(pad.visualImageHidden);
+    pad.node.classList.toggle("is-visual-hidden", hidden);
+  });
+}
+
+async function dissolveMosaicBoard() {
+  const board = currentBoard();
+  if (!board?.mosaic || !state.boardEditMode) return; // bouton visible en garage uniquement
+  if (!window.confirm("Dissoudre la mosaïque ? Les illustrations découpées sont retirées de tous les pads, les pads vides ajoutés sont supprimés, et le board retrouve son skin.")) return;
+
+  // 1) Suppression des pads AJOUTÉS pour compléter la grille, s'ils sont restés
+  //    vides — capture le point d'annulation COMPLET (padCount + skin + mosaic +
+  //    métas via createBoardSnapshot dans removePadsCompact).
+  const addedCount = Math.max(0, Number(board.mosaic.added) || 0);
+  const trailingEmpty = addedCount > 0 && state.boardEditMode
+    ? [...state.pads].sort((a, b) => a.index - b.index).slice(-addedCount).filter((pad) => isEmptyPad(pad))
+    : [];
+  let checkpointTaken = false;
+  if (trailingEmpty.length && state.pads.length - trailingEmpty.length >= 1) {
+    await removePadsCompact(trailingEmpty, { requireEmpty: true });
+    checkpointTaken = true;
+  }
+
+  // 2) Nettoyage des pièces + sortie de mosaïque (aucun nouveau checkpoint :
+  //    l'entrée « delete » ci-dessus porte déjà l'état d'avant).
+  if (!checkpointTaken) await scheduleUndoCheckpoint();
+  undoCheckpointsSuspended = true;
+  try {
+    board.mosaic = null;
+    saveBoards();
+    for (const pad of [...state.pads]) {
+      if (!pad.visualImage) continue;
+      setPadVisualImage(pad, "", false);
+      // eslint-disable-next-line no-await-in-loop
+      await savePadMeta(pad);
+    }
+    applySkin(board.skin || localStorage.getItem(SKIN_STORAGE) || "classic");
+    applyPadLayout(board);
+    syncMosaicStudioMask();
+    syncMosaicTitleTones(); // retire les --mosaic-title-* (mosaic == null)
+    syncAllPadMinHeightsSoon();
+  } finally {
+    undoCheckpointsSuspended = false;
+  }
+  if (!checkpointTaken) commitPendingUndoCheckpoint();
+  setStatus("Mosaïque dissoute", "success");
 }
 
 async function fileToText(file) {
@@ -8031,8 +8403,22 @@ function applySkin(skin) {
   const customSkin = isCustomSkin ? customSkinById(customSkinId) : null;
   const skinName = customSkin ? "classic" : normalizeSkinName(requestedSkin);
 
+  // Board en mosaïque : le puzzle n'est RENDU qu'en mode scène (affichage forcé
+  // basic + `.skin-mosaic` = grille figée). En studio/garage le board garde le
+  // skin choisi au menu et les pièces sont masquées (syncMosaicStudioMask). Le
+  // skin réel reste mémorisé et reprend la main à la dissolution.
+  const mosaicBoard = Boolean(currentBoard()?.mosaic);
+  // Puzzle rendu UNIQUEMENT en mode scène (affichage forcé basic + `.skin-mosaic`
+  // = grille figée + boîtes titre modulées). En studio/garage le board garde le
+  // skin du menu ; les pièces sont masquées par syncMosaicStudioMask.
+  const mosaicActive = mosaicBoard && state.stageMode;
+  const displaySkin = mosaicActive ? "basic" : skinName;
+
   updateSkinOptions();
-  document.body.dataset.skin = skinName;
+  document.body.dataset.skin = displaySkin;
+  document.body.classList.toggle("skin-mosaic", mosaicActive);
+  document.body.classList.toggle("has-mosaic-board", mosaicBoard);
+  syncDissolveMosaicButton();
 
   if (customSkin) {
     applyCustomSkinVariables(customSkin);
@@ -8041,13 +8427,29 @@ function applySkin(skin) {
   }
 
   if (els.skinSelect) {
-    const selectedValue = customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName;
-    const hasOption = Boolean(els.skinSelect.querySelector(`option[value="${selectedValue}"]`));
-    if (hasOption) els.skinSelect.value = selectedValue;
+    let mosaicOption = els.skinSelect.querySelector('option[value="mosaic"]');
+    if (mosaicActive) {
+      // Scène : menu figé sur « Mosaïque ».
+      if (!mosaicOption) {
+        mosaicOption = document.createElement("option");
+        mosaicOption.value = "mosaic";
+        mosaicOption.textContent = "Mosaïque";
+        els.skinSelect.appendChild(mosaicOption);
+      }
+      els.skinSelect.value = "mosaic";
+      els.skinSelect.disabled = true;
+    } else {
+      mosaicOption?.remove();
+      els.skinSelect.disabled = false;
+      const selectedValue = customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName;
+      const hasOption = Boolean(els.skinSelect.querySelector(`option[value="${selectedValue}"]`));
+      if (hasOption) els.skinSelect.value = selectedValue;
+    }
   }
 
   localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
-  if (skinName === "basic") revealGalleryPads();
+  if (displaySkin === "basic") revealGalleryPads();
+  if (typeof syncMosaicStudioMask === "function") { syncMosaicStudioMask(); syncMosaicTitleTones(); }
   state.pads.forEach((pad) => { pad.eyeAfterFx = false; fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
   // Changer de skin change la hauteur naturelle du pad (illustration affichée ou
   // non, paddings, rangées de boutons) : le min-height mesuré de chaque pad doit
@@ -8217,6 +8619,8 @@ async function createBoardSnapshot(board, options = {}) {
       layoutMode: board.layoutMode || "auto",
       padColumns: board.padColumns || 0,
       padRows: board.padRows || 0,
+      skin: board.skin || null,
+      mosaic: board.mosaic ? { ...board.mosaic } : null,
       cuesEnabled: board.cuesEnabled !== false,
       cues: normalizeCues(board.cues),
       cueIndex: cueIndexForBoard(board),
@@ -8250,6 +8654,8 @@ async function applyBoardSnapshot(snapshot, options = {}) {
   board.layoutMode = normalizeLayoutMode(snapshot.board?.layoutMode);
   board.padColumns = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padColumns, 4) : 0;
   board.padRows = board.layoutMode === "custom" ? normalizeLayoutNumber(snapshot.board?.padRows, 3) : 0;
+  if (snapshot.board && "mosaic" in snapshot.board) board.mosaic = normalizeMosaic(snapshot.board.mosaic);
+  if (snapshot.board && "skin" in snapshot.board) board.skin = snapshot.board.skin || null;
   board.cuesEnabled = snapshot.board?.cuesEnabled !== false;
   board.cues = normalizeCues(snapshot.board?.cues);
   board.cueIndex = Math.min(board.cues.length - 1, Math.max(0, Number(snapshot.board?.cueIndex) || 0));
@@ -8302,6 +8708,10 @@ async function applyBoardSnapshot(snapshot, options = {}) {
   saveBoards();
   renderBoardOptions();
   await renderPads(options.preserveEditMode ? { preserveEditMode: true } : undefined);
+  // Skin / grille peuvent avoir changé (annulation d'une fabrication de mosaïque) :
+  // renderPads ne les rejoue pas, on les réapplique explicitement.
+  applySkin(board.skin || localStorage.getItem(SKIN_STORAGE) || "classic");
+  applyPadLayout(board);
 }
 
 // Annulation pas à pas (garage) : deux types d'entrées empilées dans state.undoStack.
@@ -8331,9 +8741,14 @@ function commitPendingUndoCheckpoint() {
 }
 
 let undoCapturing = false;
+// Opérations en lot (fabrication de mosaïque) : on capture UN point d'annulation
+// « avant » puis on gèle la programmation de nouveaux checkpoints le temps du
+// lot, pour qu'un seul « Annuler » revienne à l'état de départ.
+let undoCheckpointsSuspended = false;
 
 async function scheduleUndoCheckpoint() {
   if (!state.boardEditMode) return;
+  if (undoCheckpointsSuspended) return;
   if (!undoBurstPending && !undoCapturing) {
     undoCapturing = true;
     try {
@@ -8899,6 +9314,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
       // Skins : référence du skin sélectionné par le board + TOUTE la bibliothèque
       // de skins perso (ils font partie des réglages et voyagent avec le board).
       skin: board.skin || null,
+      mosaic: board.mosaic ? { ...board.mosaic } : null,
       customSkins: readCustomSkins(),
       masterVolume: board.masterVolume ?? DEFAULT_MASTER_VOLUME,
       layoutMode: board.layoutMode || "auto",
@@ -12716,6 +13132,11 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   }
   localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
   updateSkinOptions();
+  // Mosaïque : le rendu du puzzle dépend du mode (scène uniquement) → réappliquer
+  // le skin et le masque des pièces à chaque bascule.
+  applySkin(currentBoard()?.skin || localStorage.getItem(SKIN_STORAGE) || "classic");
+  syncMosaicStudioMask();
+  syncMosaicTitleTones();
   renderBoardLayoutControls();
   applyPadLayout(currentBoard());
 
@@ -20389,6 +20810,40 @@ async function init() {
     if (files.length) await distributeFilesAcrossEmptyPads(files);
   });
 
+  // Garage : illustration lâchée sur une zone vide de l'en-tête (hors d'un pad,
+  // entre les blocs Board / Master…) → fabrication d'une mosaïque (puzzle).
+  const topbar = document.querySelector(".topbar");
+  topbar?.addEventListener("dragover", (event) => {
+    if (event.target.closest("[data-pad]")) return;
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    // preventDefault même hors garage : sinon l'événement `drop` ne se déclenche
+    // pas du tout et on ne peut même pas afficher le message « passez en garage ».
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    if (document.body.classList.contains("board-edit-mode")) topbar.classList.add("is-drop-target");
+  });
+  topbar?.addEventListener("dragleave", (event) => {
+    if (!topbar.contains(event.relatedTarget)) topbar.classList.remove("is-drop-target");
+  });
+  topbar?.addEventListener("drop", async (event) => {
+    topbar.classList.remove("is-drop-target");
+    if (event.target.closest("[data-pad]")) return;
+    const image = [...(event.dataTransfer?.files || [])].find((file) => /^image\//.test(file.type));
+    console.debug("[mosaic] drop sur .topbar", { image: image?.name, editMode: document.body.classList.contains("board-edit-mode") });
+    if (!image) return;
+    event.preventDefault(); // ne pas laisser le navigateur ouvrir le fichier
+    try {
+      await fabricateMosaicFromImage(image);
+    } catch (error) {
+      console.error("[mosaic] échec fabrication", error);
+      setStatus("Fabrication de la mosaïque impossible", "stop");
+    }
+  });
+
+  els.dissolveMosaic?.addEventListener("click", () => {
+    dissolveMosaicBoard().catch(() => setStatus("Dissolution impossible", "stop"));
+  });
+
   els.imageDialog?.addEventListener("dragover", (event) => {
     if (!event.dataTransfer?.types.includes("Files")) return;
     event.preventDefault();
@@ -21136,6 +21591,12 @@ function syncAllPadMinHeightsSoon() {
 // padding-bottom (≥6px) car scrollHeight ne le compte pas quand le contenu
 // déborde, pour garder une marge basse. Lecture synchrone : pas de repaint.
 function syncAllPadMinHeights() {
+  // Mosaïque : grille strictement régulière (pads carrés via aspect-ratio, rangées
+  // égales). Aucun min-height mesuré par pad — il déformerait l'assemblage.
+  if (document.body.classList.contains("skin-mosaic")) {
+    document.querySelectorAll(".pads .pad").forEach((p) => p.style.removeProperty("min-height"));
+    return;
+  }
   const root = document.documentElement;
   // Panneau effets plein pad ouvert : le contenu du pad est encore dans le flux
   // (visibility:hidden), donc scrollHeight renverrait la hauteur « boutons

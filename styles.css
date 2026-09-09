@@ -11812,3 +11812,142 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   0% { transform: translateX(-140%); }
   100% { transform: translateX(320%); }
 }
+
+/* ===================================================================
+   Mosaïque (puzzle d'illustration sur la grille de pads).
+   - `.skin-mosaic` : posé UNIQUEMENT en mode scène (rendu du puzzle) →
+     affichage basic + grille strictement figée. En fin de fichier pour
+     battre `body.stage-mode .pads.has-pad-layout` (même spécificité).
+   - `.has-mosaic-board` : posé dès qu'un board porte une mosaïque, tous
+     modes → verrouille les contrôles de disposition. Hors scène, les
+     pièces sont masquées par `.is-visual-hidden` (posé en JS).
+   =================================================================== */
+body.skin-mosaic .pads.has-pad-layout {
+  grid-auto-rows: auto;
+  gap: 4px;
+}
+body.skin-mosaic .pads .pad {
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+}
+/* Pad vide dans le puzzle : pas de titre par-dessus la pièce. */
+body.skin-mosaic .pads .pad.is-empty .pad-title,
+body.skin-mosaic .pads .pad.is-empty .pad-shortcut,
+body.skin-mosaic .pads .pad.is-empty .pad-type {
+  display: none;
+}
+/* Boîte titre du puzzle :
+   - fond = teinte de la pièce sous-jacente, assombrie (--mosaic-title-bg, posée
+     par syncMosaicTitleTones d'après un échantillon de la pièce) → chaque boîte
+     « colle » à son image, texte lisible (--mosaic-title-fg) ;
+   - hauteur fixe (2 lignes) + texte centré vertical ET horizontal.
+   Règle NON layered → bat les fonds/alignements de `.pad-title` (@layer base/skin/mode). */
+body.skin-mosaic .pad:not(.is-editing) .pad-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Hauteur fixe (indépendante de la police du titre, que fitPadTitle réduit
+     quand le texte passerait sur 3 lignes) : ~2 lignes. */
+  min-height: 2.7rem;
+  max-height: 2.7rem;
+  padding: 0 10px;          /* padding vertical à 0 : le centrage flex s'en charge */
+  overflow: hidden;
+  text-align: center;
+  font-size: calc(var(--pad-title-size, 0.86rem) * 0.9);
+  line-height: 1.12;
+  background: var(--mosaic-title-bg, rgba(12, 14, 18, 0.74));
+  color: var(--mosaic-title-fg, #ffffff);
+}
+/* Scène : pas d'éditeur de skin (le skin est figé sur « Mosaïque »). */
+body.stage-mode #openSkinEditorButton {
+  display: none;
+}
+/* Contrôles qui déplaceraient la grille : neutralisés tant qu'une mosaïque tient. */
+body.has-mosaic-board .board-layout-controls,
+body.has-mosaic-board .pad-compactness-row,
+body.has-mosaic-board .board-cols-limit-hint {
+  display: none;
+}
+.board-mosaic-dissolve {
+  margin-top: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.board-mosaic-dissolve:hover {
+  border-color: var(--stop);
+  color: var(--stop);
+}
+
+.topbar.is-drop-target {
+  outline: 2px dashed var(--accent-2);
+  outline-offset: -6px;
+  border-radius: 12px;
+}
+
+/* Dialogue de cadrage de la mosaïque */
+.mosaic-dialog {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0;
+  max-width: 420px;
+  background: var(--panel);
+  color: var(--text);
+}
+.mosaic-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.mosaic-dialog-body {
+  padding: 18px 20px 20px;
+}
+.mosaic-dialog-body h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.mosaic-dialog-summary {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.mosaic-dialog-hint {
+  margin: 0 0 16px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.mosaic-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mosaic-dialog-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.mosaic-dialog-actions button small {
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.65;
+}
+.mosaic-dialog-actions button:hover {
+  border-color: var(--accent-2);
+}
+.mosaic-dialog-actions .mosaic-dialog-cancel {
+  align-items: center;
+  font-weight: 400;
+  background: transparent;
+}
