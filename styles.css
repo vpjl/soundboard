@@ -2859,13 +2859,16 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background-size: cover;
 }
 
-body.board-edit-mode .pad.is-editing .visual-preview {
+/* Aperçu d'illustration en garage : SKIN BASIC uniquement (c'est le seul skin
+   qui affiche l'illustration en live/scène ; ailleurs elle n'a pas de sens).
+   Hors basic : pas d'aperçu, le titre récupère toute la place à gauche. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
   display: block;
   width: 44px;
   height: 30px;
   grid-column: 1;
   grid-row: 1;
-  margin-bottom: 0;
+  margin: 0;
   flex-shrink: 0;
 }
 
@@ -2884,12 +2887,14 @@ body.board-edit-mode .pad.is-editing:not(.has-visual-image):not(.has-color) .vis
    de spécificité exact (celle-ci l'emporte déjà partout où elle s'applique :
    c'est la plus spécifique du groupe édition garage). */
 @layer skin {
+/* La façade en garage ne contient plus que l'aperçu (le titre est un élément
+   séparé) : trigger réduit à la largeur de l'aperçu, calé tout à gauche. */
 body.board-edit-mode .pad.is-editing .pad-trigger {
-  grid-template-columns: 44px 1fr !important;
-  column-gap: 8px;
+  grid-template-columns: 44px !important;
+  column-gap: 0;
   align-items: center;
-  padding: 0 8px !important; /* pas de padding vertical : titre 2 lignes centré sans déborder du cadre */
-  min-height: 56px;
+  padding: 0 !important;
+  min-height: 0;
 }
 }
 
@@ -4421,9 +4426,12 @@ body.board-edit-mode .pads.has-pad-layout {
    d'illustration (là où s'affichait le titre autrefois), les tags remontent
    juste dessous avec de la place pour ~3 lignes, plus de rangée « Nom »
    dédiée → pad plus court. --- */
-/* rangée 1 : aperçu (dans .pad-trigger, forcé rangée 1) + éditeur « Nom » à sa
-   droite, stylé comme un TITRE (pas comme un champ de formulaire) : fond
-   transparent, souligné seulement, gras. Le cadre n'apparaît qu'au focus. */
+/* RANGÉES du pad en garage (tous skins) :
+   1 titre (+ aperçu à gauche en skin basic) · 2 tags (3 lignes réservées) ·
+   3 position/VU (comme en studio : sous les tags, au-dessus des boutons) ·
+   4 badge « média manquant » · 5-6 boutons. */
+
+/* rangée 1 — la façade ne porte que l'aperçu, calée tout à gauche. */
 body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-row: 1;
   grid-column: 1 / -1;
@@ -4431,20 +4439,14 @@ body.board-edit-mode .pad.is-editing .pad-trigger {
   align-self: center;
   margin-top: 24px !important;
   min-height: 0 !important;
+  padding: 0 !important;
 }
-body.board-edit-mode .pad.is-editing .visual-preview {
-  width: 46px;
-  height: 34px;
-}
-/* Champ « Nom » : pleine largeur, décalé à droite de l'aperçu par la marge
-   gauche + largeur calculée (pas de `width:100%` hérité, qui débordait sur le
-   pad voisin). Stylé comme un titre : cadre/fond seulement au survol/focus. */
+
+/* rangée 1 — champ « Nom » stylé comme un TITRE (pas un champ de formulaire) :
+   ni cadre ni fond au repos, ils apparaissent au survol / au focus. */
 body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
   grid-row: 1;
   grid-column: 1 / -1;
-  width: calc(100% - 50px);
-  max-width: calc(100% - 50px);
-  margin: 24px 0 0 50px;
   align-self: center;
   min-height: 0;
   height: 30px;
@@ -4455,6 +4457,17 @@ body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
   font-size: 0.98rem;
   font-weight: 600;
   z-index: 2;
+  /* hors skin basic : pas d'aperçu → le titre prend toute la largeur à gauche. */
+  width: calc(100% - 8px);
+  max-width: calc(100% - 8px);
+  margin: 24px 0 0 0;
+}
+/* skin basic : l'aperçu occupe ~44px à gauche → décaler le titre et le
+   raccourcir pour qu'ils ne se chevauchent plus. */
+body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name] {
+  width: calc(100% - 70px);
+  max-width: calc(100% - 70px);
+  margin-left: 52px;
 }
 body.board-edit-mode .pad.is-editing .name-field > input[data-name]:hover {
   border-color: var(--line);
@@ -4464,23 +4477,41 @@ body.board-edit-mode .pad.is-editing .name-field > input[data-name]:focus {
   border-color: var(--color_status_progress);
 }
 
-/* rangée 2 : curseur de position + VU CÔTE À CÔTE, comme en studio (progress ~2/3,
-   VU la colonne étroite de droite). @layer mode pour battre le
-   `display:none !important` layered de ~8940. */
+/* rangée 2 — tags : label « TAGS », [+] et chips sur la MÊME ligne, un peu
+   détachés du titre ; hauteur réservée fixe ~3 lignes (défilement au-delà) →
+   le haut du pad ne bouge jamais selon le nombre de tags. */
+body.board-edit-mode .pad.is-editing .tag-field {
+  grid-row: 2;
+  align-self: start;
+  margin-top: 8px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+body.board-edit-mode .pad.is-editing .pad-tags-chips {
+  min-height: 66px;
+  max-height: 66px;
+  align-content: flex-start;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+/* rangée 3 — position + VU CÔTE À CÔTE, sous les tags et au-dessus des boutons
+   (même emplacement qu'en studio). @layer mode pour battre le `display:none`
+   layered de ~8990. Piste éclaircie sinon invisible (noir sur noir). */
 @layer mode {
 body.board-edit-mode .pad.is-editing .pad-progress,
 body.board-edit-mode .pad.is-editing .pad-vu {
   display: block !important;
   position: static !important;
   inset: auto !important;
-  grid-area: auto !important;   /* neutralise le grid-area nommé « progress » / « vu » */
-  grid-row: 2 !important;
+  grid-area: auto !important;
+  grid-row: 3 !important;
   width: auto !important;
   height: 9px !important;
   align-self: center;
   justify-self: stretch;
   margin: 0 !important;
-  /* piste visible au repos (sinon barre noire sur pad noir = « invisible ») */
   background: rgba(255, 255, 255, 0.09) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
 }
@@ -4490,26 +4521,6 @@ body.board-edit-mode .pad.is-editing .pad-progress {
 body.board-edit-mode .pad.is-editing .pad-vu {
   grid-column: 3 / -1 !important;
 }
-}
-
-/* rangée 3 : tags — label « TAGS », [+] et chips sur la MÊME ligne ; les chips
-   débordent en hauteur (jusqu'à ~3 lignes) puis défilent. */
-body.board-edit-mode .pad.is-editing .tag-field {
-  grid-row: 3;
-  align-self: start;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-}
-
-body.board-edit-mode .pad.is-editing .pad-tags-chips {
-  /* hauteur RÉSERVÉE fixe = ~3 lignes, quel que soit le nombre de tags → le
-     haut du pad (titre + position/VU + zone tags) ne bouge jamais ; au-delà de
-     3 lignes, défilement. */
-  min-height: 66px;
-  max-height: 66px;
-  align-content: flex-start;
-  overflow-y: auto;
-  flex: 1 1 auto;
 }
 
 body.board-edit-mode .pad.is-editing .tag-field > span {
@@ -8827,20 +8838,12 @@ body.board-edit-mode .pad.is-editing .pad-play-row {
 @layer skin {
 body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-area: auto;
-  grid-column: 1 / -1;
-  min-height: 38px;
-  margin-top: 28px; /* commence sous l'en-tête (numéro/type/durée/pense-bête), comme en studio */
-  padding: 0 12px !important; /* pas de padding vertical : le titre 2 lignes est centré dans le cadre sans déborder */
+  grid-column: 1 / 2;
+  min-height: 0;
+  margin-top: 24px; /* dégage l'en-tête absolu (numéro / type / durée) */
+  padding: 0 !important;
   align-items: center;
 }
-}
-
-@media (orientation: portrait) and (max-width: 950px), (orientation: portrait) and (pointer: coarse) {
-  @layer skin {
-  body.board-edit-mode .pad.is-editing .pad-trigger {
-    padding: 8px 34px 9px 30px !important;
-  }
-  }
 }
 
 body.board-edit-mode .pad.is-editing .pad-label {
@@ -9420,10 +9423,10 @@ body.board-edit-mode .pad.is-editing {
 
 body.board-edit-mode .pad.is-editing {
   grid-template-columns: 1fr 1fr 38px;
-  /* rangées FIXES : 1 aperçu+nom · 2 position/VU · 3 tags (3 lignes réservées) ·
-     4 badges · 5-6 boutons. Hauteurs figées → le haut du pad ne varie jamais
-     selon le nombre de tags. Plus de rangée « nom » dédiée ni de spacer 1fr. */
-  grid-template-rows: 54px 12px 66px auto 38px 38px;
+  /* rangées FIXES : 1 titre (+aperçu) · 2 tags (3 lignes réservées, détachées
+     du titre) · 3 position/VU · 4 badge média manquant · 5-6 boutons. Hauteurs
+     figées → le haut du pad ne varie jamais selon le nombre de tags. */
+  grid-template-rows: 56px 74px 12px auto 38px 38px;
   align-content: start;
   gap: 4px 8px;
 }
