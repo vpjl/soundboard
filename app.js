@@ -8843,66 +8843,80 @@ function refreshUndoButton() {
 async function undoLastGarageChange() {
   if (state.stageMode) return;
   commitPendingUndoCheckpoint();
+  // Purger d'éventuelles entrées d'un autre board (héritage) : la pile ne
+  // concerne que le board courant.
+  state.undoStack = state.undoStack.filter((entry) => !entry.boardId || entry.boardId === state.currentBoardId);
   if (undoableEntryCount() === 0) {
     setStatus("Rien à annuler");
     refreshUndoButton();
     return;
   }
-  // Les entrées non verrouillées sont toujours au-dessus de l'amorce → pop() sûr.
-  const entry = state.undoStack.pop();
-  if (entry.boardId && entry.boardId !== state.currentBoardId) {
-    state.undoStack.push(entry);
-    setStatus("Rien à annuler");
-    refreshUndoButton();
-    return;
-  }
-  // Dialogue de diff : chaque annulation est confirmée (état courant → cible).
+
+  // Construire la « frise » : une ligne par couche, la plus récente en haut.
+  // rows[k].index = index dans state.undoStack ; l'appliquer = revenir à l'état
+  // d'avant cette couche (donc annuler cette couche + toutes les plus récentes).
   const currentSnapshot = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true });
-  const confirmed = await confirmSnapshotRestore({
-    title: "Annuler la dernière modification",
-    intro: "La dernière modification sera annulée. Changements :",
-    before: currentSnapshot,
-    after: entry.snapshot,
-    confirmLabel: "Annuler la modification",
-  });
-  if (!confirmed) {
-    state.undoStack.push(entry);
+  const stack = state.undoStack;
+  const rows = [];
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    const locked = Boolean(stack[i].locked);
+    // Ligne « couche » : ce qu'a changé cette étape (état d'avant → état d'après).
+    // Ligne « état d'ouverture » : le cumul (tout ce qui sera annulé si on la choisit).
+    const nextState = locked ? currentSnapshot
+      : i === stack.length - 1 ? currentSnapshot
+      : stack[i + 1].snapshot;
+    const diff = diffBoardSnapshots(stack[i].snapshot, nextState);
+    rows.push({
+      index: i,
+      locked,
+      stepsAgo: stack.length - i,
+      totalSteps: stack.length,
+      lines: diff.lines,
+      truncated: diff.truncated,
+    });
+  }
+
+  const targetIndex = await confirmUndoTimeline(rows);
+  if (targetIndex == null) {
     refreshUndoButton();
     return;
   }
-  // L'annulation ne doit pas changer de mode : garage reste garage, studio reste
-  // studio (le point d'annulation studio vient de l'éditeur audio).
+
+  // L'annulation ne change pas de mode : garage reste garage, studio reste studio.
   const wasGarage = state.boardEditMode;
-  if (entry.type === "delete") {
-    await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
-    const board = currentBoard();
-    // Suppression unitaire : entry.orphanKey/index. Suppression groupée : entry.orphanKeys[].
-    const orphans = Array.isArray(entry.orphanKeys) && entry.orphanKeys.length
-      ? entry.orphanKeys
-      : (entry.orphanKey ? [{ key: entry.orphanKey, index: entry.index }] : []);
-    let restoredAny = false;
-    for (const { key, index } of orphans) {
-      const orphanRecord = key ? await dbGet(key) : null;
-      if (orphanRecord && index < board.padCount) {
-        const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
-        await dbSet(padAudioKeyFor(board.id, index), restored);
-        await dbDelete(key);
-        restoredAny = true;
-      }
-    }
-    if (restoredAny) {
-      await renderPads({ preserveEditMode: true });
-      updateAudioLibraryBadge().catch(() => {});
-    }
-    if (wasGarage) setBoardPadEditing(true);
-    setStatus(`${entry.title || "Pad"} restauré`);
-  } else {
-    await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
-    if (wasGarage) setBoardPadEditing(true);
-    setStatus("Modification annulée");
+  const removed = stack.slice(targetIndex);
+  await applyBoardSnapshot(stack[targetIndex].snapshot, { preserveEditMode: true });
+
+  // Ré-attacher les audios orphelins des suppressions comprises dans la plage annulée.
+  const board = currentBoard();
+  const orphans = [];
+  for (const removedEntry of removed) {
+    if (removedEntry.type !== "delete") continue;
+    if (Array.isArray(removedEntry.orphanKeys) && removedEntry.orphanKeys.length) orphans.push(...removedEntry.orphanKeys);
+    else if (removedEntry.orphanKey) orphans.push({ key: removedEntry.orphanKey, index: removedEntry.index });
   }
+  let restoredAny = false;
+  for (const { key, index } of orphans) {
+    const orphanRecord = key ? await dbGet(key) : null;
+    if (orphanRecord && index < board.padCount) {
+      const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
+      await dbSet(padAudioKeyFor(board.id, index), restored);
+      await dbDelete(key);
+      restoredAny = true;
+    }
+  }
+  if (restoredAny) {
+    await renderPads({ preserveEditMode: true });
+    updateAudioLibraryBadge().catch(() => {});
+  }
+
+  // Retirer les couches annulées ; garder au minimum l'amorce « état d'ouverture ».
+  state.undoStack = stack.slice(0, Math.max(1, targetIndex));
+  if (wasGarage) setBoardPadEditing(true);
   refreshUndoButton();
   scheduleUndoMirror();
+  const undoneCount = removed.filter((entry) => !entry.locked).length || removed.length;
+  setStatus(undoneCount > 1 ? `${undoneCount} modifications annulées` : "Modification annulée");
 }
 
 // ---------------------------------------------------------------------------
@@ -9044,9 +9058,81 @@ function confirmSnapshotRestore({ title, intro, before, after, confirmLabel } = 
 
 function settleRestorePreview(result) {
   els.restorePreviewDialog?.close();
-  const resolve = restorePreviewResolver;
+  const fn = restorePreviewResolver;
   restorePreviewResolver = null;
-  if (resolve) resolve(result);
+  if (fn) fn(result);
+}
+
+// Dialogue « Annuler » : montre toute la pile (une couche par ligne, la plus
+// récente en haut), avec un bouton radio pour choisir jusqu'où remonter en une
+// seule fois. On n'annule pas des modifs isolées : on annule couche par couche,
+// de la plus récente à la plus ancienne. Résout avec l'index de pile cible, ou
+// null si annulé.
+function confirmUndoTimeline(rows) {
+  const dialog = els.restorePreviewDialog;
+  if (els.restorePreviewTitle) els.restorePreviewTitle.textContent = "Annuler des modifications";
+  if (els.restorePreviewIntro) {
+    els.restorePreviewIntro.textContent = "Choisis jusqu'où revenir : cette étape et toutes les plus récentes seront annulées.";
+  }
+  if (els.confirmRestorePreview) els.confirmRestorePreview.textContent = "Annuler ces modifications";
+  const list = els.restorePreviewList;
+  list.innerHTML = "";
+  rows.forEach((row, pos) => {
+    const li = document.createElement("li");
+    li.className = "undo-step";
+    const head = document.createElement("label");
+    head.className = "undo-step-head";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "undoTarget";
+    radio.value = String(row.index);
+    if (pos === 0) radio.checked = true;
+    const title = document.createElement("span");
+    title.className = "undo-step-title";
+    title.textContent = row.locked
+      ? "État à l'ouverture du board"
+      : row.stepsAgo <= 1 ? "Dernière modification"
+      : row.stepsAgo === 2 ? "Avant-dernière modification"
+      : `Il y a ${row.stepsAgo} modifications`;
+    head.append(radio, title);
+    li.append(head);
+    const sub = document.createElement("ul");
+    sub.className = "undo-step-lines";
+    const lines = row.lines.length ? row.lines : ["(aucun changement détecté)"];
+    lines.forEach((text) => {
+      const x = document.createElement("li");
+      x.textContent = text;
+      sub.append(x);
+    });
+    if (row.truncated > 0) {
+      const x = document.createElement("li");
+      x.className = "restore-preview-more";
+      x.textContent = `+ ${row.truncated} autre(s)`;
+      sub.append(x);
+    }
+    li.append(sub);
+    list.append(li);
+  });
+  const syncCascade = () => {
+    let reached = false;
+    [...list.querySelectorAll(".undo-step")].forEach((item) => {
+      const radio = item.querySelector("input");
+      item.classList.toggle("is-undone", !reached);
+      if (radio?.checked) reached = true;
+    });
+  };
+  list.onchange = syncCascade;
+  syncCascade();
+  if (!dialog?.showModal) {
+    return Promise.resolve(window.confirm("Annuler la dernière modification ?") ? rows[0]?.index ?? null : null);
+  }
+  return new Promise((resolve) => {
+    restorePreviewResolver = (ok) => {
+      const value = list.querySelector("input:checked")?.value;
+      resolve(ok && value != null ? Number(value) : null);
+    };
+    dialog.showModal();
+  });
 }
 
 async function saveBoardVersion() {
