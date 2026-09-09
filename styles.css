@@ -2859,7 +2859,7 @@ body[data-skin="basic"] .pad.has-color:not(.has-visual-image):not(.is-editing):n
   background-size: cover;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
+body.board-edit-mode .pad.is-editing .visual-preview {
   display: block;
   width: 44px;
   height: 30px;
@@ -2869,12 +2869,12 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
   flex-shrink: 0;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color:not(.has-visual-image) .visual-preview {
+body.board-edit-mode .pad.is-editing.has-color:not(.has-visual-image) .visual-preview {
   background-color: var(--pad-color);
   background-image: none;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing:not(.has-visual-image):not(.has-color) .visual-preview {
+body.board-edit-mode .pad.is-editing:not(.has-visual-image):not(.has-color) .visual-preview {
   background-color: rgba(255, 255, 255, 0.04);
   background-image: repeating-linear-gradient(-45deg, transparent 0, transparent 3px, rgba(255,255,255,0.07) 3px, rgba(255,255,255,0.07) 4px);
 }
@@ -2884,7 +2884,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing:not(.has-visual-image):n
    de spécificité exact (celle-ci l'emporte déjà partout où elle s'applique :
    c'est la plus spécifique du groupe édition garage). */
 @layer skin {
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-template-columns: 44px 1fr !important;
   column-gap: 8px;
   align-items: center;
@@ -2893,7 +2893,7 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
 }
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label {
+body.board-edit-mode .pad.is-editing .pad-trigger .pad-label {
   grid-column: 2;
   justify-items: start;
   text-align: left;
@@ -2906,8 +2906,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger .pad-label 
    fichier) ; plus besoin de !important depuis la consolidation S1 des 5
    règles text-align concurrentes. */
 @layer skin {
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-title,
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags {
+body.board-edit-mode .pad.is-editing .pad-title,
+body.board-edit-mode .pad.is-editing .pad-tags {
   text-align: left;
 }
 }
@@ -4405,28 +4405,16 @@ body.board-edit-mode .pads {
   align-items: stretch;
 }
 
-/* Skin basic garage : les rangées de la grille se dimensionnent à leur contenu
-   (au lieu d'être plafonnées à --pad-compact-height, calé sur le studio plus
-   haut) → plus d'espace vide sous les pads courts. Les pads d'une même rangée
-   restent alignés (stretch). */
-body[data-skin="basic"].board-edit-mode .pads.has-pad-layout {
+/* Garage : les rangées de la grille se dimensionnent à leur contenu (au lieu
+   d'être plafonnées à --pad-compact-height, calé sur le studio plus haut) →
+   plus d'espace vide sous les pads courts. Pads d'une même rangée alignés. */
+body.board-edit-mode .pads.has-pad-layout {
   grid-auto-rows: auto;
 }
 
-
-body.board-edit-mode .pad.is-editing {
-  grid-template-rows: 68px 38px auto minmax(38px, auto) auto;
-}
-
-body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
-  grid-row: 2;
-  align-self: stretch;
-}
-
-body.board-edit-mode .pad.is-editing .tag-field {
-  grid-row: 4;
-  align-self: stretch;
-}
+/* Gabarit du pad en garage : identique pour TOUS les skins (le garage = mode de
+   construction du board ; le skin ne pilote que le rendu live/scène). Détail
+   des rangées plus bas (bloc « compacter l'éditeur du pad »). */
 
 /* --- Skin basic (pads illustrés = destinés à la scène) : compacter l'éditeur
    du pad en garage. L'éditeur « Nom » remonte à DROITE de l'aperçu
@@ -4436,7 +4424,7 @@ body.board-edit-mode .pad.is-editing .tag-field {
 /* rangée 1 : aperçu (dans .pad-trigger, forcé rangée 1) + éditeur « Nom » à sa
    droite, stylé comme un TITRE (pas comme un champ de formulaire) : fond
    transparent, souligné seulement, gras. Le cadre n'apparaît qu'au focus. */
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-row: 1;
   grid-column: 1 / -1;
   justify-self: start;
@@ -4444,14 +4432,14 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
   margin-top: 24px !important;
   min-height: 0 !important;
 }
-body[data-skin="basic"].board-edit-mode .pad.is-editing .visual-preview {
+body.board-edit-mode .pad.is-editing .visual-preview {
   width: 46px;
   height: 34px;
 }
 /* Champ « Nom » : pleine largeur, décalé à droite de l'aperçu par la marge
    gauche + largeur calculée (pas de `width:100%` hérité, qui débordait sur le
    pad voisin). Stylé comme un titre : cadre/fond seulement au survol/focus. */
-body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name] {
+body.board-edit-mode .pad.is-editing .name-field > input[data-name] {
   grid-row: 1;
   grid-column: 1 / -1;
   width: calc(100% - 50px);
@@ -4468,10 +4456,10 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data
   font-weight: 600;
   z-index: 2;
 }
-body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name]:hover {
+body.board-edit-mode .pad.is-editing .name-field > input[data-name]:hover {
   border-color: var(--line);
 }
-body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data-name]:focus {
+body.board-edit-mode .pad.is-editing .name-field > input[data-name]:focus {
   background: rgba(var(--color_ui_field_background_rgb), 0.8);
   border-color: var(--color_status_progress);
 }
@@ -4480,8 +4468,8 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .name-field > input[data
    VU la colonne étroite de droite). @layer mode pour battre le
    `display:none !important` layered de ~8940. */
 @layer mode {
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-progress,
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-vu {
+body.board-edit-mode .pad.is-editing .pad-progress,
+body.board-edit-mode .pad.is-editing .pad-vu {
   display: block !important;
   position: static !important;
   inset: auto !important;
@@ -4496,24 +4484,24 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-vu {
   background: rgba(255, 255, 255, 0.09) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
 }
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-progress {
+body.board-edit-mode .pad.is-editing .pad-progress {
   grid-column: 1 / 3 !important;
 }
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-vu {
+body.board-edit-mode .pad.is-editing .pad-vu {
   grid-column: 3 / -1 !important;
 }
 }
 
 /* rangée 3 : tags — label « TAGS », [+] et chips sur la MÊME ligne ; les chips
    débordent en hauteur (jusqu'à ~3 lignes) puis défilent. */
-body[data-skin="basic"].board-edit-mode .pad.is-editing .tag-field {
+body.board-edit-mode .pad.is-editing .tag-field {
   grid-row: 3;
   align-self: start;
   flex-wrap: nowrap;
   align-items: flex-start;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-tags-chips {
+body.board-edit-mode .pad.is-editing .pad-tags-chips {
   /* hauteur RÉSERVÉE fixe = ~3 lignes, quel que soit le nombre de tags → le
      haut du pad (titre + position/VU + zone tags) ne bouge jamais ; au-delà de
      3 lignes, défilement. */
@@ -8991,13 +8979,13 @@ body.board-edit-mode .pad.is-editing .pad-alerts {
   pointer-events: none;
 }
 
-/* S2 — lot 2c : isolée, aucune autre règle importante ne pose display sur
-   .pad-progress/.pad-vu dans ce contexte (édition garage — mutuellement
-   exclusif avec les sélecteurs :not(.is-editing) de ~8201/~8807). */
+/* Garage : position + VU affichés (pré-écoute cue). Étaient masqués ici avant
+   la refonte « garage = construction » ; désormais réaffichés pour tous les
+   skins (détail de placement dans le bloc « rangée 2 » plus haut). */
 @layer mode {
 body.board-edit-mode .pad.is-editing .pad-progress,
 body.board-edit-mode .pad.is-editing .pad-vu {
-  display: none !important;
+  display: block !important;
 }
 }
 
@@ -9430,7 +9418,7 @@ body.board-edit-mode .pad.is-editing {
   grid-template-columns: 1fr 1fr 38px;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing {
+body.board-edit-mode .pad.is-editing {
   grid-template-columns: 1fr 1fr 38px;
   /* rangées FIXES : 1 aperçu+nom · 2 position/VU · 3 tags (3 lignes réservées) ·
      4 badges · 5-6 boutons. Hauteurs figées → le haut du pad ne varie jamais
@@ -9443,13 +9431,13 @@ body[data-skin="basic"].board-edit-mode .pad.is-editing {
 /* La façade ne porte plus que l'aperçu d'illustration : on la réduit à sa
    colonne (elle reste la cible de sélection au clic), le champ « Nom » occupe
    le reste de la rangée. */
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-trigger {
+body.board-edit-mode .pad.is-editing .pad-trigger {
   grid-column: 1 / 2 !important;
   grid-template-columns: 44px !important;
   min-height: 34px;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-alerts {
+body.board-edit-mode .pad.is-editing .pad-alerts {
   grid-row: 4;
 }
 
@@ -9460,15 +9448,15 @@ body.board-edit-mode .pad.is-editing .pad-alerts .pad-alert:not(.pad-alert-missi
   display: none !important;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
-body[data-skin="basic"].board-edit-mode .pad.is-editing .pad-cue-button,
-body[data-skin="basic"].board-edit-mode .pad.is-editing .drag-handle {
+body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"],
+body.board-edit-mode .pad.is-editing .pad-cue-button,
+body.board-edit-mode .pad.is-editing .drag-handle {
   grid-row: 5;
 }
 
-body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"],
-body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"],
-body[data-skin="basic"].board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
+body.board-edit-mode .pad.is-editing .manage-group [data-action="duplicate-pad"],
+body.board-edit-mode .pad.is-editing .manage-group [data-action="transfer-pad"],
+body.board-edit-mode .pad.is-editing .manage-group [data-action="delete-pad"] {
   grid-row: 6;
 }
 
@@ -9490,7 +9478,9 @@ body.board-edit-mode .pad.is-editing .drag-handle {
   min-width: 0 !important;
   height: 38px !important;
   min-height: 38px !important;
-  grid-area: auto;
+  /* pas de `grid-area: auto` ici : il réinitialisait grid-row (les rangées 5-6
+     des boutons sont posées plus haut) — la grille garage n'a pas de zone
+     nommée à neutraliser. */
 }
 
 body.board-edit-mode .pad.is-editing .manage-group [data-action="visual-image"] {
@@ -11068,8 +11058,8 @@ html body.stage-mode .topbar {
 }
 
 /* Fix: grid-area:note from basic skin overrides grid-column:3 in garage edit mode */
-body[data-skin="basic"].board-edit-mode .pad.is-editing.has-visual-image .pad-note-button,
-body[data-skin="basic"].board-edit-mode .pad.is-editing.has-color .pad-note-button {
+body.board-edit-mode .pad.is-editing.has-visual-image .pad-note-button,
+body.board-edit-mode .pad.is-editing.has-color .pad-note-button {
   grid-area: auto;
   grid-column: 3;
 }
