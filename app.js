@@ -9603,16 +9603,68 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   await dbDelete(padMetaKeyFor(boardId, board.padCount - 1));
   await dbDelete(padAudioKeyFor(boardId, board.padCount - 1));
   board.padCount = remainingPads.length;
-  if (!shouldRender) {
-    state.pads = remainingPads;
-    state.pads.forEach((item, index) => {
-      item.index = index;
-    });
-  }
+
+  // Suppression ciblée : ni reconstruction de la grille ni relecture des blobs.
+  // Les pads AVANT l'index supprimé ne bougent pas (DOM, records, réfs identiques) ;
+  // seuls ceux d'APRÈS sont décalés d'un cran. La grille DB (renumérotation,
+  // décalage de audioRefIndex, reset des réfs crossfade vers le pad supprimé) a
+  // déjà été réécrite plus haut — on répercute ici les mêmes ajustements sur les
+  // objets pad en mémoire. Les cibles cue/crossfade sont résolues par uid : le
+  // décalage d'index ne les casse pas.
+  const deletedIndex = pad.index;
+  const deletedTargets = new Set([padTargetValue(pad), `pad:${deletedIndex}`]);
+  pad.node.remove();
+  state.pads = remainingPads;
+  const padsToReload = [];
+  state.pads.forEach((item, index) => {
+    const shifted = item.index !== index;
+    item.index = index;
+    if (!shifted) return;
+    const refIndex = normalizeRefIndex(item.audioRefIndex);
+    if (refIndex != null && refIndex >= deletedIndex) {
+      if (refIndex === deletedIndex) {
+        // Le pad supprimé était le propriétaire du blob partagé (audioRefIndex).
+        // adjustAudioRefAfterDelete a déjà recopié l'audio inline dans le record ;
+        // ce pad référent doit être re-restauré pour charger ce blob en mémoire.
+        item.audioRefIndex = null;
+        padsToReload.push(item);
+      } else {
+        item.audioRefIndex = refIndex - 1;
+      }
+    }
+    if (isDefaultPadTitle(item.title)) setPadTitle(item, `Pad ${index + 1}`);
+  });
+  state.pads.forEach((item) => {
+    if (deletedTargets.has(String(item.startStopTag || ""))) {
+      item.startStopMode = "none";
+      item.startStopTag = "";
+      if (item.startStopModeEl) item.startStopModeEl.value = "none";
+    }
+    if (deletedTargets.has(String(item.endStartTarget || ""))) {
+      item.endStartMode = "none";
+      item.endStartTarget = "";
+      if (item.endStartModeEl) item.endStartModeEl.value = "none";
+    }
+  });
   saveBoards();
+  if (padsToReload.length) await Promise.all(padsToReload.map((item) => restorePad(item).catch(() => {})));
   if (shouldRender) {
-    await renderPads({ preserveEditMode: true });
+    refreshStopGroupOptions();
+    refreshCrossfadeTargetOptions();
+    loadShortcutsForCurrentBoard();
+    renderShortcutRows();
+    updateShortcutIndicators();
+    state.pads.forEach(fitPadTitle);
+    syncCueControls();
     setBoardPadEditing(true);
+    // Focus : ne pas le laisser retomber sur <body> (le bouton « supprimer » qui
+    // l'avait vient de disparaître). On le pose sur le pad voisin — le suivant,
+    // ou le précédent si on vient de supprimer le dernier — pour enchaîner au
+    // clavier. Uniquement sur suppression interactive (pas sur transfert de pad).
+    if (shouldConfirm) {
+      const neighbour = state.pads[Math.min(deletedIndex, state.pads.length - 1)];
+      neighbour?.node.querySelector('[data-action="delete-pad"]')?.focus();
+    }
   }
   if (shouldStatus) setStatus(`${pad.title} supprime`);
   updateAudioLibraryBadge().catch(() => {});
