@@ -8695,6 +8695,10 @@ const BOARD_OPEN_VERSION_ID = "__board-open__";
 let undoCheckpointTimer = null;
 let undoBurstPending = null;
 let undoMirrorTimer = null;
+// Snapshot pris à l'ouverture de l'éditeur audio (studio) : sert de point
+// d'annulation « avant » à la validation, insensible aux écritures de la
+// pré-écoute en direct pendant l'édition.
+let audioDialogUndoSnapshot = null;
 
 function boardUndoKey(boardId) {
   return `board-undo-${boardId}`;
@@ -8824,25 +8828,30 @@ async function scheduleUndoCheckpoint() {
   undoCheckpointTimer = setTimeout(commitPendingUndoCheckpoint, UNDO_CHECKPOINT_DELAY_MS);
 }
 
+function undoableEntryCount() {
+  // L'amorce « état d'ouverture » (locked) ne compte pas : rien à annuler tant
+  // qu'aucune vraie modification n'a été empilée par-dessus.
+  return state.undoStack.filter((entry) => !entry?.locked).length;
+}
+
 function refreshUndoButton() {
   if (!els.undoBoardEdit) return;
-  const hasEntries = state.undoStack.length > 0 || Boolean(undoBurstPending);
+  const hasEntries = undoableEntryCount() > 0 || Boolean(undoBurstPending);
   els.undoBoardEdit.disabled = state.stageMode || !hasEntries;
 }
 
 async function undoLastGarageChange() {
   if (state.stageMode) return;
   commitPendingUndoCheckpoint();
-  const top = state.undoStack[state.undoStack.length - 1];
-  // L'amorce « état d'ouverture » n'est jamais dépilée : on l'applique sans la retirer.
-  const entry = top?.locked ? top : state.undoStack.pop();
-  if (!entry) {
+  if (undoableEntryCount() === 0) {
     setStatus("Rien à annuler");
     refreshUndoButton();
     return;
   }
+  // Les entrées non verrouillées sont toujours au-dessus de l'amorce → pop() sûr.
+  const entry = state.undoStack.pop();
   if (entry.boardId && entry.boardId !== state.currentBoardId) {
-    if (!top?.locked) state.undoStack.push(entry);
+    state.undoStack.push(entry);
     setStatus("Rien à annuler");
     refreshUndoButton();
     return;
@@ -8850,19 +8859,20 @@ async function undoLastGarageChange() {
   // Dialogue de diff : chaque annulation est confirmée (état courant → cible).
   const currentSnapshot = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true });
   const confirmed = await confirmSnapshotRestore({
-    title: entry.locked ? "Revenir à l'état d'ouverture du board" : "Annuler la dernière modification",
-    intro: entry.locked
-      ? "Le board reviendra à son état d'ouverture. Changements :"
-      : "La dernière modification sera annulée. Changements :",
+    title: "Annuler la dernière modification",
+    intro: "La dernière modification sera annulée. Changements :",
     before: currentSnapshot,
     after: entry.snapshot,
     confirmLabel: "Annuler la modification",
   });
   if (!confirmed) {
-    if (!top?.locked) state.undoStack.push(entry);
+    state.undoStack.push(entry);
     refreshUndoButton();
     return;
   }
+  // L'annulation ne doit pas changer de mode : garage reste garage, studio reste
+  // studio (le point d'annulation studio vient de l'éditeur audio).
+  const wasGarage = state.boardEditMode;
   if (entry.type === "delete") {
     await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
     const board = currentBoard();
@@ -8884,11 +8894,11 @@ async function undoLastGarageChange() {
       await renderPads({ preserveEditMode: true });
       updateAudioLibraryBadge().catch(() => {});
     }
-    setBoardPadEditing(true);
+    if (wasGarage) setBoardPadEditing(true);
     setStatus(`${entry.title || "Pad"} restauré`);
   } else {
     await applyBoardSnapshot(entry.snapshot, { preserveEditMode: true });
-    setBoardPadEditing(true);
+    if (wasGarage) setBoardPadEditing(true);
     setStatus("Modification annulée");
   }
   refreshUndoButton();
@@ -15389,6 +15399,11 @@ async function openAudioDialog(pad) {
     endStartMode: pad.endStartMode,
     endStartTarget: pad.endStartTarget,
   };
+  // Point d'annulation « avant édition » (studio) : capturé maintenant, avant
+  // toute retouche, puis empilé à la validation (« Appliquer »).
+  audioDialogUndoSnapshot = state.stageMode
+    ? null
+    : await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true }).catch(() => null);
   if (els.applyAudio) els.applyAudio.disabled = false;
   syncAudioDialog(pad, { renderWaveform: false });
   perf.log("preparation complete", { padIndex: pad.index, padType: padType(pad) });
@@ -20549,6 +20564,7 @@ async function init() {
     } catch (err) {
       console.error(err);
     }
+    audioDialogUndoSnapshot = null;
     restoreAudioDraft()
       .catch(() => setStatus("Annulation audio impossible"))
       .finally(() => {
@@ -20560,13 +20576,16 @@ async function init() {
   });
   els.applyAudio?.addEventListener("click", async () => {
     if (state.audioPad) {
-      // Point d'annulation unique côté studio : capturer l'état « avant » avant
-      // les mutations du dialogue audio, puis geler les rafales de checkpoints
-      // le temps de l'application (sinon savePadMeta en recréerait un « après »).
-      if (!state.stageMode) {
-        await scheduleUndoCheckpoint();
-        commitPendingUndoCheckpoint();
-      }
+      // Point d'annulation unique côté studio : le snapshot « avant » a été pris
+      // à l'ouverture du dialogue (audioDialogUndoSnapshot). On gèle les rafales
+      // de checkpoints le temps de l'application, puis on empile ce snapshot.
+      const undoBefore = audioDialogUndoSnapshot;
+      audioDialogUndoSnapshot = null;
+      // Jeter tout checkpoint « rafale » créé par la pré-écoute pendant l'édition
+      // (état intermédiaire), puis geler le mécanisme le temps de l'application.
+      undoBurstPending = null;
+      clearTimeout(undoCheckpointTimer);
+      undoCheckpointTimer = null;
       undoCheckpointsSuspended = true;
       try {
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -20575,6 +20594,12 @@ async function init() {
         saveAudioPadFromDialog();
       } finally {
         undoCheckpointsSuspended = false;
+      }
+      if (undoBefore && !state.stageMode) {
+        state.undoStack.push({ type: "snapshot", boardId: state.currentBoardId, snapshot: undoBefore });
+        trimUndoStack();
+        refreshUndoButton();
+        scheduleUndoMirror();
       }
     }
     state.audioDraft = null;
@@ -20599,6 +20624,7 @@ async function init() {
     } catch (err) {
       console.error(err);
     }
+    audioDialogUndoSnapshot = null;
     restoreAudioDraft()
       .catch(() => setStatus("Annulation audio impossible"))
       .finally(() => {
