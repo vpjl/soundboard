@@ -464,6 +464,8 @@ const els = {
   stageMode: document.querySelector("#stageMode"),
   stageLock: document.querySelector("#stageLock"),
   guestGate: document.querySelector("#guestGate"),
+  mosaicMobileNotice: document.querySelector("#mosaicMobileNotice"),
+  mosaicMobileNoticeClose: document.querySelector("#mosaicMobileNoticeClose"),
   remoteResendBoard: document.querySelector("#remoteResendBoard"),
   remoteControlButton: document.querySelector("#remoteControlButton"),
   remoteControlIndicator: document.querySelector("#remoteControlIndicator"),
@@ -3809,7 +3811,10 @@ function applyPadLayout(board = currentBoard()) {
   if (!els.pads) return;
   // Mosaïque : colonnes figées à la grille mémorisée, sans plafond de largeur —
   // le puzzle doit rester intact même si les pads rétrécissent à l'écran.
-  if (board?.mosaic) {
+  // Exception : invité sur portable — pas assez de colonnes pour le puzzle
+  // (cf. isMosaicBlockedForGuestPortable) — on retombe sur le layout standard
+  // plus bas, plafond de colonnes inclus, comme un board sans mosaïque.
+  if (board?.mosaic && !isMosaicBlockedForGuestPortable()) {
     const cols = Math.max(2, board.mosaic.columns);
     const padCount = Math.max(1, Number(board?.padCount) || DEFAULT_PAD_COUNT);
     els.pads.classList.add("has-pad-layout");
@@ -6676,8 +6681,11 @@ function syncDissolveMosaicButton() {
 
 function syncMosaicStudioMask() {
   // Hors scène (studio ET garage), le puzzle n'est pas rendu : on masque chaque
-  // pièce. En scène, `mosaicActive` prend le relais (rendu basic + grille figée).
-  const masked = Boolean(currentBoard()?.mosaic) && !state.stageMode;
+  // pièce. En scène, `mosaicActive` prend le relais (rendu basic + grille figée),
+  // sauf invité sur portable : pas assez de colonnes pour le puzzle, on masque
+  // aussi les pièces (le board retombe sur son skin standard, cf. applySkin).
+  const masked = Boolean(currentBoard()?.mosaic)
+    && (!state.stageMode || isMosaicBlockedForGuestPortable());
   state.pads.forEach((pad) => {
     if (!pad.node) return;
     const hidden = masked ? Boolean(pad.visualImage) : Boolean(pad.visualImageHidden);
@@ -6770,6 +6778,16 @@ function canUseMinimalSkin() {
 function isPortableDevice() {
   return window.matchMedia("(max-width: 950px), (pointer: coarse)").matches
     || /Android|iPhone|iPad|iPod|Mobile|FxiOS/i.test(navigator.userAgent || "");
+}
+
+// Invité qui ouvre un board en mosaïque sur portable : pas assez de colonnes
+// de pads pour reconstituer l'image (cf. docs/partage-board.md). Dans ce cas
+// précis, le board doit revenir aux règles d'affichage normales — layout
+// standard, plafond de colonnes inclus — plutôt qu'à la grille figée du
+// puzzle. Centralisé ici : utilisé par applySkin(), applyPadLayout() et
+// syncMosaicStudioMask() pour rester cohérents entre eux.
+function isMosaicBlockedForGuestPortable() {
+  return Boolean(state.guest) && isPortableDevice();
 }
 
 function isPortablePortrait() {
@@ -8478,7 +8496,10 @@ function applySkin(skin) {
   // Puzzle rendu UNIQUEMENT en mode scène (affichage forcé basic + `.skin-mosaic`
   // = grille figée + boîtes titre modulées). En studio/garage le board garde le
   // skin du menu ; les pièces sont masquées par syncMosaicStudioMask.
-  const mosaicActive = mosaicBoard && state.stageMode;
+  // Exception : invité sur portable — pas assez de colonnes de pads pour rendre
+  // le puzzle (cf. maybeShowMosaicMobileNotice) — le board retombe sur son skin
+  // standard, comme en studio/garage.
+  const mosaicActive = mosaicBoard && state.stageMode && !isMosaicBlockedForGuestPortable();
   const displaySkin = mosaicActive ? "basic" : skinName;
 
   updateSkinOptions();
@@ -10024,6 +10045,10 @@ async function importBoardFile(file) {
     cuesEnabled: payload.board.cuesEnabled !== false,
     cues: payload.board.cues,
     cueIndex: payload.board.cueIndex,
+    // Mosaïque : la grille (colonnes/lignes) doit voyager avec l'import, sinon
+    // le puzzle perd son alignement — normalizeMosaic() ne plafonne pas les
+    // colonnes, contrairement au layout normal (cf. applyPadLayout).
+    mosaic: payload.board.mosaic,
   });
   // Enregistre les skins perso embarqués et restaure le skin du board.
   const restoredSkin = registerImportedCustomSkins(payload.board);
@@ -20323,6 +20348,8 @@ async function init() {
   bindSafeActionButton(els.showCables, () => armManualCrossfade());
   window.matchMedia("(max-width: 950px), (pointer: coarse)").addEventListener?.("change", () => {
     applySkin(localStorage.getItem(SKIN_STORAGE) || "classic");
+    applyPadLayout(); // invité en mosaïque : recalcule le plafond de colonnes si le seuil portable a changé
+    maybeShowMosaicMobileNotice();
     updateShortcutIndicators();
   });
   // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
@@ -21689,6 +21716,7 @@ async function init() {
   bindButtonFeedback(document.querySelector(".topbar"));
   bindKeyboard();
   bindPerformanceTouchGuards();
+  bindMosaicMobileNotice();
 }
 
 // ---------------------------------------------------------------------------
@@ -21826,6 +21854,7 @@ function finishGuestUnlock() {
     localStorage.getItem(GUEST_SKIN_CHOICE_KEY) !== "all",
   );
   if (els.guestGate) els.guestGate.hidden = true;
+  maybeShowMosaicMobileNotice();
   updateSkinOptions(); // retire les skins utilisateur éventuellement en localStorage
   // « Version light » : sections Aspect et Gestion (réduite au nom du board)
   // dépliées d'office pour l'invité.
@@ -21837,6 +21866,26 @@ function finishGuestUnlock() {
   state.randomGroupSectionOpen = true;
   els.randomGroupSectionToggle?.setAttribute("aria-expanded", "true");
   if (els.randomGroupSectionBody) els.randomGroupSectionBody.hidden = false;
+}
+
+// Invité + board en mosaïque + petit écran/tactile : pas assez de colonnes de
+// pads pour reconstituer l'image (cf. docs/partage-board.md). Avertissement
+// affiché à chaque ouverture du lien (pas de mémorisation « ne plus afficher »
+// — cf. échange avec l'utilisateur) ; le board retombe sur son skin standard,
+// puzzle entièrement masqué (voir applySkin() / syncMosaicStudioMask()).
+function maybeShowMosaicMobileNotice() {
+  if (!els.mosaicMobileNotice) return;
+  if (!state.guest || !currentBoard()?.mosaic || !isPortableDevice()) {
+    els.mosaicMobileNotice.hidden = true;
+    return;
+  }
+  els.mosaicMobileNotice.hidden = false;
+}
+
+function bindMosaicMobileNotice() {
+  els.mosaicMobileNoticeClose?.addEventListener("click", () => {
+    if (els.mosaicMobileNotice) els.mosaicMobileNotice.hidden = true;
+  });
 }
 
 async function refreshGuestLabel(shareId) {

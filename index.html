@@ -2381,6 +2381,17 @@
       </form>
     </div>
 
+    <!-- Mode invité, mosaïque + portable : le puzzle n'a pas assez de colonnes pour
+         s'afficher correctement sur un petit écran. Avertissement une fois par
+         ouverture du lien ; le board bascule sur son skin standard (cf.
+         maybeShowMosaicMobileNotice() / applySkin() dans app.js). -->
+    <div id="mosaicMobileNotice" class="mosaic-mobile-notice" hidden role="alertdialog" aria-live="polite">
+      <div class="mosaic-mobile-notice-card">
+        <p>Pour profiter de l'image intégrée à ce board, ouvrir sur un ordinateur.</p>
+        <button type="button" id="mosaicMobileNoticeClose" class="mosaic-mobile-notice-close" aria-label="Fermer">×</button>
+      </div>
+    </div>
+
     <script type="module">
       import WaveSurfer from "./lib/wavesurfer.esm.js?v=1";
       import RegionsPlugin from "./lib/regions.esm.js?v=1";

@@ -60,6 +60,30 @@ Ouvre le lien → saisit le mot de passe → l'app charge **ce board uniquement*
 scène**, sans contrôle à distance, sans sélecteur de boards, sans import ni éditeur ni
 réglages.
 
+### Board en mosaïque, ouvert sur mobile
+
+Le skin « mosaïque » (image découpée sur les pads) a besoin d'une grille figée
+(colonnes/lignes) pour se reconstituer correctement ; un petit écran n'a pas assez de
+colonnes de pads pour l'afficher. Si l'invité ouvre un board en mosaïque depuis un
+mobile/tactile (`isPortableDevice()` dans `app.js`) :
+
+- une **modale** apparaît, une fois par ouverture du lien : « Pour profiter de l'image
+  intégrée à ce board, ouvrir sur un ordinateur », avec un unique bouton **[X]** pour la
+  fermer (`#mosaicMobileNotice` / `maybeShowMosaicMobileNotice()`) ;
+- le board **retombe sur son skin standard** (puzzle entièrement masqué) le temps de la
+  session mobile, uniquement pour cet invité — le propriétaire et un invité sur
+  ordinateur continuent de voir la mosaïque normalement (`applySkin()` /
+  `syncMosaicStudioMask()`) ;
+- la **grille de pads** retombe elle aussi sur les règles d'affichage normales (plafond
+  de colonnes selon la largeur d'écran, layout portrait portable, etc.) au lieu de la
+  grille figée du puzzle (`applyPadLayout()` — voir `isMosaicBlockedForGuestPortable()`,
+  le point de vérité commun aux trois fonctions ci-dessus).
+
+> Prérequis : `importBoardFile()` doit restaurer `board.mosaic` (colonnes/lignes/tons)
+> depuis le fichier exporté — sans quoi le puzzle arrive désaligné chez l'invité (le
+> nombre de colonnes de la mosaïque n'est pas plafonné comme un layout normal, il peut
+> dépasser le maximum habituel).
+
 ## Sécurité — limites connues
 
 - Mots de passe hachés **PBKDF2-SHA256** (210 000 itérations), jamais stockés en clair
