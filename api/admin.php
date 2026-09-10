@@ -340,7 +340,10 @@ if ($method === 'POST' && !$_POST && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
 
 /* ---- Upload en tranches : gros boards « avec audio » > post_max_size Free -- */
 const CHUNK_DIR       = PRIVE_DIR . '/tmp';
-const CHUNK_MAX_TOTAL = 80 * 1048576;
+// 300 Mio : marge large sous les 10 Go du quota « pages perso » Free, tout en
+// restant un plafond volontaire — pas un simple retrait de garde-fou — pour
+// éviter qu'un envoi qui boucle ne remplisse prive/tmp.
+const CHUNK_MAX_TOTAL = 300 * 1048576;
 
 function chunk_path(string $uid): ?string {
   return preg_match('/^[a-f0-9]{16,40}$/', $uid) ? CHUNK_DIR . '/' . $uid . '.part' : null;
