@@ -1943,6 +1943,7 @@ function setBoardPadEditing(editing) {
 
 async function beginBoardEdit() {
   if (state.stageMode) return;
+  stopSoundsOnGarageSwitch();
   await ensureBoardOpenSnapshot();
   setBoardPadEditing(true);
 }
@@ -19551,6 +19552,23 @@ function stopAllLocal() {
   syncCueControls();
 }
 
+// Basculer entre studio et garage (dans les deux sens) coupe tout ce qui joue :
+// on n'édite pas un board pendant que ses pads tournent, et en revenant en live
+// on repart d'un état silencieux. Appelé uniquement sur le vrai geste de
+// changement de mode (bouton « Mode edit » + sélecteur Studio/Garage), pas sur
+// les setBoardPadEditing(true) internes de re-rendu (switchBoard, suppression de
+// pad, etc.). No-op si rien ne joue, pour ne pas polluer l'en-tête de statut.
+function stopSoundsOnGarageSwitch() {
+  // La pré-écoute cue est un lecteur à part (state.cuePreviewAudio), non couvert
+  // par stopAllLocal() : en garage sans sortie cue dédiée elle sort sur le master,
+  // c'est donc bien du son à couper. On la stoppe dans tous les cas.
+  const cuePlaying = Boolean(state.cuePreviewAudio) || Boolean(state.cuePreviewUtterance);
+  if (cuePlaying) stopCuePreview();
+  const somethingPlaying = state.randomEngine
+    || state.pads.some((pad) => isPadPlaying(pad));
+  if (somethingPlaying) stopAllLocal();
+}
+
 function stopGroup(tag = els.stopGroupSelect?.value) {
   if (state.remoteRole === "controller") {
     if (!tag) {
@@ -20397,6 +20415,7 @@ async function init() {
   bindSafeActionButton(els.stageLock, () => toggleStageLock());
   els.editPads?.addEventListener("click", () => {
     if (state.boardEditMode) {
+      stopSoundsOnGarageSwitch();
       setBoardPadEditing(false);
       return;
     }
@@ -20404,6 +20423,7 @@ async function init() {
   });
   els.undoBoardEdit?.addEventListener("click", () => undoLastGarageChange().catch(() => setStatus("Annulation impossible")));
   els.saveBoardEdit?.addEventListener("click", () => {
+    stopSoundsOnGarageSwitch();
     setBoardPadEditing(false);
     setStatus("Mode live");
   });
@@ -22053,6 +22073,7 @@ function setBoardModeFromSelector(targetMode) {
       setStageMode(false, false);
     }
     if (state.boardEditMode || document.body.classList.contains("board-edit-mode")) {
+      stopSoundsOnGarageSwitch();
       setBoardPadEditing(false);
     }
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
@@ -22076,6 +22097,7 @@ function setBoardModeFromSelector(targetMode) {
       return;
     }
     boardModeBodyObserver.disconnect();
+    stopSoundsOnGarageSwitch();
     setBoardPadEditing(true);
     boardModeBodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     syncBoardModeSelectorSoon();
