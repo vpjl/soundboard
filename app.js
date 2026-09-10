@@ -1049,7 +1049,7 @@ function closeOpenDialogFromEscape() {
     { dialog: els.shortcutDialog, action: () => {
       restoreShortcutDraft();
       state.shortcutDraft = null;
-      setBoardPadEditing(false);
+      finishShortcutDialog();
     } },
     { dialog: els.imageDialog, action: () => {
       restoreImageDraft();
@@ -1513,6 +1513,14 @@ function saveShortcutDraft() {
   saveShortcutsForCurrentBoard();
   saveShortcutsEnabledForCurrentBoard();
   state.shortcutDraft = null;
+}
+
+// La fenêtre des raccourcis clavier s'ouvre depuis la fenêtre « audio (master) »,
+// elle-même accessible en garage : refermer les raccourcis ne doit pas faire
+// sortir du garage si on y était.
+let shortcutDialogFromGarage = false;
+function finishShortcutDialog() {
+  if (!shortcutDialogFromGarage) setBoardPadEditing(false);
 }
 
 function padIndexForShortcutKey(key) {
@@ -21338,6 +21346,7 @@ async function init() {
     }
     renderShortcutRows();
     state.shortcutDraft = shortcutDraftFromState();
+    shortcutDialogFromGarage = state.boardEditMode;
     if (els.shortcutDialog?.showModal) {
       els.shortcutDialog.showModal();
     } else {
@@ -21348,25 +21357,25 @@ async function init() {
     restoreShortcutDraft();
     state.shortcutDraft = null;
     els.shortcutDialog?.close();
-    setBoardPadEditing(false);
+    finishShortcutDialog();
   });
   els.applyShortcuts?.addEventListener("click", () => {
     saveShortcutDraft();
     els.shortcutDialog?.close();
-    setBoardPadEditing(false);
+    finishShortcutDialog();
   });
   els.cancelShortcuts?.addEventListener("click", () => {
     restoreShortcutDraft();
     state.shortcutDraft = null;
     els.shortcutDialog?.close();
-    setBoardPadEditing(false);
+    finishShortcutDialog();
   });
   els.shortcutDialog?.addEventListener("click", (event) => {
     if (event.target === els.shortcutDialog) {
       restoreShortcutDraft();
       state.shortcutDraft = null;
       els.shortcutDialog.close();
-      setBoardPadEditing(false);
+      finishShortcutDialog();
     }
   });
   bindEscapeClose(els.helpDialog);
@@ -21406,7 +21415,7 @@ async function init() {
   bindEscapeClose(els.shortcutDialog, () => {
     restoreShortcutDraft();
     state.shortcutDraft = null;
-    setBoardPadEditing(false);
+    finishShortcutDialog();
   });
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
