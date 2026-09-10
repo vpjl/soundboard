@@ -908,6 +908,22 @@ function outputSelectionSupported() {
   return typeof audio.setSinkId === "function" && Boolean(navigator.mediaDevices?.selectAudioOutput);
 }
 
+// Pré-écoute cue des pads : possible si une sortie dédiée est routable (studio),
+// OU en garage — où, faute de sortie cue, elle bascule sur la sortie master
+// (utile sur les navigateurs sans choix de sortie, ex. Firefox iOS).
+function cuePreviewAvailable() {
+  return outputSelectionSupported() || state.boardEditMode;
+}
+
+function syncCueButtonsAvailability() {
+  const available = cuePreviewAvailable();
+  state.pads.forEach((pad) => {
+    if (!pad.cueButton) return;
+    pad.cueButton.disabled = !available;
+    pad.cueButton.setAttribute("aria-disabled", String(!available));
+  });
+}
+
 function enumerateOutputSupported() {
   return Boolean(navigator.mediaDevices?.enumerateDevices);
 }
@@ -984,11 +1000,7 @@ function outputSelectUsesNativePicker(select) {
 function syncOutputCapabilityUi() {
   const supported = outputSelectionSupported();
   document.body.classList.toggle("no-cue-output", !supported);
-  state.pads.forEach((pad) => {
-    if (!pad.cueButton) return;
-    pad.cueButton.disabled = !supported;
-    pad.cueButton.setAttribute("aria-disabled", String(!supported));
-  });
+  syncCueButtonsAvailability();
 }
 
 function loadOutputSettings() {
@@ -1914,6 +1926,7 @@ function setBoardPadEditing(editing) {
   setBoardEditing(state.boardEditMode, false);
   state.pads.forEach((pad) => setPadEditing(pad, state.boardEditMode));
   updateAllPadAlerts(); // garde les badges à jour en entrant/sortant du garage
+  syncCueButtonsAvailability(); // la pré-écoute devient dispo en garage même sans sortie cue
   refreshBoardTagFilterOptions();
   syncPadSelectionLocks();
   renderBoardInfoSection();
@@ -3153,7 +3166,7 @@ function makePad(index) {
   pad.cueButton = node.querySelector('[data-action="cue-preview"]');
   pad.noteButton = node.querySelector('[data-action="note"]');
   pad.cueButton?.setAttribute("aria-pressed", "false");
-  if (pad.cueButton && !outputSelectionSupported()) {
+  if (pad.cueButton && !cuePreviewAvailable()) {
     pad.cueButton.disabled = true;
     pad.cueButton.setAttribute("aria-disabled", "true");
   }
@@ -3369,11 +3382,14 @@ function makePad(index) {
   });
   pad.cueButton?.addEventListener("click", (event) => {
     stopEvent(event);
-    if (!outputSelectionSupported()) {
+    if (!cuePreviewAvailable()) {
       setStatus("Pré-écoute Cue indisponible dans ce navigateur", "stop");
       return;
     }
-    previewPadCue(pad).catch(() => setStatus("Pré-écoute impossible", "stop"));
+    // Garage sans sortie cue routable : lecture sur la sortie master (pas de
+    // prompt de sélection de sortie).
+    const options = outputSelectionSupported() ? {} : { selectOutput: false };
+    previewPadCue(pad, options).catch(() => setStatus("Pré-écoute impossible", "stop"));
   });
   node.querySelector('[data-action="visual-image"]').addEventListener("click", () => openImageDialog(pad));
   pad.visualToggleEl?.addEventListener("click", (event) => {

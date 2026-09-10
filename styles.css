@@ -5514,6 +5514,14 @@ body.no-cue-output .pad-live-row .pad-cue-button,
   filter: grayscale(1);
 }
 
+/* En garage, la pré-écoute reste utilisable même sans sortie cue dédiée
+   (elle bascule sur la sortie master) : le bouton n'est pas grisé. */
+body.no-cue-output.board-edit-mode .pad.is-editing .pad-cue-button:not(:disabled) {
+  opacity: 1;
+  cursor: pointer;
+  filter: none;
+}
+
 .pad-live-row .pad-mute-button svg,
 .pad-live-row .pad-mute-button circle,
 .pad-live-row .pad-stop-button svg,
@@ -8752,6 +8760,15 @@ body.board-edit-mode #masterAudioDialog #masterAudioHelp,
 body.board-edit-mode #masterAudioDialog #masterAudioReset,
 body.board-edit-mode #masterAudioDialog .master-output-field:has(#masterMicrophoneSelect) {
   display: none !important;
+}
+
+/* Note de contexte garage sur la sortie de pré-écoute (cachée ailleurs). */
+.garage-cue-output-hint {
+  display: none;
+}
+
+body.board-edit-mode #masterAudioDialog .garage-cue-output-hint {
+  display: block;
 }
 
 body.board-edit-mode .help-section[aria-label="Master"],
