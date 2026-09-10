@@ -5957,6 +5957,17 @@ function duplicateBoardName(name) {
   return `${base} ${index}`;
 }
 
+// Import d'un board dont le nom existe déjà : suffixe « (#n) » pour éviter
+// deux entrées identiques dans le sélecteur de boards.
+function uniqueImportedBoardName(name) {
+  const base = String(name || "").trim() || "Projet";
+  const names = new Set(state.boards.map((board) => board.name));
+  if (!names.has(base)) return base;
+  let index = 2;
+  while (names.has(`${base} (#${index})`)) index += 1;
+  return `${base} (#${index})`;
+}
+
 function fileSafeName(value) {
   return String(value || "soundboard")
     .normalize("NFD")
@@ -9930,7 +9941,7 @@ async function importBoardFile(file) {
   }, -1);
   const importedBoard = normalizeBoard({
     id: createId(),
-    name: payload.board.name || cleanName(file.name),
+    name: uniqueImportedBoardName(payload.board.name || cleanName(file.name)),
     creator: payload.board.creator || "",
     padCount: Math.max(1, Number(payload.board.padCount) || DEFAULT_PAD_COUNT, maxImportedIndex + 1),
     masterVolume: clamp01(payload.board.masterVolume),
