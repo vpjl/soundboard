@@ -8765,6 +8765,7 @@ body.board-edit-mode #masterAudioDialog .master-output-field:has(#masterMicropho
 /* Note de contexte garage sur la sortie de pré-écoute (cachée ailleurs). */
 .garage-cue-output-hint {
   display: none;
+  margin-top: 4px;
 }
 
 body.board-edit-mode #masterAudioDialog .garage-cue-output-hint {
