@@ -1969,6 +1969,61 @@ function bestRecordingType() {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
+// PCM 16 bits → WAV. Sert à reconvertir un enregistrement micro WebM/Opus (seul
+// format que MediaRecorder produit sur beaucoup de Chrome desktop) en un format
+// lisible partout, iOS/WebKit compris qui ne décode pas le WebM.
+function audioBufferToWavBlob(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const { sampleRate } = buffer;
+  const numFrames = buffer.length;
+  const blockAlign = numCh * 2;
+  const dataSize = numFrames * blockAlign;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(ab);
+  const writeStr = (off, str) => {
+    for (let i = 0; i < str.length; i += 1) view.setUint8(off + i, str.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+  const channels = [];
+  for (let c = 0; c < numCh; c += 1) channels.push(buffer.getChannelData(c));
+  let offset = 44;
+  for (let i = 0; i < numFrames; i += 1) {
+    for (let c = 0; c < numCh; c += 1) {
+      const s = Math.max(-1, Math.min(1, channels[c][i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+  }
+  return new Blob([ab], { type: "audio/wav" });
+}
+
+// Reconvertit un blob d'enregistrement en WAV si son format n'est pas lisible sur
+// iOS (WebM/Ogg). Renvoie { blob, type, extension } — inchangé en cas d'échec ou
+// si le format est déjà bon (MP4/AAC).
+async function ensureIosPlayableRecording(blob, type, extension) {
+  if (extension !== "webm" && extension !== "ogg") return { blob, type, extension };
+  try {
+    const ctx = state.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+    return { blob: audioBufferToWavBlob(decoded), type: "audio/wav", extension: "wav" };
+  } catch (error) {
+    console.debug("[rec] conversion WAV impossible, format d'origine conservé", error);
+    return { blob, type, extension };
+  }
+}
+
 function recordingExtension(type = "") {
   const cleanType = String(type || "").toLowerCase();
   if (cleanType.includes("webm")) return "webm";
@@ -12257,10 +12312,14 @@ async function toggleRecording(pad) {
 
       if (!recordedPad || !chunks.length) return;
 
-      const blob = new Blob(chunks, { type });
-      const buffer = await blob.arrayBuffer();
+      const rawBlob = new Blob(chunks, { type });
+      if (extension === "webm" || extension === "ogg") {
+        setStatus("Conversion de l'enregistrement…", "progress", { progress: { label: "Conversion de l'enregistrement", total: 0 } });
+      }
+      const playable = await ensureIosPlayableRecording(rawBlob, type, extension);
+      const buffer = await playable.blob.arrayBuffer();
       // Conserver un titre personnalisé donné au pad ; sinon nommer « Enregistrement N ».
-      await loadAudioIntoPad(recordedPad, buffer, `Enregistrement ${recordedPad.index + 1}.${extension}`, type, "", false, { keepTitle: !isDefaultTitleForPad(recordedPad) });
+      await loadAudioIntoPad(recordedPad, buffer, `Enregistrement ${recordedPad.index + 1}.${playable.extension}`, playable.type, "", false, { keepTitle: !isDefaultTitleForPad(recordedPad) });
       setStatus(`${recordedPad.title} enregistre`);
     });
 
