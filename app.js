@@ -8763,15 +8763,26 @@ async function flushUndoMirror() {
   }
 }
 
-// Prend, si absent, le snapshot « état à l'ouverture du board » et le place en bas
-// de la pile comme amorce protégée.
+// Amorce protégée « état à l'ouverture du board », en bas de la pile.
+// - absente → on la crée ;
+// - présente MAIS aucune vraie modification empilée par-dessus → on la
+//   rafraîchit sur l'état courant. Sinon elle traîne le snapshot d'une session
+//   précédente (la clé board-undo est persistante) alors que le board a changé
+//   entre-temps, et le diff « État à l'ouverture » affiche des modifs fantômes.
 async function ensureBoardOpenSnapshot() {
-  if (boardOpenUndoEntry()) return;
   const board = currentBoard();
   if (!board) return;
+  const existing = boardOpenUndoEntry();
+  if (existing && undoableEntryCount() > 0) return;
   try {
     const snapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
-    state.undoStack.unshift({ type: "snapshot", boardId: board.id, snapshot, locked: true, origin: "board-open", at: Date.now() });
+    if (existing) {
+      existing.snapshot = snapshot;
+      existing.boardId = board.id;
+      existing.at = Date.now();
+    } else {
+      state.undoStack.unshift({ type: "snapshot", boardId: board.id, snapshot, locked: true, origin: "board-open", at: Date.now() });
+    }
     scheduleUndoMirror();
   } catch (error) {
     console.warn("Snapshot d'ouverture du board impossible", error);
@@ -9044,19 +9055,22 @@ function diffBoardSnapshots(before, after) {
   if (bCount !== aCount) {
     lines.push(aCount > bCount ? `${aCount - bCount} pad(s) ajouté(s)` : `${bCount - aCount} pad(s) supprimé(s)`);
   }
-  const mapByIndex = (arr) => {
+
+  // Appariement des pads par identité (`meta.uid`), PAS par index : une insertion
+  // ou suppression de pad décale tous les index suivants, ce qui ferait
+  // apparaître 100 pads « modifiés » alors qu'ils n'ont fait que glisser.
+  // Les slots sans uid (pads vides, données anciennes) sont appariés par index.
+  const padLines = [];
+  const withUid = (pads) => {
     const map = new Map();
-    arr.forEach((pad) => map.set(Number(pad.index), pad));
+    pads.forEach((pad) => { const u = pad?.meta?.uid; if (u) map.set(u, pad); });
     return map;
   };
-  const bByIndex = mapByIndex(bPads);
-  const aByIndex = mapByIndex(aPads);
-  const padLines = [];
-  for (let i = 0; i < Math.max(bCount, aCount); i += 1) {
-    const bp = bByIndex.get(i);
-    const ap = aByIndex.get(i);
-    if (!bp && !ap) continue;
-    const label = `Pad ${i + 1}`;
+  const bByUid = withUid(bPads);
+  const aByUid = withUid(aPads);
+  const padLabel = (pad) => `Pad ${(Number(pad?.index) || 0) + 1}`;
+
+  const comparePadContent = (bp, ap, label) => {
     const bTitle = String(bp?.meta?.title || "").trim();
     const aTitle = String(ap?.meta?.title || "").trim();
     if (bTitle !== aTitle) padLines.push(`${label} renommé « ${bTitle || "—"} » → « ${aTitle || "—"} »`);
@@ -9071,6 +9085,31 @@ function diffBoardSnapshots(before, after) {
     if (JSON.stringify(diffPadMetaRest(bp?.meta)) !== JSON.stringify(diffPadMetaRest(ap?.meta))) {
       padLines.push(`${label} : réglages modifiés`);
     }
+  };
+
+  // Pads appariés par uid.
+  for (const [uid, ap] of aByUid) {
+    const bp = bByUid.get(uid);
+    if (bp) comparePadContent(bp, ap, padLabel(ap));
+    else padLines.push(`${padLabel(ap)} ajouté${ap?.meta?.title ? ` (« ${String(ap.meta.title).trim()} »)` : ""}`);
+  }
+  for (const [uid, bp] of bByUid) {
+    if (!aByUid.has(uid)) {
+      const name = String(bp?.meta?.title || "").trim();
+      padLines.push(name ? `Pad « ${name} » supprimé` : `${padLabel(bp)} supprimé`);
+    }
+  }
+
+  // Slots sans uid : appariement par index (pads vides qui se remplissent, etc.).
+  const bNoUid = new Map();
+  const aNoUid = new Map();
+  bPads.forEach((pad) => { if (!pad?.meta?.uid) bNoUid.set(Number(pad.index), pad); });
+  aPads.forEach((pad) => { if (!pad?.meta?.uid) aNoUid.set(Number(pad.index), pad); });
+  for (let i = 0; i < Math.max(bCount, aCount); i += 1) {
+    const bp = bNoUid.get(i);
+    const ap = aNoUid.get(i);
+    if (!bp && !ap) continue;
+    if ((bp && bp.meta) || (ap && ap.meta)) comparePadContent(bp, ap, `Pad ${i + 1}`);
   }
 
   const LIMIT = 12;
