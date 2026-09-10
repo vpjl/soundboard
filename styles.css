@@ -5806,6 +5806,24 @@ body[data-skin="contrast"] .color-field {
   flex: 0 0 auto;
 }
 
+.undo-step-mode {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.undo-step-mode-garage {
+  border-color: color-mix(in srgb, var(--color_status_progress, #d08b2c) 60%, transparent);
+  background: color-mix(in srgb, var(--color_status_progress, #d08b2c) 18%, transparent);
+  color: var(--color_ui_text, inherit);
+}
+
 .undo-step-time {
   margin-left: auto;
   flex: 0 0 auto;

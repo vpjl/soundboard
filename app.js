@@ -8855,7 +8855,7 @@ async function scheduleUndoCheckpoint() {
     try {
       const board = currentBoard();
       const snapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
-      undoBurstPending = { type: "snapshot", boardId: board.id, snapshot };
+      undoBurstPending = { type: "snapshot", boardId: board.id, snapshot, mode: state.boardEditMode ? "garage" : "studio" };
     } finally {
       undoCapturing = false;
     }
@@ -8911,6 +8911,7 @@ async function undoLastGarageChange() {
       lines: diff.lines,
       truncated: diff.truncated,
       time: undoStepTimeLabel(stack[i]),
+      mode: stack[i].mode || null,
     });
   }
 
@@ -9145,6 +9146,12 @@ function confirmUndoTimeline(rows) {
       : row.stepsAgo === 2 ? "Avant-dernière modification"
       : `Il y a ${row.stepsAgo} modifications`;
     head.append(radio, title);
+    if (row.mode && !row.locked) {
+      const modeEl = document.createElement("span");
+      modeEl.className = `undo-step-mode undo-step-mode-${row.mode}`;
+      modeEl.textContent = row.mode === "garage" ? "garage" : "studio";
+      head.append(modeEl);
+    }
     if (row.time) {
       const time = document.createElement("span");
       time.className = "undo-step-time";
@@ -10515,6 +10522,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     index: pad.index,
     title: pad.title,
     at: Date.now(),
+    mode: "garage",
   });
   trimUndoStack();
   refreshUndoButton();
@@ -10608,6 +10616,7 @@ async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
     orphanKeys,
     title: deletedCount > 1 ? `${deletedCount} pads` : (targets[0]?.title || "Pad"),
     at: Date.now(),
+    mode: "garage",
   });
   trimUndoStack();
   refreshUndoButton();
@@ -20745,7 +20754,7 @@ async function init() {
         // étape « aucun changement détecté ».
         const now = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true }).catch(() => null);
         if (!now || diffBoardSnapshots(undoBefore, now).lines.length > 0) {
-          state.undoStack.push({ type: "snapshot", boardId: state.currentBoardId, snapshot: undoBefore, at: Date.now() });
+          state.undoStack.push({ type: "snapshot", boardId: state.currentBoardId, snapshot: undoBefore, at: Date.now(), mode: state.boardEditMode ? "garage" : "studio" });
           trimUndoStack();
           refreshUndoButton();
           scheduleUndoMirror();
