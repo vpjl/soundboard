@@ -11826,11 +11826,14 @@ body:not(.cue-nav) .topbar > .live-tools .cue-status {
   grid-row: 1;
   margin-bottom: 1px;
 }
-/* Icône · libellé · case, packés à gauche (justify-content:start hérité) : la
-   case colle à SON libellé au lieu d'être poussée au bord droit de la demi-
-   colonne (où elle paraissait appartenir au libellé voisin). */
+/* Icône · libellé · case. Colonne du libellé à largeur FIXE (≈ le plus long
+   libellé, « Contrôle du crossfade ») : les cases des deux demi-colonnes
+   s'alignent verticalement, mais chaque case reste proche de SON libellé
+   — assez pour qu'on ne l'attribue pas au libellé de la colonne voisine.
+   Ajuster `--toggle-label-w` si un libellé passe à la ligne. */
 .master-toggles-section .master-audio-control {
-  grid-template-columns: 18px auto max-content !important;
+  --toggle-label-w: 138px;
+  grid-template-columns: 18px var(--toggle-label-w) max-content !important;
   gap: 6px;
   align-self: start;
 }

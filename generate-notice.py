@@ -109,11 +109,13 @@ def extract_button_svgs():
     contenu du <symbol> correspondant, car un SVG extrait/écrit isolément
     (svg2rlg) n'a pas accès au sprite du document source.
 
-    Deux familles de balises portent une icône dans ce document : les
-    <button id=… data-action=…> classiques, et les <label> de réglage qui
+    Trois familles de balises portent une icône dans ce document : les
+    <button id=… data-action=…> classiques ; les <label> de réglage qui
     enveloppent une <svg> + un <input id=…>/<select id=…> (ex. Reverse, Fade
     in/out dans les réglages audio du pad) — l'id à utiliser est alors celui
-    du champ, pas du label (qui n'en a généralement pas).
+    du champ, pas du label (qui n'en a généralement pas) ; et les
+    <dt aria-label=…> des listes de légende, référencés par `aria:Libellé`
+    (ex. `aria:Loop`, `aria:Duck trigger`).
     """
     try:
         with open(INDEX, encoding="utf-8") as f:
@@ -139,13 +141,19 @@ def extract_button_svgs():
             if not id_m:
                 id_m = re.search(r'<(?:input|select)\b[^>]*\bid="([^"]+)"', block)
             action_m = re.search(r'data-action="([^"]+)"', open_tag)
+            aria_m = re.search(r'aria-label="([^"]+)"', open_tag)
             if id_m:
                 svgs.setdefault("#" + id_m.group(1), markup)
             if action_m:
                 svgs.setdefault("action:" + action_m.group(1), markup)
+            if aria_m:
+                svgs.setdefault("aria:" + aria_m.group(1), markup)
 
     harvest("button")
     harvest("label")
+    # <dt aria-label="…"> des listes de légende (glossaire d'icônes du document) :
+    # certaines icônes (Loop, Duck trigger…) ne vivent que là, pas sur un bouton.
+    harvest("dt")
     return svgs
 
 

@@ -65,7 +65,6 @@ Récapitulatif du board courant : nom, créateur, date de création, nombre de p
 - ![#relinkAudioFolder] **Sélectionner un dossier de sons** : relie le board à un dossier local pour retrouver les fichiers audio. À refaire si le dossier est déplacé.
 - ![#relinkVideoFolder] **Sélectionner un dossier de vidéos** : relie le board à un dossier local pour les fichiers vidéo.
 - ![#undoBoardEdit] **Annuler la dernière modification** : annule le dernier réglage modifié ou le dernier pad supprimé (pas à pas).
-- ![#cancelBoardEdit] **Annuler les modifications du board** : restaure le board tel qu'il était à l'entrée dans le mode (annulation globale).
 - ![#exportBoard] **Exporter le board** : exporte le board avec ou sans les sons. Les vidéos ne sont pas incluses, il faut les conserver à part puis les relier via « Sélectionner un dossier de vidéos ».
 
 ![0.5x|Export du board — choix entre réglages seuls ou réglages + sons](docs/notice-captures/dialog-export-board.png)
@@ -80,8 +79,6 @@ Récapitulatif du board courant : nom, créateur, date de création, nombre de p
 - **Colonnes / lignes** : fixe le nombre de colonnes de pads (ou « Auto ») ; le nombre de lignes se déduit automatiquement.
 - **Étendue du board** : élargit ou resserre les marges latérales du board.
 - **Compacité des pads** : réduit la hauteur des pads jusqu'à une forme carrée.
-- ![#stageMode] **Mode plein écran scène** : bascule l'affichage en vue Scène plein écran.
-- ![#stageLock] **Verrouiller le mode scène** : protège la sortie du mode Scène par un mot de passe.
 
 ### Pad — Import de médias
 
@@ -99,11 +96,11 @@ Récapitulatif du board courant : nom, créateur, date de création, nombre de p
 
 ![Éditeur audio (trim, cut, mute, enveloppe)](docs/notice-captures/dialog-audio-editor.png)
 
-- ![action:loop] **Loop** : répète le son en boucle continue.
+- ![aria:Loop] **Loop** : répète le son en boucle continue.
 - ![#audioReverse] **Reverse** : lit le son à l'envers.
 - ![#audioFadeIn|#audioFadeOut] **Fade in / out individuel** : durée de fondu propre à ce pad (prioritaire sur le réglage master).
 - **Égalisation du pad** : égaliseur appliqué à ce pad uniquement.
-- ![action:duck] **Duck trigger** : ce pad déclenche le ducking _(voir glossaire)_ des autres pads quand il joue.
+- ![aria:Duck trigger] **Duck trigger** : ce pad déclenche le ducking _(voir glossaire)_ des autres pads quand il joue.
 - **Crossfade audio** _(voir glossaire)_ : configure les déclenchements croisés entre pads ou entre tags.
 
 ### Sélection et modification groupée
@@ -128,8 +125,8 @@ Le panneau du board présente les mêmes volets qu'en garage (Infos board, Versi
 
 ### Pad en Studio
 
-- **One shot** _(voir glossaire)_ : relance le son depuis le début à chaque déclenchement.
-- **Toggle** : premier clic lance, second clic stoppe et reprend à la même position au prochain déclenchement.
+- **Play** : lance le son, ou le relance depuis le début s'il joue déjà.
+- **Pause** : met le son en pause ; il repart de la même position au déclenchement suivant.
 - ![action:stop] **Stop** : arrête le pad en appliquant les règles de fade out définies.
 - ![action:cue-preview] **Pré-écoute Cue** : écoute le pad sur une sortie audio séparée (casque régie) sans l'envoyer en salle — dépend du navigateur et de la configuration audio.
 - ![action:note] **Pense-bête du pad** : note de texte libre attachée au pad, visible en studio.
@@ -148,7 +145,8 @@ Cues, Crossfade et les boutons Stop/Mute globaux vivent dans une même barre, fi
 - ![#addCueStep] **Ajouter une étape cue** : insère une nouvelle étape dans la ligne de temps des cues.
 - ![#showCables] **Xfade armé** : prépare un fondu enchaîné manuel entre deux pads, indépendamment de l'activation des cues. Si un seul pad audio joue, il devient la source. S'il y en a plusieurs, choisir la source puis le pad cible — le pad cible démarre en fondu entrant pendant que la source baisse puis s'arrête. La durée utilisée est celle réglée dans l'Audio Master. Annulation : touche Échap ou second clic sur Xfade.
 - ![#patchBay] **Patch bay crossfade** : vue dédiée du câblage crossfade pour configurer les enchaînements complexes entre pads et groupes.
-- Chacun de ces contrôles (Cues, Crossfade, Stop global, Stop groupé, Mute global) peut être masqué individuellement dans **Audio Master → Contrôles à l'écran**, pour ne garder à l'écran que ce dont on a besoin en représentation.
+
+Chacun de ces contrôles (Cues, Crossfade, Stop global, Stop groupé, Mute global) peut être masqué individuellement dans **Audio Master → Contrôles à l'écran**, pour ne garder à l'écran que ce dont on a besoin en représentation.
 
 ![Patch bay crossfade — câblage entre pads](docs/notice-captures/dialog-patch-bay.png)
 
@@ -206,7 +204,6 @@ Chaque pad dispose de 4 effets appliqués en direct pendant la lecture : distors
 
 ### Board
 
-- **Changement de board** : le menu board reste accessible pour passer d'un board à l'autre au fil du spectacle.
 - ![#stageLock] **Verrouiller le mode Scène** : protège la sortie du mode Scène par un mot de passe, pour éviter toute modification accidentelle pendant la représentation.
 
 ### Bloc Cues/Crossfade
@@ -222,8 +219,8 @@ Permet de piloter le board depuis un second appareil (téléphone, tablette) pen
 ### Mise en route
 
 - **1. Lancer le relais** : exécuter `demarrer-controle-distance.command` (à la racine de l'app) — démarre un petit relais local, sans dépendance à internet, et affiche l'adresse `http://…` à utiliser sur les deux appareils.
-- ![#remoteControlButton|#remoteRoleDisplay] **2. Côté façade** (l'appareil qui joue le son) : ouvrir Contrôle à distance, choisir le rôle Façade (joue le son) — un code à 6 chiffres s'affiche.
-- ![#remoteRoleController] **3. Côté régie** (le second appareil) : ouvrir la même fenêtre, choisir Régie (pilote), saisir l'adresse du relais et le code affiché côté façade, puis Activer.
+- ![#remoteControlButton] **2. Côté façade** (l'appareil qui joue le son) : ouvrir Contrôle à distance, choisir le rôle Façade (joue le son) — un code à 6 chiffres s'affiche.
+- **3. Côté régie** (le second appareil) : ouvrir la même fenêtre, choisir Régie (pilote), saisir l'adresse du relais et le code affiché côté façade, puis Activer.
 
 > Un avertissement s'affiche si l'app est ouverte en https (ex. hébergement en ligne) : le contrôle à distance a besoin d'une connexion non chiffrée (`ws://`), bloquée par le navigateur en https. Utiliser l'adresse `http://…` affichée par le script de lancement.
 
