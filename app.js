@@ -6566,7 +6566,7 @@ async function fabricateMosaicFromImage(file) {
   } finally {
     undoCheckpointsSuspended = false;
   }
-  commitPendingUndoCheckpoint();
+  await commitPendingUndoCheckpoint();
   setStatus(`Mosaïque fabriquée — ${target} pièces · visible en mode scène`, "success");
 }
 
@@ -6630,7 +6630,7 @@ async function dissolveMosaicBoard() {
   } finally {
     undoCheckpointsSuspended = false;
   }
-  if (!checkpointTaken) commitPendingUndoCheckpoint();
+  if (!checkpointTaken) await commitPendingUndoCheckpoint();
   setStatus("Mosaïque dissoute", "success");
 }
 
@@ -8793,15 +8793,26 @@ function resetUndoStack() {
   state.undoStack = [];
 }
 
-function commitPendingUndoCheckpoint() {
+async function commitPendingUndoCheckpoint() {
   clearTimeout(undoCheckpointTimer);
   undoCheckpointTimer = null;
-  if (undoBurstPending) {
-    state.undoStack.push(undoBurstPending);
-    trimUndoStack();
-    scheduleUndoMirror();
-  }
+  const pending = undoBurstPending;
   undoBurstPending = null;
+  if (pending) {
+    // Ne pas empiler un point d'annulation qui ne changerait rien : certains
+    // gestes (rouvrir/refermer un champ, savePadMeta sans modif réelle) créent
+    // une rafale « vide ». Sinon le bouton « Annuler » s'allumerait pour rien.
+    let changed = true;
+    try {
+      const now = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true });
+      changed = diffBoardSnapshots(pending.snapshot, now).lines.length > 0;
+    } catch { /* en cas d'échec de comparaison, empiler par prudence */ }
+    if (changed) {
+      state.undoStack.push(pending);
+      trimUndoStack();
+      scheduleUndoMirror();
+    }
+  }
   refreshUndoButton();
 }
 
@@ -8836,13 +8847,14 @@ function undoableEntryCount() {
 
 function refreshUndoButton() {
   if (!els.undoBoardEdit) return;
-  const hasEntries = undoableEntryCount() > 0 || Boolean(undoBurstPending);
-  els.undoBoardEdit.disabled = state.stageMode || !hasEntries;
+  // Ne compte QUE les points d'annulation confirmés (une rafale en cours n'allume
+  // pas le bouton : elle peut se révéler « vide » et être jetée à la validation).
+  els.undoBoardEdit.disabled = state.stageMode || undoableEntryCount() === 0;
 }
 
 async function undoLastGarageChange() {
   if (state.stageMode) return;
-  commitPendingUndoCheckpoint();
+  await commitPendingUndoCheckpoint();
   // Purger d'éventuelles entrées d'un autre board (héritage) : la pile ne
   // concerne que le board courant.
   state.undoStack = state.undoStack.filter((entry) => !entry.boardId || entry.boardId === state.currentBoardId);
@@ -10345,7 +10357,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
   }
   if (shouldConfirm && !window.confirm(`Supprimer le pad "${pad.title}" ?`)) return false;
 
-  commitPendingUndoCheckpoint();
+  await commitPendingUndoCheckpoint();
   const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
 
   stopAllLocal();
@@ -10483,7 +10495,7 @@ async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
     .filter((pad) => !requireEmpty || isEmptyPad(pad));
   if (!targets.length || originalCount <= 1) return { deletedCount: 0, keptLast: false };
 
-  commitPendingUndoCheckpoint();
+  await commitPendingUndoCheckpoint();
   const preDeleteSnapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
 
   stopAllLocal();
