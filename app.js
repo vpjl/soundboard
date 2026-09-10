@@ -8771,7 +8771,7 @@ async function ensureBoardOpenSnapshot() {
   if (!board) return;
   try {
     const snapshot = await createBoardSnapshot(board, { includeMedia: false, skipPersist: true });
-    state.undoStack.unshift({ type: "snapshot", boardId: board.id, snapshot, locked: true, origin: "board-open" });
+    state.undoStack.unshift({ type: "snapshot", boardId: board.id, snapshot, locked: true, origin: "board-open", at: Date.now() });
     scheduleUndoMirror();
   } catch (error) {
     console.warn("Snapshot d'ouverture du board impossible", error);
@@ -8832,6 +8832,7 @@ async function commitPendingUndoCheckpoint() {
       changed = diffBoardSnapshots(pending.snapshot, now).lines.length > 0;
     } catch { /* en cas d'échec de comparaison, empiler par prudence */ }
     if (changed) {
+      pending.at = Date.now();
       state.undoStack.push(pending);
       trimUndoStack();
       scheduleUndoMirror();
@@ -8909,6 +8910,7 @@ async function undoLastGarageChange() {
       totalSteps: stack.length,
       lines: diff.lines,
       truncated: diff.truncated,
+      time: undoStepTimeLabel(stack[i]),
     });
   }
 
@@ -9061,6 +9063,18 @@ function diffBoardSnapshots(before, after) {
 
 let restorePreviewResolver = null;
 
+// Horodatage d'une entrée d'annulation (repli sur savedAt du snapshot pour les
+// entrées d'avant l'ajout du champ `at`).
+function undoStepTimeLabel(entry) {
+  const ms = entry?.at ?? Date.parse(entry?.snapshot?.savedAt || "");
+  if (!Number.isFinite(ms)) return "";
+  const d = new Date(ms);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return sameDay ? time : `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${time}`;
+}
+
 // Ouvre #restorePreviewDialog avec le diff before→after, résout à true/false.
 function confirmSnapshotRestore({ title, intro, before, after, confirmLabel } = {}) {
   const diff = diffBoardSnapshots(before, after);
@@ -9131,6 +9145,12 @@ function confirmUndoTimeline(rows) {
       : row.stepsAgo === 2 ? "Avant-dernière modification"
       : `Il y a ${row.stepsAgo} modifications`;
     head.append(radio, title);
+    if (row.time) {
+      const time = document.createElement("span");
+      time.className = "undo-step-time";
+      time.textContent = row.time;
+      head.append(time);
+    }
     li.append(head);
     const sub = document.createElement("ul");
     sub.className = "undo-step-lines";
@@ -10494,6 +10514,7 @@ async function removePadFromCurrentBoard(pad, options = {}) {
     orphanKey,
     index: pad.index,
     title: pad.title,
+    at: Date.now(),
   });
   trimUndoStack();
   refreshUndoButton();
@@ -10586,6 +10607,7 @@ async function removePadsCompact(padsToDelete, { requireEmpty = false } = {}) {
     snapshot: preDeleteSnapshot,
     orphanKeys,
     title: deletedCount > 1 ? `${deletedCount} pads` : (targets[0]?.title || "Pad"),
+    at: Date.now(),
   });
   trimUndoStack();
   refreshUndoButton();
@@ -20718,10 +20740,16 @@ async function init() {
         undoCheckpointsSuspended = false;
       }
       if (undoBefore && !state.stageMode) {
-        state.undoStack.push({ type: "snapshot", boardId: state.currentBoardId, snapshot: undoBefore });
-        trimUndoStack();
-        refreshUndoButton();
-        scheduleUndoMirror();
+        // Ne pas empiler si « Appliquer » n'a en fait rien changé (dialogue
+        // ouvert puis validé sans retouche) : sinon la frise afficherait une
+        // étape « aucun changement détecté ».
+        const now = await createBoardSnapshot(currentBoard(), { includeMedia: false, skipPersist: true }).catch(() => null);
+        if (!now || diffBoardSnapshots(undoBefore, now).lines.length > 0) {
+          state.undoStack.push({ type: "snapshot", boardId: state.currentBoardId, snapshot: undoBefore, at: Date.now() });
+          trimUndoStack();
+          refreshUndoButton();
+          scheduleUndoMirror();
+        }
       }
     }
     state.audioDraft = null;
