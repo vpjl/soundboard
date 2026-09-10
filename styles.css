@@ -8700,67 +8700,9 @@ body.stage-mode .secondary-live-group {
   }
 }
 
-/* Garage : le bloc master reste visible (carte, titre), mais réduit aux
-   PÉRIPHÉRIQUES — les lignes « Sortie sono / Sortie cue » + le bouton
-   « audio (master) » qui ouvre leur réglage. Pas de volume/VU/entrée micro,
-   ni random playlist, ni badges d'options : ça reste studio/live. */
-body.board-edit-mode .master-strip {
-  display: flex !important;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px !important;
-  grid-template-columns: none !important;
-  grid-template-rows: none !important;
-  grid-template-areas: none !important;
-  width: fit-content;
-  min-height: 0 !important;
-}
-
-body.board-edit-mode .master-strip > *:not(.master-title):not(.master-volume-stack):not(.master-corner-row) {
-  display: none !important;
-}
-
-body.board-edit-mode .master-strip .master-title {
-  display: block !important;
-  grid-area: auto !important;
-}
-
-body.board-edit-mode .master-strip .master-volume-stack {
-  display: grid !important;
-  grid-area: auto !important;
-  gap: 4px;
-}
-
-body.board-edit-mode .master-strip .master-volume-control,
-body.board-edit-mode .master-strip .cue-volume-control,
-body.board-edit-mode .master-strip .master-vu,
-body.board-edit-mode .master-strip .cue-vu,
-body.board-edit-mode .master-strip .master-input-group {
-  display: none !important;
-}
-
-body.board-edit-mode .master-strip .master-corner-row {
-  display: block !important;
-  grid-area: auto !important;
-}
-
-body.board-edit-mode .master-strip .master-corner-buttons {
-  justify-content: flex-start;
-}
-
-body.board-edit-mode .master-strip .master-corner-buttons > *:not(#masterAudio) {
-  display: none !important;
-}
-
-/* En garage, le panneau « audio (master) » se réduit à la section Périphériques
-   (sortie master + pré-écoute cue), sans l'entrée micro. On garde le bouton
-   raccourcis clavier (utile pendant la construction). */
-body.board-edit-mode #masterAudioDialog .audio-section:not(.master-outputs-section),
-body.board-edit-mode #masterAudioDialog #masterAudioHelp,
-body.board-edit-mode #masterAudioDialog #masterAudioReset,
-body.board-edit-mode #masterAudioDialog .master-output-field:has(#masterMicrophoneSelect) {
-  display: none !important;
-}
+/* Uniformité des 3 modes : le bloc master et sa fenêtre « audio (master) »
+   sont identiques en studio et en garage (aucun override ici). Seul le mode
+   scène a son propre traitement (règles body.stage-mode plus haut). */
 
 body.board-edit-mode .help-section[aria-label="Master"],
 body.board-edit-mode .help-section[aria-label="Audio master"],
