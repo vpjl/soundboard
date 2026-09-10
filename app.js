@@ -8921,39 +8921,57 @@ async function undoLastGarageChange() {
     return;
   }
 
-  // L'annulation ne change pas de mode : garage reste garage, studio reste studio.
   const wasGarage = state.boardEditMode;
   const removed = stack.slice(targetIndex);
-  await applyBoardSnapshot(stack[targetIndex].snapshot, { preserveEditMode: true });
+  const targetSnapshot = stack[targetIndex].snapshot;
 
-  // Ré-attacher les audios orphelins des suppressions comprises dans la plage annulée.
-  const board = currentBoard();
-  const orphans = [];
-  for (const removedEntry of removed) {
-    if (removedEntry.type !== "delete") continue;
-    if (Array.isArray(removedEntry.orphanKeys) && removedEntry.orphanKeys.length) orphans.push(...removedEntry.orphanKeys);
-    else if (removedEntry.orphanKey) orphans.push({ key: removedEntry.orphanKey, index: removedEntry.index });
-  }
-  let restoredAny = false;
-  for (const { key, index } of orphans) {
-    const orphanRecord = key ? await dbGet(key) : null;
-    if (orphanRecord && index < board.padCount) {
-      const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
-      await dbSet(padAudioKeyFor(board.id, index), restored);
-      await dbDelete(key);
-      restoredAny = true;
-    }
-  }
-  if (restoredAny) {
-    await renderPads({ preserveEditMode: true });
-    updateAudioLibraryBadge().catch(() => {});
-  }
-
-  // Retirer les couches annulées ; garder au minimum l'amorce « état d'ouverture ».
+  // Retrancher les couches annulées AVANT l'application (lente) : ainsi la pile
+  // persistée est déjà la bonne si un flush concurrent (visibilitychange, sortie
+  // de garage, switchBoard) ou de nouveaux checkpoints surviennent pendant le
+  // rendu. Sinon `state.undoStack` pouvait être ré-écrasé par l'ancienne pile
+  // complète (« tout l'historique effacé réapparaît »).
+  undoBurstPending = null;
+  clearTimeout(undoCheckpointTimer);
+  undoCheckpointTimer = null;
   state.undoStack = stack.slice(0, Math.max(1, targetIndex));
+  refreshUndoButton();
+  await flushUndoMirror();
+
+  // Geler la création de checkpoints le temps de l'application (renderPads peut
+  // réécrire des métas de pad → savePadMeta → checkpoint parasite).
+  undoCheckpointsSuspended = true;
+  try {
+    await applyBoardSnapshot(targetSnapshot, { preserveEditMode: true });
+
+    // Ré-attacher les audios orphelins des suppressions comprises dans la plage annulée.
+    const board = currentBoard();
+    const orphans = [];
+    for (const removedEntry of removed) {
+      if (removedEntry.type !== "delete") continue;
+      if (Array.isArray(removedEntry.orphanKeys) && removedEntry.orphanKeys.length) orphans.push(...removedEntry.orphanKeys);
+      else if (removedEntry.orphanKey) orphans.push({ key: removedEntry.orphanKey, index: removedEntry.index });
+    }
+    let restoredAny = false;
+    for (const { key, index } of orphans) {
+      const orphanRecord = key ? await dbGet(key) : null;
+      if (orphanRecord && index < board.padCount) {
+        const { cleanupSource, cleanupCreatedAt, ...restored } = orphanRecord;
+        await dbSet(padAudioKeyFor(board.id, index), restored);
+        await dbDelete(key);
+        restoredAny = true;
+      }
+    }
+    if (restoredAny) {
+      await renderPads({ preserveEditMode: true });
+      updateAudioLibraryBadge().catch(() => {});
+    }
+  } finally {
+    undoCheckpointsSuspended = false;
+  }
+
   if (wasGarage) setBoardPadEditing(true);
   refreshUndoButton();
-  scheduleUndoMirror();
+  await flushUndoMirror();
   const undoneCount = removed.filter((entry) => !entry.locked).length || removed.length;
   setStatus(undoneCount > 1 ? `${undoneCount} modifications annulées` : "Modification annulée");
 }
@@ -9531,7 +9549,16 @@ async function restoreSelectedBoardVersion() {
 
   // "Versions" vit desormais dans le garage : rester en garage apres la
   // restauration plutot que de basculer en Studio.
-  await applyBoardSnapshot(snapshot, { preserveEditMode: true });
+  // Vider la pile AVANT l'application (lente) et geler les checkpoints le temps
+  // du rendu, sinon un flush concurrent réécrit l'ancienne pile complète.
+  resetUndoStack();
+  await flushUndoMirror();
+  undoCheckpointsSuspended = true;
+  try {
+    await applyBoardSnapshot(snapshot, { preserveEditMode: true });
+  } finally {
+    undoCheckpointsSuspended = false;
+  }
   await reseedUndoStack();
   setBoardPadEditing(true);
   await refreshVersionOptions(openEntry ? "" : snapshot.id);
