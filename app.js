@@ -1956,12 +1956,15 @@ function setPadDuration(pad, seconds) {
 
 function bestRecordingType() {
   if (!window.MediaRecorder) return "";
+  // MP4/AAC en priorite : c'est le seul format lisible sur iOS (WebKit ne decode
+  // pas le WebM/Opus). WebM reste en repli pour les navigateurs qui n'encodent
+  // pas le MP4 (Firefox desktop, vieux Chromium).
   const types = [
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/aac",
     "audio/webm;codecs=opus",
     "audio/webm",
-    "audio/mp4",
-    "audio/mp4;codecs=mp4a.40.2",
-    "audio/aac",
   ];
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
@@ -7805,23 +7808,30 @@ function buildSkinPreviewFrame() {
   const cssHref = document.querySelector('link[rel="stylesheet"][href*="styles.css"]')?.getAttribute("href") || "styles.css";
   const fontsHref = document.querySelector('link[href*="fonts.googleapis.com/css2"]')?.getAttribute("href") || "";
   const doc = frame.contentDocument;
-  doc.open();
-  doc.write(
-    '<!doctype html><html><head><meta charset="utf-8">'
-    + (fontsHref ? '<link rel="stylesheet" href="' + fontsHref + '">' : '')
-    + '<link rel="stylesheet" href="' + cssHref + '">'
-    + '<style>html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
+  // Construction par le DOM plutôt que document.write() (déclenché en boucle à
+  // chaque réouverture de l'éditeur, et signalé [Violation] par Chrome) :
+  // l'iframe sans src a déjà <html><head><body>, on ne fait que vider/remplir.
+  const previewStyle = 'html,body{margin:0;background:transparent}body{padding:8px;overflow:hidden}'
     + '.app{min-height:0!important}'
-    // Keep the preview content in a fixed left column (the shell is not the real
-    // topbar, so the per-mode topbar layout — esp. stage — would push the pad
-    // right / overflow). The pad inside still uses the real desktop CSS.
+    // Colonne gauche figée : le shell n'est pas la vraie topbar, donc la mise en
+    // page par mode (surtout scène) pousserait le pad à droite / déborderait.
     + '.skin-preview-board-shell{display:flex!important;flex-direction:column!important;'
     + 'align-items:stretch!important;width:520px!important;max-width:520px!important;gap:8px}'
     + '.skin-preview-board-shell>*{max-width:100%;min-width:0;margin:0}'
-    + '.skin-preview-board.pads{grid-template-columns:minmax(0,340px)!important}</style>'
-    + '</head><body></body></html>'
-  );
-  doc.close();
+    + '.skin-preview-board.pads{grid-template-columns:minmax(0,340px)!important}';
+  const mkLink = (href) => {
+    const link = doc.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    return link;
+  };
+  doc.head.replaceChildren();
+  if (fontsHref) doc.head.appendChild(mkLink(fontsHref));
+  doc.head.appendChild(mkLink(cssHref));
+  const styleEl = doc.createElement("style");
+  styleEl.textContent = previewStyle;
+  doc.head.appendChild(styleEl);
+  doc.body.replaceChildren();
   // Le sprite d'icones (#iconSprite) vit dans le document parent : les <use>
   // clones dans ce document (skinPreviewTemplate + #padTemplate) ne peuvent
   // pas resoudre "#ic-xxx" sans une copie du sprite ici.
@@ -7838,7 +7848,12 @@ function buildSkinPreviewFrame() {
   }
   doc.body.appendChild(shell);
 
-  // "click an element → focus its field" / hover highlight, across the iframe
+  // "click an element → focus its field" / hover highlight, across the iframe.
+  // On ne recrée plus le document (fin de document.write) : retirer les
+  // écouteurs d'une ouverture précédente avant de les rebrancher.
+  doc.removeEventListener("click", handleSkinPreviewVariableClick);
+  doc.removeEventListener("mouseover", handleSkinVariablePointerOver);
+  doc.removeEventListener("mouseout", handleSkinVariablePointerOut);
   doc.addEventListener("click", handleSkinPreviewVariableClick);
   doc.addEventListener("mouseover", handleSkinVariablePointerOver);
   doc.addEventListener("mouseout", handleSkinVariablePointerOut);
@@ -9488,6 +9503,7 @@ async function openVersionNotesDialog() {
     setStatus("Entrée protégée : pas de notes sur l'état d'ouverture");
     return;
   }
+  setStatus("Ouverture des notes de version…", "progress", { progress: { label: "Notes de version", total: 0 } });
   const { board, snapshot } = await selectedVersionSnapshot();
   if (!snapshot) {
     setStatus("Choisir une version");
@@ -9510,6 +9526,7 @@ async function openVersionNotesDialog() {
     els.versionNotesEditor.readOnly = false;
   }
   els.versionNotesDialog?.showModal?.();
+  setStatus("");
   els.versionNotesEditor?.focus();
 }
 
@@ -11113,6 +11130,9 @@ function renderUsedAudioList(container, entries) {
 }
 
 async function openAudioLibraryDialog() {
+  // L'inventaire (sons utilisés + orphelins, empreintes, tailles) balaie toute
+  // la base et peut prendre plusieurs secondes : barre affichée dès le clic.
+  setStatus("Analyse des sons stockés…", "progress", { progress: { label: "Sons stockés", total: 0 } });
   const used = await usedAudioEntries();
   const orphanCandidates = await orphanAudioCandidates(used);
   state.audioLibraryOrphans = orphanCandidates;
@@ -11135,6 +11155,7 @@ async function openAudioLibraryDialog() {
   renderAudioLibraryList(els.audioLibraryOrphanList, sortOrphanGroups(orphanGroups.slice()), { orphan: true });
   if (els.deleteSelectedUnusedSounds) els.deleteSelectedUnusedSounds.hidden = !orphanCandidates.length;
   els.audioLibraryDialog?.showModal?.();
+  setStatus("");
 }
 
 // Reflète le mode de tri courant sur les boutons radio, puis ré-affiche les
@@ -11197,12 +11218,20 @@ function u32le(value) {
   return [value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff];
 }
 
-function buildZipBlob(files) {
+async function buildZipBlob(files, onProgress) {
   const encoder = new TextEncoder();
   const localParts = [];
   const centralParts = [];
   let offset = 0;
-  files.forEach(({ name, data }) => {
+  let index = 0;
+  for (const { name, data } of files) {
+    // Rendre la main au navigateur entre chaque fichier : le crc32 est
+    // synchrone et gèlerait la barre de progression sinon.
+    if (onProgress) {
+      onProgress(index, files.length);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    index += 1;
     const nameBytes = encoder.encode(name);
     const crc = crc32(data);
     const size = data.length;
@@ -11222,7 +11251,8 @@ function buildZipBlob(files) {
     ]);
     centralParts.push(centralHeader, nameBytes);
     offset += localHeader.length + nameBytes.length + data.length;
-  });
+  }
+  if (onProgress) onProgress(files.length, files.length);
   const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
   const endRecord = new Uint8Array([
     0x50, 0x4b, 0x05, 0x06,
@@ -11265,7 +11295,7 @@ async function saveCandidatesToDisk(allCandidates) {
   // Pas de sélecteur de dossier (Firefox, Safari) : un seul zip téléchargé,
   // pour n'avoir qu'un seul emplacement à choisir au lieu d'un par son.
   const zipName = `${stamp}.sons-sauvegardes.zip`;
-  const zipBlob = buildZipBlob(withAudio.map((candidate) => ({
+  const zipBlob = await buildZipBlob(withAudio.map((candidate) => ({
     name: fileNameFor(candidate),
     data: new Uint8Array(candidate.record.audio),
   })));
@@ -11279,6 +11309,9 @@ async function saveCandidatesToDisk(allCandidates) {
 // dans chacun) + un dossier « _sons inutilisés ». Zip équivalent si le
 // navigateur n'a pas de sélecteur de dossier (Safari, Firefox).
 async function backupAllStoredSounds() {
+  // Barre affichée immédiatement (la fenêtre « Sons stockés » vient de se
+  // fermer) : l'inventaire des sons ci-dessous peut prendre un instant.
+  setStatus("Préparation de la sauvegarde…", "progress", { progress: { label: "Sauvegarde des sons", total: 0 } });
   const used = await usedAudioEntries();
   const orphanUnique = groupCandidatesByFingerprint(await orphanAudioCandidates(used))
     .map((group) => group.candidates[0])
@@ -11320,7 +11353,8 @@ async function backupAllStoredSounds() {
       if (err?.name === "AbortError") { setStatus("Sauvegarde annulée"); return; }
       throw err;
     }
-    setStatus("Sauvegarde des sons en cours…", "progress", { progress: { label: "Sauvegarde des sons", total: 0 } });
+    let done = 0;
+    setStatus(`Sauvegarde des sons : 0 / ${total}`, "progress", { progress: { label: "Sauvegarde des sons", done: 0, total } });
     for (const [folder, bucket] of folders) {
       const dir = await root.getDirectoryHandle(folder, { create: true });
       for (const file of bucket.files) {
@@ -11328,6 +11362,8 @@ async function backupAllStoredSounds() {
         const writable = await handle.createWritable();
         await writable.write(new Blob([file.record.audio], { type: file.record.type || "audio/mpeg" }));
         await writable.close();
+        done += 1;
+        setStatus(`Sauvegarde des sons : ${done} / ${total}`, "progress", { progress: { label: "Sauvegarde des sons", done, total } });
       }
     }
     setStatus(`${total} son${total > 1 ? "s" : ""} sauvegardé${total > 1 ? "s" : ""} — un sous-dossier par board`);
@@ -11341,7 +11377,10 @@ async function backupAllStoredSounds() {
     }
   }
   const zipName = `${timestampForFile()}.sons-sauvegardes.zip`;
-  downloadBlobAsFile(buildZipBlob(zipFiles), zipName);
+  const zipBlob = await buildZipBlob(zipFiles, (done, count) => {
+    setStatus(`Compression des sons : ${done} / ${count}`, "progress", { progress: { label: "Compression des sons", done, total: count } });
+  });
+  downloadBlobAsFile(zipBlob, zipName);
   setStatus(`${total} son${total > 1 ? "s" : ""} dans "${zipName}" (Téléchargements) — un dossier par board`);
 }
 
@@ -15475,6 +15514,7 @@ function aeSyncPreview(t) {
 async function openPadRegionsEditor(pad) {
   if (!window.WaveSurfer || !window.WaveSurferRegions) { setStatus("Éditeur indisponible (wavesurfer non chargé)"); return; }
   if (padType(pad) !== "audio") { setStatus("Édition de régions : pads audio uniquement"); return; }
+  setStatus("Ouverture de l'éditeur de régions…", "progress", { progress: { label: "Éditeur de régions", total: 0 } });
   const blob = await padAudioBlob(pad);
   if (!blob) { setStatus("Pas d'audio à éditer"); return; }
   // Reprise : si le pad est en cours de test dans les Réglages, reprendre au même endroit.
@@ -15493,6 +15533,7 @@ async function openPadRegionsEditor(pad) {
   const helpPanel = aeEl("aeHelpPanel");
   if (helpPanel) helpPanel.hidden = true;
   els.audioEditorDialog?.showModal?.();
+  setStatus("");
 
   aeRegions = window.WaveSurferRegions.create();
   aeEnvelope = window.WaveSurferEnvelope
@@ -15603,6 +15644,9 @@ async function openAudioDialog(pad) {
   // pré-écoute sur la façade du pad en garage).
   if (state.boardEditMode) return;
   const perf = startPerfMeasure("openAudioDialog");
+  // Lectures DB (audio + méta) + instantané du board avant l'ouverture : lent
+  // sur mobile (~1-2 s). Barre affichée dès le clic, retirée à l'ouverture.
+  setStatus("Ouverture des réglages audio…", "progress", { progress: { label: "Réglages audio", total: 0 } });
   state.audioPad = pad;
   // Micro branché dès l'ouverture (le bouton d'enregistrement est ici) : il sera
   // vert, donc réellement instantané, avant même que l'utilisateur ne le vise.
@@ -15640,6 +15684,7 @@ async function openAudioDialog(pad) {
   if (els.audioDialog?.showModal) {
     perf.log("before showModal");
     els.audioDialog.showModal();
+    setStatus("");
     perf.log("after showModal");
     requestAnimationFrame(() => {
       if (state.audioPad !== pad || !els.audioDialog?.open) return;
@@ -19361,8 +19406,14 @@ function bindButtonFeedback(root = document) {
 }
 
 function bindPerformanceTouchGuards() {
-  const isEditableTarget = (target) => Boolean(target.closest("input, select, textarea, dialog"));
-  const isPerformanceTarget = (target) => Boolean(target.closest(".pad, .topbar"));
+  // event.target n'est pas toujours un Element : sur `selectstart` il peut être
+  // le document ou un nœud texte (pas de .closest) → remonter jusqu'à un Element.
+  const asElement = (target) =>
+    target instanceof Element ? target : (target?.parentElement || null);
+  const isEditableTarget = (target) =>
+    Boolean(asElement(target)?.closest("input, select, textarea, dialog"));
+  const isPerformanceTarget = (target) =>
+    Boolean(asElement(target)?.closest(".pad, .topbar"));
 
   document.addEventListener("contextmenu", (event) => {
     if (isEditableTarget(event.target)) return;
@@ -20667,6 +20718,9 @@ async function init() {
     deleteSelectedUnusedSounds().catch(() => setStatus("Suppression audio impossible"));
   });
   els.backupAllSounds?.addEventListener("click", () => {
+    // Fermer la fenêtre « Sons stockés » tout de suite : la sauvegarde peut
+    // durer et sa progression s'affiche dans la barre de statut, pas ici.
+    els.audioLibraryDialog?.close();
     backupAllStoredSounds().catch(() => setStatus("Sauvegarde des sons impossible", "stop"));
   });
   els.audioLibrarySortRadios?.forEach((radio) => {
