@@ -535,99 +535,6 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     </div>
   <?php endif; ?>
 
-  <h2>Créer un lien d'invitation<span id="createBoardName"></span></h2>
-  <p class="hint" id="createHint" hidden>Cette fenêtre doit être ouverte depuis le bouton
-    « Partage du board » de l'application : c'est elle qui fournit le board.</p>
-  <form method="post" autocomplete="off" id="createForm">
-    <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
-    <input type="hidden" name="action" value="create">
-    <input type="hidden" name="assembled" id="assembledId" value="<?= h($formOld['assembled'] ?? '') ?>">
-    <fieldset class="skin-choice">
-      <legend>Skins accessibles à l'invité</legend>
-      <label class="radio"><input type="radio" name="guestskin" value="current"<?= ($formOld['guestskin'] ?? 'current') !== 'all' ? ' checked' : '' ?>> Seulement le skin du board</label>
-      <label class="radio"><input type="radio" name="guestskin" value="all"<?= ($formOld['guestskin'] ?? '') === 'all' ? ' checked' : '' ?>> Tous les skins intégrés</label>
-    </fieldset>
-    <label>Mot de passe pour l'invité<input type="text" name="password" value="<?= h($formOld['password'] ?? '') ?>" required></label>
-    <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80" value="<?= h($formOld['label'] ?? '') ?>"></label>
-    <label>Expiration (facultatif)<input type="date" name="expire" value="<?= h($formOld['expire'] ?? '') ?>"></label>
-    <label>Identifiant du lien (facultatif — un par invité)
-      <input type="text" name="id" id="linkId" pattern="[A-Za-z0-9_-]{4,40}" placeholder="généré automatiquement" value="<?= h($formOld['id'] ?? '') ?>">
-      <span class="field-err" id="linkIdErr"<?= $idFmtErr ? '' : ' hidden' ?>>Identifiant : 4 à 40 caractères parmi A-Z a-z 0-9 _ -</span></label>
-    <button type="submit" id="createBtn">Créer le lien</button>
-    <p class="hint" id="createProgress" hidden></p>
-  </form>
-  <script>
-  (function () {
-    var form = document.getElementById('createForm');
-    var btn = document.getElementById('createBtn');
-    var prog = document.getElementById('createProgress');
-    var hint = document.getElementById('createHint');
-    var assembled = document.getElementById('assembledId');
-    var idField = document.getElementById('linkId');
-    var idErr = document.getElementById('linkIdErr');
-    var csrf = form.querySelector('input[name=csrf]').value;
-    var busy = false;
-
-    // Signale l'identifiant invalide sous le champ ; renvoie false = bloquant.
-    function idOk() {
-      var v = (idField.value || '').trim();
-      var ok = !v || /^[A-Za-z0-9_-]{4,40}$/.test(v);
-      idErr.hidden = ok;
-      if (!ok) idField.focus();
-      return ok;
-    }
-    idField.addEventListener('input', function () { if (!idErr.hidden) idOk(); });
-
-    // Sans fenêtre appelante, impossible de récupérer le board : on désactive la
-    // création (la gestion des partages ci-dessous reste utilisable).
-    if (!window.opener) {
-      hint.hidden = false;
-      btn.disabled = true;
-      return;
-    }
-
-    try { window.opener.postMessage({ type: 'sb-admin-ready', csrf: csrf }, location.origin); } catch (e) {}
-
-    window.addEventListener('message', function (ev) {
-      if (ev.origin !== location.origin || ev.source !== window.opener) return;
-      var d = ev.data || {};
-      if (d.type === 'sb-board-info') {
-        var s = document.getElementById('createBoardName');
-        if (s && d.name) s.textContent = ' du board « ' + d.name + ' »';
-      } else if (d.type === 'sb-board-progress') {
-        prog.hidden = false;
-        prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
-      } else if (d.type === 'sb-board-staged') {
-        assembled.value = d.uid;
-        prog.textContent = 'Board reçu, création du lien…';
-        form.submit();
-      } else if (d.type === 'sb-board-error') {
-        prog.textContent = 'Le studio n’a pas pu envoyer le board (' + (d.message || '?') + ').';
-        busy = false; btn.disabled = false;
-      }
-    });
-
-    // « Créer le lien » : on demande d'abord le board courant à l'application,
-    // qui l'envoie en tranches, puis la vraie soumission part (message staged).
-    form.addEventListener('submit', function (e) {
-      if (!idOk()) { e.preventDefault(); return; }
-      if (assembled.value) return;              // board déjà reçu → soumission normale
-      e.preventDefault();
-      if (busy) return;
-      busy = true; btn.disabled = true;
-      var scope = (form.querySelector('input[name=guestskin]:checked') || {}).value || 'current';
-      prog.hidden = false;
-      prog.textContent = 'Demande du board au studio…';
-      try {
-        window.opener.postMessage({ type: 'sb-request-board', skinScope: scope, csrf: csrf }, location.origin);
-      } catch (err) {
-        prog.textContent = 'Fenêtre de l’application introuvable — rouvre-la via le bouton « Partage du board ».';
-        busy = false; btn.disabled = false;
-      }
-    });
-  })();
-  </script>
-
   <h2>Partages actifs (<?= count($partages) ?>)</h2>
   <?php
   $sk = session_key();
@@ -669,6 +576,101 @@ render_page('Console de partage', function () use ($partages, $errors, $notice, 
     </table>
     <p class="hint">Les mots de passe sont chiffrés au repos ; seul le mot de passe maître permet de les réafficher.</p>
   <?php endif; ?>
+
+  <details class="foldout"<?= $formOld ? ' open' : '' ?>>
+    <summary>Créer un lien d'invitation<span id="createBoardName"></span></summary>
+    <p class="hint" id="createHint" hidden>Cette fenêtre doit être ouverte depuis le bouton
+      « Partage du board » de l'application : c'est elle qui fournit le board.</p>
+    <form method="post" autocomplete="off" id="createForm">
+      <input type="hidden" name="csrf" value="<?= h($csrf) ?>">
+      <input type="hidden" name="action" value="create">
+      <input type="hidden" name="assembled" id="assembledId" value="<?= h($formOld['assembled'] ?? '') ?>">
+      <fieldset class="skin-choice">
+        <legend>Skins accessibles à l'invité</legend>
+        <label class="radio"><input type="radio" name="guestskin" value="current"<?= ($formOld['guestskin'] ?? 'current') !== 'all' ? ' checked' : '' ?>> Seulement le skin du board</label>
+        <label class="radio"><input type="radio" name="guestskin" value="all"<?= ($formOld['guestskin'] ?? '') === 'all' ? ' checked' : '' ?>> Tous les skins intégrés</label>
+      </fieldset>
+      <label>Mot de passe pour l'invité<input type="text" name="password" value="<?= h($formOld['password'] ?? '') ?>" required></label>
+      <label>Libellé affiché à l'invité (facultatif)<input type="text" name="label" maxlength="80" value="<?= h($formOld['label'] ?? '') ?>"></label>
+      <label>Expiration (facultatif)<input type="date" name="expire" value="<?= h($formOld['expire'] ?? '') ?>"></label>
+      <label>Identifiant du lien (facultatif — un par invité)
+        <input type="text" name="id" id="linkId" pattern="[A-Za-z0-9_-]{4,40}" placeholder="généré automatiquement" value="<?= h($formOld['id'] ?? '') ?>">
+        <span class="field-err" id="linkIdErr"<?= $idFmtErr ? '' : ' hidden' ?>>Identifiant : 4 à 40 caractères parmi A-Z a-z 0-9 _ -</span></label>
+      <button type="submit" id="createBtn">Créer le lien</button>
+      <p class="hint" id="createProgress" hidden></p>
+    </form>
+    <script>
+    (function () {
+      var form = document.getElementById('createForm');
+      var btn = document.getElementById('createBtn');
+      var prog = document.getElementById('createProgress');
+      var hint = document.getElementById('createHint');
+      var assembled = document.getElementById('assembledId');
+      var idField = document.getElementById('linkId');
+      var idErr = document.getElementById('linkIdErr');
+      var csrf = form.querySelector('input[name=csrf]').value;
+      var busy = false;
+
+      // Signale l'identifiant invalide sous le champ ; renvoie false = bloquant.
+      function idOk() {
+        var v = (idField.value || '').trim();
+        var ok = !v || /^[A-Za-z0-9_-]{4,40}$/.test(v);
+        idErr.hidden = ok;
+        if (!ok) idField.focus();
+        return ok;
+      }
+      idField.addEventListener('input', function () { if (!idErr.hidden) idOk(); });
+
+      // Sans fenêtre appelante, impossible de récupérer le board : on désactive la
+      // création (la gestion des partages ci-dessus reste utilisable).
+      if (!window.opener) {
+        hint.hidden = false;
+        btn.disabled = true;
+        return;
+      }
+
+      try { window.opener.postMessage({ type: 'sb-admin-ready', csrf: csrf }, location.origin); } catch (e) {}
+
+      window.addEventListener('message', function (ev) {
+        if (ev.origin !== location.origin || ev.source !== window.opener) return;
+        var d = ev.data || {};
+        if (d.type === 'sb-board-info') {
+          var s = document.getElementById('createBoardName');
+          if (s && d.name) s.textContent = ' du board « ' + d.name + ' »';
+        } else if (d.type === 'sb-board-progress') {
+          prog.hidden = false;
+          prog.textContent = 'Réception du board depuis le studio… ' + d.seq + ' / ' + d.total;
+        } else if (d.type === 'sb-board-staged') {
+          assembled.value = d.uid;
+          prog.textContent = 'Board reçu, création du lien…';
+          form.submit();
+        } else if (d.type === 'sb-board-error') {
+          prog.textContent = 'Le studio n’a pas pu envoyer le board (' + (d.message || '?') + ').';
+          busy = false; btn.disabled = false;
+        }
+      });
+
+      // « Créer le lien » : on demande d'abord le board courant à l'application,
+      // qui l'envoie en tranches, puis la vraie soumission part (message staged).
+      form.addEventListener('submit', function (e) {
+        if (!idOk()) { e.preventDefault(); return; }
+        if (assembled.value) return;              // board déjà reçu → soumission normale
+        e.preventDefault();
+        if (busy) return;
+        busy = true; btn.disabled = true;
+        var scope = (form.querySelector('input[name=guestskin]:checked') || {}).value || 'current';
+        prog.hidden = false;
+        prog.textContent = 'Demande du board au studio…';
+        try {
+          window.opener.postMessage({ type: 'sb-request-board', skinScope: scope, csrf: csrf }, location.origin);
+        } catch (err) {
+          prog.textContent = 'Fenêtre de l’application introuvable — rouvre-la via le bouton « Partage du board ».';
+          busy = false; btn.disabled = false;
+        }
+      });
+    })();
+    </script>
+  </details>
 
   <details class="foldout">
     <summary>Mot de passe maître</summary>
