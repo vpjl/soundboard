@@ -3560,7 +3560,7 @@ function makePad(index) {
 
   pad.normalizeEl.addEventListener("change", () => {
     setPadNormalization(pad, pad.normalizeEl.checked, pad.normalizedGain);
-    if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+    if (pad.gain && !padGainRampLocked(pad)) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
     savePadMeta(pad);
   });
 
@@ -3775,7 +3775,7 @@ function applyPadVolumeChange(pad, value) {
   pad.volume = Number(value) || 0;
   if (pad.volumeEl) pad.volumeEl.value = pad.volume;
   updatePadVolumeValue(pad);
-  if (pad.gain) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+  if (pad.gain && !padGainRampLocked(pad)) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
   syncVideoProjectionAudio(pad);
   savePadMeta(pad);
 }
@@ -5488,7 +5488,7 @@ async function applyBulkEdit() {
       pad.volume = Number(els.bulkVolume?.value) || 0;
       if (pad.volumeEl) pad.volumeEl.value = String(pad.volume);
       updatePadVolumeValue(pad);
-      if (pad.gain && state.audioContext) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
+      if (pad.gain && state.audioContext && !padGainRampLocked(pad)) pad.gain.gain.setTargetAtTime(targetPadGain(pad), state.audioContext.currentTime, 0.015);
     }
     if (els.bulkApplyPan?.checked) {
       pad.panValue = Number(els.bulkPan?.value) || 0;
@@ -16744,6 +16744,14 @@ function targetPadGain(pad) {
   return pad.volume * (pad.normalizeEnabled ? pad.normalizedGain : 1) * duckFactorForPad(pad);
 }
 
+// Un pad dont l'arrêt avec fade est planifié (pad.stopAt posé par stopPadLocal)
+// a une rampe de gain vers 0 en cours : toute réécriture du gain (ducking,
+// mute, volume, normalisation) l'annulerait via cancelScheduledValues et le
+// source.stop() final tomberait à plein volume (coupure brutale).
+function padGainRampLocked(pad) {
+  return Boolean(pad?.source && pad.gain && pad.stopAt);
+}
+
 function fadeDurationForPad(pad, type = "out") {
   if (padType(pad) === "text") return 0;
   if (pad.fadeMode === "none") return 0;
@@ -16771,7 +16779,7 @@ function applyDucking(exceptPad = null) {
   const now = state.audioContext?.currentTime || 0;
   state.pads.forEach((pad) => {
     if (pad === exceptPad) return;
-    if (state.audioContext && pad.source && pad.gain) {
+    if (state.audioContext && pad.source && pad.gain && !padGainRampLocked(pad)) {
       pad.gain.gain.cancelScheduledValues(now);
       pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.035);
     }
@@ -16881,7 +16889,7 @@ function setPadMuted(pad, muted, pulse = true) {
       pad.speechUtterance.volume = speechTargetVolume(pad);
     }
   }
-  if (pad.gain && state.audioContext) {
+  if (pad.gain && state.audioContext && !padGainRampLocked(pad)) {
     const now = state.audioContext.currentTime;
     pad.gain.gain.cancelScheduledValues(now);
     pad.gain.gain.setTargetAtTime(targetPadGain(pad), now, 0.025);
@@ -21288,7 +21296,7 @@ async function init() {
   els.audioNormalize?.addEventListener("change", () => {
     if (!state.audioPad) return;
     setPadNormalization(state.audioPad, els.audioNormalize.checked, state.audioPad.normalizedGain);
-    if (state.audioPad.gain && state.audioContext) {
+    if (state.audioPad.gain && state.audioContext && !padGainRampLocked(state.audioPad)) {
       state.audioPad.gain.gain.setTargetAtTime(targetPadGain(state.audioPad), state.audioContext.currentTime, 0.015);
     }
     syncVideoProjectionAudio(state.audioPad);
