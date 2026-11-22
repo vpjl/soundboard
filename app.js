@@ -9806,7 +9806,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
     const audioInfo = hasVideoPad ? null : await resolvePadAudioRecord(pad, meta, saved);
     const exportAudio = includeAudio && !hasVideoPad ? await audioRecordForExport(audioInfo, "data") : null;
     const exportVideo = includeVideo ? await videoRecordForExport(saved) : null;
-    const audioRef = hasVideoPad ? NaN : Number(meta?.audioRefIndex ?? saved?.audioRefIndex);
+    const audioRef = hasVideoPad ? null : normalizeRefIndex(meta?.audioRefIndex ?? saved?.audioRefIndex);
     const audioUid = ensureAudioRecordUid(audioInfo || saved || meta, meta?.uid || saved?.uid || pad.uid);
     pads.push({
       index,
@@ -9854,7 +9854,7 @@ async function exportCurrentBoard(modeOrIncludeAudio = "full", opts = {}) {
       trimStart: meta?.trimStart ?? saved?.trimStart ?? 0,
       trimEnd: meta?.trimEnd ?? saved?.trimEnd ?? 0,
       playMode: meta?.playMode || saved?.playMode || "oneshot",
-      audioRefIndex: Number.isInteger(audioRef) ? audioRef : null,
+      audioRefIndex: audioRef,
       audio: (exportAudio || audioInfo?.name || audioInfo?.path || meta?.audioName || meta?.audioPath) ? {
         audioUid,
         name: audioInfo?.name || meta?.audioName || saved?.name || `Pad ${index + 1}`,
@@ -10129,11 +10129,7 @@ async function importBoardFile(file) {
       trimStart: item.trimStart ?? 0,
       trimEnd: item.trimEnd ?? 0,
       playMode: item.playMode || "oneshot",
-      audioRefIndex: item.audio?.data
-        ? null
-        : Number.isInteger(Number(item.audioRefIndex))
-          ? Number(item.audioRefIndex)
-          : null,
+      audioRefIndex: item.audio?.data ? null : normalizeRefIndex(item.audioRefIndex),
     };
     await dbSet(padMetaKey(transientPad), meta);
     if (item.audio?.data) {
@@ -10212,33 +10208,46 @@ async function importBoardFile(file) {
   saveShortcutsForCurrentBoard();
   saveShortcutsEnabledForCurrentBoard();
 
-  const rawImportedVersions = [
-    ...(Array.isArray(payload.versions) ? payload.versions : []),
-    ...(Array.isArray(payload.board.versions) ? payload.board.versions : []),
-  ];
-  const seenImportedVersionIds = new Set();
-  const importedVersions = rawImportedVersions
-    .filter((snapshot) => {
-      const id = String(snapshot?.id || "");
-      if (!id) return true;
-      if (seenImportedVersionIds.has(id)) return false;
-      seenImportedVersionIds.add(id);
-      return true;
-    })
-    .map(deserializeBoardSnapshotFromExport)
-    .filter(Boolean);
-  const prunedImportedVersions = pruneVersionHistory(importedVersions);
-  await hydrateImportedVersionAudio(prunedImportedVersions, importedBoard.id);
-  if (prunedImportedVersions.length) {
-    await dbSet(boardHistoryKey(importedBoard.id), prunedImportedVersions);
+  // L'historique des versions est un bonus : s'il échoue (quota IndexedDB, données
+  // volumineuses…), le board est quand même importé ET affiché. Sans ce garde-fou,
+  // l'exception sautait renderPads et il fallait recharger la page pour voir les pads.
+  let prunedImportedVersions = [];
+  let historyFailed = false;
+  try {
+    const rawImportedVersions = [
+      ...(Array.isArray(payload.versions) ? payload.versions : []),
+      ...(Array.isArray(payload.board.versions) ? payload.board.versions : []),
+    ];
+    const seenImportedVersionIds = new Set();
+    const importedVersions = rawImportedVersions
+      .filter((snapshot) => {
+        const id = String(snapshot?.id || "");
+        if (!id) return true;
+        if (seenImportedVersionIds.has(id)) return false;
+        seenImportedVersionIds.add(id);
+        return true;
+      })
+      .map(deserializeBoardSnapshotFromExport)
+      .filter(Boolean);
+    prunedImportedVersions = pruneVersionHistory(importedVersions);
+    await hydrateImportedVersionAudio(prunedImportedVersions, importedBoard.id);
+    if (prunedImportedVersions.length) {
+      await dbSet(boardHistoryKey(importedBoard.id), prunedImportedVersions);
+    }
+  } catch (error) {
+    console.error("[import] historique des versions ignoré", error);
+    prunedImportedVersions = [];
+    historyFailed = true;
+  } finally {
+    await renderPads({ preserveEditMode: true });
+    if (wasEditing) setBoardPadEditing(true);
   }
-
-  await renderPads({ preserveEditMode: true });
-  if (wasEditing) setBoardPadEditing(true);
   await refreshVersionOptions(prunedImportedVersions[0]?.id || "");
   setStatus(audioFailures
     ? `${importedBoard.name} importe (${audioFailures} audio ignore${audioFailures > 1 ? "s" : ""})`
-    : `${importedBoard.name} importe`);
+    : historyFailed
+      ? `${importedBoard.name} importe (historique des versions ignore)`
+      : `${importedBoard.name} importe`);
 }
 
 async function addPad() {
@@ -13969,7 +13978,11 @@ function updateEndingAlertHint() {
   els.endingAlertHint.textContent = `(pour les sons de plus de ${v} secondes, ou la moitié de la durée du son pour les autres)`;
 }
 
-function updatePadAlerts(pad) {
+// Partie « lecture » des alertes d'un pad : fin imminente, source/cible de ducking.
+// C'est la seule qui évolue pendant qu'un pad joue ; la boucle du timer n'appelle
+// qu'elle, et uniquement pour les pads actifs. `ducking` peut être calculé une
+// seule fois par image par l'appelant (duckingActive() reparcourt tous les pads).
+function updatePadPlaybackAlerts(pad, ducking = null) {
   if (!pad?.node) return;
   const remaining = remainingSeconds(pad);
   const duration = playableDuration(pad);
@@ -13980,9 +13993,7 @@ function updatePadAlerts(pad) {
   const playing = isPadPlaying(pad);
   const isEnding = Boolean(playing && !pad.loop && remaining > 0 && remaining <= endingThreshold);
   const isDuckSource = Boolean(playing && duckAmountForSource(pad) > 0 && pad.duckMode !== "global");
-  const isDucked = Boolean(playing && duckingActive() && !pad.duckTrigger);
-  const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
-  const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
+  const isDucked = Boolean(playing && !pad.duckTrigger && (typeof ducking === "boolean" ? ducking : duckingActive()));
 
   if (!playing || remaining > endingThreshold) {
     pad.preEndFlashSeen = false;
@@ -13993,13 +14004,21 @@ function updatePadAlerts(pad) {
     flashPadPreEnd(pad, remaining);
   }
   pad.node.classList.toggle("is-ending", isEnding);
+  pad.node.classList.toggle("is-duck-source", isDuckSource);
+  pad.node.classList.toggle("is-ducked", isDucked);
+}
+
+// Partie « réglages » : ne change que sur une action de l'utilisateur (qui appelle
+// updatePadAlerts / updateAllPadAlerts), jamais au fil de la lecture.
+function updatePadSettingClasses(pad) {
+  if (!pad?.node) return;
+  const hasFadeIn = fadeDurationForPad(pad, "in") > 0;
+  const hasFadeOut = fadeDurationForPad(pad, "out") > 0;
   pad.node.classList.toggle("is-looping", pad.loop);
   pad.node.classList.toggle("is-reverse", Boolean(pad.reverse));
   pad.node.classList.toggle("is-mono", Boolean(pad.mono));
   pad.node.classList.toggle("is-eq", pad.eqMode === "pad" && [pad.eqLow, pad.eqMid, pad.eqHigh].some((value) => clampEqGain(value) !== 0));
   pad.node.classList.toggle("is-duck-trigger", pad.duckTrigger && pad.duckMode === "pad");
-  pad.node.classList.toggle("is-duck-source", isDuckSource);
-  pad.node.classList.toggle("is-ducked", isDucked);
   pad.node.classList.toggle("is-muted", Boolean(pad.muted));
   pad.node.classList.toggle("has-audio-fade-in", hasFadeIn);
   pad.node.classList.toggle("has-audio-fade-out", hasFadeOut);
@@ -14008,6 +14027,12 @@ function updatePadAlerts(pad) {
   pad.node.classList.toggle("has-crossfade", isXfadeSource);
   pad.node.classList.toggle("is-xfade-source", isXfadeSource);
   pad.node.classList.toggle("is-xfade-target", Boolean(state.crossfadeTargetUids?.has(pad.uid)));
+}
+
+function updatePadAlerts(pad, ducking = null) {
+  if (!pad?.node) return;
+  updatePadPlaybackAlerts(pad, ducking);
+  updatePadSettingClasses(pad);
 }
 
 // Ensemble des pads qui sont CIBLE d'un crossfade (visés par le start/end d'un autre pad).
@@ -14024,7 +14049,8 @@ function recomputeCrossfadeTargets() {
 
 function updateAllPadAlerts() {
   recomputeCrossfadeTargets();
-  state.pads.forEach(updatePadAlerts);
+  const ducking = duckingActive();
+  state.pads.forEach((pad) => updatePadAlerts(pad, ducking));
 }
 
 function flashPadPreEnd(pad, durationSeconds = 1.35) {
@@ -19420,17 +19446,31 @@ function remainingSeconds(pad) {
   return Math.max(0, playableDuration(pad) - elapsed);
 }
 
+function padTimeText(pad) {
+  if (!pad.duration) return "--:--";
+  return isPadPlaying(pad) ? `-${formatTime(remainingSeconds(pad))}` : formatTime(playableDuration(pad));
+}
+
+// N'écrit dans le DOM que si le texte change (en pratique une fois par seconde
+// pendant la lecture, au lieu de 60 fois).
+function setPadTimeText(pad) {
+  if (!pad.timeEl) return;
+  const text = padTimeText(pad);
+  if (pad.timeEl.textContent !== text) pad.timeEl.textContent = text;
+}
+
 function updatePadTime(pad) {
-  if (!pad.duration) {
-    pad.timeEl.textContent = "--:--";
-    updatePadProgress(pad);
-    updatePadAlerts(pad);
-    return;
-  }
-  const seconds = remainingSeconds(pad);
-  pad.timeEl.textContent = isPadPlaying(pad) ? `-${formatTime(seconds)}` : formatTime(playableDuration(pad));
+  setPadTimeText(pad);
   updatePadProgress(pad);
   updatePadAlerts(pad);
+}
+
+// Mise à jour par image d'un pad actif : temps, barre de progression et alertes
+// de lecture seulement (les classes de réglages ne bougent pas pendant la lecture).
+function updatePadFrame(pad, ducking) {
+  setPadTimeText(pad);
+  updatePadProgress(pad);
+  updatePadPlaybackAlerts(pad, ducking);
 }
 
 function meterLevel(analyser, data) {
@@ -19450,7 +19490,7 @@ function setMeterLevel(element, level) {
   element.style.transform = `scaleX(${scale})`;
 }
 
-function updateMeters() {
+function updateMeters(pads = state.pads) {
   const hasPlayingPad = state.pads.some((pad) => pad.source);
   setMeterLevel(els.masterVu, hasPlayingPad ? meterLevel(state.masterAnalyser, state.masterMeterData) : 0);
   // Sans analyseur reel (TTS, ou Safari + sortie Cue dediee active), on
@@ -19460,7 +19500,7 @@ function updateMeters() {
     els.cueVu,
     state.cuePreviewAnalyser ? meterLevel(state.cuePreviewAnalyser, state.cuePreviewMeterData) : 0
   );
-  state.pads.forEach((pad) => {
+  pads.forEach((pad) => {
     // Pendant la pre-ecoute cue d'un pad, son propre VU reprend le niveau du
     // Cue (meme analyseur que els.cueVu) au lieu de rester figé : la lecture
     // cue ne passe pas par pad.analyser (chaine de lecture normale du pad).
@@ -19475,13 +19515,39 @@ function updateMeters() {
 function startTimer() {
   if (state.timerFrame) return;
   const tick = () => {
-    state.pads.forEach(updatePadTime);
-    updateMeters();
+    // Un seul parcours de tous les pads par image (isPadPlaying), puis on ne
+    // travaille que sur les pads actifs (+ le pad en pré-écoute cue).
+    const framePads = new Set();
+    state.pads.forEach((pad) => { if (isPadPlaying(pad)) framePads.add(pad); });
+    const anyPadPlaying = framePads.size > 0;
+    if (state.cuePreviewPad) framePads.add(state.cuePreviewPad);
+    const ducking = duckingActive();
+    // Pads qui viennent de s'arrêter : une dernière mise à jour complète (temps
+    // remis à la durée, classes is-ending / is-ducked retirées, VU à zéro).
+    state.timerPads?.forEach((pad) => {
+      if (framePads.has(pad) || !pad?.node) return;
+      updatePadTime(pad);
+      setMeterLevel(pad.vuEl, 0);
+      setMeterLevel(pad.fxVuEl, 0);
+    });
+    framePads.forEach((pad) => updatePadFrame(pad, ducking));
+    updateMeters(framePads);
     syncAudioTestPlayButton();
-    state.timerFrame = state.pads.some((pad) => isPadPlaying(pad)) || Boolean((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance)
+    state.timerPads = framePads;
+    state.timerFrame = anyPadPlaying || Boolean((state.cuePreviewAudio && !state.cuePreviewAudio.paused) || state.cuePreviewUtterance)
       ? requestAnimationFrame(tick)
       : null;
-    if (!state.timerFrame) updateMeters();
+    if (!state.timerFrame) {
+      // Fin de boucle : passe complète unique pour laisser tous les pads propres.
+      state.timerPads = null;
+      const finalDucking = duckingActive();
+      state.pads.forEach((pad) => {
+        setPadTimeText(pad);
+        updatePadProgress(pad);
+        updatePadAlerts(pad, finalDucking);
+      });
+      updateMeters();
+    }
   };
   state.timerFrame = requestAnimationFrame(tick);
 }

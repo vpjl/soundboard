@@ -42,7 +42,9 @@ case "$(cd "$(dirname "$NETRC")" && pwd)/" in
   "$ROOT"/*) echo "✖ $NETRC est dans le dépôt — le placer hors du dépôt (~/.netrc)."; exit 1;;
 esac
 
-CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs)
+# Le FTP de Free a des ratés passagers (« FTP response timeout ») : on relance
+# automatiquement chaque fichier jusqu'à 4 fois avant d'abandonner.
+CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs --connect-timeout 20 --retry 4 --retry-delay 3 --retry-all-errors)
 
 put() {
   echo "  ↑ $2"
