@@ -2,7 +2,14 @@
 # Déploie la version courante du dépôt vers les Pages Perso Free (FTPS), en une
 # commande, sans client FTP ni glisser-déposer de fichiers cachés.
 #
-#   bash tools/deploy-free.sh
+#   bash tools/deploy-free.sh          → n'envoie que les fichiers modifiés
+#   bash tools/deploy-free.sh --all    → renvoie tout (après un doute sur le serveur)
+#
+# Envoi incrémental : l'empreinte (SHA-256) de chaque fichier envoyé avec succès
+# est notée dans tools/.deploy-free-state (hors dépôt). Au déploiement suivant,
+# seuls les fichiers dont l'empreinte a changé partent. Un fichier dont l'envoi
+# a échoué n'est pas noté, donc il repart à coup sûr la fois d'après — un
+# déploiement interrompu reprend là où il s'est arrêté.
 #
 # Identifiants : dans ~/.netrc (HORS du dépôt, donc jamais uploadable par erreur),
 # chmod 600, au format :
@@ -47,6 +54,42 @@ CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs --
 # Le FTP de Free a des ratés passagers (« FTP response timeout ») : chaque fichier
 # est retenté jusqu'à 5 fois. Boucle bash plutôt que les options --retry* de curl,
 # dont certaines (--retry-all-errors) n'existent pas dans les curl anciens.
+STATE="$ROOT/tools/.deploy-free-state"
+FULL=0
+[ "${1:-}" = "--all" ] && FULL=1
+[ "$FULL" -eq 1 ] && rm -f "$STATE"
+touch "$STATE"
+SENT=0
+SKIPPED=0
+
+file_hash() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  else sha256sum "$1" | cut -d' ' -f1; fi
+}
+
+# Note l'empreinte d'un fichier envoyé (remplace l'éventuelle ligne précédente).
+# Format : "<sha256> <chemin distant>" ; compatible bash 3.2 (macOS), sans tableau associatif.
+record_sent() {
+  local tmpstate
+  tmpstate="$(mktemp)"
+  awk -v p="$2" '$2 != p' "$STATE" > "$tmpstate"
+  echo "$1 $2" >> "$tmpstate"
+  mv "$tmpstate" "$STATE"
+}
+
+# Envoie le fichier seulement s'il a changé depuis le dernier envoi réussi.
+put_if_changed() {
+  local hash
+  hash="$(file_hash "$1")"
+  if awk -v h="$hash" -v p="$2" '$1 == h && $2 == p { found = 1 } END { exit !found }' "$STATE"; then
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+  put "$1" "$2" || return 1
+  record_sent "$hash" "$2"
+  SENT=$((SENT + 1))
+}
+
 put() {
   echo "  ↑ $2"
   local attempt
@@ -96,15 +139,21 @@ if [ "$noticev" != "$appv" ]; then
   echo "  ⚠ notice PDF bâtie pour v${noticev}, app en v${appv}."
   echo "    Pour la mettre à jour :  npm run capture-notice && python3 generate-notice.py"
 fi
-for f in index.html app.js styles.css service-worker.js manifest.webmanifest soundboard-vl-notice.pdf; do
-  [ -f "$f" ] && put "$f" "$REMOTE/$f"
-done
+# Ordre : d'abord tout ce que la page charge, index.html et le service worker EN
+# DERNIER. Ainsi, si l'envoi s'interrompt, la page en ligne reste l'ancienne et
+# cohérente, au lieu d'un nouvel index.html (?v=nouveau) qui chargerait un
+# app.js encore ancien — et le mettrait en cache sous le nouveau numéro.
 while IFS= read -r f; do
-  put "$f" "$REMOTE/$f"
+  put_if_changed "$f" "$REMOTE/$f"
 done < <(find lib icons api -type f ! -name '.DS_Store' | sort)
+for f in app.js styles.css manifest.webmanifest soundboard-vl-notice.pdf service-worker.js index.html; do
+  [ -f "$f" ] && put_if_changed "$f" "$REMOTE/$f"
+done
 
 # 3. Verrou du dossier privé (contenu géré par admin.php, jamais écrasé ici)
-put "prive/.htaccess" "$REMOTE/prive/.htaccess"
+put_if_changed "prive/.htaccess" "$REMOTE/prive/.htaccess"
+
+echo "  ($SENT fichier(s) envoyé(s), $SKIPPED inchangé(s) ignoré(s))"
 
 v="$(grep -oE 'app\.js\?v=[0-9]+' index.html | grep -oE '[0-9]+' | head -1)"
 echo "✓ Déployé — version ${v:-?} en ligne dans $REMOTE/"

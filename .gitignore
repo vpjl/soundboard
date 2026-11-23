@@ -13,3 +13,5 @@ prive/sessions/
 tools/.make-share.json
 tools/.deploy-netrc
 prive/tmp/
+
+tools/.deploy-free-state
