@@ -42,20 +42,39 @@ case "$(cd "$(dirname "$NETRC")" && pwd)/" in
   "$ROOT"/*) echo "✖ $NETRC est dans le dépôt — le placer hors du dépôt (~/.netrc)."; exit 1;;
 esac
 
-# Le FTP de Free a des ratés passagers (« FTP response timeout ») : on relance
-# automatiquement chaque fichier jusqu'à 4 fois avant d'abandonner.
-CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs --connect-timeout 20 --retry 4 --retry-delay 3 --retry-all-errors)
+CURL=(curl -fsS --ssl-reqd --netrc-file "$NETRC" --ftp-pasv --ftp-create-dirs --connect-timeout 20)
 
+# Le FTP de Free a des ratés passagers (« FTP response timeout ») : chaque fichier
+# est retenté jusqu'à 5 fois. Boucle bash plutôt que les options --retry* de curl,
+# dont certaines (--retry-all-errors) n'existent pas dans les curl anciens.
 put() {
   echo "  ↑ $2"
-  "${CURL[@]}" -T "$1" "ftp://$HOST/$2"
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if "${CURL[@]}" -T "$1" "ftp://$HOST/$2"; then return 0; fi
+    [ "$attempt" -lt 5 ] && { echo "    … nouvel essai ($((attempt + 1))/5) dans 3 s"; sleep 3; }
+  done
+  echo "  ✖ échec définitif sur $2"
+  return 1
 }
 
 echo "→ Déploiement vers $HOST"
 
 # 1. Activation PHP 8.5 — .htaccess à la racine du compte (pas dans soundboard/)
 tmp="$(mktemp)"
-if "${CURL[@]}" -o "$tmp" "ftp://$HOST/.htaccess" 2>/dev/null; then
+# Test de connexion + lecture du .htaccess racine. On ne crée ce fichier QUE si le
+# serveur répond qu'il n'existe pas (curl 78). Toute autre erreur (connexion coupée,
+# timeout…) arrête le déploiement : avant, un simple raté réseau faisait renvoyer
+# le .htaccess local à la racine, au risque d'écraser la configuration PHP en ligne.
+get_status=0
+"${CURL[@]}" -o "$tmp" "ftp://$HOST/.htaccess" 2>/dev/null || get_status=$?
+if [ "$get_status" -ne 0 ] && [ "$get_status" -ne 78 ]; then
+  rm -f "$tmp"
+  echo "✖ Connexion au FTP de Free impossible (erreur curl $get_status) — rien n'a été envoyé."
+  echo "  Réessayer plus tard. Diagnostic : curl -v --ssl-reqd --netrc-file ~/.netrc --ftp-pasv ftp://$HOST/"
+  exit 1
+fi
+if [ "$get_status" -eq 0 ]; then
   if grep -q 'php85' "$tmp"; then
     echo "  = .htaccess racine : 'php85' déjà présent, on n'y touche pas"
   else

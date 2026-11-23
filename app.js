@@ -283,6 +283,9 @@ const state = {
   micWarmPromise: null,
   selectedMicrophoneId: "",
   selectedMicrophoneLabel: "",
+  // Accès micro refusé par le navigateur (réglage du site ou refus de la demande) :
+  // signalé dans Audio master, les réglages audio du pad et la fenêtre micro.
+  microphoneBlocked: false,
   drag: null,
   trimDrag: null,
   progressDrag: null,
@@ -377,6 +380,7 @@ const els = {
   pads: document.querySelector("#pads"),
   template: document.querySelector("#padTemplate"),
   status: document.querySelector("#audioStatus"),
+  dialogStatusToast: document.querySelector("#dialogStatusToast"),
   remoteStatusBanner: document.querySelector("#remoteStatusBanner"),
   skinSelect: document.querySelector("#skinSelect"),
   dissolveMosaic: document.querySelector("#dissolveMosaic"),
@@ -1323,14 +1327,30 @@ function formatBoardCreatedAt(createdAt) {
 
 function updateMasterInputLabel() {
   const id = String(state.selectedMicrophoneId || "").trim();
-  const hasExplicitMicrophone = Boolean(id && id !== "__default__");
-  const label = hasExplicitMicrophone ? String(state.selectedMicrophoneLabel || "").trim() : "";
-  const name = hasExplicitMicrophone && label ? label : "aucune";
-  if (els.masterInputName) els.masterInputName.textContent = `Entrée : ${name}`;
+  // "__default__" = entrée choisie alors que l'accès micro n'était pas encore
+  // autorisé : le navigateur ne donne alors ni nom ni identifiant (« Micro 1 »…),
+  // et l'enregistrement utilisera le micro par défaut du système (cf.
+  // microphoneConstraints). C'est bien une entrée sélectionnée : l'afficher
+  // comme « aucune » laissait croire que le choix n'avait pas été pris en compte.
+  const label = String(state.selectedMicrophoneLabel || "").trim();
+  const name = !id
+    ? "aucune"
+    : id === "__default__"
+      ? "micro par défaut du système"
+      : (label || "micro sélectionné");
+  const blocked = state.microphoneBlocked;
+  const shown = blocked ? `${id ? `${name} — ` : ""}accès micro bloqué par le navigateur` : name;
+  [els.masterInputName, els.audioInputName].forEach((el) => {
+    el?.classList.toggle("is-mic-blocked", blocked);
+    if (el) el.title = blocked
+      ? "Autoriser le micro pour ce site dans les réglages du navigateur (Safari : Réglages → Sites web → Microphone ; Chrome : icône à gauche de l'adresse), puis recharger la page."
+      : "";
+  });
+  if (els.masterInputName) els.masterInputName.textContent = `Entrée : ${shown}`;
   // Même information dans les réglages audio du pad, juste au-dessus de la sortie
   // cue : le bouton d'enregistrement est dans cette fenêtre, la source utilisée
   // doit donc y être lisible sans ouvrir Audio master.
-  if (els.audioInputName) els.audioInputName.textContent = `Entrée micro : ${name}`;
+  if (els.audioInputName) els.audioInputName.textContent = `Entrée micro : ${shown}`;
 }
 
 function setPadTitle(pad, title, options = {}) {
@@ -2094,6 +2114,33 @@ function loadMicrophoneSelection() {
   updateRecordingUi();
 }
 
+function setMicrophoneBlocked(blocked) {
+  blocked = Boolean(blocked);
+  if (state.microphoneBlocked === blocked) return;
+  state.microphoneBlocked = blocked;
+  updateMasterInputLabel();
+}
+
+// Détection du blocage sans rien demander à l'utilisateur, via l'API Permissions
+// (Chrome, Firefox, Safari 16+). Suivi en direct : si l'accès est rétabli dans les
+// réglages du navigateur, l'avertissement disparaît et les vrais noms des
+// entrées sont relus. Navigateurs sans cette API : le blocage est détecté au
+// premier refus de getUserMedia (cf. refreshMicrophoneDevices).
+async function watchMicrophonePermission() {
+  try {
+    const status = await navigator.permissions?.query?.({ name: "microphone" });
+    if (!status) return;
+    const apply = () => {
+      setMicrophoneBlocked(status.state === "denied");
+      if (status.state === "granted") refreshMicrophoneDevices(false).catch(() => {});
+    };
+    apply();
+    status.addEventListener?.("change", apply);
+  } catch {
+    // "microphone" non reconnu par ce navigateur : rien à surveiller.
+  }
+}
+
 async function refreshMicrophoneDevices(requestPermission = false) {
   if (!navigator.mediaDevices?.getUserMedia) {
     setStatus("Micro indisponible dans ce navigateur", "stop");
@@ -2129,6 +2176,7 @@ async function refreshMicrophoneDevices(requestPermission = false) {
     // l'identifiant mémorisé — purger là-dessus effacerait une sélection
     // parfaitement valide (cas vécu à la simple ouverture d'Audio master).
     const idsReadable = inputs.some((device) => Boolean(device.deviceId));
+    if (requestPermission || idsReadable) setMicrophoneBlocked(false);
     if (idsReadable && state.selectedMicrophoneId && !availableInputIds.has(state.selectedMicrophoneId)) {
       forgetSelectedMicrophone();
     }
@@ -2144,10 +2192,11 @@ async function refreshMicrophoneDevices(requestPermission = false) {
     return inputs;
   } catch (error) {
     if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
-      setStatus("Micro refusé: autoriser l’accès au micro dans les préférences système", "stop");
+      setMicrophoneBlocked(true);
+      setStatus("Micro bloqué par le navigateur : autoriser le micro pour ce site dans ses réglages, puis recharger", "stop");
       setMicrophoneRefreshButtonVisible(true);
       if (els.microphoneSummary) {
-        els.microphoneSummary.textContent = "Micro inaccessible : autoriser l’accès au micro dans les préférences système, puis réessayer.";
+        els.microphoneSummary.textContent = "Micro bloqué par le navigateur : autoriser le micro pour ce site (Safari : Réglages → Sites web → Microphone ; Chrome : icône à gauche de l’adresse), puis recharger la page. Sur Mac, vérifier aussi Réglages Système → Confidentialité → Microphone.";
       }
       return [];
     }
@@ -13468,9 +13517,37 @@ function hideProgressOverlay() {
   if (els.progressOverlay) els.progressOverlay.hidden = true;
 }
 
+// Une fenêtre modale (showModal) passe dans la « top layer » du navigateur et
+// recouvre tout, y compris le message de #audioStatus en haut du board : un
+// message émis pendant qu'une fenêtre est ouverte restait donc invisible. On le
+// répète dans un toast en popover, qui s'affiche AU-DESSUS de la fenêtre (le
+// dernier élément entré dans la top layer passe devant). Sans fenêtre ouverte,
+// rien ne change : le message reste à sa place habituelle.
+function showDialogStatusToast(text, type) {
+  const toast = els.dialogStatusToast;
+  if (!toast || typeof toast.showPopover !== "function") return;
+  window.clearTimeout(state.dialogStatusToastTimer);
+  const dialogOpen = Boolean(document.querySelector("dialog[open]"));
+  if (!text || !dialogOpen) {
+    if (toast.matches(":popover-open")) toast.hidePopover();
+    return;
+  }
+  toast.textContent = text;
+  toast.classList.toggle("is-success", type === "success");
+  toast.classList.toggle("is-progress", type === "progress");
+  toast.classList.toggle("is-stop", type === "stop");
+  // Refermer puis rouvrir : le toast repasse devant une fenêtre ouverte après lui.
+  if (toast.matches(":popover-open")) toast.hidePopover();
+  try { toast.showPopover(); } catch { return; }
+  state.dialogStatusToastTimer = window.setTimeout(() => {
+    if (toast.matches(":popover-open")) toast.hidePopover();
+  }, type === "stop" ? 8000 : 4500);
+}
+
 function setStatus(text, type = "", options = {}) {
   const normalizedType = type || "neutral";
   els.status.textContent = text;
+  showDialogStatusToast(text, normalizedType);
   if (els.remoteStatusBanner) els.remoteStatusBanner.textContent = text;
   // Un nouveau message réaffiche le bloc même s'il avait été fermé par un clic
   // (cf. écouteur "click" sur els.status) — seulement sur portable, où le
@@ -20057,6 +20134,7 @@ async function init() {
   loadOutputSettings();
   syncAutoTrimSensitivityControls();
   loadMicrophoneSelection();
+  watchMicrophonePermission();
   // Le micro mémorisé peut avoir disparu depuis la dernière session : on revérifie
   // sa présence dès le lancement, puis à chaque branchement/débranchement, sinon le
   // bouton reste vert (« prêt ») sur une source injoignable jusqu'à l'échec de
