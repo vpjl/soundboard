@@ -20,6 +20,27 @@ if [ -z "$NODE_BIN" ]; then
   exit 1
 fi
 
+# Tests de fumée avant toute publication (tests/*.test.mjs, environ 30 s).
+# En cas d'échec, on demande avant de publier quand même : un soir de
+# spectacle, mieux vaut pouvoir passer outre que rester bloqué.
+echo "→ Tests…"
+echo
+if ! "$NODE_BIN" --test --test-concurrency=1 --test-reporter=spec tests/*.test.mjs; then
+  echo
+  echo "✖ Des tests échouent (voir ci-dessus)."
+  echo "  Si Playwright ne trouve pas son navigateur :  npx playwright install chromium"
+  echo
+  echo -n "Publier quand même ? (o/N) "
+  read -k 1 REPONSE
+  echo
+  if [ "$REPONSE" != "o" ] && [ "$REPONSE" != "O" ]; then
+    echo "Publication annulée. Vous pouvez fermer cette fenêtre."
+    read -k 1
+    exit 1
+  fi
+fi
+echo
+
 APPV="$(grep -oE 'app\.js\?v=[0-9]+' index.html | grep -oE '[0-9]+' | head -1)"
 NOTICEV="$(cat .notice-build 2>/dev/null || echo '?')"
 

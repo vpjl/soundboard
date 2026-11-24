@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 // Console de partage — tout depuis le navigateur (ni Terminal, ni FTP).
-//   1er accès : définir le mot de passe maître.
+//   1er accès : définir le mot de passe maître (après dépôt de prive/.autoriser-config,
+//               voir SETUP_FILE).
 //   Ensuite   : se connecter → créer un lien (choisir le board exporté + mot de
 //               passe invité + expiration) ou révoquer un partage existant.
 // Écrit prive/partages.php et prive/boards/<board>.json, lus par share.php.
@@ -10,6 +11,11 @@ declare(strict_types=1);
 
 const PRIVE_DIR      = __DIR__ . '/../prive';
 const CONFIG_FILE    = PRIVE_DIR . '/admin-config.php';
+// Autorisation de (re)définir le mot de passe maître : un fichier déposé à la
+// main par FTP (bash tools/deploy-free.sh --autoriser-config), effacé dès que le
+// mot de passe est défini. Sans lui, la console reste fermée quand
+// admin-config.php manque, au lieu de s'ouvrir au premier visiteur venu.
+const SETUP_FILE     = PRIVE_DIR . '/.autoriser-config';
 const PARTAGES_FILE  = PRIVE_DIR . '/partages.php';
 const BOARDS_DIR     = PRIVE_DIR . '/boards';
 const RATE_FILE      = PRIVE_DIR . '/admin-rate.json';

@@ -4,6 +4,10 @@
 #
 #   bash tools/deploy-free.sh          → n'envoie que les fichiers modifiés
 #   bash tools/deploy-free.sh --all    → renvoie tout (après un doute sur le serveur)
+#   bash tools/deploy-free.sh --autoriser-config
+#                                      → n'envoie que prive/.autoriser-config, qui
+#                                        autorise une fois la (re)définition du mot de
+#                                        passe maître de la console (api/admin.php)
 #
 # Envoi incrémental : l'empreinte (SHA-256) de chaque fichier envoyé avec succès
 # est notée dans tools/.deploy-free-state (hors dépôt). Au déploiement suivant,
@@ -166,6 +170,21 @@ put() {
   echo "  ✖ échec définitif sur $2"
   return 1
 }
+
+# Autorisation ponctuelle de définir le mot de passe maître (voir l'en-tête).
+# Un seul fichier, rien d'autre n'est envoyé.
+if [ "${1:-}" = "--autoriser-config" ]; then
+  echo "→ Autorisation de définir le mot de passe maître ($HOST${FTP_SERVER:+, serveur $FTP_SERVER})"
+  tmp="$(mktemp)"
+  echo "autorise $(date '+%Y-%m-%d %H:%M')" > "$tmp"
+  if put "$tmp" "$REMOTE/prive/.autoriser-config"; then
+    rm -f "$tmp"
+    echo "✓ Autorisé : ouvrir la console de partage (api/admin.php) et définir le mot de passe maître."
+    exit 0
+  fi
+  rm -f "$tmp"
+  exit 1
+fi
 
 echo "→ Déploiement vers $HOST${FTP_SERVER:+ (serveur $FTP_SERVER)}"
 

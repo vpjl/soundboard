@@ -16,6 +16,21 @@ $createdLink = null;
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 // ---- 1. Bootstrap : définir le mot de passe maître -------------------------
+// Uniquement si SETUP_FILE est présent (voir admin.php) : si prive/ se vide,
+// la console reste fermée au lieu de laisser le premier venu s'en emparer.
+if (!$hasMaster && !is_file(SETUP_FILE)) {
+  http_response_code(403);
+  render_page('Console fermée', function () {
+    ?>
+    <p class="lead">Aucun mot de passe maître n'est défini sur ce serveur, et sa définition
+      n'est pas autorisée pour l'instant.</p>
+    <p>Pour l'autoriser, depuis le Mac, dans le dossier du projet :</p>
+    <pre>bash tools/deploy-free.sh --autoriser-config</pre>
+    <p>puis rechargez cette page. L'autorisation est retirée dès que le mot de passe est défini.</p>
+    <?php
+  });
+  exit;
+}
 if (!$hasMaster) {
   if ($method === 'POST' && ($_POST['action'] ?? '') === 'bootstrap') {
     $p1 = (string) ($_POST['master'] ?? '');
@@ -28,6 +43,7 @@ if (!$hasMaster) {
       if (!write_config(pbkdf2_hash($p1), $kdf)) {
         $errors[] = "Impossible d'écrire " . h(CONFIG_FILE) . " (droits ?).";
       } else {
+        @unlink(SETUP_FILE); // autorisation à usage unique
         $SESS['admin'] = true;
         $SESS['mk'] = base64_encode(derive_key($p1, $kdf));
         sess_persist(true);
