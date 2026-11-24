@@ -14195,7 +14195,96 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
   // Le bouton « Annuler » est masqué en scène, réactivable en studio/garage.
   refreshUndoButton();
   broadcastRemoteBoardMode();
+  syncStageWakeLock();
 }
+
+// ===== Garde de scène (v1047) =====
+// 1. Mode scène : Screen Wake Lock pour que l'écran ne se mette pas en veille.
+//    Le navigateur relâche le verrou quand l'onglet passe en arrière-plan :
+//    on le redemande au retour (visibilitychange) et au premier geste si la
+//    demande initiale a été refusée (pas encore de geste utilisateur).
+// 2. Scène OU son en cours : beforeunload demande confirmation (Cmd+R,
+//    fermeture d'onglet). Sans effet sur iOS Safari, qui ignore la boîte :
+//    là, c'est le Wake Lock qui protège.
+let stageWakeLock = null;
+let stageWakeLockPending = false;
+
+async function syncStageWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  if (!state.stageMode) {
+    const lock = stageWakeLock;
+    stageWakeLock = null;
+    lock?.release().catch(() => {});
+    return;
+  }
+  if (stageWakeLock || stageWakeLockPending || document.visibilityState !== "visible") return;
+  stageWakeLockPending = true;
+  try {
+    const lock = await navigator.wakeLock.request("screen");
+    lock.addEventListener("release", () => { if (stageWakeLock === lock) stageWakeLock = null; });
+    stageWakeLock = lock;
+  } catch (err) {
+    console.warn("[scène] Wake Lock refusé :", err?.message || err);
+  } finally {
+    stageWakeLockPending = false;
+  }
+  // Le mode a pu changer pendant l'await.
+  if (!state.stageMode) syncStageWakeLock();
+}
+
+function anyPadPlaying() {
+  return state.pads.some((pad) => pad && isPadPlaying(pad));
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") syncStageWakeLock();
+});
+["pointerdown", "keydown"].forEach((type) => {
+  document.addEventListener(type, () => {
+    if (state.stageMode && !stageWakeLock) syncStageWakeLock();
+  }, { capture: true, passive: true });
+});
+// La boîte native de beforeunload est modale : le navigateur fige la page tant
+// qu'elle est affichée, et le son s'arrête. Pour Cmd+R / Ctrl+R / F5 on
+// intercepte donc la touche nous-mêmes : 1er appui = simple avertissement dans
+// la barre d'état (le son continue), 2e appui dans les 2 s = rechargement.
+// La boîte native ne reste que pour le bouton Recharger et la fermeture d'onglet.
+let stageReloadArmedUntil = 0;
+let stageReloadConfirmed = false;
+let stageReloadClearTimer = 0;
+const STAGE_RELOAD_MESSAGE = "Rechargement bloqué : appuyez encore une fois dans les 2 s pour recharger";
+
+function stageGuardActive() {
+  return state.stageMode || anyPadPlaying();
+}
+
+window.addEventListener("keydown", (event) => {
+  const isReloadKey = event.key === "F5"
+    || ((event.metaKey || event.ctrlKey) && !event.altKey && (event.key === "r" || event.key === "R"));
+  if (!isReloadKey || !stageGuardActive()) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const now = Date.now();
+  if (now < stageReloadArmedUntil) {
+    stageReloadConfirmed = true;
+    location.reload();
+    return;
+  }
+  stageReloadArmedUntil = now + 2000;
+  setStatus(STAGE_RELOAD_MESSAGE, "stop");
+  window.clearTimeout(stageReloadClearTimer);
+  stageReloadClearTimer = window.setTimeout(() => {
+    // N'efface que notre message : un autre statut arrivé entre-temps reste.
+    if ((els.status?.textContent || "").startsWith(STAGE_RELOAD_MESSAGE)) setStatus("");
+  }, 2000);
+}, { capture: true });
+
+window.addEventListener("beforeunload", (event) => {
+  if (stageReloadConfirmed || !stageGuardActive()) return;
+  event.preventDefault();
+  event.returnValue = "";
+  return "";
+});
 
 function syncStagePending() {
   // Pas de clignotement « préparation » quand le préchargement a été volontairement
