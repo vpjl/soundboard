@@ -1708,6 +1708,249 @@ async function ensurePadAudioDecoded(pad, saved, rawSaved = null, meta = null) {
   }
 }
 
+// ===== Mémoire en scène (v1044) =====
+// Un son décodé (AudioBuffer) est du PCM float32 : durée × taux × canaux × 4 octets,
+// soit ~69 Mo pour 3 min stéréo à 48 kHz, indépendamment du poids du MP3. Une copie
+// de plus par pad avec régions (buffer effectif) et une autre en reverse. Sans borne,
+// Safari iOS tue l'onglet en plein spectacle. Donc, en scène :
+//  1. le total est estimé AVANT préchargement à partir des métadonnées (durée, canaux) ;
+//  2. les pistes longues « simples » (pas de reverse / régions / pitch) sont lues en
+//     streaming via un <audio> branché dans le même graphe (seul le fichier compressé
+//     reste en mémoire) ;
+//  3. au-delà du budget, les sons restants sont décodés au déclenchement, et les sons
+//     décodés les plus anciennement joués sont libérés (redécodés si rejoués) ;
+//  4. un avertissement donne l'estimation et ce qui a été fait.
+const STAGE_STREAM_MIN_SECONDS = 90;
+const STAGE_MEMORY_BUDGET_MB_PORTABLE = 300;
+const STAGE_MEMORY_BUDGET_MB_DESKTOP = 1500;
+
+function stageMemoryBudgetBytes() {
+  return (isPortableDevice() ? STAGE_MEMORY_BUDGET_MB_PORTABLE : STAGE_MEMORY_BUDGET_MB_DESKTOP) * 1048576;
+}
+
+function formatMegabytes(bytes) {
+  const mb = bytes / 1048576;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1).replace(".", ",")} Go` : `${Math.round(mb)} Mo`;
+}
+
+function audioBufferBytes(buffer) {
+  return buffer ? buffer.length * buffer.numberOfChannels * 4 : 0;
+}
+
+// Mémoire PCM réellement occupée par un pad (buffer + copies effective / reverse).
+function padResidentAudioBytes(pad) {
+  if (!pad?.buffer) return 0;
+  let bytes = audioBufferBytes(pad.buffer);
+  if (pad.effectiveBuffer && pad.effectiveBuffer !== pad.buffer) bytes += audioBufferBytes(pad.effectiveBuffer);
+  if (pad.reversedBuffer) bytes += audioBufferBytes(pad.reversedBuffer);
+  return bytes;
+}
+
+// Estimation avant décodage, d'après les métadonnées sauvegardées. decodeAudioData
+// rééchantillonne au taux du contexte : c'est ce taux qui compte, pas celui du fichier.
+function estimatePadDecodedBytes(pad) {
+  if (pad?.buffer) return padResidentAudioBytes(pad);
+  const duration = Number(pad?.audioDuration) || Number(pad?.duration) || 0;
+  const channels = Number(pad?.audioChannels) || 2;
+  const rate = Number(state.audioContext?.sampleRate) || Number(pad?.audioSampleRate) || 48000;
+  let copies = 1;
+  if (regionsSignature(pad?.regions)) copies += 1;
+  if (pad?.reverse) copies += 1;
+  return duration * rate * channels * 4 * copies;
+}
+
+// Piste lisible en streaming : longue, en scène, et sans traitement qui exige le PCM
+// entier (reverse, régions cut/silence, pitch via detune).
+function canStreamPad(pad) {
+  if (!state.stageMode || !pad || padType(pad) !== "audio" || !pad.audioStored) return false;
+  if (pad.streamDisabled) return false;
+  if (typeof window.AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined") return false;
+  const duration = Number(pad.audioDuration) || Number(pad.duration) || 0;
+  if (duration < STAGE_STREAM_MIN_SECONDS) return false;
+  if (pad.reverse || regionsSignature(pad.regions)) return false;
+  if (Number(pad.pitchSemitones) || Number(pad.pitchFine)) return false;
+  return true;
+}
+
+function audioMimeFromName(name = "") {
+  const ext = String(name).split(".").pop().toLowerCase();
+  return ({
+    mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4", aac: "audio/aac", wav: "audio/wav",
+    ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg", flac: "audio/flac", aif: "audio/aiff", aiff: "audio/aiff",
+  })[ext] || "";
+}
+
+// URL blob du fichier compressé, mise en cache par pad (clé = identité de l'audio :
+// un son remplacé invalide l'URL au lieu de rejouer l'ancien).
+async function padStreamUrl(pad) {
+  const key = `${pad.audioUid || ""}|${pad.audioName || ""}`;
+  if (pad.streamUrl && pad.streamUrlKey === key) return pad.streamUrl;
+  if (pad.streamUrl) {
+    URL.revokeObjectURL(pad.streamUrl);
+    pad.streamUrl = "";
+  }
+  const rawSaved = await dbGet(padAudioKey(pad));
+  const meta = await dbGet(padMetaKey(pad));
+  const saved = await resolvePadAudioRecord(pad, meta, rawSaved);
+  const audio = saved?.audio || rawSaved?.audio;
+  if (!audio) throw new Error(`No audio to stream for pad ${pad.index}`);
+  const type = saved?.type || rawSaved?.type || pad.audioType || audioMimeFromName(pad.audioName);
+  const blob = audio instanceof Blob ? audio : new Blob([audio], type ? { type } : {});
+  pad.streamUrl = URL.createObjectURL(blob);
+  pad.streamUrlKey = key;
+  return pad.streamUrl;
+}
+
+// Source « streaming » qui imite l'interface d'un AudioBufferSourceNode utilisée par
+// playPad / stopPad (start, stop, onended, loop, loopStart/End, playbackRate,
+// connect/disconnect). Un <audio> neuf par lecture : createMediaElementSource ne
+// s'appelle qu'une fois par élément, et un fade-out peut chevaucher un redémarrage.
+// prime() lance la lecture AVANT le branchement (sortie non connectée = silence) :
+// le démarrage réel coïncide alors avec la connexion et l'horloge du contexte.
+function createPadStreamSource(ctx, url) {
+  const el = new Audio();
+  el.preload = "auto";
+  el.src = url;
+  const node = ctx.createMediaElementSource(el);
+  let loop = false;
+  let ended = false;
+  let stopTimer = 0;
+  const trimmedLoop = () => wrapper.loopStart > 0.02
+    || (wrapper.loopEnd > 0 && Number.isFinite(el.duration) && wrapper.loopEnd < el.duration - 0.05);
+  const finish = () => {
+    if (ended) return;
+    ended = true;
+    window.clearTimeout(stopTimer);
+    try { el.pause(); } catch {}
+    el.removeAttribute("src");
+    try { el.load(); } catch {}
+    try { node.disconnect(); } catch {}
+    wrapper.onended?.();
+  };
+  el.addEventListener("ended", () => { if (!loop) finish(); });
+  el.addEventListener("error", () => { if (!ended) finish(); });
+  // Boucle sur une zone rognée : approximative (timeupdate ≈ 4 Hz), la boucle
+  // échantillon-près reste celle des sons décodés.
+  el.addEventListener("timeupdate", () => {
+    if (loop && trimmedLoop() && el.currentTime >= wrapper.loopEnd - 0.05) el.currentTime = wrapper.loopStart;
+  });
+  const wrapper = {
+    isStream: true,
+    element: el,
+    loopStart: 0,
+    loopEnd: 0,
+    onended: null,
+    detune: null,
+    get loop() { return loop; },
+    set loop(value) {
+      loop = Boolean(value);
+      el.loop = loop && !trimmedLoop();
+    },
+    playbackRate: {
+      get value() { return el.playbackRate; },
+      set value(v) { el.playbackRate = v; },
+      setValueAtTime(v) { el.playbackRate = v; return this; },
+      setTargetAtTime(v) { el.playbackRate = v; return this; },
+      linearRampToValueAtTime(v) { el.playbackRate = v; return this; },
+      cancelScheduledValues() { return this; },
+    },
+    async prime(offset) {
+      if (el.readyState < 1) {
+        await new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => reject(new Error("stream metadata timeout")), 5000);
+          el.addEventListener("loadedmetadata", () => { window.clearTimeout(timer); resolve(); }, { once: true });
+          el.addEventListener("error", () => { window.clearTimeout(timer); reject(el.error || new Error("stream error")); }, { once: true });
+        });
+      }
+      el.currentTime = Math.max(0, offset || 0);
+      await el.play(); // NotAllowedError possible (autoplay iOS hors geste) → repli décodage
+    },
+    start(when, offset) {
+      // Déjà lancé par prime() ; on ne recale que si l'écart est audible.
+      if (Math.abs((el.currentTime || 0) - (offset || 0)) > 0.25) el.currentTime = offset || 0;
+      if (el.paused && !ended) el.play().catch(() => finish());
+    },
+    stop(when = 0) {
+      if (ended) return;
+      window.clearTimeout(stopTimer);
+      const delay = Math.max(0, (when - ctx.currentTime) * 1000);
+      if (delay < 5) finish();
+      else stopTimer = window.setTimeout(finish, delay);
+    },
+    connect(...args) { return node.connect(...args); },
+    disconnect(...args) { try { node.disconnect(...args); } catch {} },
+  };
+  return wrapper;
+}
+
+function releasePadDecodedAudio(pad) {
+  pad.buffer = null;
+  pad.effectiveBuffer = null;
+  pad.effectiveBufferSig = "";
+  pad.effectiveBufferSource = null;
+  pad.reversedBuffer = null;
+  pad.reversedBufferSource = null;
+}
+
+// Scène : libère les sons décodés les plus anciennement joués tant que le total
+// dépasse le budget. Jamais un pad en lecture / en pause, ni ceux de `keep`.
+function enforceStageMemoryBudget(keep = []) {
+  if (!state.stageMode) return 0;
+  const budget = stageMemoryBudgetBytes();
+  const pads = orderedPadsForCurrentBoard();
+  let total = pads.reduce((sum, pad) => sum + padResidentAudioBytes(pad), 0);
+  if (total <= budget) return 0;
+  const candidates = pads
+    .filter((pad) => pad.buffer && pad.audioStored && !keep.includes(pad) && !isPadPlaying(pad) && !pad.isPaused && !pad.audioDecodePromise)
+    .sort((a, b) => (a.lastPlayedAt || 0) - (b.lastPlayedAt || 0));
+  let freed = 0;
+  for (const pad of candidates) {
+    if (total <= budget) break;
+    const bytes = padResidentAudioBytes(pad);
+    releasePadDecodedAudio(pad);
+    total -= bytes;
+    freed += bytes;
+  }
+  if (freed) console.debug(`[mem] budget scène — ${formatMegabytes(freed)} libérés, reste ~${formatMegabytes(total)} / ${formatMegabytes(budget)}`);
+  return freed;
+}
+
+// Plan de préchargement : qui est décodé d'avance, qui est streamé, qui attend le
+// déclenchement. Calculé uniquement sur les métadonnées (aucun décodage).
+function planStageMemory(pads) {
+  const budget = stageMemoryBudgetBytes();
+  const boardPads = orderedPadsForCurrentBoard();
+  const resident = boardPads.reduce((sum, pad) => sum + padResidentAudioBytes(pad), 0);
+  const decode = [];
+  const stream = [];
+  const deferred = [];
+  let planned = resident;
+  let naive = resident; // ce que coûtait l'ancien préchargement (tout décodé)
+  for (const pad of pads) {
+    if (pad.buffer || !pad.audioStored) continue;
+    const estimate = estimatePadDecodedBytes(pad);
+    naive += estimate;
+    if (canStreamPad(pad)) { stream.push(pad); continue; }
+    if (planned + estimate <= budget) { decode.push(pad); planned += estimate; }
+    else deferred.push(pad);
+  }
+  return { budget, resident, naive, planned, decode, stream, deferred };
+}
+
+function reportStageMemoryPlan(plan) {
+  console.debug(`[mem] plan scène — estimé sans streaming ${formatMegabytes(plan.naive)}, prévu ${formatMegabytes(plan.planned)} / budget ${formatMegabytes(plan.budget)} · décodés ${plan.decode.length} · streaming ${plan.stream.length} · à la demande ${plan.deferred.length}`);
+  state.stageMemoryLimited = plan.deferred.length > 0;
+  if (plan.naive <= plan.budget && !plan.deferred.length) return;
+  const parts = [];
+  if (plan.stream.length) parts.push(`${plan.stream.length} piste${plan.stream.length > 1 ? "s" : ""} longue${plan.stream.length > 1 ? "s" : ""} en streaming`);
+  if (plan.deferred.length) parts.push(`${plan.deferred.length} son${plan.deferred.length > 1 ? "s" : ""} décodé${plan.deferred.length > 1 ? "s" : ""} au déclenchement (léger délai)`);
+  setStatus(
+    `Mémoire : ~${formatMegabytes(plan.naive)} si tout était décodé (seuil ${formatMegabytes(plan.budget)} sur cet appareil). ${parts.join(", ")}. Prévu : ~${formatMegabytes(plan.planned)}.`,
+    plan.deferred.length ? "stop" : "success",
+    plan.deferred.length ? { alert: true } : {}
+  );
+}
+
 // Remplit en arrière-plan les durées manquantes (pads non décodés) pour les afficher
 // en studio/garage sans passer par la scène. Décode juste pour la durée + la waveform,
 // puis libère le buffer (pas de préchargement mémoire) ; la durée est sauvegardée → instantané ensuite.
@@ -13674,6 +13917,7 @@ async function prepareBoardForStage(options = {}) {
 let stageBackgroundPreloadToken = 0;
 
 async function preloadStagePads(pads, options = {}) {
+  pads = Array.isArray(pads) ? pads : [];
   // background : préchargement non bloquant après une restauration en scène.
   // Silencieux (aucun message de statut, pour ne pas écraser ceux du spectacle),
   // interrompu si on quitte la scène ou change de board.
@@ -13683,10 +13927,25 @@ async function preloadStagePads(pads, options = {}) {
   const cancelled = () => background && (
     token !== stageBackgroundPreloadToken || !state.stageMode || state.currentBoardId !== boardId
   );
-  const total = pads.length;
-  if (!total) {
+  if (!pads.length) {
     if (background) return;
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
+    return;
+  }
+  // Estimation mémoire AVANT tout décodage (métadonnées seules), cf. planStageMemory.
+  const plan = planStageMemory(pads);
+  reportStageMemoryPlan(plan);
+  const streamPads = plan.stream;
+  pads = plan.decode;
+  const total = pads.length;
+  // Pistes en streaming : on prépare seulement l'URL du fichier compressé (léger).
+  for (const pad of streamPads) {
+    if (cancelled()) return;
+    padStreamUrl(pad).catch((error) => console.warn("Streaming indisponible", pad.title, error));
+  }
+  if (!total) {
+    if (background || plan.deferred.length || plan.naive > plan.budget) return;
+    setStatus(`Board prêt pour la scène${streamPads.length ? ` : ${streamPads.length} piste${streamPads.length > 1 ? "s" : ""} en streaming` : ""}`, "success");
     return;
   }
   // Préchargement parallèle borné : ~6 pads décodés de front au lieu d'un par un.
@@ -13724,8 +13983,8 @@ async function preloadStagePads(pads, options = {}) {
   );
   console.debug(`[perf] preloadStagePads${background ? " (fond)" : ""} — ${done}/${total} pad(s) préchargé(s) en ${perfElapsedMs(preloadStartedAt)}ms (concurrence ${PRELOAD_CONCURRENCY})${cancelled() ? " — interrompu" : ""}`);
   perfMemorySnapshot("preloadStagePads:apres", { pads: total });
-  if (background) return;
-  setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
+  if (background || plan.deferred.length) return; // ne pas écraser l'avertissement mémoire
+  setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}${streamPads.length ? ` · ${streamPads.length} en streaming` : ""}`, "success");
 }
 
 function syncHoverLabels(root = document) {
@@ -13942,9 +14201,17 @@ function syncStagePending() {
   // Pas de clignotement « préparation » quand le préchargement a été volontairement
   // sauté (restauration au rafraîchissement) : sinon il tourne à l'infini alors que
   // l'audio se charge à la demande au premier déclenchement.
-  const pending = state.stageMode && !state.stageSkipPreload && orderedPadsForCurrentBoard().some(
-    (pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer
-  );
+  // Un pad dont le décodage a échoué (is-missing-audio) n'est plus « en préparation » :
+  // sans cette exclusion, le bouton clignotait indéfiniment (format non décodable
+  // sur l'appareil, fichier absent…).
+  const pendingPads = state.stageMode && !state.stageSkipPreload && !state.stageMemoryLimited
+    ? orderedPadsForCurrentBoard().filter((pad) => (
+      padType(pad) === "audio" && pad.audioStored && !pad.buffer
+        && !pad.node?.classList.contains("is-missing-audio") && !canStreamPad(pad)
+    ))
+    : [];
+  const pending = pendingPads.length > 0;
+  if (pending) console.debug(`[mem] scène en préparation — ${pendingPads.map((p) => `#${p.index + 1} « ${p.title} »`).join(", ")}`);
   els.stageMode?.classList.toggle("is-stage-pending", pending);
   document.querySelectorAll("[data-board-mode-target='stage']").forEach((b) =>
     b.classList.toggle("is-stage-pending", pending)
@@ -17810,7 +18077,7 @@ function scheduleEnvelopeGain(pad, envGain, now, startOffset, segStart, segEnd, 
 }
 
 function connectSourceToGain(pad, source, gain) {
-  if (!pad.mono || !state.audioContext || (pad.buffer?.numberOfChannels || 1) < 2) {
+  if (!pad.mono || !state.audioContext || (pad.buffer?.numberOfChannels || Number(pad.audioChannels) || 1) < 2) {
     source.connect(gain);
     return;
   }
@@ -19250,12 +19517,31 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
     await playPadText(pad, { ...options, fadeIn: fade });
     return;
   }
-  if (!pad.buffer) {
+  // Scène, piste longue : lecture en streaming (pas de PCM entier en mémoire).
+  let streamSource = null;
+  if (!pad.buffer && canStreamPad(pad)) {
+    try {
+      await ensureAudio();
+      const url = await padStreamUrl(pad);
+      const segDur = playableDuration(pad);
+      const segOff = segDur ? Math.min(Math.max(0, offset), Math.max(0, segDur - 0.01)) : 0;
+      streamSource = createPadStreamSource(state.audioContext, url);
+      await streamSource.prime(trimStart(pad) + segOff);
+    } catch (error) {
+      console.warn(`Streaming impossible, décodage : ${pad.title}`, error);
+      try { streamSource?.stop(); } catch {}
+      streamSource = null;
+      // Autoplay refusé (iOS hors geste, commande réseau) : inutile de réessayer.
+      if (error?.name === "NotAllowedError") pad.streamDisabled = true;
+    }
+  }
+  if (!pad.buffer && !streamSource) {
     if (pad.audioStored) {
       pad.node.classList.remove("is-missing-audio");
       setStatus(`Préparation audio : ${pad.title}`);
       try {
         pad.buffer = await ensurePadAudioDecoded(pad);
+        enforceStageMemoryBudget([pad]);
         syncStagePending();
       } catch (error) {
         console.error(error);
@@ -19291,10 +19577,11 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   // réglage pad.loop lui-même — qui reprendra son effet normal en dehors de
   // la random playlist.
   const effectiveLoop = options.ignoreLoop ? false : pad.loop;
-  const baseBuffer = effectiveBufferForPad(pad) || pad.buffer; // régions cut/silence appliquées
-  const playbackBuffer = pad.reverse ? reversedBufferForPad(pad) : baseBuffer;
-  const reverseSegmentStart = Math.max(0, baseBuffer.duration - segmentEnd);
-  const reverseSegmentEnd = Math.min(baseBuffer.duration, baseBuffer.duration - segmentStart);
+  const baseBuffer = streamSource ? null : (effectiveBufferForPad(pad) || pad.buffer); // régions cut/silence appliquées
+  const playbackBuffer = streamSource ? null : (pad.reverse ? reversedBufferForPad(pad) : baseBuffer);
+  const baseDuration = baseBuffer ? baseBuffer.duration : (Number(pad.audioDuration) || pad.duration);
+  const reverseSegmentStart = Math.max(0, baseDuration - segmentEnd);
+  const reverseSegmentEnd = Math.min(baseDuration, baseDuration - segmentStart);
   const startOffset = pad.reverse ? reverseSegmentStart + segmentOffset : segmentStart + segmentOffset;
   // Enveloppe présente : elle porte le volume. Seuls les fades PROPRES au pad y sont repris,
   // donc on ne saute le fade statique que dans ce cas (les fades globaux restent appliqués).
@@ -19302,7 +19589,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const foldPadFade = hasEnv && pad.fadeMode === "pad";
 
   const ctx = state.audioContext;
-  const source = ctx.createBufferSource();
+  const source = streamSource || ctx.createBufferSource();
   const gain = ctx.createGain();
   const liveFilter = ctx.createBiquadFilter();
   const pan = ctx.createStereoPanner();
@@ -19333,10 +19620,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   const targetGain = targetPadGain(pad);
 
   analyser.fftSize = 256;
-  source.buffer = playbackBuffer;
-  source.loop = effectiveLoop;
+  if (!streamSource) source.buffer = playbackBuffer;
   source.loopStart = pad.reverse ? reverseSegmentStart : segmentStart;
   source.loopEnd = pad.reverse ? reverseSegmentEnd : segmentEnd;
+  source.loop = effectiveLoop; // après loopStart/End : le streaming en déduit le mode de boucle
   source.playbackRate.setValueAtTime(1, now);
   if (source.detune) source.detune.setValueAtTime((pad.pitchSemitones + pad.pitchFine / 100) * 100, now);
   gain.gain.setValueAtTime(effectiveFadeInTime > 0 ? 0 : targetGain, now);
@@ -19347,7 +19634,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   if (hasEnv) {
     const envGain = ctx.createGain();
     envGain.gain.setValueAtTime(1, now);
-    scheduleEnvelopeGain(pad, envGain, now, startOffset, segmentStart, segmentEnd, baseBuffer.duration);
+    scheduleEnvelopeGain(pad, envGain, now, startOffset, segmentStart, segmentEnd, baseDuration);
     envGain.connect(gain);
     pad.envGain = envGain;
     preGain = envGain;
@@ -19382,6 +19669,7 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
   pad.pan = pan;
   pad.analyser = analyser;
   state.lastStartedPad = pad;
+  pad.lastPlayedAt = performance.now();
   pad.isPaused = false;
   pad.meterData = new Uint8Array(analyser.fftSize);
   pad.startedAt = now - segmentOffset;
@@ -19416,7 +19704,10 @@ async function playPad(pad, fade = false, offset = 0, options = {}) {
 
   source.start(now, startOffset);
   if (!effectiveLoop) {
-    source.stop(naturalStopAt);
+    // Streaming sans rognage de fin : l'événement « ended » de l'élément termine la
+    // lecture ; la marge évite de couper la fin si l'élément a pris du retard.
+    const untrimmedEnd = !pad.trimEnd || trimEnd(pad) >= pad.duration - 0.01;
+    source.stop(streamSource && untrimmedEnd ? naturalStopAt + 0.5 : naturalStopAt);
   }
   applyDucking(pad);
   updateAllPadAlerts();
@@ -21578,7 +21869,8 @@ async function init() {
       syncVideoProjectionAudio(state.audioPad);
       if (state.audioPad.source && state.audioContext) {
         const now = state.audioContext.currentTime;
-        state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
+        if (state.audioPad.source.isStream && (Number(state.audioPad.pitchSemitones) || Number(state.audioPad.pitchFine))) refreshPlayingPadOutput(state.audioPad);
+        else state.audioPad.source.detune?.setTargetAtTime((state.audioPad.pitchSemitones + state.audioPad.pitchFine / 100) * 100, now, 0.015);
         if ([els.audioReverbPreset, els.audioReverbWet, els.audioEqLow, els.audioEqMid, els.audioEqHigh].includes(element)) {
           refreshPlayingPadOutput(state.audioPad);
         }
