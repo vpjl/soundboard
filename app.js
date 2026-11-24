@@ -13639,11 +13639,14 @@ async function prepareBoardForStage(options = {}) {
   const emptyPads = allPads.filter((pad) => pad.node?.classList.contains("is-empty"));
   const audioCandidates = allPads.filter((pad) => padType(pad) === "audio" && pad.audioStored && !pad.buffer);
 
-  // Sur mobile : pas de préchargement, les sons se chargent au premier déclenchement.
+  // Restauration au rafraîchissement (et mode invité) : pas de préchargement
+  // bloquant ni de scan DB ; setStageMode lance ensuite preloadStagePads en
+  // tâche de fond sur ces candidats (backgroundPads) pour éviter un décodage
+  // audible au premier déclenchement de chaque pad.
   if (options.skipDecode) {
     const n = audioCandidates.length;
-    setStatus(`Board prêt pour la scène : ${n} son${n > 1 ? "s" : ""} chargé${n > 1 ? "s" : ""} au premier déclenchement`, "success");
-    return { ok: true, failures: [], emptyPads, validPads: [], skipPreload: true };
+    if (n) setStatus(`Board prêt pour la scène : préchargement de ${n} son${n > 1 ? "s" : ""} en arrière-plan`, "success");
+    return { ok: true, failures: [], emptyPads, validPads: [], skipPreload: true, backgroundPads: audioCandidates };
   }
 
   // Phase 1 — scan rapide (lecture DB, pas de décodage)
@@ -13666,9 +13669,23 @@ async function prepareBoardForStage(options = {}) {
   return { ok: missingPads.length === 0, failures: missingPads, emptyPads, validPads };
 }
 
-async function preloadStagePads(pads) {
+// Jeton du préchargement de fond (restauration en scène) : incrémenté à chaque
+// bascule de mode pour interrompre un préchargement devenu inutile.
+let stageBackgroundPreloadToken = 0;
+
+async function preloadStagePads(pads, options = {}) {
+  // background : préchargement non bloquant après une restauration en scène.
+  // Silencieux (aucun message de statut, pour ne pas écraser ceux du spectacle),
+  // interrompu si on quitte la scène ou change de board.
+  const background = Boolean(options.background);
+  const token = background ? ++stageBackgroundPreloadToken : 0;
+  const boardId = state.currentBoardId;
+  const cancelled = () => background && (
+    token !== stageBackgroundPreloadToken || !state.stageMode || state.currentBoardId !== boardId
+  );
   const total = pads.length;
   if (!total) {
+    if (background) return;
     setStatus("Board prêt pour la scène : aucun média à précharger", "success");
     return;
   }
@@ -13685,8 +13702,10 @@ async function preloadStagePads(pads) {
   let next = 0;
   const decodeNextPad = async () => {
     while (next < total) {
+      if (cancelled()) return;
       const pad = pads[next];
       next += 1;
+      if (background && (pad.buffer || !pad.audioStored)) { done += 1; continue; }
       try {
         pad.buffer = await ensurePadAudioDecoded(pad);
         applyEffectiveBufferState(pad); // durée effective déjà posée par le décodage ; on garde la cohérence
@@ -13696,14 +13715,16 @@ async function preloadStagePads(pads) {
         pad.node?.classList.add("is-missing-audio");
       }
       done += 1;
+      if (background) continue;
       setStatus(`Préchargement : ${done} / ${total}`, "progress", { progress: { label: "Entrée en scène — préchargement des médias", done, total } });
     }
   };
   await Promise.all(
     Array.from({ length: Math.min(PRELOAD_CONCURRENCY, total) }, decodeNextPad)
   );
-  console.debug(`[perf] preloadStagePads — ${done}/${total} pad(s) préchargé(s) en ${perfElapsedMs(preloadStartedAt)}ms (concurrence ${PRELOAD_CONCURRENCY})`);
+  console.debug(`[perf] preloadStagePads${background ? " (fond)" : ""} — ${done}/${total} pad(s) préchargé(s) en ${perfElapsedMs(preloadStartedAt)}ms (concurrence ${PRELOAD_CONCURRENCY})${cancelled() ? " — interrompu" : ""}`);
   perfMemorySnapshot("preloadStagePads:apres", { pads: total });
+  if (background) return;
   setStatus(`Board prêt pour la scène : ${total}/${total} média${total > 1 ? "s" : ""} préchargé${total > 1 ? "s" : ""}`, "success");
 }
 
@@ -13818,7 +13839,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     const stageResult = state.remoteRole === "controller"
       ? { ok: true, failures: [], emptyPads: [], validPads: [], skipPreload: true }
       : await prepareBoardForStage(options);
-    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false } = stageResult;
+    const { ok, failures, emptyPads = [], validPads = [], noMedia, skipPreload = false, backgroundPads = [] } = stageResult;
     if (noMedia) {
       state.stageMode = false;
       syncBoardModeSelector();
@@ -13845,6 +13866,14 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
     if (!skipPreload) await preloadStagePads(validPads);
     state.stageSkipPreload = skipPreload;
+    // Restauration en scène : préchargement en tâche de fond (non attendu), lancé
+    // juste après la restauration. ensurePadAudioDecoded partage sa promesse de
+    // décodage : un pad déclenché entre-temps attend ce décodage, sans doublon.
+    if (backgroundPads.length) {
+      window.setTimeout(() => {
+        preloadStagePads(backgroundPads, { background: true }).catch((error) => console.error(error));
+      }, 0);
+    }
     if (failures.length > 0) {
       const n = failures.length;
       setStatus(`Mode scène — ${n} pad${n > 1 ? "s" : ""} défectueux ignoré${n > 1 ? "s" : ""}`, "stop");
@@ -13891,6 +13920,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     }
   } else {
     state.stageSkipPreload = false;
+    stageBackgroundPreloadToken += 1; // sortie de scène : stoppe un préchargement de fond en cours
     syncStageVisiblePads();
     // Sortie de scène : refermer tout panneau effets plein pad resté ouvert.
     state.pads.forEach((pad) => { if (pad.fxOverlayOpen) setPadFxOverlayOpen(pad, false); });
