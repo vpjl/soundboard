@@ -9,8 +9,9 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
-  startServer, launchBrowser, newContext, openApp, makeToneFile,
+  root, startServer, launchBrowser, newContext, openApp, makeToneFile,
   boardMode, goToMode, loadToneIntoFirstPad, isPlaying,
 } from "./helpers.mjs";
 
@@ -129,13 +130,21 @@ function padSummary(pad) {
 
 // Le bouton d'export est dans la section « gestion du board », en Garage.
 async function exportSettings(page) {
+  return exportBoard(page, "#exportBoardSettingsOnly");
+}
+
+async function exportSettingsAndSounds(page) {
+  return exportBoard(page, "#exportBoardWithAudio");
+}
+
+async function exportBoard(page, button) {
   await goToMode(page, "garage");
   if (!(await page.locator("#exportBoard").isVisible())) await page.click("#boardManageSectionToggle");
   await page.click("#exportBoard");
   await page.waitForSelector("#exportBoardDialog[open]");
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 10000 }),
-    page.click("#exportBoardSettingsOnly"),
+    page.click(button),
   ]);
   const path = await download.path();
   return { path, json: JSON.parse(await readFile(path, "utf8")) };
@@ -177,6 +186,74 @@ test("export puis import d'un board : les réglages sont conservés", async () =
   const second = await exportSettings(page);
   assert.equal(second.json.board.padCount, first.json.board.padCount);
   assert.deepEqual(second.json.board.pads.map(padSummary), exportedPads);
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+// Les vidéos ne voyagent pas dans l'export (trop lourdes) : l'app prévient,
+// puis exporte le board avec la référence de la vidéo, à relier après import.
+test("export d'un board avec un pad vidéo : le fichier part, la vidéo est référencée", async () => {
+  const context = await newContext(browser);
+  const page = await openApp(context, url);
+  const pad = page.locator(".pad").first();
+  await pad.locator('[data-action="audio"]').click();
+  await page.waitForSelector("#audioDialog[open]");
+  await page.locator("#audioVideoFile").setInputFiles(join(root, "tools", "assets", "demo-video.mp4"));
+  await page.waitForFunction(() => /demo.video/i.test(document.querySelector(".pad")?.textContent || ""), null, { timeout: 10000 });
+  await page.click("#applyAudio");
+  await page.waitForTimeout(300);
+
+  const { json } = await exportSettingsAndSounds(page);
+  const video = json.board.pads.find((p) => p.index === 0)?.video;
+  assert.equal(video?.name, "demo-video.mp4");
+  assert.ok(!video?.data, "la vidéo ne devrait pas être embarquée");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("stockage du navigateur plein : l'app continue et prévient", async () => {
+  const context = await newContext(browser);
+  const page = await openApp(context, url);
+  const messages = [];
+  page.on("dialog", (dialog) => messages.push(dialog.message()));
+  await page.evaluate(() => {
+    Storage.prototype.setItem = function () {
+      throw new DOMException("quota", "QuotaExceededError");
+    };
+  });
+  await goToMode(page, "garage");
+  await goToMode(page, "studio");
+  assert.equal(await boardMode(page), "studio");
+  await page.waitForTimeout(300);
+  assert.equal(messages.filter((m) => /Mémoire du navigateur pleine/.test(m)).length, 1, "un seul avertissement attendu");
+  assert.deepEqual(page.errors, []);
+  await context.close();
+});
+
+test("import : une illustration externe est ignorée, une image intégrée est gardée", async () => {
+  const context = await newContext(browser);
+  const page = await openApp(context, url);
+  const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const board = {
+    format: "soundboard-live-board",
+    version: 1,
+    board: {
+      name: "Images",
+      padCount: 2,
+      pads: [
+        { index: 0, title: "Externe", visualImage: "https://example.com/espion.png" },
+        { index: 1, title: "Intégrée", visualImage: pixel },
+      ],
+    },
+  };
+  await page.locator("#importBoardFile").setInputFiles({
+    name: "images.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(board)),
+  });
+  await page.waitForFunction(() => document.querySelectorAll(".pad").length === 2, null, { timeout: 10000 });
+  await page.waitForTimeout(500);
+  const images = await page.evaluate(() => state.pads.map((pad) => pad.visualImage || ""));
+  assert.equal(images[0], "");
+  assert.equal(images[1], pixel);
   assert.deepEqual(page.errors, []);
   await context.close();
 });

@@ -10,8 +10,22 @@ Ce fichier consigne les decisions de conception validees, afin d'eviter de les r
 
 ## Versions et cache
 
-- La version affichee dans `#audioStatus`, les query strings d'assets dans `index.html` et le `CACHE_NAME`/assets de `service-worker.js` doivent rester coherents.
-- En cas de doute sur une version publiee, verifier `index.html` et `service-worker.js` ensemble.
+- Les query strings d'assets dans `index.html` et le `CACHE_NAME`/assets de `service-worker.js` doivent rester coherents : les changer uniquement avec `tools/bump-version.sh` (le deploiement verifie la concordance).
+- La version affichee (en-tete, `#audioStatus`) est derivee du `?v=` de `app.js` : plus de numero en dur ailleurs.
+- En cas de doute sur une version publiee, `bash tools/bump-version.sh --check`.
+
+## Scene
+
+- Les pads se declenchent au `click` (relachement), pas au `pointerdown` : option essayee en v1049, retiree en v1050, gain non perceptible en jeu.
+
+## Export et import
+
+- Les videos ne sont pas embarquees dans l'export d'un board (trop lourdes) : l'app previent, exporte la reference, et la video se relie apres import (« Selectionner un dossier de videos »).
+- A l'import, seules les illustrations integrees (`data:image/…`) sont gardees : une adresse externe serait chargee depuis Internet et absente hors ligne.
+
+## Console de partage
+
+- La definition du mot de passe maitre exige le fichier `prive/.autoriser-config`, depose a la main (`bash tools/deploy-free.sh --autoriser-config`) et efface aussitot apres : si `prive/` se vide, la console reste fermee au lieu de s'ouvrir au premier venu.
 
 ## Skins
 

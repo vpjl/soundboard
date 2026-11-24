@@ -376,6 +376,30 @@ const state = {
   skinEditorVariables: {},
 };
 
+// Écriture dans localStorage qui ne lève jamais d'exception. Un quota dépassé
+// (ou un stockage refusé par le navigateur) ne doit pas interrompre le code qui
+// suit, typiquement le reste d'une sauvegarde : on prévient une fois par
+// session et on continue. Renvoie false si l'écriture a échoué.
+let storeSetWarned = false;
+function storeSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`[stockage] écriture refusée pour ${key} :`, error?.name || error);
+    if (!storeSetWarned) {
+      storeSetWarned = true;
+      // Message bloquant (sauf en scène, où setStatus n'ouvre pas de boîte) :
+      // un message de barre d'état serait aussitôt remplacé par le suivant.
+      // setStatus n'existe peut-être pas encore pendant le démarrage.
+      window.setTimeout(() => {
+        try { setStatus("Mémoire du navigateur pleine : certains réglages ne sont pas enregistrés", "stop", { alert: true }); } catch {}
+      }, 0);
+    }
+    return false;
+  }
+}
+
 const els = {
   pads: document.querySelector("#pads"),
   template: document.querySelector("#padTemplate"),
@@ -1044,7 +1068,7 @@ function setCueVolume(value, persist = true) {
   if (els.cueVolumeValue) els.cueVolumeValue.textContent = `${Math.round(volume * 100)}%`;
   if (state.cuePreviewAudio) state.cuePreviewAudio.volume = volume;
   setMeterLevel(els.cueVu, state.cuePreviewAudio && !state.cuePreviewAudio.paused ? volume : 0);
-  if (persist) localStorage.setItem(CUE_VOLUME_STORAGE, String(volume));
+  if (persist) storeSet(CUE_VOLUME_STORAGE, String(volume));
 }
 
 function loadCueVolume() {
@@ -1520,11 +1544,11 @@ function loadShortcutsForCurrentBoard() {
 }
 
 function saveShortcutsForCurrentBoard() {
-  localStorage.setItem(boardShortcutsKey(state.currentBoardId), JSON.stringify(state.shortcuts));
+  storeSet(boardShortcutsKey(state.currentBoardId), JSON.stringify(state.shortcuts));
 }
 
 function saveShortcutsEnabledForCurrentBoard() {
-  localStorage.setItem(boardShortcutsEnabledKey(state.currentBoardId), state.shortcutsEnabled ? "on" : "off");
+  storeSet(boardShortcutsEnabledKey(state.currentBoardId), state.shortcutsEnabled ? "on" : "off");
 }
 
 function shortcutDraftFromState() {
@@ -2203,7 +2227,7 @@ function setBoardPadEditing(editing) {
   // .board-edit-mode vient d'être appliqué sur <body>).
   syncAllPadMinHeightsSoon();
   requestAnimationFrame(() => syncAllPadMinHeightsSoon());
-  localStorage.setItem(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
+  storeSet(BOARD_EDIT_MODE_STORAGE, state.boardEditMode ? "on" : "off");
 }
 
 async function beginBoardEdit() {
@@ -2325,7 +2349,7 @@ function syncMicrophoneSelectValues() {
 }
 
 function persistMicrophoneSelection() {
-  localStorage.setItem(MICROPHONE_STORAGE, JSON.stringify({
+  storeSet(MICROPHONE_STORAGE, JSON.stringify({
     id: state.selectedMicrophoneId || "",
     label: state.selectedMicrophoneLabel || "",
   }));
@@ -2823,7 +2847,7 @@ function saveLiveFxPadSetting(pad, key, value) {
   if (!pad.uid) return;
   const current = getLiveFxPadSettings(pad);
   state.liveFxPadSettings[pad.uid] = { ...current, [key]: Number(value) || 0 };
-  localStorage.setItem(LIVE_FX_PAD_SETTINGS_STORAGE, JSON.stringify(state.liveFxPadSettings));
+  storeSet(LIVE_FX_PAD_SETTINGS_STORAGE, JSON.stringify(state.liveFxPadSettings));
 }
 
 function createLiveFxControl({ key, label, min, max, step = "1", value = "0", centered, resetValue, separated, applyFn, ariaLabel }) {
@@ -3161,7 +3185,7 @@ function setLiveFxPanelAllowed(allowed, persist = true) {
   state.liveFxPanelAllowed = allowed;
   document.body.classList.toggle("live-fx-panel-disabled", !allowed);
   if (els.masterLiveFxPanelEnabled) els.masterLiveFxPanelEnabled.checked = allowed;
-  if (persist) localStorage.setItem(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE, allowed ? "on" : "off");
+  if (persist) storeSet(MASTER_LIVE_FX_PANEL_ENABLED_STORAGE, allowed ? "on" : "off");
   updateMasterOptionBadges();
   if (!allowed) {
     state.pads?.forEach((pad) => {
@@ -3176,7 +3200,7 @@ function setLiveFxPanelAllowed(allowed, persist = true) {
 function setCuePanelVisible(visible, persist = true) {
   document.body.classList.toggle("cue-panel-hidden", !visible);
   if (els.masterCuePanelVisible) els.masterCuePanelVisible.checked = visible;
-  if (persist) localStorage.setItem(MASTER_CUE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+  if (persist) storeSet(MASTER_CUE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
   // Contrôle des cues masqué → l'enchaînement auto s'arrête aussi. Resync de
   // l'état (body.cues-enabled, boutons). Pas au boot (persist=false, boards pas
   // encore chargés) — l'init appelle syncCueControls plus tard.
@@ -3190,7 +3214,7 @@ function setCuePanelVisible(visible, persist = true) {
 function setXfadePanelVisible(visible, persist = true) {
   document.body.classList.toggle("xfade-panel-hidden", !visible);
   if (els.masterXfadePanelVisible) els.masterXfadePanelVisible.checked = visible;
-  if (persist) localStorage.setItem(MASTER_XFADE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
+  if (persist) storeSet(MASTER_XFADE_PANEL_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 // Boutons stop global / stop groupé / mute global dans l'îlot Cues : chacun
@@ -3199,19 +3223,19 @@ function setXfadePanelVisible(visible, persist = true) {
 function setStopAllVisible(visible, persist = true) {
   document.body.classList.toggle("stopall-hidden", !visible);
   if (els.masterStopAllVisible) els.masterStopAllVisible.checked = visible;
-  if (persist) localStorage.setItem(MASTER_STOPALL_VISIBLE_STORAGE, visible ? "on" : "off");
+  if (persist) storeSet(MASTER_STOPALL_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 function setStopGroupVisible(visible, persist = true) {
   document.body.classList.toggle("stopgroup-hidden", !visible);
   if (els.masterStopGroupVisible) els.masterStopGroupVisible.checked = visible;
-  if (persist) localStorage.setItem(MASTER_STOPGROUP_VISIBLE_STORAGE, visible ? "on" : "off");
+  if (persist) storeSet(MASTER_STOPGROUP_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 function setMuteVisible(visible, persist = true) {
   document.body.classList.toggle("mute-hidden", !visible);
   if (els.masterMuteVisible) els.masterMuteVisible.checked = visible;
-  if (persist) localStorage.setItem(MASTER_MUTE_VISIBLE_STORAGE, visible ? "on" : "off");
+  if (persist) storeSet(MASTER_MUTE_VISIBLE_STORAGE, visible ? "on" : "off");
 }
 
 function initLiveFxPanelChrome() {
@@ -4005,8 +4029,8 @@ function saveBoards() {
   // il est reconstruit depuis la façade à chaque connexion. Au reboot, le garde
   // de init() ramène currentBoardId sur un board réel s'il pointait le miroir.
   const persistable = state.boards.filter((board) => board.id !== REMOTE_MIRROR_BOARD_ID);
-  localStorage.setItem(BOARDS_STORAGE, JSON.stringify(persistable));
-  localStorage.setItem(CURRENT_BOARD_STORAGE, state.currentBoardId);
+  storeSet(BOARDS_STORAGE, JSON.stringify(persistable));
+  storeSet(CURRENT_BOARD_STORAGE, state.currentBoardId);
 }
 
 function currentBoard() {
@@ -4990,14 +5014,6 @@ function padsForBoardFilterValue(value) {
   return state.pads.filter((pad) => padTagList(pad).includes(normalized));
 }
 
-function padsForTagFilters(tagFilters, logic = "or") {
-  if (!tagFilters.length) return [];
-  if (logic === "and") {
-    return state.pads.filter((pad) => tagFilters.every((tag) => padTagList(pad).includes(tag)));
-  }
-  return state.pads.filter((pad) => tagFilters.some((tag) => padTagList(pad).includes(tag)));
-}
-
 function matchingPadsForCurrentFilter() {
   const filterSets = [];
   state.activeStructuralFilters.forEach((val) => filterSets.push(new Set(padsForBoardFilterValue(val))));
@@ -5236,10 +5252,6 @@ function refreshTagFilterChips() {
   }
 
   syncCompactToggleVisibility();
-}
-
-function hasNumberChanged(value, defaultValue, epsilon = 0.0001) {
-  return Math.abs((Number(value) || 0) - defaultValue) > epsilon;
 }
 
 function hasStringChanged(value, defaultValue = "") {
@@ -6267,10 +6279,10 @@ async function addBoard() {
     return;
   }
   const padCount = enteredCount;
-  localStorage.setItem(NEW_BOARD_PAD_COUNT_STORAGE, String(padCount));
+  storeSet(NEW_BOARD_PAD_COUNT_STORAGE, String(padCount));
   const name = els.newBoardName?.value.trim() || nextBoardName();
   const creator = els.newBoardCreator?.value.trim() || "";
-  localStorage.setItem(NEW_BOARD_CREATOR_STORAGE, creator);
+  storeSet(NEW_BOARD_CREATOR_STORAGE, creator);
   els.newBoardDialog?.close();
   setBoardPadEditing(false);
   const board = {
@@ -6291,7 +6303,7 @@ async function addBoard() {
   state.currentBoardId = board.id;
   applyDefaultMasterAudioSettings(false, true);
   state.shortcutsEnabled = false;
-  localStorage.setItem(boardShortcutsEnabledKey(board.id), "off");
+  storeSet(boardShortcutsEnabledKey(board.id), "off");
   saveBoards();
   renderBoardOptions();
   await renderPads();
@@ -7206,7 +7218,7 @@ function readCustomSkins() {
 }
 
 function writeCustomSkins(skins) {
-  localStorage.setItem(CUSTOM_SKINS_STORAGE, JSON.stringify(Array.isArray(skins) ? skins : []));
+  storeSet(CUSTOM_SKINS_STORAGE, JSON.stringify(Array.isArray(skins) ? skins : []));
 }
 
 function customSkinById(id) {
@@ -7246,27 +7258,6 @@ function snapshotCurrentSkinVariables(source = document.body) {
     if (value) variables[name] = value;
   });
   return variables;
-}
-
-function saveCurrentSkinAsCustom() {
-  const name = window.prompt("Nom du skin utilisateur");
-  const cleanName = String(name || "").trim();
-  if (!cleanName) return;
-
-  const skins = readCustomSkins();
-  const id = createId();
-  const skin = {
-    id,
-    name: cleanName,
-    createdAt: new Date().toISOString(),
-    variables: snapshotCurrentSkinVariables(skinPreviewRoot() || document.body),
-  };
-
-  skins.push(skin);
-  writeCustomSkins(skins);
-  updateSkinOptions();
-  applySkin(`${CUSTOM_SKIN_PREFIX}${id}`);
-  setStatus(`Skin utilisateur enregistré: ${cleanName}`, "success");
 }
 
 const ESSENTIAL_SKIN_FIELD_GROUPS = [
@@ -8086,14 +8077,7 @@ function saveSkinHarmonySettings() {
     localStorage.removeItem(SKIN_HARMONY_STORAGE);
     return;
   }
-  localStorage.setItem(SKIN_HARMONY_STORAGE, JSON.stringify(settings));
-}
-
-function loadSkinHarmonySettings() {
-  try {
-    const raw = localStorage.getItem(SKIN_HARMONY_STORAGE);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  storeSet(SKIN_HARMONY_STORAGE, JSON.stringify(settings));
 }
 
 // Skin sans harmonie mémorisée (prédéfini, ou perso ancien) : sa palette est faite main,
@@ -8206,7 +8190,7 @@ function applySkinFonts() {
   else document.body.style.removeProperty("--skin_font_family");
   ensureSkinFont(family);
   document.body.style.setProperty("--skin_font_size_title", size + "px");
-  localStorage.setItem(SKIN_FONTS_STORAGE, JSON.stringify({ family, size }));
+  storeSet(SKIN_FONTS_STORAGE, JSON.stringify({ family, size }));
 }
 
 function loadSkinFonts() {
@@ -8897,7 +8881,7 @@ function applySkin(skin) {
     }
   }
 
-  localStorage.setItem(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
+  storeSet(SKIN_STORAGE, customSkin ? `${CUSTOM_SKIN_PREFIX}${customSkin.id}` : skinName);
   if (displaySkin === "basic") revealGalleryPads();
   if (typeof syncMosaicStudioMask === "function") { syncMosaicStudioMask(); syncMosaicTitleTones(); }
   state.pads.forEach((pad) => { pad.eyeAfterFx = false; fitPadTitle(pad); syncPadEyeButtonLabel(pad); });
@@ -10373,6 +10357,14 @@ function registerImportedCustomSkins(boardData) {
   return ref; // skin intégré
 }
 
+// Illustration d'un pad venue d'un fichier ou du réseau : seules les images
+// intégrées (data:image/…) sont gardées. Une adresse externe serait chargée
+// depuis Internet à chaque affichage, et absente hors ligne en scène.
+function importedPadImage(value) {
+  const image = String(value || "");
+  return /^data:image\//i.test(image) ? image : "";
+}
+
 async function importBoardFile(file) {
   // Rester dans le mode courant après l'import (typiquement Garage) au lieu
   // d'en sortir, cf. "ne pas changer de mode après une action dans un mode".
@@ -10456,7 +10448,7 @@ async function importBoardFile(file) {
       mono: Boolean(item.mono),
       normalizeEnabled: item.normalizeEnabled ?? true,
       normalizedGain: item.normalizedGain ?? 1,
-      visualImage: item.visualImage || "",
+      visualImage: importedPadImage(item.visualImage),
       visualImageHidden: Boolean(item.visualImageHidden),
       visualKind: item.visualKind || "",
       audioUid: item.audioUid || item.audio?.audioUid || item.video?.audioUid || "",
@@ -11917,7 +11909,7 @@ async function repairAccidentalPadTitles() {
     }
   }
 
-  localStorage.setItem(PAD_NAME_REPAIR, "done");
+  storeSet(PAD_NAME_REPAIR, "done");
 }
 
 // --- Text file import: plain, RTF, DOCX -----------------------------------
@@ -13921,7 +13913,7 @@ function toggleStageLock() {
       setStatus("Les mots de passe ne correspondent pas", "stop", { alert: true });
       return;
     }
-    localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: true, password }));
+    storeSet(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: true, password }));
     updateStageLockUi();
     setStatus("Mode scène verrouillé");
     return;
@@ -13932,7 +13924,7 @@ function toggleStageLock() {
     setStatus("Mot de passe incorrect");
     return;
   }
-  localStorage.setItem(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: false, password: "" }));
+  storeSet(STAGE_LOCK_STORAGE, JSON.stringify({ enabled: false, password: "" }));
   updateStageLockUi();
   setStatus("Mode scène déverrouillé");
 }
@@ -14173,7 +14165,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
       state.stageMode = false;
       syncBoardModeSelector();
       syncStagePending();
-      localStorage.setItem(STAGE_MODE_STORAGE, "off");
+      storeSet(STAGE_MODE_STORAGE, "off");
       // Échec côté façade (entrée en scène refusée) : la régie a pu basculer
       // de façon optimiste en envoyant sa commande (cf. setBoardModeFromSelector) ;
       // sans ce rattrapage, elle resterait affichée en scène alors que la
@@ -14188,7 +14180,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
         state.stageMode = false;
         syncBoardModeSelector();
         syncStagePending();
-        localStorage.setItem(STAGE_MODE_STORAGE, "off");
+        storeSet(STAGE_MODE_STORAGE, "off");
         broadcastRemoteBoardMode();
         return;
       }
@@ -14220,7 +14212,7 @@ async function setStageMode(enabled, requestFullscreen = false, options = {}) {
     els.boardSelect.disabled = state.stageMode;
     els.boardSelect.setAttribute("aria-disabled", String(state.stageMode));
   }
-  localStorage.setItem(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
+  storeSet(STAGE_MODE_STORAGE, state.stageMode ? "on" : "off");
   updateSkinOptions();
   // Mosaïque : le rendu du puzzle dépend du mode (scène uniquement) → réappliquer
   // le skin et le masque des pièces à chaque bascule.
@@ -14393,7 +14385,7 @@ function setMasterFadeEnabled(type, enabled) {
   const control = type === "in" ? els.masterFadeInEnabled : els.masterFadeOutEnabled;
   const storage = type === "in" ? MASTER_FADE_IN_ENABLED_STORAGE : MASTER_FADE_OUT_ENABLED_STORAGE;
   if (control) control.checked = Boolean(enabled);
-  localStorage.setItem(storage, enabled ? "on" : "off");
+  storeSet(storage, enabled ? "on" : "off");
   updateMasterOptionBadges();
   updateAllPadAlerts();
 }
@@ -15095,7 +15087,7 @@ function autoTrimSensitivity() {
 
 function setAutoTrimSensitivity(value) {
   const number = Math.min(100, Math.max(1, Math.round(Number(value) || DEFAULT_AUTO_TRIM_SENSITIVITY)));
-  localStorage.setItem(AUTO_TRIM_SENSITIVITY_STORAGE, String(number));
+  storeSet(AUTO_TRIM_SENSITIVITY_STORAGE, String(number));
   syncAutoTrimSensitivityControls();
   return number;
 }
@@ -16474,13 +16466,6 @@ async function restoreAudioDraft() {
   else savePadMeta(pad);
 }
 
-function openTextDialog(pad = state.audioPad) {
-  if (!pad) return;
-  state.textPad = pad;
-  if (els.textEditor) els.textEditor.value = pad.textContent || "";
-  els.textDialog?.showModal?.();
-}
-
 function applyTextDialog() {
   const pad = state.textPad || state.audioPad;
   if (!pad) return;
@@ -16778,15 +16763,15 @@ function applyDefaultMasterAudioSettings(showStatus = true, includeVolumes = fal
   if (els.masterEqLow) els.masterEqLow.value = "0";
   if (els.masterEqMid) els.masterEqMid.value = "0";
   if (els.masterEqHigh) els.masterEqHigh.value = "0";
-  localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, "off");
-  localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
-  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, "on");
-  localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, "on");
-  localStorage.setItem(FADE_IN_STORAGE, "2");
-  localStorage.setItem(FADE_OUT_STORAGE, "2");
-  localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, "2");
-  localStorage.setItem(DUCKING_STORAGE, "60");
-  localStorage.setItem(ENDING_ALERT_STORAGE, String(DEFAULT_ENDING_ALERT_SECONDS));
+  storeSet(MASTER_FADE_IN_ENABLED_STORAGE, "off");
+  storeSet(MASTER_FADE_OUT_ENABLED_STORAGE, "off");
+  storeSet(MASTER_DUCK_ENABLED_STORAGE, "on");
+  storeSet(ARMED_CROSSFADE_ENABLED_STORAGE, "on");
+  storeSet(FADE_IN_STORAGE, "2");
+  storeSet(FADE_OUT_STORAGE, "2");
+  storeSet(ARMED_CROSSFADE_SECONDS_STORAGE, "2");
+  storeSet(DUCKING_STORAGE, "60");
+  storeSet(ENDING_ALERT_STORAGE, String(DEFAULT_ENDING_ALERT_SECONDS));
   updateEndingAlertHint();
   if (includeVolumes) {
     setMasterVolume(DEFAULT_MASTER_VOLUME, true);
@@ -16849,15 +16834,15 @@ function broadcastMasterAudioSettings() {
 }
 
 function persistMasterAudioControls() {
-  localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled?.checked ? "on" : "off");
-  localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled?.checked ? "on" : "off");
-  localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled?.checked ? "on" : "off");
-  localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled?.checked ? "on" : "off");
-  localStorage.setItem(FADE_IN_STORAGE, String(els.fadeInSeconds?.value ?? "2"));
-  localStorage.setItem(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
-  localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(els.armedCrossfadeSeconds?.value ?? "2"));
-  localStorage.setItem(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
-  localStorage.setItem(ENDING_ALERT_STORAGE, String(els.endingAlertSeconds?.value ?? DEFAULT_ENDING_ALERT_SECONDS));
+  storeSet(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled?.checked ? "on" : "off");
+  storeSet(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled?.checked ? "on" : "off");
+  storeSet(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled?.checked ? "on" : "off");
+  storeSet(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled?.checked ? "on" : "off");
+  storeSet(FADE_IN_STORAGE, String(els.fadeInSeconds?.value ?? "2"));
+  storeSet(FADE_OUT_STORAGE, String(els.fadeSeconds?.value ?? "2"));
+  storeSet(ARMED_CROSSFADE_SECONDS_STORAGE, String(els.armedCrossfadeSeconds?.value ?? "2"));
+  storeSet(DUCKING_STORAGE, String(els.duckPercent?.value ?? "60"));
+  storeSet(ENDING_ALERT_STORAGE, String(els.endingAlertSeconds?.value ?? DEFAULT_ENDING_ALERT_SECONDS));
   updateEndingAlertHint();
   saveMasterReverbSettings();
   saveMasterEqSettings();
@@ -18106,7 +18091,7 @@ function masterReverbSettings() {
 }
 
 function saveMasterReverbSettings() {
-  localStorage.setItem(MASTER_REVERB_STORAGE, JSON.stringify(masterReverbSettings()));
+  storeSet(MASTER_REVERB_STORAGE, JSON.stringify(masterReverbSettings()));
 }
 
 function loadMasterReverbSettings() {
@@ -18153,7 +18138,7 @@ function masterCompressorSettings() {
 }
 
 function saveMasterCompressorSettings() {
-  localStorage.setItem(MASTER_COMPRESSOR_STORAGE, JSON.stringify(masterCompressorSettings()));
+  storeSet(MASTER_COMPRESSOR_STORAGE, JSON.stringify(masterCompressorSettings()));
 }
 
 function loadMasterCompressorSettings() {
@@ -18182,7 +18167,7 @@ function masterEqSettings() {
 }
 
 function saveMasterEqSettings() {
-  localStorage.setItem(MASTER_EQ_STORAGE, JSON.stringify(masterEqSettings()));
+  storeSet(MASTER_EQ_STORAGE, JSON.stringify(masterEqSettings()));
 }
 
 function loadMasterEqSettings() {
@@ -19028,7 +19013,7 @@ function remoteControlUrl() {
 }
 
 function saveRemoteControlSettings() {
-  localStorage.setItem(REMOTE_CONTROL_STORAGE, JSON.stringify({
+  storeSet(REMOTE_CONTROL_STORAGE, JSON.stringify({
     role: state.remoteRole,
     pendingRole: state.remotePendingRole,
     host: state.remoteHost,
@@ -19415,7 +19400,7 @@ async function applyRemoteMirrorBoard(payload) {
       tags: item.tags || "",
       color: item.color || "",
       playMode: item.playMode || "oneshot",
-      visualImage: item.visualImage || "",
+      visualImage: importedPadImage(item.visualImage),
       visualImageHidden: Boolean(item.visualImageHidden),
       visualKind: item.visualKind || "",
       visualPositionX: item.visualPositionX ?? 50,
@@ -20390,10 +20375,10 @@ function applyRemoteRandomGroupSettings(settings) {
   if (els.randomGroupMin && settings.min != null) els.randomGroupMin.value = settings.min;
   if (els.randomGroupCount && settings.max != null) els.randomGroupCount.value = settings.max;
   if (els.randomGroupAvoidRepeat) els.randomGroupAvoidRepeat.checked = Boolean(settings.avoidRepeat);
-  localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect?.value || "");
-  localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin?.value || "1");
-  localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount?.value || "1");
-  localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat?.checked ? "on" : "off");
+  storeSet(RANDOM_GROUP_STORAGE, els.randomGroupSelect?.value || "");
+  storeSet(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin?.value || "1");
+  storeSet(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount?.value || "1");
+  storeSet(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat?.checked ? "on" : "off");
   clampRandomGroupMinMax("min");
   adjustRandomEngineLiveCount();
 }
@@ -21032,7 +21017,7 @@ async function init() {
   // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)
   els.duckPercent?.addEventListener("input", () => {
     const value = duckPercentValue();
-    localStorage.setItem(DUCKING_STORAGE, String(value));
+    storeSet(DUCKING_STORAGE, String(value));
     if (els.audioDuckGlobalHint) els.audioDuckGlobalHint.textContent = `(${value}%)`;
     applyDucking();
     updateMasterOptionBadges();
@@ -21041,7 +21026,7 @@ async function init() {
   els.duckPercent?.addEventListener("change", () => {
     const value = duckPercentValue();
     els.duckPercent.value = value;
-    localStorage.setItem(DUCKING_STORAGE, String(value));
+    storeSet(DUCKING_STORAGE, String(value));
     if (els.audioDuckGlobalHint) els.audioDuckGlobalHint.textContent = `(${value}%)`;
     applyDucking();
     updateMasterOptionBadges();
@@ -21050,41 +21035,41 @@ async function init() {
   els.fadeInSeconds?.addEventListener("input", () => {
     const value = Math.max(0, Math.round(Number(els.fadeInSeconds.value) || 0));
     els.fadeInSeconds.value = String(value);
-    localStorage.setItem(FADE_IN_STORAGE, String(value));
+    storeSet(FADE_IN_STORAGE, String(value));
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.fadeInSeconds?.addEventListener("change", () => {
     const value = Math.max(0, Math.round(Number(els.fadeInSeconds.value) || 0));
     els.fadeInSeconds.value = String(value);
-    localStorage.setItem(FADE_IN_STORAGE, String(value));
+    storeSet(FADE_IN_STORAGE, String(value));
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.fadeSeconds?.addEventListener("input", () => {
     const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
     els.fadeSeconds.value = String(value);
-    localStorage.setItem(FADE_OUT_STORAGE, String(value));
+    storeSet(FADE_OUT_STORAGE, String(value));
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.fadeSeconds?.addEventListener("change", () => {
     const value = Math.max(0, Math.round(Number(els.fadeSeconds.value) || 0));
     els.fadeSeconds.value = String(value);
-    localStorage.setItem(FADE_OUT_STORAGE, String(value));
+    storeSet(FADE_OUT_STORAGE, String(value));
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.stopGroupSelect?.addEventListener("change", () => {
-    localStorage.setItem(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
+    storeSet(STOP_GROUP_STORAGE, els.stopGroupSelect.value || "");
     updateStopGroupButtonState();
   });
   els.randomGroupSelect?.addEventListener("change", () => {
-    localStorage.setItem(RANDOM_GROUP_STORAGE, els.randomGroupSelect.value || "");
+    storeSet(RANDOM_GROUP_STORAGE, els.randomGroupSelect.value || "");
     broadcastRandomGroupSettings();
   });
   els.randomGroupCount?.addEventListener("change", () => {
-    localStorage.setItem(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount.value || "1");
+    storeSet(RANDOM_GROUP_COUNT_STORAGE, els.randomGroupCount.value || "1");
     broadcastRandomGroupSettings();
   });
   els.randomGroupCount?.addEventListener("input", () => {
@@ -21093,7 +21078,7 @@ async function init() {
     broadcastRandomGroupSettings();
   });
   els.randomGroupMin?.addEventListener("change", () => {
-    localStorage.setItem(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
+    storeSet(RANDOM_GROUP_MIN_STORAGE, els.randomGroupMin.value || "1");
     broadcastRandomGroupSettings();
   });
   els.randomGroupMin?.addEventListener("input", () => {
@@ -21102,7 +21087,7 @@ async function init() {
     broadcastRandomGroupSettings();
   });
   els.randomGroupAvoidRepeat?.addEventListener("change", () => {
-    localStorage.setItem(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat.checked ? "on" : "off");
+    storeSet(RANDOM_GROUP_AVOID_REPEAT_STORAGE, els.randomGroupAvoidRepeat.checked ? "on" : "off");
     broadcastRandomGroupSettings();
   });
   bindSafeActionButton(els.stopAll, () => stopAll());
@@ -21510,7 +21495,7 @@ async function init() {
     radio.addEventListener("change", () => {
       if (!radio.checked) return;
       state.audioLibrarySort = radio.value;
-      try { localStorage.setItem(AUDIO_LIB_SORT_STORAGE, radio.value); } catch { /* quota */ }
+      try { storeSet(AUDIO_LIB_SORT_STORAGE, radio.value); } catch { /* quota */ }
       reRenderAudioLibraryLists();
     });
   });
@@ -21777,36 +21762,36 @@ async function init() {
     }
   });
   els.masterFadeInEnabled?.addEventListener("change", () => {
-    localStorage.setItem(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled.checked ? "on" : "off");
+    storeSet(MASTER_FADE_IN_ENABLED_STORAGE, els.masterFadeInEnabled.checked ? "on" : "off");
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.masterFadeOutEnabled?.addEventListener("change", () => {
-    localStorage.setItem(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled.checked ? "on" : "off");
+    storeSet(MASTER_FADE_OUT_ENABLED_STORAGE, els.masterFadeOutEnabled.checked ? "on" : "off");
     updateMasterOptionBadges();
     updateAllPadAlerts();
   });
   els.masterDuckEnabled?.addEventListener("change", () => {
-    localStorage.setItem(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled.checked ? "on" : "off");
+    storeSet(MASTER_DUCK_ENABLED_STORAGE, els.masterDuckEnabled.checked ? "on" : "off");
     applyDucking();
     updateMasterOptionBadges();
   });
   els.armedCrossfadeEnabled?.addEventListener("change", () => {
-    localStorage.setItem(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled.checked ? "on" : "off");
+    storeSet(ARMED_CROSSFADE_ENABLED_STORAGE, els.armedCrossfadeEnabled.checked ? "on" : "off");
     syncArmedCrossfadeControls();
     updateMasterOptionBadges();
   });
   els.armedCrossfadeSeconds?.addEventListener("input", () => {
     const value = Math.max(0, Number(els.armedCrossfadeSeconds.value) || 0);
     els.armedCrossfadeSeconds.value = String(value);
-    localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
+    storeSet(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
     syncArmedCrossfadeControls();
     updateMasterOptionBadges();
   });
   els.armedCrossfadeSeconds?.addEventListener("change", () => {
     const value = Math.max(0, Number(els.armedCrossfadeSeconds.value) || 0);
     els.armedCrossfadeSeconds.value = String(value);
-    localStorage.setItem(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
+    storeSet(ARMED_CROSSFADE_SECONDS_STORAGE, String(value));
     syncArmedCrossfadeControls();
     updateMasterOptionBadges();
   });
@@ -21814,7 +21799,7 @@ async function init() {
     els.endingAlertSeconds?.addEventListener(evt, () => {
       const value = Math.max(1, Math.round(Number(els.endingAlertSeconds.value) || DEFAULT_ENDING_ALERT_SECONDS));
       if (evt === "change") els.endingAlertSeconds.value = String(value);
-      localStorage.setItem(ENDING_ALERT_STORAGE, String(value));
+      storeSet(ENDING_ALERT_STORAGE, String(value));
       updateEndingAlertHint();
       updateAllPadAlerts();
     });
@@ -22482,7 +22467,7 @@ async function cleanLegacyGuestPollution(ids) {
     localStorage.removeItem(boardShortcutsEnabledKey(board.id));
   }
   const kept = stored.filter((b) => b && !ids.includes(b.id));
-  localStorage.setItem("soundboard-live-boards", JSON.stringify(kept));
+  storeSet("soundboard-live-boards", JSON.stringify(kept));
   state.boards = state.boards.filter((b) => !ids.includes(b.id));
   if (!state.boards.some((b) => b.id === state.currentBoardId) && state.boards[0]) {
     state.currentBoardId = state.boards[0].id;
@@ -22514,11 +22499,11 @@ async function setupGuestBoard() {
   // Périmètre des skins autorisé pour cet invité (posé par la console de partage).
   try {
     const choice = JSON.parse(payloadText)?.guestSkinChoice === "all" ? "all" : "current";
-    localStorage.setItem(GUEST_SKIN_CHOICE_KEY, choice);
-  } catch { localStorage.setItem(GUEST_SKIN_CHOICE_KEY, "current"); }
+    storeSet(GUEST_SKIN_CHOICE_KEY, choice);
+  } catch { storeSet(GUEST_SKIN_CHOICE_KEY, "current"); }
   await importBoardFile({ name: `${shareId}.json`, text: async () => payloadText });
   const board = currentBoard();
-  localStorage.setItem(GUEST_BOARD_IDS_KEY, JSON.stringify([board.id]));
+  storeSet(GUEST_BOARD_IDS_KEY, JSON.stringify([board.id]));
   sessionStorage.setItem(GUEST_SESSION_KEY, shareId);
   finishGuestUnlock();
 }
@@ -22572,7 +22557,7 @@ async function refreshGuestLabel(shareId) {
     const data = await res.json();
     if (data && typeof data.label === "string" && data.label) {
       state.guestLabel = data.label;
-      localStorage.setItem(GUEST_LABEL_KEY, data.label);
+      storeSet(GUEST_LABEL_KEY, data.label);
     }
   } catch { /* hors-ligne : on garde le libellé mémorisé */ }
   applyGuestLabelToGate();
@@ -22915,7 +22900,7 @@ function applyBoardExtent(value, save = true) {
   const px = Math.min(max, Math.max(min, Math.round(Number(value) || BOARD_EXTENT_DEFAULT)));
   document.documentElement.style.setProperty("--board-extent", `${px}px`);
   if (els.boardExtent && Number(els.boardExtent.value) !== px) els.boardExtent.value = String(px);
-  if (save) localStorage.setItem(BOARD_EXTENT_STORAGE, String(px));
+  if (save) storeSet(BOARD_EXTENT_STORAGE, String(px));
   requestAnimationFrame(refreshPadCompactnessRange);
 }
 
@@ -22963,7 +22948,7 @@ function applyPadCompactness(value, save = true) {
   const px = Math.min(max, Math.max(min, Math.round(Number(value) || max)));
   document.documentElement.style.setProperty("--pad-compact-height", `${px}px`);
   if (Number(els.padCompactness.value) !== px) els.padCompactness.value = String(px);
-  if (save) localStorage.setItem(PAD_COMPACTNESS_STORAGE, String(px));
+  if (save) storeSet(PAD_COMPACTNESS_STORAGE, String(px));
 }
 
 let padCompactnessRetries = 0;
@@ -23061,7 +23046,7 @@ function syncAllPadMinHeights() {
 if (els.padCompactness) {
   els.padCompactness.max = String(PAD_COMPACTNESS_MAX);
   els.padCompactness.addEventListener("change", () => {
-    localStorage.setItem(PAD_COMPACTNESS_STORAGE + "-set", "1"); // réglage explicite de l'utilisateur
+    storeSet(PAD_COMPACTNESS_STORAGE + "-set", "1"); // réglage explicite de l'utilisateur
     applyPadCompactness(els.padCompactness.value);
   });
   // (resize : géré par le gestionnaire unique coalisé, cf. onWindowResizeFrame)

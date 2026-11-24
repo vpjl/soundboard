@@ -1,4 +1,4 @@
-const CACHE_NAME = "soundboard-live-v1050";
+const CACHE_NAME = "soundboard-live-v1051";
 // Cache longue durée pour les fichiers figés (lib/, fonts/, icons/) : sa clé ne
 // change pas d'une version de l'app à l'autre, la police du skin actif et wavesurfer
 // y restent donc après une mise à jour (un changement de bibliothèque change son ?v=).
@@ -6,8 +6,8 @@ const STATIC_CACHE = "soundboard-static-v1";
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1050",
-  "./app.js?v=1050",
+  "./styles.css?v=1051",
+  "./app.js?v=1051",
   "./manifest.webmanifest",
 ];
 // Éditeur audio, chargé à la demande : précaché pour rester disponible hors ligne.

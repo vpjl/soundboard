@@ -10,8 +10,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Soundboard Live</title>
     <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icons/icon.svg">
-    <link rel="stylesheet" href="styles.css?v=1050">
+    <link rel="stylesheet" href="styles.css?v=1051">
   </head>
   <body><script>(function(){var reload=sessionStorage.getItem("soundboard-session-started")==="yes";var s=reload&&localStorage.getItem("soundboard-live-stage-mode")==="on";var g=reload&&localStorage.getItem("soundboard-live-board-edit-mode")==="on";if(s){document.body.classList.add("stage-mode");document.body.dataset.boardMode="stage";}else if(g){document.body.classList.add("board-edit-mode");document.body.dataset.boardMode="garage";}else{document.body.dataset.boardMode="studio";}})()</script>
 <svg id="iconSprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
@@ -2391,7 +2392,7 @@
 
     <!-- Wavesurfer : chargé à la 1re ouverture de l'éditeur audio (loadWaveSurfer dans app.js). -->
     <div id="dialogStatusToast" class="dialog-status-toast" popover="manual" role="status" aria-live="polite"></div>
-    <script src="app.js?v=1050"></script>
+    <script src="app.js?v=1051"></script>
 
 
   </body>
