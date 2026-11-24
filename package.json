@@ -3,7 +3,8 @@
   "private": true,
   "description": "Outillage de génération de la notice (captures d'écran). L'app elle-même reste 100% statique, sans build ; esbuild ne sert qu'à minifier au déploiement Free (tools/deploy-free.sh).",
   "scripts": {
-    "capture-notice": "node tools/capture-notice.mjs"
+    "capture-notice": "node tools/capture-notice.mjs",
+    "test": "node --test --test-concurrency=1 --test-reporter=spec \"tests/*.test.mjs\""
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
