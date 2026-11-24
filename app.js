@@ -20452,6 +20452,9 @@ async function init() {
   }
   applyAppVersionDisplay();
   state.db = await openDb();
+  // Demande au navigateur de ne pas purger IndexedDB (sinon Safari peut effacer
+  // les sons après quelques jours sans visite). Sans attente : n'empêche pas le démarrage.
+  navigator.storage?.persist?.().catch(() => {});
   loadOutputSettings();
   syncAutoTrimSensitivityControls();
   loadMicrophoneSelection();
