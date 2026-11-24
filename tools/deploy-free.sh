@@ -23,8 +23,9 @@
 #
 # Ce que le script pousse :
 #   - .htaccess d'activation PHP à la RACINE du compte (créé s'il manque)
-#   - l'app dans soundboard/ : index.html, app.js, styles.css, service-worker.js,
-#     manifest.webmanifest, lib/, icons/, api/
+#   - l'app dans soundboard/ : index.html, app.js, styles.css, service-worker.js
+#     (ces trois derniers minifiés par esbuild), manifest.webmanifest, lib/, icons/,
+#     fonts/, api/
 #   - soundboard/prive/.htaccess (le verrou)
 #
 # Ce qu'il NE touche JAMAIS : soundboard/prive/partages.php, prive/boards/,
@@ -114,7 +115,7 @@ put_if_changed() {
   put "$1" "$2" || return 1
   record_sent "$hash" "$2"
   SENT=$((SENT + 1))
-  sleep 3 # espacer les connexions (le serveur Free refuse les rafales : 530)
+  sleep 6 # espacer les connexions (le serveur Free refuse les rafales : 530)
 }
 
 # Taille du fichier en ligne (commande FTP SIZE via curl -I), vide si inconnue.
@@ -146,7 +147,16 @@ put() {
       echo "    ✖ envoi incomplet ($got / $want octets)"
     else
       grep -E '^curl: ' "$log" | tail -1 | sed 's/^/    /'
-      grep -qE '^< 530' "$log" && echo "    (serveur saturé : trop de connexions rapprochées)"
+      if grep -qE '^< 530' "$log"; then
+        # Blocage 530 : il dure 30 à 60 min, réessayer dans la foulée ne fait que
+        # le prolonger. On arrête tout ; le prochain lancement reprend ici (envoi
+        # incrémental), et index.html n'étant envoyé qu'en dernier, la version en
+        # ligne reste l'ancienne, cohérente.
+        rm -f "$log"
+        echo "    ✖ serveur saturé (530, trop de connexions rapprochées) : arrêt."
+        echo "      Relancer dans 45 min à 1 h — le déploiement reprendra à $2."
+        exit 2
+      fi
     fi
     # Attente longue : un 530 ne retombe qu'après une ou deux minutes.
     wait=$((attempt * 30))
@@ -188,7 +198,34 @@ else
 fi
 rm -f "$tmp"
 
-# 2. Fichiers de l'app
+# 2. Minification (esbuild) : app.js, styles.css et service-worker.js partent
+# minifiés depuis tools/.dist-free/ (hors dépôt) ; les sources restent sans build
+# et servent telles quelles en local et sur GitHub Pages. esbuild sans --format ne
+# renomme pas les noms globaux : les scripts inline d'index.html les retrouvent.
+# Prérequis, une fois :  npm install   (esbuild est dans devDependencies).
+# Sans esbuild (ou NO_MINIFY=1), les sources partent telles quelles.
+DIST="$ROOT/tools/.dist-free"
+ESBUILD="$ROOT/node_modules/.bin/esbuild"
+rm -rf "$DIST"
+if [ "${NO_MINIFY:-0}" != "1" ] && [ -x "$ESBUILD" ]; then
+  mkdir -p "$DIST"
+  for f in app.js styles.css service-worker.js; do
+    if ! "$ESBUILD" "$f" --minify --log-level=error --outfile="$DIST/$f"; then
+      echo "✖ Minification de $f impossible — rien n'a été envoyé (NO_MINIFY=1 pour envoyer les sources)."
+      exit 1
+    fi
+  done
+  echo "  = minifié : app.js $(local_size app.js) → $(local_size "$DIST/app.js") o, styles.css $(local_size styles.css) → $(local_size "$DIST/styles.css") o"
+else
+  echo "  ⚠ esbuild absent (npm install) ou NO_MINIFY=1 : envoi des sources non minifiées"
+fi
+# Fichier à envoyer pour un chemin du dépôt : la version minifiée si elle existe.
+built() { if [ -f "$DIST/$1" ]; then echo "$DIST/$1"; else echo "$1"; fi; }
+
+# 3. Fichiers de l'app
+# Les 5 numéros de version (index.html, service-worker.js) doivent concorder :
+# sinon le cache du service worker servirait un mélange d'ancien et de nouveau.
+bash tools/bump-version.sh --check || exit 1
 appv="$(grep -oE 'app\.js\?v=[0-9]+' index.html | grep -oE '[0-9]+' | head -1)"
 noticev="$(cat .notice-build 2>/dev/null || echo '?')"
 if [ "$noticev" != "$appv" ]; then
@@ -205,7 +242,7 @@ fi
 # Liste construite dans une fonction : le bash 3.2 de macOS analyse mal les
 # commentaires placés dans une substitution de processus.
 deploy_list() {
-  find icons api -type f ! -name '.DS_Store'
+  find icons api fonts -type f ! -name '.DS_Store'
   find lib -type f ! -name '.DS_Store' | while IFS= read -r lf; do
     if grep -qF "$(basename "$lf")" index.html app.js; then echo "$lf"; fi
   done
@@ -215,10 +252,10 @@ while IFS= read -r f; do
 done < <(deploy_list | sort)
 
 for f in app.js styles.css manifest.webmanifest soundboard-vl-notice.pdf service-worker.js index.html; do
-  [ -f "$f" ] && put_if_changed "$f" "$REMOTE/$f"
+  [ -f "$f" ] && put_if_changed "$(built "$f")" "$REMOTE/$f"
 done
 
-# 3. Verrou du dossier privé (contenu géré par admin.php, jamais écrasé ici)
+# 4. Verrou du dossier privé (contenu géré par admin.php, jamais écrasé ici)
 put_if_changed "prive/.htaccess" "$REMOTE/prive/.htaccess"
 
 echo "  ($SENT fichier(s) envoyé(s), $SKIPPED inchangé(s) ignoré(s))"

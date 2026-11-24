@@ -15,3 +15,4 @@ tools/.deploy-netrc
 prive/tmp/
 
 tools/.deploy-free-state
+tools/.dist-free/

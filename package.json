@@ -1,11 +1,12 @@
 {
   "name": "soundboard-vl-notice-tools",
   "private": true,
-  "description": "Outillage de génération de la notice (captures d'écran). L'app elle-même reste 100% statique, sans build.",
+  "description": "Outillage de génération de la notice (captures d'écran). L'app elle-même reste 100% statique, sans build ; esbuild ne sert qu'à minifier au déploiement Free (tools/deploy-free.sh).",
   "scripts": {
     "capture-notice": "node tools/capture-notice.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "playwright": "^1.48.0"
   }
 }

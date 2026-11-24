@@ -1,0 +1,12 @@
+Polices des skins, auto-hébergées (fichiers woff2 Fontsource, sous-ensemble latin, découpés en .bin).
+
+Roboto — OFL-1.1 — https://fontsource.org/fonts/roboto
+Open Sans — OFL-1.1 — https://fontsource.org/fonts/open-sans
+Lato — OFL-1.1 — https://fontsource.org/fonts/lato
+Montserrat — OFL-1.1 — https://fontsource.org/fonts/montserrat
+Oswald — OFL-1.1 — https://fontsource.org/fonts/oswald
+Raleway — OFL-1.1 — https://fontsource.org/fonts/raleway
+Nunito — OFL-1.1 — https://fontsource.org/fonts/nunito
+Ubuntu — UFL-1.0 — https://fontsource.org/fonts/ubuntu
+Source Code Pro — OFL-1.1 — https://fontsource.org/fonts/source-code-pro
+Playfair Display — OFL-1.1 — https://fontsource.org/fonts/playfair-display

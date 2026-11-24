@@ -8121,6 +8121,75 @@ function restoreSkinHarmonyFromSettings(settings) {
   updateHarmonySwatch();
 }
 
+// Polices des skins, auto-hébergées dans fonts/ (v1048, ex-Google Fonts) : seule la
+// police du skin actif est chargée, à la demande. Chaque woff2 est servi en morceaux
+// .bin < 16 Ko (le FTP de Free tronque certains envois) recollés ici, puis déclaré
+// via FontFace. Le service worker les met en cache : elles restent dispo hors ligne.
+// Table générée par tools/build-fonts.mjs.
+const SKIN_FONT_FILES = {"Roboto":{"slug":"roboto","parts":{"400":2,"700":2}},"Open Sans":{"slug":"open-sans","parts":{"400":2,"700":2}},"Lato":{"slug":"lato","parts":{"400":2,"700":2}},"Montserrat":{"slug":"montserrat","parts":{"400":2,"700":2}},"Oswald":{"slug":"oswald","parts":{"400":1,"700":1}},"Raleway":{"slug":"raleway","parts":{"400":2,"700":2}},"Nunito":{"slug":"nunito","parts":{"400":2,"700":2}},"Ubuntu":{"slug":"ubuntu","parts":{"400":3,"700":2}},"Source Code Pro":{"slug":"source-code-pro","parts":{"400":1,"700":1}},"Playfair Display":{"slug":"playfair-display","parts":{"400":2,"700":2}}};
+const SKIN_FONT_VERSION = 1;
+const skinFontBuffers = new Map(); // nom → [{ weight, buf }]
+const skinFontLoads = new Map();   // nom → Promise
+
+function skinFontName(family) {
+  const m = /^\s*['"]([^'"]+)['"]/.exec(family || "");
+  return m && SKIN_FONT_FILES[m[1]] ? m[1] : "";
+}
+
+function loadSkinFont(name) {
+  const spec = SKIN_FONT_FILES[name];
+  if (!spec) return Promise.resolve(false);
+  if (skinFontLoads.has(name)) return skinFontLoads.get(name);
+  const p = Promise.all(Object.entries(spec.parts).map(async ([weight, n]) => {
+    const chunks = await Promise.all(Array.from({ length: n }, async (_, i) => {
+      const r = await fetch(`fonts/${spec.slug}-${weight}-${i + 1}.bin?v=${SKIN_FONT_VERSION}`);
+      if (!r.ok) throw new Error(`police ${name} : morceau ${i + 1} introuvable (${r.status})`);
+      return new Uint8Array(await r.arrayBuffer());
+    }));
+    const buf = new Uint8Array(chunks.reduce((sum, c) => sum + c.length, 0));
+    let offset = 0;
+    for (const c of chunks) { buf.set(c, offset); offset += c.length; }
+    return { weight, buf };
+  })).then((faces) => {
+    skinFontBuffers.set(name, faces);
+    return true;
+  }).catch((error) => {
+    skinFontLoads.delete(name); // nouvel essai au prochain choix de police
+    console.warn("[skin] police non chargée :", error);
+    return false;
+  });
+  skinFontLoads.set(name, p);
+  return p;
+}
+
+// Déclare la police dans un document (page, ou iframe d'aperçu du skin : un FontFace
+// appartient à son document, il faut le recréer avec le constructeur de l'iframe).
+function addSkinFontToDoc(doc, name) {
+  const faces = skinFontBuffers.get(name);
+  const win = doc?.defaultView;
+  if (!faces || !win?.FontFace || !doc.fonts) return;
+  if (!doc.__skinFontsAdded) doc.__skinFontsAdded = new Set();
+  if (doc.__skinFontsAdded.has(name)) return;
+  doc.__skinFontsAdded.add(name);
+  for (const { weight, buf } of faces) {
+    try {
+      const face = new win.FontFace(name, buf, { weight: String(weight), style: "normal", display: "swap" });
+      doc.fonts.add(face);
+      face.load().catch(() => {});
+    } catch (error) { console.warn("[skin] FontFace :", error); }
+  }
+}
+
+function ensureSkinFont(family) {
+  const name = skinFontName(family);
+  if (!name) return;
+  loadSkinFont(name).then((ok) => {
+    if (!ok) return;
+    addSkinFontToDoc(document, name);
+    addSkinFontToDoc(skinPreviewFrameDoc(), name);
+  });
+}
+
 function applySkinFonts() {
   const family = document.querySelector("#skinFontFamily")?.value || "";
   const size = document.querySelector("#skinFontSize")?.value || "14";
@@ -8135,6 +8204,7 @@ function applySkinFonts() {
   // Also apply to body so it shows on the real board
   if (family) document.body.style.setProperty("--skin_font_family", family);
   else document.body.style.removeProperty("--skin_font_family");
+  ensureSkinFont(family);
   document.body.style.setProperty("--skin_font_size_title", size + "px");
   localStorage.setItem(SKIN_FONTS_STORAGE, JSON.stringify({ family, size }));
 }
@@ -8172,7 +8242,6 @@ function buildSkinPreviewFrame() {
   const tpl = document.getElementById("skinPreviewTemplate");
   if (!frame || !tpl) return;
   const cssHref = document.querySelector('link[rel="stylesheet"][href*="styles.css"]')?.getAttribute("href") || "styles.css";
-  const fontsHref = document.querySelector('link[href*="fonts.googleapis.com/css2"]')?.getAttribute("href") || "";
   const doc = frame.contentDocument;
   // Construction par le DOM plutôt que document.write() (déclenché en boucle à
   // chaque réouverture de l'éditeur, et signalé [Violation] par Chrome) :
@@ -8192,7 +8261,8 @@ function buildSkinPreviewFrame() {
     return link;
   };
   doc.head.replaceChildren();
-  if (fontsHref) doc.head.appendChild(mkLink(fontsHref));
+  // Polices des skins : déclarées via FontFace (cf. addSkinFontToDoc), plus de feuille Google Fonts.
+  skinFontBuffers.forEach((_, name) => addSkinFontToDoc(doc, name));
   doc.head.appendChild(mkLink(cssHref));
   const styleEl = doc.createElement("style");
   styleEl.textContent = previewStyle;
@@ -16085,10 +16155,52 @@ function aeSyncPreview(t) {
   aeWS.setVolume(inSilence ? 0 : aeEnvGainAt(t));
 }
 
+// Wavesurfer (+ plugins régions/enveloppe) n'est chargé qu'à la 1re ouverture de
+// l'éditeur (v1048) : ~100 Ko de moins au démarrage. Servi en 3 morceaux texte
+// (< 16 Ko chacun, le FTP de Free coupe l'envoi de la bibliothèque entière),
+// recollés ici ; morceaux régénérés par tools/split-wavesurfer.sh. Le service
+// worker les précache : l'éditeur reste disponible hors ligne.
+let waveSurferLoad = null;
+function loadWaveSurfer() {
+  if (window.WaveSurfer && window.WaveSurferRegions) return Promise.resolve();
+  if (!waveSurferLoad) {
+    waveSurferLoad = (async () => {
+      const [regions, envelope, wsParts] = await Promise.all([
+        import("./lib/regions.esm.js?v=1"),
+        import("./lib/envelope.esm.js?v=1"),
+        Promise.all(["wavesurfer-1.txt", "wavesurfer-2.txt", "wavesurfer-3.txt"].map(async (name) => {
+          const response = await fetch(`./lib/${name}?v=1`);
+          if (!response.ok) throw new Error(`wavesurfer : ${name} introuvable (${response.status})`);
+          return response.text();
+        })),
+      ]);
+      const wsUrl = URL.createObjectURL(new Blob(wsParts, { type: "text/javascript" }));
+      try {
+        window.WaveSurfer = (await import(wsUrl)).default;
+      } finally {
+        URL.revokeObjectURL(wsUrl);
+      }
+      window.WaveSurferRegions = regions.default;
+      window.WaveSurferEnvelope = envelope.default;
+      window.dispatchEvent(new Event("wavesurfer-ready"));
+    })().catch((error) => {
+      waveSurferLoad = null; // nouvel essai à la prochaine ouverture
+      throw error;
+    });
+  }
+  return waveSurferLoad;
+}
+
 async function openPadRegionsEditor(pad) {
-  if (!window.WaveSurfer || !window.WaveSurferRegions) { setStatus("Éditeur indisponible (wavesurfer non chargé)"); return; }
   if (padType(pad) !== "audio") { setStatus("Édition de régions : pads audio uniquement"); return; }
   setStatus("Ouverture de l'éditeur de régions…", "progress", { progress: { label: "Éditeur de régions", total: 0 } });
+  try {
+    await loadWaveSurfer();
+  } catch (error) {
+    console.warn("[éditeur] wavesurfer :", error);
+    setStatus("Éditeur indisponible (wavesurfer non chargé)");
+    return;
+  }
   const blob = await padAudioBlob(pad);
   if (!blob) { setStatus("Pas d'audio à éditer"); return; }
   // Reprise : si le pad est en cours de test dans les Réglages, reprendre au même endroit.
